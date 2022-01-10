@@ -23,6 +23,11 @@ namespace JKWatcher
         public MainWindow()
         {
             InitializeComponent();
+
+            List<string> blah = new List<string>();
+            blah.Add("hello");
+            blah.Add("helo");
+            serverListDataGrid.ItemsSource = blah;
         }
     }
 }

@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31205.134
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JKWatcher", "JKWatcher\JKWatcher.csproj", "{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKClient", "JKClient\JKClient\JKClient.csproj", "{152A799E-A186-4040-A0AA-FE22445333DF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{152A799E-A186-4040-A0AA-FE22445333DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{152A799E-A186-4040-A0AA-FE22445333DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{152A799E-A186-4040-A0AA-FE22445333DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{152A799E-A186-4040-A0AA-FE22445333DF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
