@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31205.134
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JKWatcher", "JKWatcher\JKWatcher.csproj", "{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {15C42D70-CC3F-4724-96FA-418809BBB35A}
+	EndGlobalSection
+EndGlobal
