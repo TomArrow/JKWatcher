@@ -1,5 +1,8 @@
-﻿using System;
+﻿using JKClient;
+using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -23,11 +26,37 @@ namespace JKWatcher
         public MainWindow()
         {
             InitializeComponent();
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            List<string> blah = new List<string>();
-            blah.Add("hello");
-            blah.Add("helo");
-            serverListDataGrid.ItemsSource = blah;
+            getServers();
+        }
+
+        public async void getServers()
+        {
+            var serverBrowser = new ServerBrowser();
+            serverBrowser.Start(ExceptionCallback);
+            var servers = await serverBrowser.GetNewList();
+            servers = await serverBrowser.RefreshList();
+
+            List<ServerInfo> filteredServers = new List<ServerInfo>();
+
+            foreach(ServerInfo serverInfo in servers)
+            {
+                if(serverInfo.Version == ClientVersion.JO_v1_02)
+                {
+                    filteredServers.Add(serverInfo);
+                }
+            }
+
+            serverBrowser.Stop();
+            serverBrowser.Dispose();
+            serverListDataGrid.ItemsSource = filteredServers;
+        }
+
+        Task ExceptionCallback(JKClientException exception)
+        {
+            Debug.WriteLine(exception);
+            return null;
         }
     }
 }

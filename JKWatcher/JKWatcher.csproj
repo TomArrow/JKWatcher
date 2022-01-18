@@ -6,4 +6,8 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\JKClient\JKClient\JKClient.csproj" />
+  </ItemGroup>
+
 </Project>

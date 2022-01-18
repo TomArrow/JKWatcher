@@ -8,7 +8,19 @@
         Title="MainWindow" Height="450" Width="800">
     <Grid>
         <StackPanel>
-            <DataGrid x:Name="serverListDataGrid"></DataGrid>
+            <DataGrid x:Name="serverListDataGrid" AutoGenerateColumns="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="MapName" Binding="{Binding MapName}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Game" Binding="{Binding Game}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Clients" Binding="{Binding Clients}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="MaxClients" Binding="{Binding MaxClients}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Ping" Binding="{Binding Ping}"></DataGridTextColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
         </StackPanel>
     </Grid>
 </Window>
