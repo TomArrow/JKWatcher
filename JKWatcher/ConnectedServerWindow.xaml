@@ -1,0 +1,28 @@
+﻿<Window x:Class="JKWatcher.ConnectedServerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:JKWatcher"
+        mc:Ignorable="d"
+        Title="ConnectedServerWindow" Height="450" Width="800">
+    <Grid>
+        <StackPanel>
+            <WrapPanel>
+                <Button x:Name="recordBtn" Click="recordBtn_Click">Record</Button>
+                <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click">Stop recording</Button>
+            </WrapPanel>
+            <DataGrid x:Name="playerListDataGrid" AutoGenerateColumns="False">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ClientNum" Binding="{Binding ClientNum}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Name" Binding="{Binding Name}"></DataGridTextColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
+            <WrapPanel>
+                <TextBox x:Name="commandLine" MinWidth="500"></TextBox>
+                <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
+            </WrapPanel>
+        </StackPanel>
+    </Grid>
+</Window>
