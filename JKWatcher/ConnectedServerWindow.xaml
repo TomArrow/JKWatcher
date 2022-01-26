@@ -12,13 +12,16 @@
                 <Button x:Name="recordBtn" Click="recordBtn_Click">Record</Button>
                 <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click">Stop recording</Button>
             </WrapPanel>
-            <DataGrid x:Name="playerListDataGrid" AutoGenerateColumns="False">
+            <DataGrid x:Name="playerListDataGrid" AutoGenerateColumns="False" Height="200" VerticalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="ClientNum" Binding="{Binding ClientNum}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding Name}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
+            <ScrollViewer Height="150" local:AutoScrollBehavior.AutoScroll="True">
+                <TextBlock x:Name="logTxt"></TextBlock>
+            </ScrollViewer>
             <WrapPanel>
                 <TextBox x:Name="commandLine" MinWidth="500"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
