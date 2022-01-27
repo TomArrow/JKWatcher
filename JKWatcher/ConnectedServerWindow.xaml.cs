@@ -25,7 +25,7 @@ namespace JKWatcher
 
         private ServerInfo serverInfo;
 
-        private List<Client> connections = new List<Client>();
+        private List<Connection> connections = new List<Connection>();
 
         private const int maxLogLength = 10000;
         private string logString = "Begin of Log\n";
@@ -38,7 +38,7 @@ namespace JKWatcher
             InitializeComponent();
             this.Title = serverInfo.Address.ToString() + " (" + serverInfo.HostName + ")";
 
-            createNewConnection();
+            connections.Add(new Connection(this,serverInfo));
 
             logTxt.Text = logString;
 
@@ -59,15 +59,15 @@ namespace JKWatcher
         {
             if (connections.Count == 0) return;
 
-            foreach (JKClient.JKClient connection in connections)
+            foreach (Connection connection in connections)
             {
-                stopDemoRecord(connection);
-                disconnect(connection);
+                connection.stopDemoRecord();
+                connection.disconnect();
                 break;
             }
         }
 
-        private void addToLog(string someString)
+        public void addToLog(string someString)
         {
             lock (logString) { 
                 someString += "\n";
@@ -87,97 +87,17 @@ namespace JKWatcher
             }
         }
 
-        private async void createNewConnection()
-        {
-            Client connection = new Client();
-            connection.Name = "Padawan";
-
-            connection.ServerCommandExecuted += ServerCommandExecuted;
-            connection.ServerInfoChanged += Connection_ServerInfoChanged;
-            connection.Start(ExceptionCallback);
-            await connection.Connect(serverInfo);
-
-            playerListDataGrid.ItemsSource = connection.ClientInfo;
-
-
-            connections.Add(connection);
-            addToLog("New connection created.");
-        }
-
-        // Update player list
-        private void Connection_ServerInfoChanged(ServerInfo obj)
-        {
-            
-            if (connections.Count == 0) return;
-
-            foreach (JKClient.JKClient connection in connections)
-            {
-                if (connection.Status == ConnectionStatus.Active)
-                {
-                    Dispatcher.Invoke(() => {
-
-                        playerListDataGrid.ItemsSource = connection.ClientInfo;
-                    });
-                    break;
-                }
-            }
-        }
-
-        private void disconnect(JKClient.JKClient connection)
-        {
-
-            connection.Disconnect();
-            connection.ServerCommandExecuted -= ServerCommandExecuted;
-            connection.Stop();
-            connection.Dispose();
-            addToLog("Disconnected.");
-        }
-
-        private async void startDemoRecord(JKClient.JKClient connection)
-        {
-            addToLog("Initializing demo recording...");
-            string timeString = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(timeString + "-" + connection.ServerInfo.MapName, connection.ServerInfo.Protocol);
-            await connection.Record_f(unusedDemoFilename);
-
-            addToLog("Demo recording started.");
-        }
-        private void stopDemoRecord(JKClient.JKClient connection)
-        {
-            addToLog("Stopping demo recording...");
-            connection.StopRecord_f();
-            addToLog("Demo recording stopped.");
-        }
-
-        private Task ExceptionCallback(JKClientException exception)
-        {
-            addToLog(exception.ToString());
-            Debug.WriteLine(exception);
-            return null;
-        }
-        void ServerCommandExecuted(CommandEventArgs commandEventArgs)
-        {
-            StringBuilder allArgs = new StringBuilder();
-            for(int i=0; i < commandEventArgs.Command.Argc; i++)
-            {
-                allArgs.Append(commandEventArgs.Command.Argv(i));
-                allArgs.Append(" ");
-            }
-            addToLog(allArgs.ToString());
-            //addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
-            Debug.WriteLine(commandEventArgs.Command.Argv(0));
-        }
-
+        
         private void recordBtn_Click(object sender, RoutedEventArgs e)
         {
             if (connections.Count == 0) return;
 
-            foreach(JKClient.JKClient connection in connections)
+            foreach(Connection connection in connections)
             {
-                if(connection.Status == ConnectionStatus.Active)
+                if(connection.client.Status == ConnectionStatus.Active)
                 {
 
-                    startDemoRecord(connection);
+                    connection.startDemoRecord();
                     break;
                 }
             }
@@ -187,12 +107,12 @@ namespace JKWatcher
         {
             if (connections.Count == 0) return;
 
-            foreach (JKClient.JKClient connection in connections)
+            foreach (Connection connection in connections)
             {
-                if (connection.Demorecording)
+                if (connection.client.Demorecording)
                 {
 
-                    stopDemoRecord(connection);
+                    connection.stopDemoRecord();
                     break;
                 }
             }
@@ -200,13 +120,13 @@ namespace JKWatcher
 
         private void commandSendBtn_Click(object sender, RoutedEventArgs e)
         {
-            foreach (JKClient.JKClient connection in connections)
+            foreach (Connection connection in connections)
             {
-                if (connection.Status == ConnectionStatus.Active)
+                if (connection.client.Status == ConnectionStatus.Active)
                 {
                     string command = commandLine.Text;
                     commandLine.Text = "";
-                    connection.ExecuteCommand(command);
+                    connection.client.ExecuteCommand(command);
 
                     break;
                 }
