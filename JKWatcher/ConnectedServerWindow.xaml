@@ -7,25 +7,56 @@
         mc:Ignorable="d"
         Title="ConnectedServerWindow" Height="450" Width="800">
     <Grid>
-        <StackPanel>
-            <WrapPanel>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+        </Grid.RowDefinitions>
+        <DockPanel Grid.RowSpan="2">
+            <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="recordBtn" Click="recordBtn_Click">Record</Button>
                 <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click">Stop recording</Button>
             </WrapPanel>
-            <DataGrid x:Name="playerListDataGrid" AutoGenerateColumns="False" Height="200" VerticalScrollBarVisibility="Auto">
+            <DataGrid DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="ClientNum" Binding="{Binding ClientNum}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding Name}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
-            <ScrollViewer Height="150" local:AutoScrollBehavior.AutoScroll="True">
-                <TextBlock x:Name="logTxt"></TextBlock>
-            </ScrollViewer>
-            <WrapPanel>
-                <TextBox x:Name="commandLine" MinWidth="500"></TextBox>
+        </DockPanel>
+        <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
+            <WrapPanel DockPanel.Dock="Bottom" Height="30">
+                <TextBox x:Name="commandLine" MinWidth="400"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
             </WrapPanel>
-        </StackPanel>
+            <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
+                <TextBlock x:Name="logTxt" TextWrapping="Wrap">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
+            </ScrollViewer>
+        </DockPanel>
+        <DockPanel Grid.Column="1">
+            <DataGrid DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Index}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="CamOperator" Binding="{Binding CamOperator}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Recording" Binding="{Binding Recording}"></DataGridTextColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
+        </DockPanel>
+        <DockPanel Grid.Column="2">
+            <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Type" Binding="{Binding Name}"></DataGridTextColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
+        </DockPanel>
     </Grid>
 </Window>

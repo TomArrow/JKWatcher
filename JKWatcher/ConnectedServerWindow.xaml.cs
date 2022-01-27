@@ -30,6 +30,8 @@ namespace JKWatcher
         private const int maxLogLength = 10000;
         private string logString = "Begin of Log\n";
 
+        // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
+
         public ConnectedServerWindow(ServerInfo serverInfoA)
         {
             serverInfo = serverInfoA;
@@ -155,7 +157,14 @@ namespace JKWatcher
         }
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
-            addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
+            StringBuilder allArgs = new StringBuilder();
+            for(int i=0; i < commandEventArgs.Command.Argc; i++)
+            {
+                allArgs.Append(commandEventArgs.Command.Argv(i));
+                allArgs.Append(" ");
+            }
+            addToLog(allArgs.ToString());
+            //addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
             Debug.WriteLine(commandEventArgs.Command.Argv(0));
         }
 
