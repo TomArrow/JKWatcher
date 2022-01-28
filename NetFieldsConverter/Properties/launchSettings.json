@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NetFieldsConverter": {
+      "commandName": "Project",
+      "commandLineArgs": "\"dm_15 playerstatefields.txt\" \"dm_16 playerstatefields.txt\""
+    }
+  }
+}
