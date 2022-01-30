@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JKWatcher", "JKWatcher\JKWa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKClient", "JKClient\JKClient\JKClient.csproj", "{152A799E-A186-4040-A0AA-FE22445333DF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetFieldsConverter", "NetFieldsConverter\NetFieldsConverter.csproj", "{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{152A799E-A186-4040-A0AA-FE22445333DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{152A799E-A186-4040-A0AA-FE22445333DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{152A799E-A186-4040-A0AA-FE22445333DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

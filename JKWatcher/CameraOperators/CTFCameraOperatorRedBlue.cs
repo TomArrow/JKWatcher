@@ -6,7 +6,11 @@ using System.Threading.Tasks;
 
 namespace JKWatcher.CameraOperators
 {
-    class CTFCameraOperatorRedBlue
+    class CTFCameraOperatorRedBlue : CameraOperator
     {
+        public override int getRequiredConnectionCount()
+        {
+            return 2;
+        }
     }
 }

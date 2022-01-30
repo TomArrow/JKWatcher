@@ -11,6 +11,7 @@
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
@@ -23,16 +24,17 @@
             </WrapPanel>
             <DataGrid DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="ClientNum" Binding="{Binding ClientNum}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Name" Binding="{Binding Name}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="ClientNum" Binding="{Binding clientNum}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Name" Binding="{Binding name}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
         </DockPanel>
-        <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
+        <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
                 <TextBox x:Name="commandLine" MinWidth="400"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
+                <CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>
             </WrapPanel>
             <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
                 <TextBlock x:Name="logTxt" TextWrapping="Wrap">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
@@ -50,13 +52,22 @@
             </DataGrid>
         </DockPanel>
         <DockPanel Grid.Column="2">
-            <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Type" Binding="{Binding Name}"></DataGridTextColumn>
-                </DataGrid.Columns>
+            <DockPanel DockPanel.Dock="Bottom">
+                <WrapPanel DockPanel.Dock="Top">
+                    <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">Add CTF watcher</Button>
+                </WrapPanel>
+                <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
+                        <DataGridTextColumn Header="Type" Binding="{Binding Name}"></DataGridTextColumn>
+                    </DataGrid.Columns>
 
-            </DataGrid>
+                </DataGrid>
+            </DockPanel>
+            
+        </DockPanel>
+        <DockPanel x:Name="miniMapContainer" Grid.Column="3" Grid.Row="0" LastChildFill="True">
+            <Image x:Name="miniMap" Stretch="Fill" DockPanel.Dock="Left" VerticalAlignment="Center"></Image>
         </DockPanel>
     </Grid>
 </Window>
