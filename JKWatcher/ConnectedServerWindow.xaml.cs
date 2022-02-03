@@ -37,7 +37,8 @@ namespace JKWatcher
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
-        public bool verboseOutput { get; private set; } = false;
+        //public bool verboseOutput { get; private set; } = false;
+        public int verboseOutput { get; private set; } = 0;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
@@ -67,13 +68,16 @@ namespace JKWatcher
             ct = tokenSource.Token;
             Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
             backgroundTasks.Add(tokenSource);
+
         }
 
+        
         private unsafe void scoreBoardRequester(CancellationToken ct)
         {
             while (true)
             {
-                System.Threading.Thread.Sleep(1000);
+                //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
+                System.Threading.Thread.Sleep(2000);
                 ct.ThrowIfCancellationRequested();
 
                 foreach(Connection connection in connections)
@@ -95,6 +99,8 @@ namespace JKWatcher
 
                 System.Threading.Thread.Sleep(100);
                 ct.ThrowIfCancellationRequested();
+
+                if (infoPool.playerInfo == null) continue;
 
                 int imageWidth = (int)miniMapContainer.ActualWidth;
                 int imageHeight = (int)miniMapContainer.ActualHeight;
@@ -227,6 +233,8 @@ namespace JKWatcher
                 connection.disconnect();
                 break;
             }
+
+            
         }
 
         public void addToLog(string someString)
@@ -287,8 +295,10 @@ namespace JKWatcher
                 if (connection.client.Status == ConnectionStatus.Active)
                 {
                     string command = commandLine.Text;
-                    commandLine.Text = "";
+                    //commandLine.Text = "";
                     connection.client.ExecuteCommand(command);
+
+                    addToLog("Command \"" + command + "\" sent.");
 
                     break;
                 }
@@ -300,15 +310,24 @@ namespace JKWatcher
             createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
         }
 
+        private void verbosityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            int verbosity = 0;
+            if( int.TryParse(((ComboBoxItem)verbosityComboBox.SelectedItem).Tag.ToString(), out verbosity))
+            {
+                verboseOutput = verbosity;
+            }
+        }
+        /*
         private void verboseOutputCheck_Checked(object sender, RoutedEventArgs e)
         {
-            verboseOutput = true;
+        verboseOutput = true;
         }
 
         private void verboseOutputCheck_Unchecked(object sender, RoutedEventArgs e)
         {
 
-            verboseOutput = false;
-        }
+        verboseOutput = false;
+        }*/
     }
 }

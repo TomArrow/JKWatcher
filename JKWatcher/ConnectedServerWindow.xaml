@@ -34,7 +34,16 @@
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
                 <TextBox x:Name="commandLine" MinWidth="400"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
-                <CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>
+                <Label>Verbosity level:</Label>
+                <ComboBox x:Name="verbosityComboBox" SelectionChanged="verbosityComboBox_SelectionChanged">
+                    <ComboBoxItem Content="zero" Tag="0" IsSelected="True"></ComboBoxItem>
+                    <ComboBoxItem Content="one" Tag="1"></ComboBoxItem>
+                    <ComboBoxItem Content="two" Tag="2"></ComboBoxItem>
+                    <ComboBoxItem Content="three" Tag="3"></ComboBoxItem>
+                    <ComboBoxItem Content="four" Tag="4"></ComboBoxItem>
+                    <ComboBoxItem Content="five" Tag="5"></ComboBoxItem>
+                </ComboBox>
+                <!--<CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>-->
             </WrapPanel>
             <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
                 <TextBlock x:Name="logTxt" TextWrapping="Wrap">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
