@@ -529,8 +529,18 @@ namespace JKWatcher
                     {
                         string str = commandEventArgs.Command.Argv(2);
                         // format is rb where its red/blue, 0 is at base, 1 is taken, 2 is dropped
-                        infoPool.redFlag = (FlagStatus)int.Parse(str[0].ToString());
-                        infoPool.blueFlag = (FlagStatus)int.Parse(str[1].ToString());
+                        if(str.Length < 2)
+                        {
+                            // This happens sometimes, for example on NWH servers between 2 games
+                            // Server will send cs 23 0 and cs 23 00 in succession, dunno why.
+                            // The first one with the single zero is the obvious problem.
+                            serverWindow.addToLog("Configstring weirdness, cs 23 had parameter "+str+"(Length "+str.Length+")");
+                        } else {
+                            int tmp = int.Parse(str[0].ToString());
+                            infoPool.redFlag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                            tmp = int.Parse(str[1].ToString());
+                            infoPool.blueFlag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                        }
                         /*infoPool.redFlag = str[0] - '0';
                         infoPool.blueFlag = str[1] - '0';
                         if (cgs.isCTFMod && cgs.CTF3ModeActive)
