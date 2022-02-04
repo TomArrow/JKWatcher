@@ -16,6 +16,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Drawing;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace JKWatcher
 {
@@ -69,9 +70,58 @@ namespace JKWatcher
             Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
             backgroundTasks.Add(tokenSource);
 
+            tokenSource = new CancellationTokenSource();
+            ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
+            backgroundTasks.Add(tokenSource);
+
         }
 
-        
+        ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
+
+        private void logStringUpdater(CancellationToken ct)
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(10);
+                ct.ThrowIfCancellationRequested();
+
+                string stringToAdd;
+                
+                while(logQueue.TryDequeue(out stringToAdd))
+                {
+                    lock (logString)
+                    {
+                        stringToAdd += "\n";
+                        int newLogLength = logString.Length + stringToAdd.Length;
+                        if (newLogLength <= maxLogLength)
+                        {
+                            logString += stringToAdd;
+                        }
+                        else
+                        {
+                            int cutAway = newLogLength - maxLogLength;
+                            logString = logString.Substring(cutAway) + stringToAdd;
+                        }
+                    }
+                }
+                
+                Dispatcher.Invoke(() => {
+                    lock (logString)
+                    {
+                        logTxt.Text = logString;
+                    }
+                });
+            }
+            
+        }
+
+        public void addToLog(string someString)
+        {
+            logQueue.Enqueue(someString);
+        }
+
+
         private unsafe void scoreBoardRequester(CancellationToken ct)
         {
             while (true)
@@ -119,7 +169,7 @@ namespace JKWatcher
                     continue;
                 }*/
                 
-                for(int i = 0; i < JKClient.Common.MaxClients; i++)
+                for(int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
                 {
                     minX = Math.Min(minX, -infoPool.playerInfo[i].position.X);
                     maxX = Math.Max(maxX, -infoPool.playerInfo[i].position.X);
@@ -132,7 +182,7 @@ namespace JKWatcher
                 float x, y;
                 int imageX, imageY;
                 int byteOffset;
-                for (int i = 0; i < JKClient.Common.MaxClients; i++)
+                for (int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
                 {
                     if(infoPool.playerInfo[i].lastPositionUpdate == null)
                     {
@@ -238,25 +288,7 @@ namespace JKWatcher
             
         }
 
-        public void addToLog(string someString)
-        {
-            lock (logString) { 
-                someString += "\n";
-                int newLogLength = logString.Length + someString.Length;
-                if (newLogLength <= maxLogLength)
-                {
-                    logString += someString;
-                } else
-                {
-                    int cutAway = newLogLength -maxLogLength;
-                    logString = logString.Substring(cutAway) + someString;
-                }
-                Dispatcher.Invoke(()=> {
-
-                    logTxt.Text = logString;
-                });
-            }
-        }
+        
 
         
         private void recordBtn_Click(object sender, RoutedEventArgs e)

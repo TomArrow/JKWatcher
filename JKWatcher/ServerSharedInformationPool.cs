@@ -1,4 +1,5 @@
-﻿using System;
+﻿using JKClient;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -62,7 +63,7 @@ namespace JKWatcher
 
     class ServerSharedInformationPool
     {
-        public PlayerInfo[] playerInfo = new PlayerInfo[JKClient.Common.MaxClients];
+        public PlayerInfo[] playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
         public volatile int[] teamScores = new int[2];
         public volatile FlagStatus blueFlag = (FlagStatus)(-1);
         public volatile FlagStatus redFlag = (FlagStatus)(-1);

@@ -190,7 +190,7 @@ namespace JKWatcher
                 locationOfDeath.Y = copyOfEntity.CurrentState.Position.Base[1];
                 locationOfDeath.Z = copyOfEntity.CurrentState.Position.Base[2];
                 MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
-                if (target < 0 || target >= JKClient.Common.MaxClients)
+                if (target < 0 || target >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
                     serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
                 }
@@ -198,7 +198,7 @@ namespace JKWatcher
                 infoPool.playerInfo[target].lastDeath = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
                 string targetName = infoPool.playerInfo[target].name;
-                if (attacker < 0 || attacker >= JKClient.Common.MaxClients)
+                if (attacker < 0 || attacker >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
                     serverWindow.addToLog(targetName + " died");
                 } else
@@ -214,7 +214,7 @@ namespace JKWatcher
 
                 PlayerInfo? pi = null;
 
-                if(playerNum >= 0 && playerNum <= JKClient.Common.MaxClients)
+                if(playerNum >= 0 && playerNum <= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
                     pi = infoPool.playerInfo[playerNum];
                 }
@@ -298,7 +298,7 @@ namespace JKWatcher
             {
                 return;
             }
-            for (int i = 0; i < JKClient.Common.MaxClients; i++)
+            for (int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
             {
 
                 if (entities[i].CurrentValid || entities[i].CurrentState.FilledFromPlayerState ) { 
@@ -342,7 +342,7 @@ namespace JKWatcher
             // In theory we should be able to just check the flag item against the flag status (cs 23) but 
             // we might be (?) at a point in time where the new flag status has not yet been parsed, but the new 
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
-            for (int i = JKClient.Common.MaxClients-1; i < JKClient.Common.MaxGEntities; i++)
+            for (int i = JKClient.Common.MaxClients(ProtocolVersion.Protocol15) - 1; i < JKClient.Common.MaxGEntities; i++)
             {
                 if (entities[i].CurrentValid)
                 { 
@@ -436,7 +436,7 @@ namespace JKWatcher
             {
                 return;
             }
-            for(int i = 0; i < JKClient.Common.MaxClients; i++)
+            for(int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
             {
                 infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
@@ -646,7 +646,7 @@ namespace JKWatcher
             {
                 //
                 int clientNum = commandEventArgs.Command.Argv(i * 14 + 4).Atoi();
-                if (clientNum < 0 || clientNum >= JKClient.Common.MaxClients)
+                if (clientNum < 0 || clientNum >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
                     continue;
                 }
