@@ -52,6 +52,13 @@ namespace JKWatcher
         CS_MODELS=32
     }
 
+    enum RequestCategory
+    {
+        NONE,
+        SCOREBOARD,
+        FOLLOW,
+        INFOCOMMANDS
+    }
 
     /*
      * General notes regarding flood protection.
@@ -65,6 +72,9 @@ namespace JKWatcher
      */
     class Connection : INotifyPropertyChanged
     {
+        // Setting it a bit higher than in the jk2 code itself, just to be safe. Internet delays etc. could cause issues.
+        // Still not absolutely foolproof I guess but about as good as I can do.
+        const int floodProtectPeriod = 1100; 
 
         public Client client;
         private ConnectedServerWindow serverWindow;
@@ -77,6 +87,8 @@ namespace JKWatcher
 
         private ServerSharedInformationPool infoPool;
 
+        public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
+
         public Connection(ConnectedServerWindow serverWindowA, string ip, ProtocolVersion protocol, ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
@@ -87,7 +99,17 @@ namespace JKWatcher
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
+            leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
+            leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(serverInfo.Address.ToString(), serverInfo.Protocol);
+        }
+
+        private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
+        {
+            if (client.Status == ConnectionStatus.Active) // safety check
+            {
+                client.ExecuteCommand(e.Command);
+            }
         }
 
         ~Connection()
@@ -118,6 +140,7 @@ namespace JKWatcher
 
             await client.Connect(ip, protocol);
             Status = client.Status;
+
 
             serverWindow.addToLog("New connection created.");
         }
@@ -398,6 +421,17 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            if(obj.FloodProtect >=0)
+            {
+                int burst = obj.FloodProtect > 0 ? obj.FloodProtect : 10; // 0 means flood protection is disabled. Let's still try to be somewhat gracious and just set burst to 10
+                leakyBucketRequester.changeParameters(burst, floodProtectPeriod);
+            } else if (obj.FloodProtect == -2)
+            {
+                // This server has not sent an sv_floodprotect variable. Might be a legacy server without the leaky bucket algo
+                // Be safe and set burst to 1, or risk losing commands
+                leakyBucketRequester.changeParameters(1, floodProtectPeriod);
+            }
+
             if(client.ClientInfo == null)
             {
                 return;
@@ -695,7 +729,28 @@ namespace JKWatcher
                 const int timeoutBetweenCommands = 3000;
 
                 // NWH / CTFMod (?)
-                client.ExecuteCommand("info");
+                leakyBucketRequester.requestExecution("info", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("afk", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                if (client.ServerInfo.GameType == GameType.FFA)
+                { // replace with more sophisticated detection
+                    // doing a detection here to not annoy ctf players.
+                    // will still annoy ffa players until better detection.
+                    // Show top 10 scores at start of demo recording.
+                    leakyBucketRequester.requestExecution("say_team !top", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                }
+
+                // TwiMod (DARK etc)
+                leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                // Whatever
+                leakyBucketRequester.requestExecution("clientinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("clientlist", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                /*client.ExecuteCommand("info");
                 System.Threading.Thread.Sleep(timeoutBetweenCommands);
                 client.ExecuteCommand("afk");
                 System.Threading.Thread.Sleep(timeoutBetweenCommands);
@@ -719,7 +774,7 @@ namespace JKWatcher
                 // Whatever
                 client.ExecuteCommand("clientinfo");
                 System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                client.ExecuteCommand("clientlist");
+                client.ExecuteCommand("clientlist");*/
             });
 
             bool success = await client.Record_f(unusedDemoFilename, firstPacketRecordedTCS);

@@ -84,7 +84,8 @@ namespace JKWatcher
                 {
                     if(connection.client.Status == ConnectionStatus.Active)
                     {
-                        connection.client.ExecuteCommand("score");
+                        //connection.client.ExecuteCommand("score");
+                        connection.leakyBucketRequester.requestExecution("score",RequestCategory.SCOREBOARD,0,2000,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     }
                 }
             }
@@ -296,7 +297,8 @@ namespace JKWatcher
                 {
                     string command = commandLine.Text;
                     //commandLine.Text = "";
-                    connection.client.ExecuteCommand(command);
+                    //connection.client.ExecuteCommand(command);
+                    connection.leakyBucketRequester.requestExecution(command, RequestCategory.NONE,1,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
                     addToLog("Command \"" + command + "\" sent.");
 
