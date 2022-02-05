@@ -353,6 +353,7 @@ namespace JKWatcher
                             infoPool.teamInfo[(int)team].flagBasePosition.X = entities[i].CurrentState.Position.Base[0];
                             infoPool.teamInfo[(int)team].flagBasePosition.Y = entities[i].CurrentState.Position.Base[1];
                             infoPool.teamInfo[(int)team].flagBasePosition.Z = entities[i].CurrentState.Position.Base[2];
+                            infoPool.teamInfo[(int)team].flagBaseEntityNumber = i;
                             infoPool.teamInfo[(int)team].lastFlagBasePositionUpdate = DateTime.Now;
                         }
                     } else if (entities[i].CurrentState.EntityType == (int)entityType_t.ET_ITEM)
@@ -371,6 +372,7 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.Y = entities[i].CurrentState.Position.Base[1];
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].droppedFlagEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
 
                             } else
@@ -379,6 +381,7 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].flagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
                                 infoPool.teamInfo[(int)team].flagBaseItemPosition.Y = entities[i].CurrentState.Position.Base[1];
                                 infoPool.teamInfo[(int)team].flagBaseItemPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].flagBaseItemEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagBaseItemPositionUpdate = DateTime.Now;
                                 
                             }

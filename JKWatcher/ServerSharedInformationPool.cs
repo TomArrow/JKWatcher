@@ -72,19 +72,23 @@ namespace JKWatcher
 
         // The following infos are all related to the flag of the team this struct is for
         public volatile int flagItemNumber;
+
         public volatile int lastFlagCarrier;
         public DateTime? lastFlagCarrierUpdate;
 
         // Positions of flag bases ( as fallback)
         public Vector3 flagBasePosition;
+        public volatile int flagBaseEntityNumber;
         public DateTime? lastFlagBasePositionUpdate;
 
         // Positions of base flag items (the flag item is separate from the flag base)
         public Vector3 flagBaseItemPosition;
+        public volatile int flagBaseItemEntityNumber;
         public DateTime? lastFlagBaseItemPositionUpdate;
 
         // Positions of dropped flags
         public Vector3 flagDroppedPosition;
+        public volatile int droppedFlagEntityNumber;
         public DateTime? lastFlagDroppedPositionUpdate;
     }
 
