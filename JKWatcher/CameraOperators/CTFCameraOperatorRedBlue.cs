@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using JKClient;
 
 namespace JKWatcher.CameraOperators
 {
@@ -28,46 +29,38 @@ namespace JKWatcher.CameraOperators
         // second connection [1] follows blue flag
         private void Run(CancellationToken ct)
         {
-            FlagStatus lastRedFlagStatus = (FlagStatus)(-1);
-            FlagStatus lastBlueFlagStatus = (FlagStatus)(-1);
+            FlagStatus[] lastFlagStatus = new FlagStatus[] { (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1) };
+            Team[] teams = new Team[] { Team.Red, Team.Blue };
             while (true)
             {
                 System.Threading.Thread.Sleep(100);
                 ct.ThrowIfCancellationRequested();
 
-                switch (infoPool.redFlag)
+                foreach(Team team in teams)
                 {
-                    case FlagStatus.FLAG_ATBASE:
-                        handleRedFlagAtBase(infoPool.redFlag == lastRedFlagStatus);
-                        break;
-                    case FlagStatus.FLAG_TAKEN:
-                        break;
-                    case FlagStatus.FLAG_DROPPED:
-                        break;
-                    default:
-                        // uh, dunno.
-                        break;
+                    switch (infoPool.teamInfo[(int)team].flag)
+                    {
+                        case FlagStatus.FLAG_ATBASE:
+                            handleFlagAtBase(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
+                            break;
+                        case FlagStatus.FLAG_TAKEN:
+                            break;
+                        case FlagStatus.FLAG_DROPPED:
+                            break;
+                        default:
+                            // uh, dunno.
+                            break;
+                    }
+                    lastFlagStatus[(int)team] = infoPool.teamInfo[(int)team].flag;
                 }
-                lastRedFlagStatus = infoPool.redFlag;
+                
 
-                switch (infoPool.redFlag)
-                {
-                    case FlagStatus.FLAG_ATBASE:
-                        break;
-                    case FlagStatus.FLAG_TAKEN:
-                        break;
-                    case FlagStatus.FLAG_DROPPED:
-                        break;
-                    default:
-                        // uh, dunno.
-                        break;
-                }
 
             }
         }
 
 
-        List<int> playersCycled = new List<int>();
+        List<int>[] playersCycled = new List<int>[] { new List<int>(), new List<int>(), new List<int>(), new List<int>() };
         enum FlagAtBasePlayerCyclePriority : int
         {
             ANY_VALID_PLAYER,
@@ -75,23 +68,24 @@ namespace JKWatcher.CameraOperators
             SAME_TEAM_PLAYER_WHO_DIED_IN_LAST_TWO_SECONDS,
             SAME_TEAM_PLAYER_WHO_DIED_IN_LAST_SECOND,
         }
-        private void handleRedFlagAtBase(bool flagStatusChanged)
+        private void handleFlagAtBase(Team flagTeam,bool flagStatusChanged)
         {
             int currentlySpectatedPlayer = connections[0].client.playerStateClientNum;
+            int teamInt = (int)flagTeam;
 
             if (flagStatusChanged)
             {
-                playersCycled.Clear(); // Reset cycling array if the flag status changed.
+                playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
             }
 
             // Try to figure out it's rough position
             Vector3? flagPosition = null;
-            if(infoPool.lastRedFlagBaseItemPositionUpdate != null)
+            if(infoPool.teamInfo[teamInt].lastFlagBaseItemPositionUpdate != null)
             {
-                flagPosition = infoPool.redFlagBaseItemPosition; // Actual flag item
-            } else if (infoPool.lastRedFlagBasePositionUpdate != null)
+                flagPosition = infoPool.teamInfo[teamInt].flagBaseItemPosition; // Actual flag item
+            } else if (infoPool.teamInfo[teamInt].lastFlagBasePositionUpdate != null)
             {
-                flagPosition = infoPool.redFlagBasePosition; // Flag base. the thing it stands n
+                flagPosition = infoPool.teamInfo[teamInt].flagBasePosition; // Flag base. the thing it stands n
             }
 
             if (flagPosition == null)
@@ -107,8 +101,8 @@ namespace JKWatcher.CameraOperators
 
                 // First off, put the player we are currently spectating to the list of already cycled players
                 // Clearly he is of no use.
-                if (!playersCycled.Contains(currentlySpectatedPlayer)) {
-                    playersCycled.Add(currentlySpectatedPlayer);
+                if (!playersCycled[teamInt].Contains(currentlySpectatedPlayer)) {
+                    playersCycled[teamInt].Add(currentlySpectatedPlayer);
                 }
 
                 int nextPlayerTotry = -1;
@@ -122,29 +116,29 @@ namespace JKWatcher.CameraOperators
                     for (int i=0;i< infoPool.playerInfo.Length;i++)
                     {
                         // Is valid player?
-                        if(infoPool.playerInfo[i].infoValid && (infoPool.playerInfo[i].team == JKClient.Team.Blue || infoPool.playerInfo[i].team == JKClient.Team.Red)) { // Make sure it's a valid active player
+                        if(infoPool.playerInfo[i].infoValid && (infoPool.playerInfo[i].team == Team.Blue || infoPool.playerInfo[i].team == Team.Red)) { // Make sure it's a valid active player
                             
                             foundAtLeastOneValidPlayer = true;
 
                             // Already cycled through? Then ignore.
-                            if (!playersCycled.Contains(i)) // skip players we already cycled through.
+                            if (!playersCycled[teamInt].Contains(i)) // skip players we already cycled through.
                             {
                                 switch (playerFilter)
                                 {
                                     case FlagAtBasePlayerCyclePriority.SAME_TEAM_PLAYER_WHO_DIED_IN_LAST_SECOND:
-                                        if(infoPool.playerInfo[i].lastDeath != null && (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds < 1000)
+                                        if(infoPool.playerInfo[i].team == flagTeam && infoPool.playerInfo[i].lastDeath != null && (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds < 1000)
                                         {
                                             nextPlayerTotry = i;
                                         } 
                                         break;
                                     case FlagAtBasePlayerCyclePriority.SAME_TEAM_PLAYER_WHO_DIED_IN_LAST_TWO_SECONDS:
-                                        if(infoPool.playerInfo[i].lastDeath != null && (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds < 1000)
+                                        if(infoPool.playerInfo[i].team == flagTeam && infoPool.playerInfo[i].lastDeath != null && (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds < 2000)
                                         {
                                             nextPlayerTotry = i;
                                         } 
                                         break;
                                     case FlagAtBasePlayerCyclePriority.SAME_TEAM_PLAYER:
-                                        if(infoPool.playerInfo[i].team == JKClient.Team.Red)
+                                        if(infoPool.playerInfo[i].team == flagTeam)
                                         {
                                             nextPlayerTotry = i;
                                         }
@@ -155,6 +149,7 @@ namespace JKWatcher.CameraOperators
                                 }
                             } 
                         }
+                        if (nextPlayerTotry != -1) break;
                     }
                     if (nextPlayerTotry != -1) break;
                     playerFilter--; // Didn't find any? Well let's go again.
@@ -163,7 +158,7 @@ namespace JKWatcher.CameraOperators
                 if (nextPlayerTotry == -1)
                 {
                     // Guess we're done cycling and found nobody. Let's start from scratch then.
-                    playersCycled.Clear();
+                    playersCycled[teamInt].Clear();
                 } else
                 {
                     // Small delay. We want to get through this as quickly as possible. Also discard any scoreboard commands, this is more important.
@@ -173,9 +168,15 @@ namespace JKWatcher.CameraOperators
                     
                 }
 
-            } else
+            } 
+            else
             {
+                //
                 // Ok we know where the flag is. Now what?
+                //
+                //
+
+
 
             }
         }

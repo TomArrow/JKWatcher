@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -180,6 +181,8 @@ namespace JKWatcher
             }
         }
 
+        TextInfo textInfo = CultureInfo.InvariantCulture.TextInfo;
+
         private unsafe void Client_EntityEvent(object sender, EntityEventArgs e)
         {
             if (e.EventType == EntityEvent.Obituary)
@@ -198,6 +201,7 @@ namespace JKWatcher
                     serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
                 }
 
+                infoPool.playerInfo[target].IsAlive = false;
                 infoPool.playerInfo[target].lastDeath = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
                 string targetName = infoPool.playerInfo[target].name;
@@ -215,6 +219,29 @@ namespace JKWatcher
                 int playerNum = e.Entity.CurrentState.TrickedEntityIndex;
                 Team team = (Team)e.Entity.CurrentState.TrickedEntityIndex2;
 
+                if (team != Team.Red && team != Team.Blue)
+                {
+                    // Some other team, weird.
+                    return;
+                }
+
+                Team otherTeam = team == Team.Red ? Team.Blue : Team.Red;
+
+                string teamAsString = "";
+                string otherTeamAsString = "";
+                switch (team)
+                {
+                    case Team.Blue:
+                        teamAsString = "blue";
+                        otherTeamAsString = "red";
+                        break;
+                    case Team.Red:
+                        teamAsString = "red";
+                        otherTeamAsString = "blue";
+                        break;
+                    default:break;
+                }
+
                 PlayerInfo? pi = null;
 
                 if(playerNum >= 0 && playerNum <= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
@@ -224,69 +251,36 @@ namespace JKWatcher
 
                 if(messageType == CtfMessageType.PlayerGotFlag && pi != null)
                 {
-                    if(team == Team.Red)
-                    {
-                        infoPool.lastRedFlagCarrier = playerNum;
-                        infoPool.lastRedFlagCarrierUpdate = DateTime.Now;
-                        infoPool.redFlag = FlagStatus.FLAG_TAKEN;
-                        serverWindow.addToLog(pi.Value.name + " got the red flag.");
-                    } else if (team == Team.Blue)
-                    {
-                        infoPool.lastBlueFlagCarrier = playerNum;
-                        infoPool.lastBlueFlagCarrierUpdate = DateTime.Now; 
-                        infoPool.blueFlag = FlagStatus.FLAG_TAKEN;
-                        serverWindow.addToLog(pi.Value.name + " got the blue flag.");
-                    }
+                    infoPool.teamInfo[(int)team].lastFlagCarrier = playerNum;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_TAKEN;
+                    infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    serverWindow.addToLog(pi.Value.name + " got the " + teamAsString + " flag.");
+
                 } else if (messageType == CtfMessageType.FraggedFlagCarrier && pi != null)
                 {
-                    if (team == Team.Blue) // Teams are inverted here because team is the team of the person who got killed
-                    {
-                        infoPool.redFlag = FlagStatus.FLAG_DROPPED;
-                        serverWindow.addToLog(pi.Value.name + " killed carrier of red flag.");
-                    }
-                    else if (team == Team.Red)
-                    {
-                        infoPool.blueFlag = FlagStatus.FLAG_DROPPED;
-                        serverWindow.addToLog(pi.Value.name + " killed carrier of blue flag.");
-                    }
+                    // Teams are inverted here because team is the team of the person who got killed
+                    infoPool.teamInfo[(int)otherTeam].flag = FlagStatus.FLAG_DROPPED;
+                    infoPool.teamInfo[(int)otherTeam].lastFlagUpdate = DateTime.Now;
+                    serverWindow.addToLog(pi.Value.name + " killed carrier of " + otherTeamAsString + " flag.");
+                    
                 } else if (messageType == CtfMessageType.FlagReturned)
                 {
-                    if (team == Team.Red)
-                    {
-                        infoPool.redFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog("Red flag was returned.");
-                    }
-                    else if (team == Team.Blue)
-                    {
-                        infoPool.blueFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog("Blue flag was returned.");
-                    }
+                    infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    serverWindow.addToLog(textInfo.ToTitleCase(teamAsString) + " flag was returned.");
                 }
                 else if (messageType == CtfMessageType.PlayerCapturedFlag && pi != null)
                 {
-                    if (team == Team.Red)
-                    {
-                        infoPool.redFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog(pi.Value.name + " captured the red flag.");
-                    }
-                    else if (team == Team.Blue)
-                    {
-                        infoPool.blueFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog(pi.Value.name + " captured the blue flag.");
-                    }
+                    infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    serverWindow.addToLog(pi.Value.name + " captured the "+teamAsString+" flag.");
                 }
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
-                    if (team == Team.Red)
-                    {
-                        infoPool.redFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog(pi.Value.name + " returned the red flag.");
-                    }
-                    else if (team == Team.Blue)
-                    {
-                        infoPool.blueFlag = FlagStatus.FLAG_ATBASE;
-                        serverWindow.addToLog(pi.Value.name + " returned the blue flag.");
-                    }
+                    infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    serverWindow.addToLog(pi.Value.name + " returned the " + teamAsString + " flag.");
                 }
 
             }
@@ -305,6 +299,7 @@ namespace JKWatcher
             {
 
                 if (entities[i].CurrentValid || entities[i].CurrentState.FilledFromPlayerState ) { 
+                    infoPool.playerInfo[i].IsAlive = (entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_DEAD) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].position.X = entities[i].CurrentState.Position.Base[0];
                     infoPool.playerInfo[i].position.Y = entities[i].CurrentState.Position.Base[1];
                     infoPool.playerInfo[i].position.Z = entities[i].CurrentState.Position.Base[2];
@@ -319,12 +314,12 @@ namespace JKWatcher
                     
                     if((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
                     {
-                        infoPool.lastRedFlagCarrier = i;
-                        infoPool.lastRedFlagCarrierUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     } else if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
                     {
-                        infoPool.lastBlueFlagCarrier = i;
-                        infoPool.lastBlueFlagCarrierUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
                 }
             }
@@ -352,67 +347,40 @@ namespace JKWatcher
                     // Flag bases
                     if(entities[i].CurrentState.EntityType == (int)entityType_t.ET_TEAM)
                     {
-                        if(entities[i].CurrentState.ModelIndex == (int)Team.Blue)
+                        Team team = (Team)entities[i].CurrentState.ModelIndex;
+                        if (team == Team.Blue || team == Team.Red)
                         {
-                            // It's the blue flag base
-                            infoPool.blueFlagBasePosition.X = entities[i].CurrentState.Position.Base[0];
-                            infoPool.blueFlagBasePosition.Y = entities[i].CurrentState.Position.Base[1];
-                            infoPool.blueFlagBasePosition.Z = entities[i].CurrentState.Position.Base[2];
-                            infoPool.lastBlueFlagBasePositionUpdate = DateTime.Now;
-                        } else if(entities[i].CurrentState.ModelIndex == (int)Team.Red)
-                        {
-                            // red flag base
-                            infoPool.redFlagBasePosition.X = entities[i].CurrentState.Position.Base[0];
-                            infoPool.redFlagBasePosition.Y = entities[i].CurrentState.Position.Base[1];
-                            infoPool.redFlagBasePosition.Z = entities[i].CurrentState.Position.Base[2];
-                            infoPool.lastRedFlagBasePositionUpdate = DateTime.Now;
+                            infoPool.teamInfo[(int)team].flagBasePosition.X = entities[i].CurrentState.Position.Base[0];
+                            infoPool.teamInfo[(int)team].flagBasePosition.Y = entities[i].CurrentState.Position.Base[1];
+                            infoPool.teamInfo[(int)team].flagBasePosition.Z = entities[i].CurrentState.Position.Base[2];
+                            infoPool.teamInfo[(int)team].lastFlagBasePositionUpdate = DateTime.Now;
                         }
-                    }else if (entities[i].CurrentState.EntityType == (int)entityType_t.ET_ITEM)
+                    } else if (entities[i].CurrentState.EntityType == (int)entityType_t.ET_ITEM)
                     {
                         if(entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG ||
                             entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_BLUEFLAG 
                             )
                         {
+
+                            Team team = entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG ? Team.Red : Team.Blue;
+
                             // Check if it's base flag item or dropped one
                             if ((entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_BOUNCE_HALF) != 0)
                             {
                                 // This very likely is a dropped flag, as dropped flags get the EF_BOUNCE_HALF entity flag.
-                                if(entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG)
-                                {
-                                    // Red flag
-                                    infoPool.redFlagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
-                                    infoPool.redFlagDroppedPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                    infoPool.redFlagDroppedPosition.Z = entities[i].CurrentState.Position.Base[2];
-                                    infoPool.lastRedFlagDroppedPositionUpdate = DateTime.Now;
-                                }
-                                else
-                                {
-                                    // Blue flag
-                                    infoPool.blueFlagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
-                                    infoPool.blueFlagDroppedPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                    infoPool.blueFlagDroppedPosition.Z = entities[i].CurrentState.Position.Base[2];
-                                    infoPool.lastBlueFlagDroppedPositionUpdate = DateTime.Now;
-                                }
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.Y = entities[i].CurrentState.Position.Base[1];
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
 
                             } else
                             {
                                 // This very likely is a base flag item, as it doesn't have an EF_BOUNCE_HALF entity flag.
-                                if (entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG)
-                                {
-                                    // Red flag
-                                    infoPool.redFlagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
-                                    infoPool.redFlagBaseItemPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                    infoPool.redFlagBaseItemPosition.Z = entities[i].CurrentState.Position.Base[2];
-                                    infoPool.lastRedFlagBaseItemPositionUpdate = DateTime.Now;
-                                }
-                                else
-                                {
-                                    // Blue flag
-                                    infoPool.blueFlagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
-                                    infoPool.blueFlagBaseItemPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                    infoPool.blueFlagBaseItemPosition.Z = entities[i].CurrentState.Position.Base[2];
-                                    infoPool.lastBlueFlagBaseItemPositionUpdate = DateTime.Now;
-                                }
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Y = entities[i].CurrentState.Position.Base[1];
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].lastFlagBaseItemPositionUpdate = DateTime.Now;
+                                
                             }
                         }
                     }
@@ -576,9 +544,9 @@ namespace JKWatcher
                             serverWindow.addToLog("Configstring weirdness, cs 23 had parameter "+str+"(Length "+str.Length+")");
                         } else {
                             int tmp = int.Parse(str[0].ToString());
-                            infoPool.redFlag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                            infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
                             tmp = int.Parse(str[1].ToString());
-                            infoPool.blueFlag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                            infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
                         }
                         /*infoPool.redFlag = str[0] - '0';
                         infoPool.blueFlag = str[1] - '0';
@@ -617,13 +585,13 @@ namespace JKWatcher
                     infoPool.playerInfo[client].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
                     if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
                     {
-                        infoPool.lastRedFlagCarrier = i;
-                        infoPool.lastRedFlagCarrierUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     }
                     else if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
                     {
-                        infoPool.lastBlueFlagCarrier = i;
-                        infoPool.lastBlueFlagCarrierUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
                 }
             }
@@ -644,8 +612,8 @@ namespace JKWatcher
             {
                 cg.numScores = MAX_CLIENTS;
             }*/
-            infoPool.teamScores[0] = commandEventArgs.Command.Argv(2).Atoi();
-            infoPool.teamScores[1] = commandEventArgs.Command.Argv(3).Atoi();
+            infoPool.teamInfo[(int)Team.Red].teamScore = commandEventArgs.Command.Argv(2).Atoi();
+            infoPool.teamInfo[(int)Team.Blue].teamScore = commandEventArgs.Command.Argv(3).Atoi();
 
             for (i = 0; i < readScores; i++)
             {
@@ -674,13 +642,13 @@ namespace JKWatcher
 
                 if ((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
                 {
-                    infoPool.lastRedFlagCarrier = clientNum;
-                    infoPool.lastRedFlagCarrierUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                 }
                 else if ((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
                 {
-                    infoPool.lastBlueFlagCarrier = clientNum;
-                    infoPool.lastBlueFlagCarrierUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                 }
 
                 // Serverside:
