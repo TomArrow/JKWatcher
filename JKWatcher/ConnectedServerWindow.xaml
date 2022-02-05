@@ -24,7 +24,7 @@
             </WrapPanel>
             <DataGrid DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="ClientNum" Binding="{Binding clientNum}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
@@ -52,10 +52,11 @@
         <DockPanel Grid.Column="1">
             <DataGrid DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
+                    <DataGridTextColumn Header="psCn" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Rec" Binding="{Binding isRecordingADemo}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Status" Binding="{Binding Status}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Status" Binding="{Binding Index}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="CamOperator" Binding="{Binding CamOperator}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Recording" Binding="{Binding Recording}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>

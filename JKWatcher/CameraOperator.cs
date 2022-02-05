@@ -17,10 +17,15 @@ namespace JKWatcher
         private bool initialized = false;
 
         public int Index { get; set; } = -1;
+        public string Type { get {
+                return getTypeDisplayName();
+            } }
 
         public CameraOperator() { }
 
         abstract public int getRequiredConnectionCount();
+
+        abstract public string getTypeDisplayName();
 
         public void provideConnections(Connection[] connectionsA)
         {

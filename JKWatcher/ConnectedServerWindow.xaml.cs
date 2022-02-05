@@ -54,7 +54,11 @@ namespace JKWatcher
 
             infoPool = new ServerSharedInformationPool();
 
-            connections.Add(new Connection(this,serverInfo, infoPool));
+            lock (connections)
+            {
+                connections.Add(new Connection(this, serverInfo, infoPool));
+            }
+            updateIndices();
 
             logTxt.Text = logString;
 
@@ -75,6 +79,24 @@ namespace JKWatcher
             Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
             backgroundTasks.Add(tokenSource);
 
+        }
+
+        private void updateIndices()
+        {
+            lock (connections)
+            {
+                for (int i = 0; i < connections.Count; i++)
+                {
+                    connections[i].Index = i;
+                }
+            }
+            lock (cameraOperators)
+            {
+                for (int i = 0; i < cameraOperators.Count; i++)
+                {
+                    cameraOperators[i].Index = i;
+                }
+            }
         }
 
         ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
@@ -230,7 +252,11 @@ namespace JKWatcher
             camOperator.provideConnections(connectionsForCamOperator);
             camOperator.provideServerSharedInformationPool(infoPool);
             camOperator.Initialize();
-            cameraOperators.Add(camOperator);
+            lock (cameraOperators)
+            {
+                cameraOperators.Add(camOperator);
+            }
+            updateIndices();
         }
 
         private Connection[] getUnboundConnections(int count)
@@ -252,7 +278,11 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 Connection newConnection = new Connection(this,connections[0].client.ServerInfo,infoPool);
-                connections.Add(newConnection);
+                lock (connections)
+                {
+                    connections.Add(newConnection);
+                }
+                updateIndices();
                 retVal.Add(newConnection);
             }
 

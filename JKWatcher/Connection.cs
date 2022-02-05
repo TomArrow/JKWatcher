@@ -81,11 +81,14 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public int? SpectatedPlayer { get; set; } = null;
         public int? Index { get; set; } = null;
         public int? CameraOperator { get; set; } = null;
         public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
 
         private ServerSharedInformationPool infoPool;
+
+        public bool isRecordingADemo { get; private set; } = false;
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
 
@@ -421,7 +424,9 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
-            if(obj.FloodProtect >=0)
+            SpectatedPlayer = client.playerStateClientNum;
+
+            if (obj.FloodProtect >=0)
             {
                 int burst = obj.FloodProtect > 0 ? obj.FloodProtect : 10; // 0 means flood protection is disabled. Let's still try to be somewhat gracious and just set burst to 10
                 leakyBucketRequester.changeParameters(burst, floodProtectPeriod);
@@ -697,7 +702,6 @@ namespace JKWatcher
             }
         }
 
-        bool isRecordingADemo = false;
 
         public async void startDemoRecord()
         {
@@ -713,7 +717,7 @@ namespace JKWatcher
 
             TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
 
-            firstPacketRecordedTCS.Task.ContinueWith((Task<bool> s) =>
+            _ = firstPacketRecordedTCS.Task.ContinueWith((Task<bool> s) =>
             {
                 // Send a few commands that give interesting outputs, nothing more to it.
 
@@ -745,6 +749,11 @@ namespace JKWatcher
 
                 // TwiMod (DARK etc)
                 leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                if (client.ServerInfo.GameType == GameType.FFA) // Might not be accurate idk
+                {
+                    leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                }
 
                 // Whatever
                 leakyBucketRequester.requestExecution("clientinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

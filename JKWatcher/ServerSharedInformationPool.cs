@@ -61,6 +61,7 @@ namespace JKWatcher
         public volatile int team;
     }
 
+    // Todo reset stuff on level restart and especially map change
     class ServerSharedInformationPool
     {
         public PlayerInfo[] playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
