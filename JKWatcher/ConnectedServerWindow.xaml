@@ -6,6 +6,9 @@
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
         Title="ConnectedServerWindow" Height="450" Width="800">
+    <Window.Resources>
+        <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
+    </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
@@ -25,7 +28,7 @@
             <DataGrid DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Name" Binding="{Binding name}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
@@ -46,7 +49,10 @@
                 <!--<CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>-->
             </WrapPanel>
             <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
-                <TextBlock x:Name="logTxt" TextWrapping="Wrap">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
+                <TextBlock x:Name="logTxt" Foreground="White" Background="Black" TextWrapping="Wrap" FontFamily="Courier New">
+                    
+                    <Run Foreground="Blue" Background="Yellow">ipsum</Run> dolor sit amet, 
+                    consectetur adipiscing elit. Donec a velit id turpis <Run Foreground="White" Background="White">maximus tincidunt</Run> vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
             </ScrollViewer>
         </DockPanel>
         <DockPanel Grid.Column="1">

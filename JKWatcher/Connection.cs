@@ -292,6 +292,9 @@ namespace JKWatcher
 
         private unsafe void Client_SnapshotParsed(object sender, EventArgs e)
         {
+            
+            SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
+
             ClientEntity[] entities = client.Entities;
             if (entities == null)
             {
@@ -745,6 +748,7 @@ namespace JKWatcher
 
                 // TwiMod (DARK etc)
                 leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 if (client.ServerInfo.GameType == GameType.FFA) // Might not be accurate idk
                 {
                     leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

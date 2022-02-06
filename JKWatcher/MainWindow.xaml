@@ -6,6 +6,9 @@
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
+    <Window.Resources>
+        <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
+    </Window.Resources>
     <Grid>
         <DockPanel>
             <WrapPanel DockPanel.Dock="Top">
@@ -15,8 +18,8 @@
             <DataGrid DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="MapName" Binding="{Binding MapName}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="MapName" Binding="{Binding MapName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Game" Binding="{Binding Game}"></DataGridTextColumn>
                     <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Clients" Binding="{Binding Clients}"></DataGridTextColumn>

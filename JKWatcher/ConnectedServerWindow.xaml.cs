@@ -60,7 +60,8 @@ namespace JKWatcher
             }
             updateIndices();
 
-            logTxt.Text = logString;
+            logTxt.Text = "";
+            addToLog("Begin of Log\n");
 
             this.Closed += ConnectedServerWindow_Closed;
 
@@ -100,8 +101,50 @@ namespace JKWatcher
         }
 
         ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
+        List<int> linesRunCounts = new List<int>();
+        const int countOfLineSAllowed = 100;
 
         private void logStringUpdater(CancellationToken ct)
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(10);
+                ct.ThrowIfCancellationRequested();
+
+                Dispatcher.Invoke(() => {
+                    string stringToAdd;
+
+                    List<Inline> linesToAdd = new List<Inline>();
+
+                    while(logQueue.TryDequeue(out stringToAdd))
+                    {
+                        Run[] runs = Q3ColorFormatter.Q3StringToInlineArray(stringToAdd);
+                        if (runs.Length == 0) continue;
+                        linesToAdd.AddRange(runs);
+                        linesToAdd.Add(new LineBreak());
+                        linesRunCounts.Add(runs.Length+1);
+                    }
+
+                    // If there are too many lines, count how many runs we need to remove
+                    int countOfRunsToRemove = 0;
+                    while(linesRunCounts.Count > countOfLineSAllowed)
+                    {
+                        countOfRunsToRemove += linesRunCounts[0];
+                        linesRunCounts.RemoveAt(0);
+                    }
+                
+                    for(int i=0;i< countOfRunsToRemove; i++)
+                    {
+                        logTxt.Inlines.Remove(logTxt.Inlines.FirstInline);
+                    }
+                    logTxt.Inlines.AddRange(linesToAdd);
+                });
+            }
+            
+        }
+        
+        // Old style log string updater without colors:
+        /* private void logStringUpdater(CancellationToken ct)
         {
             while (true)
             {
@@ -136,7 +179,7 @@ namespace JKWatcher
                 });
             }
             
-        }
+        }*/
 
         public void addToLog(string someString)
         {

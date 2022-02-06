@@ -11,6 +11,8 @@ namespace JKWatcher
 {
     static class Helpers
     {
+
+
         // Takes array of strings and turns them into chunks of maxSize with a chosen separator.
         // If any input chunk is too big, it will be split, first using empty spaces and commas,
         // then just hard cutoffs if any individual word is still over maxSize
