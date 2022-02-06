@@ -175,16 +175,28 @@ namespace JKWatcher
         const float contrastMinBrightnessFactor = 2.0f;
         private static void ensureContrast(ref Vector4 foregroundColor,ref Vector4 backgroundColor)
         {
+            bool isSameColor = false;
             if (foregroundColor.X == backgroundColor.X && foregroundColor.Y == backgroundColor.Y && foregroundColor.Z == backgroundColor.Z)
             {
                 // Same color. Nope.
-                backgroundColor = v4DKGREY2;
-                return;
+                isSameColor = true;
             }
             float fgAlpha = foregroundColor.W;
             float bgAlpha = backgroundColor.W;
             float fgBrightness = vec4brightness(ref foregroundColor);
             float bgBrightness = vec4brightness(ref backgroundColor);
+
+            if (isSameColor) { 
+                if( fgBrightness >= 0.5)
+                {
+                    backgroundColor *= 0.5f;
+                    backgroundColor.W = bgAlpha;
+                } else
+                {
+                    backgroundColor *= 2f;
+                    backgroundColor.W = bgAlpha;
+                } 
+            }
 
             float fgPeak = Math.Max(foregroundColor.X, Math.Max(foregroundColor.Y, foregroundColor.Z));
             float bgPeak = Math.Max(backgroundColor.X, Math.Max(backgroundColor.Y, backgroundColor.Z));
