@@ -85,6 +85,8 @@ namespace JKWatcher
         public int? SpectatedPlayer { get; set; } = null;
         public int? Index { get; set; } = null;
         public int? CameraOperator { get; set; } = null;
+
+        //public ConnectionStatus Status => client != null ? client.Status : ConnectionStatus.Disconnected;
         public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
 
         private ServerSharedInformationPool infoPool;
@@ -702,6 +704,29 @@ namespace JKWatcher
                 // We already do a scoreboard command every 2 seconds, so we have about 1 command every 2 seconds left
                 // Go 3 seconds here to be safe. We also still need room to make commands for changing the camera angle.
                 const int timeoutBetweenCommands = 3000;
+
+                string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss G\\MTzzz");
+                ServerInfo curServerInfo = client.ServerInfo;
+                string[] serverInfoParts = new string[] { "Recording demo",
+                    time,
+                    curServerInfo.Address.ToString(),
+                    curServerInfo.HostName,
+                    curServerInfo.ServerGameVersionString,
+                    curServerInfo.Location,
+                    curServerInfo.Game,
+                    curServerInfo.GameType.ToString(),
+                    curServerInfo.GameName,
+                    curServerInfo.MapName,
+                    curServerInfo.Protocol.ToString(),
+                    curServerInfo.Version.ToString(),
+                    "sv_floodProtect: "+curServerInfo.FloodProtect.ToString() };
+                serverInfoParts = Helpers.StringChunksOfMaxSize(serverInfoParts,140,", ^7^0^7", "^7^0^7"); // 150 is max message length. We split to 140 size chunks just to be safe
+                foreach (string serverInfoPart in serverInfoParts)
+                {
+                    // Tell some info about the server... to myself
+                    // Convenience feature.
+                    leakyBucketRequester.requestExecution("tell " + client.clientNum + " \""+ serverInfoPart + "\"", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                }
 
                 // NWH / CTFMod (?)
                 leakyBucketRequester.requestExecution("info", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

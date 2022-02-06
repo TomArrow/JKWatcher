@@ -11,6 +11,92 @@ namespace JKWatcher
 {
     static class Helpers
     {
+        // Takes array of strings and turns them into chunks of maxSize with a chosen separator.
+        // If any input chunk is too big, it will be split, first using empty spaces and commas,
+        // then just hard cutoffs if any individual word is still over maxSize
+        public static string[] StringChunksOfMaxSize(string[] input,int maxSize,string separator=", ",string chunkStart = "")
+        {
+            if(chunkStart.Length > maxSize)
+            {
+                throw new Exception("wtf man, chunkstart cant be bigger than maxsize");
+            }
+            int chunkStartLength = chunkStart.Length;
+            int separatorLength = separator.Length;
+            int maxActualSize = maxSize - chunkStartLength;
+            List<string> noChunksTooBig = new List<string>();
+            List<string> output = new List<string>();
+
+            foreach (string inputString in input)
+            {
+                if (inputString == null) continue;
+                if (inputString.Length > maxActualSize)
+                {
+
+                    string[] inputStringParts = inputString.Split(new char[] { ' ', ',' });
+                    foreach(string inputStringPart in inputStringParts)
+                    {
+                        if(inputStringPart.Length > maxActualSize)
+                        {
+                            string[] inputStringPartsLimited = ChunksUpto(inputStringPart, maxActualSize).ToArray();
+                            noChunksTooBig.AddRange(inputStringPartsLimited);
+                        } else
+                        {
+                            noChunksTooBig.Add(inputString);
+                        }
+                    }
+                }
+                else
+                {
+                    noChunksTooBig.Add(inputString);
+                }
+            }
+
+            string tmp = chunkStart;
+            int stringsAdded = 0;
+            foreach(string inputString in noChunksTooBig)
+            {
+                if(stringsAdded == 0)
+                {
+                    tmp += inputString; // Will only happen if chunkStart is an empty string
+                    stringsAdded++;
+                    continue;
+                }
+                int newLengthWouldBe = tmp.Length + separatorLength + inputString.Length;
+                if (newLengthWouldBe < maxSize) // Still leaves some room
+                {
+                    tmp += separator + inputString;
+                    stringsAdded++;
+                }
+                else if (newLengthWouldBe == maxSize) // exactly hits the limit
+                {
+                    tmp += separator + inputString;
+                    output.Add(tmp);
+                    tmp = chunkStart; 
+                    stringsAdded = 0;
+                } else
+                {
+                    // Too big to fit in. Turn into new string
+                    output.Add(tmp);
+                    tmp = chunkStart + inputString;
+                    stringsAdded = 1;
+                }
+            }
+            if(stringsAdded > 0)
+            {
+                output.Add(tmp);
+                tmp = "";
+            }
+
+            return output.ToArray();
+        }
+
+        // following function from: https://stackoverflow.com/a/1450889
+        static IEnumerable<string> ChunksUpto(string str, int maxChunkSize)
+        {
+            for (int i = 0; i < str.Length; i += maxChunkSize)
+                yield return str.Substring(i, Math.Min(maxChunkSize, str.Length - i));
+        }
+
         public static string GetUnusedDemoFilename(string baseFilename, JKClient.ProtocolVersion protocolVersion)
         {
             string extension = ".dm_" + ((int)protocolVersion).ToString();
