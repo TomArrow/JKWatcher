@@ -402,9 +402,11 @@ namespace JKWatcher
         {
             SpectatedPlayer = client.playerStateClientNum;
 
-            if (obj.FloodProtect >=0)
+            if (obj.FloodProtect >=-1)
             {
-                int burst = obj.FloodProtect > 0 ? obj.FloodProtect : 10; // 0 means flood protection is disabled. Let's still try to be somewhat gracious and just set burst to 10
+                // Don't trust a setting of 0. Could still have non-engine limiting that isn't captured by the sv_floodprotect cvar.
+                // In short, assume the worst: only 1 per second.
+                int burst = obj.FloodProtect > 0 ? obj.FloodProtect : 1; // 0 means flood protection is disabled. Let's still try to be somewhat gracious and just set burst to 10
                 leakyBucketRequester.changeParameters(burst, floodProtectPeriod);
             } else if (obj.FloodProtect == -2)
             {
@@ -722,7 +724,8 @@ namespace JKWatcher
                     curServerInfo.MapName,
                     curServerInfo.Protocol.ToString(),
                     curServerInfo.Version.ToString(),
-                    "sv_floodProtect: "+curServerInfo.FloodProtect.ToString() };
+                    "sv_floodProtect: "+curServerInfo.FloodProtect.ToString(),
+                    time,}; // Just for the occasional lost chat message, send time a second time. Most useful from these infos.
                 serverInfoParts = Helpers.StringChunksOfMaxSize(serverInfoParts,140,", ^7^0^7", "^7^0^7"); // 150 is max message length. We split to 140 size chunks just to be safe
                 foreach (string serverInfoPart in serverInfoParts)
                 {
