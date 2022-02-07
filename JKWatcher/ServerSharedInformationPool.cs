@@ -13,10 +13,11 @@ namespace JKWatcher
     {
         #region position
         public Vector3 position;
+        public DateTime? lastPositionUpdate; // Last time the player position alone was updated (from events or such)
         public Vector3 angles;
         public Vector3 velocity;
         public bool IsAlive;
-        public DateTime? lastPositionUpdate;
+        public DateTime? lastFullPositionUpdate; // Last time all the info above was updated from entities
         #endregion
 
         public Vector3 lastDeathPosition;

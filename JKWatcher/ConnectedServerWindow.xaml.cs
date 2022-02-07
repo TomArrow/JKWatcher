@@ -301,11 +301,11 @@ namespace JKWatcher
                 int byteOffset;
                 for (int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
                 {
-                    if(infoPool.playerInfo[i].lastPositionUpdate == null)
+                    if(infoPool.playerInfo[i].lastFullPositionUpdate == null)
                     {
                         continue; // don't have any position data
                     }
-                    if ((DateTime.Now - infoPool.playerInfo[i].lastPositionUpdate.Value).TotalSeconds > miniMapOutdatedDrawTime)
+                    if ((DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalSeconds > miniMapOutdatedDrawTime)
                     {
                         continue; // data too old (probably bc out of sight)
                     }

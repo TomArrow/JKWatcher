@@ -126,7 +126,7 @@ namespace JKWatcher
         private string ip;
         private ProtocolVersion protocol;
 
-        private async Task createConnection( string ipA, ProtocolVersion protocolA)
+        private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA)
         {
             ip = ipA;
             protocol = protocolA;
@@ -144,15 +144,62 @@ namespace JKWatcher
             client.Start(ExceptionCallback);
             Status = client.Status;
 
-            await client.Connect(ip, protocol);
+            try
+            {
+
+                await client.Connect(ip, protocol);
+            } catch(Exception e)
+            {
+                Status = client.Status;
+                serverWindow.addToLog("Failed to create connection: "+e.ToString());
+                return false;
+            }
             Status = client.Status;
 
 
             serverWindow.addToLog("New connection created.");
+            return true;
+        }
+
+        int reconnectTriesCount = 0;
+        const int reconnectMaxTries = 10;
+
+        int DisconnectCallbackRecursion = 0;
+        const int DisconnectCallbackRecursionLimit = 10;
+
+        private async Task<bool> hardReconnect()
+        {
+            disconnect();
+            Status = client.Status;
+            bool success = false;
+            while (success == false)
+            {
+                System.Threading.Thread.Sleep(1000);
+                if (reconnectTriesCount >= reconnectMaxTries)
+                {
+                    serverWindow.addToLog("Giving up on reconnect after 10 tries.");
+                    break;
+                }
+                success = await createConnection(ip, protocol);
+                if (!success)
+                {
+                    reconnectTriesCount++;
+                } else
+                {
+                    reconnectTriesCount = 0;
+                }
+            }
+            Status = client.Status;
+            return success;
         }
 
         private async void Client_Disconnected(object sender, EventArgs e)
         {
+            if (DisconnectCallbackRecursion++ > DisconnectCallbackRecursionLimit)
+            {
+                serverWindow.addToLog("[Client_Disconnected] Hit Disconnect recursion limit trying to restart the connection. Giving up.");
+                return;
+            }
 
             serverWindow.addToLog("Involuntary disconnect for some reason.");
             Status = client.Status;
@@ -171,16 +218,66 @@ namespace JKWatcher
             //client.Start(ExceptionCallback); // I think that's only necessary once?
             //Status = client.Status;
 
-            await client.Connect(ip, protocol); // TODO This can get cancelled. In that case,  handle it somehow.
-            Status = client.Status;
+            /*await client.Connect(ip, protocol); // TODO This can get cancelled. In that case,  handle it somehow.
+             */
+            // Be safe and just reset everything
+            if (await hardReconnect())
+            {
+                serverWindow.addToLog("Reconnected.");
 
-            serverWindow.addToLog("Reconnected.");
+                if (wasRecordingADemo)
+                {
+                    serverWindow.addToLog("Attempting to resume demo recording.");
+                    startDemoRecord();
+                }
+            }
+            DisconnectCallbackRecursion--;
 
+        }
+
+        // Client crashed for some reason
+        private async Task ExceptionCallback(JKClientException exception)
+        {
+            if (DisconnectCallbackRecursion++ > DisconnectCallbackRecursionLimit)
+            {
+                serverWindow.addToLog("[ExceptionCallback] Hit Disconnect recursion limit trying to restart the connection. Giving up.");
+                return;
+            }
+            serverWindow.addToLog("JKClient crashed: " + exception.ToString());
+            Debug.WriteLine(exception);
+
+            bool wasRecordingADemo = isRecordingADemo;
             if (wasRecordingADemo)
             {
-                serverWindow.addToLog("Attempting to resume demo recording.");
-                startDemoRecord();
+                serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
+                stopDemoRecord();
             }
+
+            // Reconnect
+            System.Threading.Thread.Sleep(1000);
+            /*serverWindow.addToLog("Attempting to restart.");
+
+            client.Start(ExceptionCallback); // I think that's only necessary once?
+            Status = client.Status;
+
+            serverWindow.addToLog("Attempting to reconnect.");
+            await client.Connect(ip, protocol);
+            Status = client.Status;*/
+
+            serverWindow.addToLog("Attempting to reconnect.");
+
+            // Be safe and just reset everything
+            if (await hardReconnect())
+            {
+                serverWindow.addToLog("Reconnected.");
+
+                if (wasRecordingADemo)
+                {
+                    serverWindow.addToLog("Attempting to resume demo recording.");
+                    startDemoRecord();
+                }
+            }
+            DisconnectCallbackRecursion--;
         }
 
         TextInfo textInfo = CultureInfo.InvariantCulture.TextInfo;
@@ -207,13 +304,107 @@ namespace JKWatcher
                 infoPool.playerInfo[target].lastDeath = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
                 string targetName = infoPool.playerInfo[target].name;
+
+                string killString = null;
+                bool generic = false;
+                switch (mod)
+                {
+                    case MeansOfDeath.MOD_STUN_BATON:
+                        killString = "stunned";
+                        break;
+                    case MeansOfDeath.MOD_MELEE:
+                        killString = "beat down";
+                        break;
+                    case MeansOfDeath.MOD_SABER:
+                        killString = "sabered";
+                        break;
+                    case MeansOfDeath.MOD_BRYAR_PISTOL:
+                    case MeansOfDeath.MOD_BRYAR_PISTOL_ALT:
+                    case MeansOfDeath.MOD_BLASTER:
+                    case MeansOfDeath.MOD_BOWCASTER:
+                    case MeansOfDeath.MOD_REPEATER:
+                    case MeansOfDeath.MOD_REPEATER_ALT:
+                    case MeansOfDeath.MOD_REPEATER_ALT_SPLASH:
+                    case MeansOfDeath.MOD_DEMP2:
+                    case MeansOfDeath.MOD_DEMP2_ALT:
+                    case MeansOfDeath.MOD_FLECHETTE:
+                    case MeansOfDeath.MOD_FLECHETTE_ALT_SPLASH:
+                        killString = "shot";
+                        generic = true;
+                        break;
+                    case MeansOfDeath.MOD_DISRUPTOR:
+                    case MeansOfDeath.MOD_DISRUPTOR_SPLASH:
+                    case MeansOfDeath.MOD_DISRUPTOR_SNIPER:
+                        generic = true;
+                        killString = "sniped";
+                        break;
+                    case MeansOfDeath.MOD_ROCKET:
+                    case MeansOfDeath.MOD_ROCKET_SPLASH:
+                    case MeansOfDeath.MOD_ROCKET_HOMING:
+                    case MeansOfDeath.MOD_ROCKET_HOMING_SPLASH:
+                        generic = true;
+                        killString = "rocketed";
+                        break;
+                    case MeansOfDeath.MOD_THERMAL:
+                    case MeansOfDeath.MOD_THERMAL_SPLASH:
+                    case MeansOfDeath.MOD_DET_PACK_SPLASH:
+                        generic = true;
+                        killString = "detonated";
+                        break;
+                    case MeansOfDeath.MOD_TRIP_MINE_SPLASH:
+                    case MeansOfDeath.MOD_TIMED_MINE_SPLASH:
+                        generic = true;
+                        killString = "tripped";
+                        break;
+                    case MeansOfDeath.MOD_FORCE_DARK:
+                        killString = "annihilated";
+                        break;
+                    case MeansOfDeath.MOD_SENTRY:
+                        killString = "sentry-killed";
+                        break;
+                    case MeansOfDeath.MOD_WATER:
+                        killString = "drowned";
+                        break;
+                    case MeansOfDeath.MOD_SLIME:
+                        killString = "slimed";
+                        break;
+                    case MeansOfDeath.MOD_LAVA:
+                        killString = "lava-burned";
+                        break;
+                    case MeansOfDeath.MOD_CRUSH:
+                        killString = "crushed";
+                        break;
+                    case MeansOfDeath.MOD_TELEFRAG:
+                        killString = "admin-killed";
+                        break;
+                    case MeansOfDeath.MOD_FALLING:
+                        killString = "doomed";
+                        break;
+                    case MeansOfDeath.MOD_SUICIDE:
+                        killString = "anheroed";
+                        break;
+                    case MeansOfDeath.MOD_TARGET_LASER:
+                        killString = "lasered";
+                        break;
+                    case MeansOfDeath.MOD_TRIGGER_HURT:
+                        killString = "triggered";
+                        break;
+                    case MeansOfDeath.MOD_MAX:
+                        break;
+                    case MeansOfDeath.MOD_UNKNOWN:
+                    default:
+                        break;
+                }
+
                 if (attacker < 0 || attacker >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
-                    serverWindow.addToLog(targetName + " died");
+                    serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
                 } else
                 {
+                    infoPool.playerInfo[attacker].position = locationOfDeath;
+                    infoPool.playerInfo[attacker].lastPositionUpdate = DateTime.Now;
                     string attackerName = infoPool.playerInfo[attacker].name;
-                    serverWindow.addToLog(attackerName + " killed " + targetName);
+                    serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
                 }
             } else if(e.EventType == EntityEvent.CtfMessage)
             {
@@ -315,7 +506,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.Y = entities[i].CurrentState.AngularPosition.Base[1];
                     infoPool.playerInfo[i].angles.Z = entities[i].CurrentState.AngularPosition.Base[2];
                     infoPool.playerInfo[i].powerUps = entities[i].CurrentState.Powerups; // 1/3 places where powerups is transmitted
-                    infoPool.playerInfo[i].lastPositionUpdate = DateTime.Now;
+                    infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
                     if((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
                     {
@@ -449,53 +640,7 @@ namespace JKWatcher
             serverWindow.addToLog("Disconnected.");
         }
 
-        int ExceptionCallbackRecursion = 0;
-        const int ExceptionCallbackRecursionLimit = 5;
-        // Client crashed for some reason
-        private async Task ExceptionCallback(JKClientException exception)
-        {
-            if(ExceptionCallbackRecursion++ > ExceptionCallbackRecursionLimit)
-            {
-                serverWindow.addToLog("Hit ExceptionCallback recursion limit trying to restart the connection. Giving up.");
-                return;
-            }
-            serverWindow.addToLog("JKClient crashed: "+exception.ToString());
-            Debug.WriteLine(exception);
-
-            bool wasRecordingADemo = isRecordingADemo;
-            if (wasRecordingADemo)
-            {
-                serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
-                stopDemoRecord();
-            }
-
-            // Reconnect
-            System.Threading.Thread.Sleep(1000);
-            /*serverWindow.addToLog("Attempting to restart.");
-
-            client.Start(ExceptionCallback); // I think that's only necessary once?
-            Status = client.Status;
-
-            serverWindow.addToLog("Attempting to reconnect.");
-            await client.Connect(ip, protocol);
-            Status = client.Status;*/
-
-            serverWindow.addToLog("Attempting to reconnect.");
-
-            // Be safe and just reset everything
-            disconnect();
-            await createConnection(ip, protocol);
-
-
-            serverWindow.addToLog("Reconnected.");
-
-            if (wasRecordingADemo)
-            {
-                serverWindow.addToLog("Attempting to resume demo recording.");
-                startDemoRecord();
-            }
-            ExceptionCallbackRecursion = 0;
-        }
+        
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
