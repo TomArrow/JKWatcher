@@ -9,6 +9,11 @@ using JKClient;
 
 namespace JKWatcher.CameraOperators
 {
+
+    // TODO General idea:
+    // If a flag is not visible, check if the other connection sees it. And maybe that can help find a better match.
+    // If the other connection sees it, we may not have to give chances to recently died players
+    // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
     class CTFCameraOperatorRedBlue : CameraOperator
     {
 
@@ -117,6 +122,10 @@ namespace JKWatcher.CameraOperators
                 // 3. Players on same team
                 // 4. Players on enemy team
 
+                // The reason this code is arguably simpler than if the flag position IS known
+                // is that we can't make a good judgment of how good a player spectating choice is
+                // if we don't even know where the flag is to begin with.
+
                 // First off, put the player we are currently spectating to the list of already cycled players
                 // Clearly he is of no use.
                 playersCycled[teamInt].Add(currentlySpectatedPlayer); 
@@ -222,17 +231,20 @@ namespace JKWatcher.CameraOperators
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
                 PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision(), tmp;
                 for (int i= 0; i < infoPool.playerInfo.Length; i++){
-                    if(infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastPositionUpdate != null)
+                    if(infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null)
                     {
+                        // Todo: Allow an option for using lastPositionUpdate instead of  lastFullPositionUpdate to get more up to date info
+                        double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
-                            informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastPositionUpdate.Value).TotalMilliseconds,
+                            informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds,
                             distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity - flagPosition.Value).Length(),
                             isAlive = infoPool.playerInfo[i].IsAlive,
                             clientNum = i,
-                            isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam
+                            isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
+                            lastDeath = (int)lastDeath
                         };
-                        tmp.gradeForFlagAtBase();
+                        tmp.gradeForFlagAtBase(flagVisible);
                         if(lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade*3f < lastGradings[teamInt][i])
                         {
                             // Grade has significantly improved since last time we graded this player, so let him be "re-cycled" lol
@@ -281,6 +293,8 @@ namespace JKWatcher.CameraOperators
                     // This is more similar to the approach we take when we don't even know where the flag is at all
                     playersCycled[teamInt].Add(currentlySpectatedPlayer);
 
+                    // TODO Add recent death mechanism. If best option isn't good enough, just pick recently deceased persons
+
                     int nextPlayerToTry = -1;
                     foreach(PossiblePlayerDecision player in possibleNextPlayers)
                     {
@@ -325,13 +339,38 @@ namespace JKWatcher.CameraOperators
             public float distance;
             public bool isAlive;
             public bool isOnSameTeamAsFlag;
+            public int lastDeath;
+            public float lastDeathDistance;
 
             public float grade { get; private set; }
 
             // Bigger value: worse decision
-            public float gradeForFlagAtBase()
+            public float gradeForFlagAtBase(bool flagInvisibleDeathBonus = false)
             {
                 float grade = 1;
+                if (flagInvisibleDeathBonus) { 
+                    if(this.lastDeath < 4000) 
+                    {
+                        // Flag is not visible so we will take a chance with players who died recently
+                        // They might be close or they might not.
+                        // I figure the sweet spot is around 1-2 seconds.
+                        // Too early and player may not have respawned yet.
+                        // Too late and he might already be gone to elsewhere.
+                        grade *= (float)Math.Pow(3, Math.Abs(this.lastDeath-1500) / 1000);
+
+                        // We might also take into account where he died, however the flag is now in base,
+                        // so even a chase ret will likely return home to the flag.
+                        // Camp ret might however go out to camp. 
+                        // However, a chase ret is still very likely to go back to the flag,
+                        // so treating his distance at time of death as a negative is a bad idea.
+                        // We'll take our chances.
+
+                        // We might also try and track who retted how many times to guess roles by numbers.
+
+                        return grade;
+                    }
+                }
+
                 grade *= (float)Math.Pow(3, this.informationAge / 2000); // 2 second old information is 3 times worse. 4 second old information is 9 times  worse
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
