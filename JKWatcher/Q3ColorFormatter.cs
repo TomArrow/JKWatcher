@@ -172,7 +172,7 @@ namespace JKWatcher
             return sb.ToString();
         }
 
-        const float contrastMinBrightnessFactor = 2.0f;
+        const float contrastMinBrightnessFactor = 4.0f;
         private static void ensureContrast(ref Vector4 foregroundColor,ref Vector4 backgroundColor)
         {
             bool isSameColor = false;
@@ -196,24 +196,34 @@ namespace JKWatcher
                     backgroundColor *= 2f;
                     backgroundColor.W = bgAlpha;
                 } 
+                if(backgroundColor.X == 0f && backgroundColor.Y == 0f && backgroundColor.Z == 0f)
+                {
+                    // Literally black. Let's just set some constant for BG then
+                    backgroundColor.X = 0.25f;
+                    backgroundColor.Y = 0.25f;
+                    backgroundColor.Z = 0.25f;
+                }
             }
 
             float fgPeak = Math.Max(foregroundColor.X, Math.Max(foregroundColor.Y, foregroundColor.Z));
             float bgPeak = Math.Max(backgroundColor.X, Math.Max(backgroundColor.Y, backgroundColor.Z));
 
             float factor = fgBrightness / bgBrightness;
-            if (factor == 1)
+            if (factor == 1f)
             {
                 if(fgBrightness >= 0.5f)
                 {
-                    backgroundColor /= 2;
+                    backgroundColor /= 2f;
                     backgroundColor.W = bgAlpha;
+                    factor = 2f;
                 } else
                 {
-                    backgroundColor *= 2;
+                    backgroundColor *= 2f;
                     backgroundColor.W = bgAlpha;
+                    factor = 0.5f;
                 }
-            } else if(factor > 1)
+            }
+            if(factor > 1f)
             {
                 if(factor < contrastMinBrightnessFactor)
                 {
@@ -221,12 +231,12 @@ namespace JKWatcher
                     // We need to either divide background by ratio or multiply foreground with ratio
                     // Or we darken bg and brighten fg equally. But fg is limited. Can't go above 1.
                     float equallyDividedRatio = (float)Math.Sqrt(ratio);
-                    float maximumBrightenRatio = 1 / fgPeak;
-                    float fgRatio = equallyDividedRatio,bgRatio = 1/equallyDividedRatio;
+                    float maximumBrightenRatio = 1f / fgPeak;
+                    float fgRatio = equallyDividedRatio,bgRatio = 1f/equallyDividedRatio;
                     if(maximumBrightenRatio < fgRatio)
                     {
                         fgRatio = maximumBrightenRatio;
-                        bgRatio = 1/(ratio / fgRatio);
+                        bgRatio = 1f/(ratio / fgRatio);
                     }
                     foregroundColor *= fgRatio;
                     foregroundColor.W = fgAlpha;
@@ -235,15 +245,15 @@ namespace JKWatcher
                 }
             } else
             {
-                float inverseFactor = 1 / factor;
+                float inverseFactor = 1f / factor;
                 if (inverseFactor < contrastMinBrightnessFactor)
                 {
                     float ratio = contrastMinBrightnessFactor / inverseFactor;
                     // We need to either divide background by ratio or multiply foreground with ratio
                     // Or we darken bg and brighten fg equally. But fg is limited. Can't go above 1.
                     float equallyDividedRatio = (float)Math.Sqrt(ratio);
-                    float maximumBrightenRatio = 1 / bgPeak;
-                    float bgRatio = equallyDividedRatio, fgRatio = 1 / equallyDividedRatio;
+                    float maximumBrightenRatio = 1f / bgPeak;
+                    float bgRatio = equallyDividedRatio, fgRatio = 1f / equallyDividedRatio;
                     if (maximumBrightenRatio < bgRatio)
                     {
                         bgRatio = maximumBrightenRatio;

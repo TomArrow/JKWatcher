@@ -1,7 +1,8 @@
-﻿<Window x:Class="JKWatcher.ConnectedServerWindow"
+﻿<Window x:Name="_this" x:Class="JKWatcher.ConnectedServerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+        DataContext="{Binding ElementName=_this}"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
@@ -17,8 +18,8 @@
             <ColumnDefinition></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition></RowDefinition>
-            <RowDefinition></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="2*"></RowDefinition>
         </Grid.RowDefinitions>
         <DockPanel Grid.RowSpan="2">
             <WrapPanel DockPanel.Dock="Top">
@@ -48,12 +49,36 @@
                 </ComboBox>
                 <!--<CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>-->
             </WrapPanel>
-            <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
-                <TextBlock x:Name="logTxt" Foreground="White" Background="Black" TextWrapping="Wrap" FontFamily="Courier New">
+            <TabControl>
+                <TabItem>
+                    <TabItem.Header>
+                        <WrapPanel>
+                            <Label>Colored</Label>
+                            <CheckBox x:Name="coloredLogCheck" IsChecked="{Binding LogColoredEnabled}"></CheckBox>
+                        </WrapPanel>
+                    </TabItem.Header>
+                    <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
+                        <TextBlock x:Name="logTxt" Foreground="White" Background="Black" TextWrapping="Wrap" FontFamily="Courier New">
                     
                     <Run Foreground="Blue" Background="Yellow">ipsum</Run> dolor sit amet, 
                     consectetur adipiscing elit. Donec a velit id turpis <Run Foreground="White" Background="White">maximus tincidunt</Run> vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
-            </ScrollViewer>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem>
+                    <TabItem.Header>
+                        <WrapPanel>
+                            <Label>Plain</Label>
+                            <CheckBox x:Name="plainLogCheck" IsChecked="{Binding LogPlainEnabled}"></CheckBox>
+                        </WrapPanel>
+                    </TabItem.Header>
+                    <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
+                        <TextBlock x:Name="logTxtPlain" TextWrapping="Wrap" FontFamily="Courier New">
+                            ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.
+                        </TextBlock>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+                    
         </DockPanel>
         <DockPanel Grid.Column="1">
             <DataGrid DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">

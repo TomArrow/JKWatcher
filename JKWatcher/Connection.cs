@@ -171,7 +171,7 @@ namespace JKWatcher
             //client.Start(ExceptionCallback); // I think that's only necessary once?
             //Status = client.Status;
 
-            await client.Connect(ip, protocol);
+            await client.Connect(ip, protocol); // TODO This can get cancelled. In that case,  handle it somehow.
             Status = client.Status;
 
             serverWindow.addToLog("Reconnected.");

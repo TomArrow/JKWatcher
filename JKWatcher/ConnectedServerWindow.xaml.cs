@@ -26,6 +26,9 @@ namespace JKWatcher
     public partial class ConnectedServerWindow : Window
     {
 
+        public bool LogColoredEnabled { get; set; } = true;
+        public bool LogPlainEnabled { get; set; } = false;
+
         private ServerInfo serverInfo;
 
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
@@ -45,6 +48,7 @@ namespace JKWatcher
 
         public ConnectedServerWindow(ServerInfo serverInfoA)
         {
+            //this.DataContext = this;
             serverInfo = serverInfoA;
             InitializeComponent();
             this.Title = serverInfo.Address.ToString() + " (" + serverInfo.HostName + ")";
@@ -111,36 +115,84 @@ namespace JKWatcher
                 System.Threading.Thread.Sleep(10);
                 ct.ThrowIfCancellationRequested();
 
-                Dispatcher.Invoke(() => {
-                    string stringToAdd;
+                List<string> dequeuedStrings = new List<string>();
 
-                    List<Inline> linesToAdd = new List<Inline>();
+                string stringToAdd;
+                while (logQueue.TryDequeue(out stringToAdd))
+                {
+                    dequeuedStrings.Add(stringToAdd);
+                }
 
-                    while(logQueue.TryDequeue(out stringToAdd))
-                    {
-                        Run[] runs = Q3ColorFormatter.Q3StringToInlineArray(stringToAdd);
-                        if (runs.Length == 0) continue;
-                        linesToAdd.AddRange(runs);
-                        linesToAdd.Add(new LineBreak());
-                        linesRunCounts.Add(runs.Length+1);
-                    }
+                if (LogColoredEnabled)
+                {
+                    addStringsToColored(dequeuedStrings.ToArray());
+                }
+                if (LogPlainEnabled)
+                {
+                    addStringsToPlain(dequeuedStrings.ToArray());
+                }
 
-                    // If there are too many lines, count how many runs we need to remove
-                    int countOfRunsToRemove = 0;
-                    while(linesRunCounts.Count > countOfLineSAllowed)
-                    {
-                        countOfRunsToRemove += linesRunCounts[0];
-                        linesRunCounts.RemoveAt(0);
-                    }
                 
-                    for(int i=0;i< countOfRunsToRemove; i++)
-                    {
-                        logTxt.Inlines.Remove(logTxt.Inlines.FirstInline);
-                    }
-                    logTxt.Inlines.AddRange(linesToAdd);
-                });
             }
             
+        }
+
+        private void addStringsToColored(string[] stringsToAdd)
+        {
+            Dispatcher.Invoke(() => {
+
+                List<Inline> linesToAdd = new List<Inline>();
+
+                foreach (string stringToAdd in stringsToAdd)
+                {
+                    Run[] runs = Q3ColorFormatter.Q3StringToInlineArray(stringToAdd);
+                    if (runs.Length == 0) continue;
+                    linesToAdd.AddRange(runs);
+                    linesToAdd.Add(new LineBreak());
+                    linesRunCounts.Add(runs.Length + 1);
+                }
+
+                // If there are too many lines, count how many runs we need to remove
+                int countOfRunsToRemove = 0;
+                while (linesRunCounts.Count > countOfLineSAllowed)
+                {
+                    countOfRunsToRemove += linesRunCounts[0];
+                    linesRunCounts.RemoveAt(0);
+                }
+
+                for (int i = 0; i < countOfRunsToRemove; i++)
+                {
+                    logTxt.Inlines.Remove(logTxt.Inlines.FirstInline);
+                }
+                logTxt.Inlines.AddRange(linesToAdd);
+            });
+        }
+        private void addStringsToPlain(string[] stringsToAdd)
+        {
+            lock (logString)
+            {
+                foreach (string stringToAddIt in stringsToAdd)
+                {
+                    string stringToAdd = stringToAddIt + "\n";
+                    int newLogLength = logString.Length + stringToAdd.Length;
+                    if (newLogLength <= maxLogLength)
+                    {
+                        logString += stringToAdd;
+                    }
+                    else
+                    {
+                        int cutAway = newLogLength - maxLogLength;
+                        logString = logString.Substring(cutAway) + stringToAdd;
+                    }
+                }
+            }
+
+            Dispatcher.Invoke(() => {
+                lock (logString)
+                {
+                    logTxtPlain.Text = logString;
+                }
+            });
         }
         
         // Old style log string updater without colors:
