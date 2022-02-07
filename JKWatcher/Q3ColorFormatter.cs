@@ -85,13 +85,13 @@ namespace JKWatcher
                         int length;
                         Vector4 color = parseColor(ref q3String,i+1,out length,hexSupport);
                         i += length;
-                        if(colorsParsed == 0 || colorsParsed == 2)
+                        if(colorsParsed %2 == 0)
                         {
                             foregroundColor = color;
-                        } else if(colorsParsed == 1)
+                        } else if(colorsParsed % 2 == 1)
                         {
                             backgroundColor = color;
-                        } // We don't handle 4 colors in a row. What is that even supposed to be?
+                        } // Todo: maybe make option to handle chat prepended ^6 more gracefully like CG_ChatBox_AddString in eternaljk2mv
                         colorsParsed++;
                     }
                 } else
