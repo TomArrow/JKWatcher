@@ -282,10 +282,25 @@ namespace JKWatcher
 
         TextInfo textInfo = CultureInfo.InvariantCulture.TextInfo;
 
+        int lastEventSnapshotNumber = 0;
+        Dictionary<int, Vector3> thisSnapshotObituaryVictims = new Dictionary<int, Vector3>();
+        Dictionary<int, Vector3> thisSnapshotObituaryAttackers = new Dictionary<int, Vector3>();
         private unsafe void Client_EntityEvent(object sender, EntityEventArgs e)
         {
+            int snapshotNumber, serverTime;
+            client.GetCurrentSnapshotNumber(out snapshotNumber, out serverTime);
+
+            if(snapshotNumber != lastEventSnapshotNumber)
+            {
+                thisSnapshotObituaryVictims.Clear();
+                thisSnapshotObituaryAttackers.Clear();
+            }
+
             if (e.EventType == EntityEvent.Obituary)
             {
+                // TODO Important. See if we can correlate death events to ctf frag events. That way we could know where
+                //  the flag carrier was killed and thus where the flag is
+                // We know the death event comes first. If we just pass the snapshotnumber, we can correlate them.
                 // Todo do more elaborate logging. Death method etc. Detect multikills maybe
                 int target = e.Entity.CurrentState.OtherEntityNum;
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
@@ -298,11 +313,26 @@ namespace JKWatcher
                 if (target < 0 || target >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
                 {
                     serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
+                    return;
                 }
 
+                // Was it the flag carrier?
+                foreach (int teamToCheck in Enum.GetValues(typeof(Team)))
+                {
+                    if (infoPool.teamInfo[teamToCheck].lastFlagCarrierUpdate != null && infoPool.teamInfo[teamToCheck].lastFlagCarrier == target)
+                    {
+                        infoPool.teamInfo[teamToCheck].flagDroppedPosition = locationOfDeath;
+                        infoPool.teamInfo[teamToCheck].lastFlagDroppedPositionUpdate = DateTime.Now;
+                    }
+                }
+
+                thisSnapshotObituaryVictims.Add(target, locationOfDeath);
+
                 infoPool.playerInfo[target].IsAlive = false;
-                infoPool.playerInfo[target].lastDeath = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
+                infoPool.playerInfo[target].lastDeath = DateTime.Now;
+                infoPool.playerInfo[target].position = locationOfDeath;
+                infoPool.playerInfo[target].lastPositionUpdate = DateTime.Now;
                 string targetName = infoPool.playerInfo[target].name;
 
                 string killString = null;
@@ -401,8 +431,11 @@ namespace JKWatcher
                     serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
                 } else
                 {
+                    thisSnapshotObituaryAttackers.Add(attacker, locationOfDeath);
                     infoPool.playerInfo[attacker].position = locationOfDeath;
                     infoPool.playerInfo[attacker].lastPositionUpdate = DateTime.Now;
+                    // Can we also set the setalive of the attacker here? he might have blown himself up too.
+                    // Would his self blowup message come before or after this?
                     string attackerName = infoPool.playerInfo[attacker].name;
                     serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
                 }
@@ -442,7 +475,13 @@ namespace JKWatcher
                     pi = infoPool.playerInfo[playerNum];
                 }
 
-                if(messageType == CtfMessageType.PlayerGotFlag && pi != null)
+                // If it was picked up or generally status changed, and it was at base before, remember this as the last time it was at base.
+                if (infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_ATBASE)
+                {
+                    infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
+                }
+
+                if (messageType == CtfMessageType.PlayerGotFlag && pi != null)
                 {
                     infoPool.teamInfo[(int)team].lastFlagCarrier = playerNum;
                     infoPool.teamInfo[(int)team].lastFlagCarrierUpdate = DateTime.Now;
@@ -455,24 +494,42 @@ namespace JKWatcher
                     // Teams are inverted here because team is the team of the person who got killed
                     infoPool.teamInfo[(int)otherTeam].flag = FlagStatus.FLAG_DROPPED;
                     infoPool.teamInfo[(int)otherTeam].lastFlagUpdate = DateTime.Now;
+                    if (client.Entities[playerNum].CurrentValid) // Player who did kill is currently visible!
+                    {
+                        // We know where the flag is!
+                        Vector3 locationOfFrag;
+                        locationOfFrag.X = client.Entities[playerNum].CurrentState.Position.Base[0];
+                        locationOfFrag.Y = client.Entities[playerNum].CurrentState.Position.Base[1];
+                        locationOfFrag.Z = client.Entities[playerNum].CurrentState.Position.Base[2];
+                        infoPool.teamInfo[(int)otherTeam].flagDroppedPosition = locationOfFrag;
+                        infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
+                    } else if (thisSnapshotObituaryAttackers.ContainsKey(playerNum))
+                    {
+                        // We remember the death message. It had a position. We can use that. :)
+                        infoPool.teamInfo[(int)otherTeam].flagDroppedPosition = thisSnapshotObituaryAttackers[playerNum];
+                        infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
+                    } 
                     serverWindow.addToLog(pi.Value.name + " killed carrier of " + otherTeamAsString + " flag.");
                     
                 } else if (messageType == CtfMessageType.FlagReturned)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(textInfo.ToTitleCase(teamAsString) + " flag was returned.");
                 }
                 else if (messageType == CtfMessageType.PlayerCapturedFlag && pi != null)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.Value.name + " captured the "+teamAsString+" flag.");
                 }
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.Value.name + " returned the " + teamAsString + " flag.");
                 }
 
@@ -536,7 +593,7 @@ namespace JKWatcher
             // In theory we should be able to just check the flag item against the flag status (cs 23) but 
             // we might be (?) at a point in time where the new flag status has not yet been parsed, but the new 
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
-            for (int i = JKClient.Common.MaxClients(ProtocolVersion.Protocol15) - 1; i < JKClient.Common.MaxGEntities; i++)
+            for (int i = JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i < JKClient.Common.MaxGEntities; i++)
             {
                 if (entities[i].CurrentValid)
                 { 
@@ -698,6 +755,13 @@ namespace JKWatcher
                             // The first one with the single zero is the obvious problem.
                             serverWindow.addToLog("Configstring weirdness, cs 23 had parameter "+str+"(Length "+str.Length+")");
                         } else {
+                            // If it was picked up or generally status changed, and it was at base before, remember this as the last time it was at base.
+                            foreach (int teamToCheck in Enum.GetValues(typeof(Team))) { 
+                                if (infoPool.teamInfo[teamToCheck].flag == FlagStatus.FLAG_ATBASE)
+                                {
+                                    infoPool.teamInfo[teamToCheck].lastTimeFlagWasSeenAtBase = DateTime.Now;
+                                }
+                            }
                             int tmp = int.Parse(str[0].ToString());
                             infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
                             tmp = int.Parse(str[1].ToString());

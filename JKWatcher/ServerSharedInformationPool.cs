@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
-
+    // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     struct PlayerInfo
     {
         #region position
@@ -70,6 +70,7 @@ namespace JKWatcher
 
         public volatile FlagStatus flag;
         public DateTime? lastFlagUpdate;
+        public DateTime? lastTimeFlagWasSeenAtBase;
 
         // The following infos are all related to the flag of the team this struct is for
         public volatile int flagItemNumber;
@@ -103,6 +104,12 @@ namespace JKWatcher
         {
             teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
             teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;    
+        }
+
+        public void ResetInfo()
+        {
+            playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
+            teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
         }
     }
 
