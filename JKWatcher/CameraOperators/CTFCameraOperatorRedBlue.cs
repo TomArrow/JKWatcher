@@ -18,8 +18,10 @@ namespace JKWatcher.CameraOperators
     {
 
         CancellationTokenSource cts = new CancellationTokenSource();
-        public CTFCameraOperatorRedBlue()
+
+        public override void Initialize()
         {
+            base.Initialize();
             CancellationToken ct = cts.Token;
             Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }

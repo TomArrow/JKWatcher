@@ -611,12 +611,12 @@ namespace JKWatcher
                         }
                     } else if (entities[i].CurrentState.EntityType == (int)entityType_t.ET_ITEM)
                     {
-                        if(entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG ||
-                            entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_BLUEFLAG 
+                        if(entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ||
+                            entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Blue].flagItemNumber
                             )
                         {
 
-                            Team team = entities[i].CurrentState.ModelIndex == (int)ItemList.ModelIndex.MODELINDEX_REDFLAG ? Team.Red : Team.Blue;
+                            Team team = entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ? Team.Red : Team.Blue;
 
                             // Check if it's base flag item or dropped one
                             if ((entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_BOUNCE_HALF) != 0)

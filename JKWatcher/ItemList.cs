@@ -90,6 +90,7 @@ namespace JKWatcher
 	{
 		public const int MaxItemModels = 4;
 
+		/* Don't use this. Not in sync.
 		public enum ModelIndex : int
         {
 			// NOTENOTE Update this so that it is in sync.
@@ -133,7 +134,7 @@ namespace JKWatcher
 			MODELINDEX_NEUTRALFLAG = 32,
 			MODELINDEX_REDCUBE = 33,
 			MODELINDEX_BLUECUBE = 34,
-		}
+		}*/
 
 		public enum ammo_t//# ammo_e
 		{

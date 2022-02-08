@@ -103,13 +103,15 @@ namespace JKWatcher
         public ServerSharedInformationPool()
         {
             teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
-            teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;    
+            teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;
         }
 
         public void ResetInfo()
         {
             playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
+            teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
+            teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;
         }
     }
 
