@@ -1,5 +1,9 @@
-﻿using System;
+﻿
+#define LOGDECISIONS
+
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -9,7 +13,6 @@ using JKClient;
 
 namespace JKWatcher.CameraOperators
 {
-
     // TODO General idea:
     // If a flag is not visible, check if the other connection sees it. And maybe that can help find a better match.
     // If the other connection sees it, we may not have to give chances to recently died players
@@ -879,7 +882,7 @@ namespace JKWatcher.CameraOperators
         }
 
 
-        struct PossiblePlayerDecision
+        public struct PossiblePlayerDecision
         {
             // Important to do: Cap out some of these grading parameters
             // For example information age should not really get much worse beyond a certain point.
@@ -899,9 +902,12 @@ namespace JKWatcher.CameraOperators
             public bool isVisible;
 
             public float grade { get; set; }
+            public string gradeMethod { get; set; }
 
             public float gradeForFlagTakenUnknownPlayer()
             {
+                gradeMethod = "gradeForFlagTakenUnknownPlayer()";
+
                 grade = 1;
 
                 if (isOnSameTeamAsFlag) { 
@@ -920,13 +926,18 @@ namespace JKWatcher.CameraOperators
                 // For other team players: We don't know when the flag was taken so players alive for longer are more likely to be near the flag, but not to the same degree as with carrier.
                 // Maybe for future include info about when the flag was taken.
                 // But if we don't know who has it, it's unlikely we know when it was taken anyway.
-                grade *= (float)Math.Pow(isOnSameTeamAsFlag? 1.2f: 1.35f, 10000-lastDeath / 1000); 
-                
+                grade *= (float)Math.Pow(isOnSameTeamAsFlag? 1.2f: 1.35f, 10000-lastDeath / 1000);
+
+#if DEBUG && LOGDECISIONS
+                DecisionsLogger.logDecisionGrading(this);
+#endif
                 return grade;
             }
             
             public float gradeForFlagDroppedUnknownPosition(float timeSinceInBase)
             {
+                gradeMethod = "gradeForFlagDroppedUnknownPosition(" + timeSinceInBase.ToString() + ")";
+
                 grade = 1;
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than supporters.
                 
@@ -986,35 +997,45 @@ namespace JKWatcher.CameraOperators
                         grade *= recentDeathAdvantageFactor;
                     }
                 }
-
+#if DEBUG && LOGDECISIONS
+                DecisionsLogger.logDecisionGrading(this);
+#endif
                 return grade;
             }
 
             // Bigger value: worse decision
             public float gradeForFlagAtBase(bool flagInvisibleDeathBonus = false)
             {
+                gradeMethod = "gradeForFlagAtBase(" + flagInvisibleDeathBonus.ToString() +  ")";
+
                 grade = 1;
-                if (flagInvisibleDeathBonus && this.isOnSameTeamAsFlag) { // Enemy players dying just puts them in their own base
-                    if(this.lastDeath < 4000) 
-                    {
-                        // Flag is not visible so we will take a chance with players who died recently
-                        // They might be close or they might not.
-                        // I figure the sweet spot is around 1-2 seconds.
-                        // Too early and player may not have respawned yet.
-                        // Too late and he might already be gone to elsewhere.
-                        grade *= (float)Math.Pow(3, Math.Abs(this.lastDeath-1500) / 1000);
+                if (flagInvisibleDeathBonus && 
+                    this.isOnSameTeamAsFlag && // Enemy players dying just puts them in their own base. Information age bc need no guessing if we KNOW
+                    (informationAge > 2000 || // Only make guesses if our information is either outdated or from before the player died 
+                    informationAge > this.lastDeath) && // Flag may be invisible but it's position IS known
+                    this.lastDeath < 4000
+                    ) { 
+                    
+                    // Flag is not visible so we will take a chance with players who died recently
+                    // They might be close or they might not.
+                    // I figure the sweet spot is around 1-2 seconds.
+                    // Too early and player may not have respawned yet.
+                    // Too late and he might already be gone to elsewhere.
+                    grade *= (float)Math.Pow(3, Math.Abs(this.lastDeath-1500) / 1000);
 
-                        // We might also take into account where he died, however the flag is now in base,
-                        // so even a chase ret will likely return home to the flag.
-                        // Camp ret might however go out to camp. 
-                        // However, a chase ret is still very likely to go back to the flag,
-                        // so treating his distance at time of death as a negative is a bad idea.
-                        // We'll take our chances.
+                    // We might also take into account where he died, however the flag is now in base,
+                    // so even a chase ret will likely return home to the flag.
+                    // Camp ret might however go out to camp. 
+                    // However, a chase ret is still very likely to go back to the flag,
+                    // so treating his distance at time of death as a negative is a bad idea.
+                    // We'll take our chances.
 
-                        // We might also try and track who retted how many times to guess roles by numbers.
-
-                        return grade;
-                    }
+                    // We might also try and track who retted how many times to guess roles by numbers.
+#if DEBUG && LOGDECISIONS
+                    DecisionsLogger.logDecisionGrading(this);
+#endif
+                    return grade;
+                    
                 }
 
                 if (!this.isOnSameTeamAsFlag)
@@ -1029,11 +1050,16 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
+#if DEBUG && LOGDECISIONS
+                DecisionsLogger.logDecisionGrading(this);
+#endif
                 return grade;
             }
             
             public float gradeForFlagDroppedWithKnownPosition(bool flagIsVisible,float flagDistanceFromBase)
             {
+                gradeMethod = "gradeForFlagDroppedWithKnownPosition(" + flagIsVisible.ToString()+","+ flagDistanceFromBase.ToString() + ")";
+
                 grade = 1;
                 if (!flagIsVisible && this.isOnSameTeamAsFlag && flagDistanceFromBase<2000) { // Flag is still near base, so give recently died players on team a bonus
                     if(this.lastDeath < 4000) 
@@ -1053,7 +1079,9 @@ namespace JKWatcher.CameraOperators
                         // We'll take our chances.
 
                         // We might also try and track who retted how many times to guess roles by numbers.
-
+#if DEBUG && LOGDECISIONS
+                        DecisionsLogger.logDecisionGrading(this);
+#endif
                         return grade;
                     }
                 }
@@ -1070,12 +1098,17 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
+#if DEBUG && LOGDECISIONS
+                DecisionsLogger.logDecisionGrading(this);
+#endif
                 return grade;
             }
 
             // Bigger value: worse decision
             public float gradeForFlagTakenAndVisible(bool currentlyFollowingFlagCarrier)
             {
+                gradeMethod = "gradeForFlagTakenAndVisible(" + currentlyFollowingFlagCarrier.ToString()+ ")";
+
                 grade = 1;
 
                 if (isOnSameTeamAsFlag)
@@ -1100,6 +1133,9 @@ namespace JKWatcher.CameraOperators
                 }
 
                 grade *= this.isCarryingTheOtherTeamsFlag ? 1.15f : 1f; // Action from flag carrier against flag carrier is cool, give it a slight bonus
+#if DEBUG && LOGDECISIONS
+                DecisionsLogger.logDecisionGrading(this);
+#endif
                 return grade;
             }
 
@@ -1113,6 +1149,38 @@ namespace JKWatcher.CameraOperators
         public override string getTypeDisplayName()
         {
             return "CTFRedBlue";
+        }
+    }
+
+    static class DecisionsLogger
+    {
+        private static StreamWriter sw = null;
+
+        static DecisionsLogger()
+        {
+            AppDomain.CurrentDomain.ProcessExit +=
+                DecisionsLogger_Dtor;
+
+            sw = new StreamWriter(new FileStream("playerDecisionsDEBUG.csv", FileMode.Append, FileAccess.Write, FileShare.Read));
+            if(sw.BaseStream.Position == 0)
+            { // Empty file
+                sw.WriteLine("clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,gradegradeMethod");
+            }
+        }
+
+        static void DecisionsLogger_Dtor(object sender, EventArgs e)
+        {
+            // clean it up
+            sw.Close();
+            sw.Dispose();
+        }
+
+        public static void logDecisionGrading(CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)
+        {
+            if(sw != null)
+            {
+                sw.WriteLine($"\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.gradeMethod}\"");
+            }
         }
     }
 

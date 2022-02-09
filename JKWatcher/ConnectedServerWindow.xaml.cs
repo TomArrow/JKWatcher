@@ -420,7 +420,15 @@ namespace JKWatcher
         {
             if (connections.Count == 0) return;
 
-            foreach(Connection connection in connections)
+            foreach (Connection conn in connectionsDataGrid.SelectedItems)
+            {
+                if (conn != null && !conn.isRecordingADemo && conn.client.Status == ConnectionStatus.Active)
+                {
+                    conn.startDemoRecord();
+                }
+            }
+
+            /*foreach (Connection connection in connections)
             {
                 if(connection.client.Status == ConnectionStatus.Active)
                 {
@@ -428,14 +436,22 @@ namespace JKWatcher
                     connection.startDemoRecord();
                     break;
                 }
-            }
+            }*/
         }
 
         private void stopRecordBtn_Click(object sender, RoutedEventArgs e)
         {
             if (connections.Count == 0) return;
 
-            foreach (Connection connection in connections)
+            foreach (Connection conn in connectionsDataGrid.SelectedItems)
+            {
+                if (conn != null && conn.isRecordingADemo)
+                {
+                    conn.stopDemoRecord();
+                }
+            }
+
+            /*foreach (Connection connection in connections)
             {
                 if (connection.client.Demorecording)
                 {
@@ -443,7 +459,7 @@ namespace JKWatcher
                     connection.stopDemoRecord();
                     break;
                 }
-            }
+            }*/
         }
 
         private void commandSendBtn_Click(object sender, RoutedEventArgs e)
@@ -477,16 +493,32 @@ namespace JKWatcher
                 verboseOutput = verbosity;
             }
         }
-        /*
-        private void verboseOutputCheck_Checked(object sender, RoutedEventArgs e)
+
+        private void connectionsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-        verboseOutput = true;
+            if (connectionsDataGrid.Items.Count > 0 && connectionsDataGrid.SelectedItems.Count > 0)
+            {
+                recordBtn.IsEnabled = true;
+                stopRecordBtn.IsEnabled = true;
+            }
+            else
+            {
+                recordBtn.IsEnabled = false;
+                stopRecordBtn.IsEnabled = false;
+            }
         }
 
-        private void verboseOutputCheck_Unchecked(object sender, RoutedEventArgs e)
-        {
 
-        verboseOutput = false;
-        }*/
+        /*
+private void verboseOutputCheck_Checked(object sender, RoutedEventArgs e)
+{
+verboseOutput = true;
+}
+
+private void verboseOutputCheck_Unchecked(object sender, RoutedEventArgs e)
+{
+
+verboseOutput = false;
+}*/
     }
 }
