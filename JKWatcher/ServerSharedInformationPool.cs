@@ -97,7 +97,7 @@ namespace JKWatcher
     // Todo reset stuff on level restart and especially map change
     class ServerSharedInformationPool
     {
-        public PlayerInfo[] playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
+        public PlayerInfo[] playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02).MaxClients];
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
         public ServerSharedInformationPool()
@@ -108,7 +108,7 @@ namespace JKWatcher
 
         public void ResetInfo()
         {
-            playerInfo = new PlayerInfo[JKClient.Common.MaxClients(ProtocolVersion.Protocol15)];
+            playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02).MaxClients];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
             teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
             teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;

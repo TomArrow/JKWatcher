@@ -131,7 +131,7 @@ namespace JKWatcher
             ip = ipA;
             protocol = protocolA;
 
-            client = new Client();
+            client = new Client(new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02)); // Todo make more flexible
             client.Name = "Padawan";
 
             client.ServerCommandExecuted += ServerCommandExecuted;
@@ -296,7 +296,7 @@ namespace JKWatcher
                 thisSnapshotObituaryAttackers.Clear();
             }
 
-            if (e.EventType == EntityEvent.Obituary)
+            if (e.EventType == ClientGame.EntityEvent.Obituary)
             {
                 // TODO Important. See if we can correlate death events to ctf frag events. That way we could know where
                 //  the flag carrier was killed and thus where the flag is
@@ -310,7 +310,7 @@ namespace JKWatcher
                 locationOfDeath.Y = copyOfEntity.CurrentState.Position.Base[1];
                 locationOfDeath.Z = copyOfEntity.CurrentState.Position.Base[2];
                 MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
-                if (target < 0 || target >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
+                if (target < 0 || target >= client.ClientHandler.MaxClients)
                 {
                     serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
                     return;
@@ -426,7 +426,7 @@ namespace JKWatcher
                         break;
                 }
 
-                if (attacker < 0 || attacker >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
+                if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
                 {
                     serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
                 } else
@@ -439,7 +439,7 @@ namespace JKWatcher
                     string attackerName = infoPool.playerInfo[attacker].name;
                     serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
                 }
-            } else if(e.EventType == EntityEvent.CtfMessage)
+            } else if(e.EventType == ClientGame.EntityEvent.CtfMessage)
             {
                 CtfMessageType messageType = (CtfMessageType)e.Entity.CurrentState.EventParm;
                 int playerNum = e.Entity.CurrentState.TrickedEntityIndex;
@@ -470,7 +470,7 @@ namespace JKWatcher
 
                 PlayerInfo? pi = null;
 
-                if(playerNum >= 0 && playerNum <= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
+                if(playerNum >= 0 && playerNum <= client.ClientHandler.MaxClients)
                 {
                     pi = infoPool.playerInfo[playerNum];
                 }
@@ -548,7 +548,7 @@ namespace JKWatcher
             {
                 return;
             }
-            for (int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
+            for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
                 if (entities[i].CurrentValid || entities[i].CurrentState.FilledFromPlayerState ) { 
@@ -593,7 +593,7 @@ namespace JKWatcher
             // In theory we should be able to just check the flag item against the flag status (cs 23) but 
             // we might be (?) at a point in time where the new flag status has not yet been parsed, but the new 
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
-            for (int i = JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i < JKClient.Common.MaxGEntities; i++)
+            for (int i = client.ClientHandler.MaxClients; i < JKClient.Common.MaxGEntities; i++)
             {
                 if (entities[i].CurrentValid)
                 { 
@@ -667,7 +667,7 @@ namespace JKWatcher
             {
                 return;
             }
-            for(int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
+            for(int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
                 infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
@@ -838,7 +838,7 @@ namespace JKWatcher
             {
                 //
                 int clientNum = commandEventArgs.Command.Argv(i * 14 + 4).Atoi();
-                if (clientNum < 0 || clientNum >= JKClient.Common.MaxClients(ProtocolVersion.Protocol15))
+                if (clientNum < 0 || clientNum >= client.ClientHandler.MaxClients)
                 {
                     continue;
                 }

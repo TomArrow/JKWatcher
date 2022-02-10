@@ -286,7 +286,7 @@ namespace JKWatcher
                     continue;
                 }*/
                 
-                for(int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
+                for(int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     minX = Math.Min(minX, -infoPool.playerInfo[i].position.X);
                     maxX = Math.Max(maxX, -infoPool.playerInfo[i].position.X);
@@ -299,7 +299,7 @@ namespace JKWatcher
                 float x, y;
                 int imageX, imageY;
                 int byteOffset;
-                for (int i = 0; i < JKClient.Common.MaxClients(ProtocolVersion.Protocol15); i++)
+                for (int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     if(infoPool.playerInfo[i].lastFullPositionUpdate == null)
                     {

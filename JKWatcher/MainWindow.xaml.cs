@@ -37,7 +37,7 @@ namespace JKWatcher
         public async void getServers()
         {
             connectBtn.IsEnabled = false;
-            var serverBrowser = new ServerBrowser();
+            var serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
             serverBrowser.Start(ExceptionCallback);
             var servers = await serverBrowser.GetNewList();
             //servers = await serverBrowser.RefreshList();
