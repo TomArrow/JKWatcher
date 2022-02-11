@@ -22,7 +22,7 @@
             <RowDefinition Height="2*"></RowDefinition>
         </Grid.RowDefinitions>
         <DockPanel Grid.RowSpan="2">
-            <DataGrid  CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
@@ -82,7 +82,7 @@
                 <Button x:Name="recordBtn" Click="recordBtn_Click" IsEnabled="False">Record</Button>
                 <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click" IsEnabled="False">Stop recording</Button>
             </WrapPanel>
-            <DataGrid  CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
+            <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="psCn" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
@@ -99,7 +99,7 @@
                     <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">Add CTF watcher</Button>
                     <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
                 </WrapPanel>
-                <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
+                <DataGrid  IsReadOnly="True" DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
                         <DataGridTextColumn Header="Type" Binding="{Binding Type}"></DataGridTextColumn>
