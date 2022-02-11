@@ -22,7 +22,7 @@
             <RowDefinition Height="2*"></RowDefinition>
         </Grid.RowDefinitions>
         <DockPanel Grid.RowSpan="2">
-            <DataGrid DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <DataGrid  CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
@@ -33,7 +33,7 @@
         <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
                 <TextBox x:Name="commandLine" MinWidth="400"></TextBox>
-                <Button x:Name="commandSendBtn" Click="commandSendBtn_Click">Execute</Button>
+                <Button x:Name="commandSendBtn" Click="commandSendBtn_Click" IsEnabled="False">Execute</Button>
                 <Label>Verbosity level:</Label>
                 <ComboBox x:Name="verbosityComboBox" SelectionChanged="verbosityComboBox_SelectionChanged">
                     <ComboBoxItem Content="zero" Tag="0" IsSelected="True"></ComboBoxItem>
@@ -82,7 +82,7 @@
                 <Button x:Name="recordBtn" Click="recordBtn_Click" IsEnabled="False">Record</Button>
                 <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click" IsEnabled="False">Stop recording</Button>
             </WrapPanel>
-            <DataGrid DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
+            <DataGrid  CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="psCn" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
@@ -97,11 +97,12 @@
             <DockPanel DockPanel.Dock="Bottom">
                 <WrapPanel DockPanel.Dock="Top">
                     <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">Add CTF watcher</Button>
+                    <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
                 </WrapPanel>
-                <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                <DataGrid DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
-                        <DataGridTextColumn Header="Type" Binding="{Binding Name}"></DataGridTextColumn>
+                        <DataGridTextColumn Header="Type" Binding="{Binding Type}"></DataGridTextColumn>
                     </DataGrid.Columns>
 
                 </DataGrid>

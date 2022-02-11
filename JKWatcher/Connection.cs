@@ -151,7 +151,7 @@ namespace JKWatcher
             } catch(Exception e)
             {
                 Status = client.Status;
-                serverWindow.addToLog("Failed to create connection: "+e.ToString());
+                serverWindow.addToLog("Failed to create connection: "+e.ToString(),true);
                 return false;
             }
             Status = client.Status;
@@ -177,7 +177,7 @@ namespace JKWatcher
                 System.Threading.Thread.Sleep(1000);
                 if (reconnectTriesCount >= reconnectMaxTries)
                 {
-                    serverWindow.addToLog("Giving up on reconnect after 10 tries.");
+                    serverWindow.addToLog("Giving up on reconnect after 10 tries.", true);
                     break;
                 }
                 success = await createConnection(ip, protocol);
@@ -197,11 +197,11 @@ namespace JKWatcher
         {
             if (DisconnectCallbackRecursion++ > DisconnectCallbackRecursionLimit)
             {
-                serverWindow.addToLog("[Client_Disconnected] Hit Disconnect recursion limit trying to restart the connection. Giving up.");
+                serverWindow.addToLog("[Client_Disconnected] Hit Disconnect recursion limit trying to restart the connection. Giving up.", true);
                 return;
             }
 
-            serverWindow.addToLog("Involuntary disconnect for some reason.");
+            serverWindow.addToLog("Involuntary disconnect for some reason.", true);
             Status = client.Status;
 
             bool wasRecordingADemo = isRecordingADemo;
@@ -240,10 +240,10 @@ namespace JKWatcher
         {
             if (DisconnectCallbackRecursion++ > DisconnectCallbackRecursionLimit)
             {
-                serverWindow.addToLog("[ExceptionCallback] Hit Disconnect recursion limit trying to restart the connection. Giving up.");
+                serverWindow.addToLog("[ExceptionCallback] Hit Disconnect recursion limit trying to restart the connection. Giving up.", true);
                 return;
             }
-            serverWindow.addToLog("JKClient crashed: " + exception.ToString());
+            serverWindow.addToLog("JKClient crashed: " + exception.ToString(),true);
             Debug.WriteLine(exception);
 
             bool wasRecordingADemo = isRecordingADemo;
@@ -890,7 +890,7 @@ namespace JKWatcher
         }
 
 
-        public async void startDemoRecord()
+        public async void startDemoRecord(int iterator=0)
         {
             if (isRecordingADemo)
             {
@@ -900,7 +900,7 @@ namespace JKWatcher
 
             serverWindow.addToLog("Initializing demo recording...");
             string timeString = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(timeString + "-" + client.ServerInfo.MapName, client.ServerInfo.Protocol);
+            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(timeString + "-" + client.ServerInfo.MapName+(iterator==0 ? "" : "_"+(iterator+1).ToString()), client.ServerInfo.Protocol);
 
             TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
 
@@ -950,7 +950,7 @@ namespace JKWatcher
                 leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
-                if (client.ServerInfo.GameType == GameType.FFA)
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false)
                 { // replace with more sophisticated detection
                     // doing a detection here to not annoy ctf players.
                     // will still annoy ffa players until better detection.
@@ -961,7 +961,7 @@ namespace JKWatcher
                 // TwiMod (DARK etc)
                 leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                if (client.ServerInfo.GameType == GameType.FFA) // Might not be accurate idk
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false) // Might not be accurate idk
                 {
                     leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                     leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

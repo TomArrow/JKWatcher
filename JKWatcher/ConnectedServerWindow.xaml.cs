@@ -71,17 +71,23 @@ namespace JKWatcher
 
             var tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { miniMapUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
+            Task.Factory.StartNew(() => { miniMapUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(), true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
+            Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(),true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default);
+            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(),true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
 
         }
@@ -104,7 +110,12 @@ namespace JKWatcher
             }
         }
 
-        ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
+        public struct LogQueueItem {
+            public string logString;
+            public bool forceLogToFile;
+        }
+
+        ConcurrentQueue<LogQueueItem> logQueue = new ConcurrentQueue<LogQueueItem>();
         List<int> linesRunCounts = new List<int>();
         const int countOfLineSAllowed = 100;
 
@@ -116,11 +127,16 @@ namespace JKWatcher
                 ct.ThrowIfCancellationRequested();
 
                 List<string> dequeuedStrings = new List<string>();
+                List<string> stringsToForceWriteToLogFile = new List<string>();
 
-                string stringToAdd;
+                LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
                 {
-                    dequeuedStrings.Add(stringToAdd);
+                    if (stringToAdd.forceLogToFile)
+                    {
+                        stringsToForceWriteToLogFile.Add(stringToAdd.logString);
+                    }
+                    dequeuedStrings.Add(stringToAdd.logString);
                 }
 
                 if (LogColoredEnabled)
@@ -132,7 +148,10 @@ namespace JKWatcher
                     addStringsToPlain(dequeuedStrings.ToArray());
                 }
 
-                
+                if(stringsToForceWriteToLogFile.Count > 0)
+                {
+                    Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
+                }
             }
             
         }
@@ -233,9 +252,11 @@ namespace JKWatcher
             
         }*/
 
-        public void addToLog(string someString)
+
+
+        public void addToLog(string someString,bool forceLogToFile=false)
         {
-            logQueue.Enqueue(someString);
+            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile });
         }
 
 
@@ -341,17 +362,24 @@ namespace JKWatcher
 
         private void createCameraOperator<T>() where T:CameraOperator, new()
         {
-            T camOperator = new T();
-            int requiredConnectionCount = camOperator.getRequiredConnectionCount();
-            Connection[] connectionsForCamOperator = getUnboundConnections(requiredConnectionCount);
-            camOperator.provideConnections(connectionsForCamOperator);
-            camOperator.provideServerSharedInformationPool(infoPool);
-            camOperator.Initialize();
+            
             lock (cameraOperators)
             {
+                T camOperator = new T();
+                camOperator.Errored += CamOperator_Errored;
+                int requiredConnectionCount = camOperator.getRequiredConnectionCount();
+                Connection[] connectionsForCamOperator = getUnboundConnections(requiredConnectionCount);
+                camOperator.provideConnections(connectionsForCamOperator);
+                camOperator.provideServerSharedInformationPool(infoPool);
+                camOperator.Initialize();
                 cameraOperators.Add(camOperator);
+                updateIndices();
             }
-            updateIndices();
+        }
+
+        private void CamOperator_Errored(object sender, CameraOperator.ErroredEventArgs e)
+        {
+            addToLog("Camera Operator error: " + e.Exception.ToString(),true);
         }
 
         private Connection[] getUnboundConnections(int count)
@@ -420,11 +448,16 @@ namespace JKWatcher
         {
             if (connections.Count == 0) return;
 
-            foreach (Connection conn in connectionsDataGrid.SelectedItems)
+            // we make a copy of the selected items because otherwise the command might change something
+            // that also results in a change of selecteditems and then it would only get the first item.
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            int i = 0;
+            foreach (Connection conn in conns)
             {
                 if (conn != null && !conn.isRecordingADemo && conn.client.Status == ConnectionStatus.Active)
                 {
-                    conn.startDemoRecord();
+                    conn.startDemoRecord(i++);
                 }
             }
 
@@ -443,7 +476,11 @@ namespace JKWatcher
         {
             if (connections.Count == 0) return;
 
-            foreach (Connection conn in connectionsDataGrid.SelectedItems)
+            // we make a copy of the selected items because otherwise the command might change something
+            // that also results in a change of selecteditems and then it would only get the first item.
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            foreach (Connection conn in conns)
             {
                 if (conn != null && conn.isRecordingADemo)
                 {
@@ -464,7 +501,9 @@ namespace JKWatcher
 
         private void commandSendBtn_Click(object sender, RoutedEventArgs e)
         {
-            foreach (Connection connection in connections)
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            foreach (Connection connection in conns)
             {
                 if (connection.client.Status == ConnectionStatus.Active)
                 {
@@ -474,8 +513,6 @@ namespace JKWatcher
                     connection.leakyBucketRequester.requestExecution(command, RequestCategory.NONE,1,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
                     addToLog("Command \"" + command + "\" sent.");
-
-                    break;
                 }
             }
         }
@@ -500,11 +537,43 @@ namespace JKWatcher
             {
                 recordBtn.IsEnabled = true;
                 stopRecordBtn.IsEnabled = true;
+                commandSendBtn.IsEnabled = true;
             }
             else
             {
                 recordBtn.IsEnabled = false;
                 stopRecordBtn.IsEnabled = false;
+                commandSendBtn.IsEnabled = false;
+            }
+        }
+
+        private void deleteWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<CameraOperator> ops = cameraOperatorsDataGrid.SelectedItems.Cast<CameraOperator>().ToList();
+            lock (cameraOperators)
+            {
+                foreach (CameraOperator op in ops)
+                {
+                    lock (connections)
+                    {
+                        op.Destroy();
+                    }
+                    cameraOperators.Remove(op);
+                    updateIndices();
+                    op.Errored -= CamOperator_Errored;
+                }
+            }
+        }
+
+        private void cameraOperatorsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (cameraOperatorsDataGrid.Items.Count > 0 && cameraOperatorsDataGrid.SelectedItems.Count > 0)
+            {
+                deleteWatcherBtn.IsEnabled = true;
+            }
+            else
+            {
+                deleteWatcherBtn.IsEnabled = false;
             }
         }
 

@@ -22,17 +22,44 @@ namespace JKWatcher.CameraOperators
 
         CancellationTokenSource cts = new CancellationTokenSource();
 
+        private Task backgroundTask = null;
+
         public override void Initialize()
         {
             base.Initialize();
             CancellationToken ct = cts.Token;
-            Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                OnErrored(new ErroredEventArgs( t.Exception));
+            }, TaskContinuationOptions.OnlyOnFaulted);
         }
 
         ~CTFCameraOperatorRedBlue()
         {
-            cts.Cancel();
-            cts.Dispose();
+            Destroy();
+        }
+
+        public override void Destroy()
+        {
+            lock (destructionMutex)
+            {
+                if (isDestroyed) return;
+                cts.Cancel();
+                if (backgroundTask != null)
+                {
+                    try
+                    {
+                        backgroundTask.Wait();
+                    }
+                    catch (Exception e)
+                    {
+                        // Task cancelled most likely.
+                    }
+                }
+                cts.Dispose();
+                base.Destroy();
+                isDestroyed = true;
+            }
+            
         }
 
         // first connection [0] follows red flag

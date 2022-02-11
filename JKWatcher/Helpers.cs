@@ -12,6 +12,14 @@ namespace JKWatcher
     static class Helpers
     {
 
+        public static string forcedLogFileName = "forcedLog.log";
+        public static void logToFile(string[] texts)
+        {
+            lock (forcedLogFileName)
+            {
+                File.WriteAllLines(forcedLogFileName, texts);
+            }
+        }
 
         // Takes array of strings and turns them into chunks of maxSize with a chosen separator.
         // If any input chunk is too big, it will be split, first using empty spaces and commas,

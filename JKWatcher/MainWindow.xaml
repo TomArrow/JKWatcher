@@ -15,7 +15,7 @@
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
             </WrapPanel>
-            <DataGrid DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
+            <DataGrid  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
                     <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JKWatcher
@@ -14,9 +15,36 @@ namespace JKWatcher
         protected Connection[] connections = null;
         protected ServerSharedInformationPool infoPool = null;
 
+        public event EventHandler<ErroredEventArgs> Errored;
+        protected void OnErrored(ErroredEventArgs eventArgs)
+        {
+            this.Errored?.Invoke(this, eventArgs);
+        }
+
+
         private bool initialized = false;
 
-        public int Index { get; set; } = -1;
+        private int index = -1;
+        public int Index { 
+            get {
+                return index;
+            } 
+            set { 
+                if(value != index)
+                {
+                    index = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Index"));
+                    if(connections != null)
+                    {
+                        foreach(Connection conn in connections)
+                        {
+                            conn.CameraOperator = index;
+                        }
+                    }
+                }
+            } 
+        }
+
         public string Type { get {
                 return getTypeDisplayName();
             } }
@@ -34,6 +62,10 @@ namespace JKWatcher
                 throw new Exception("Not enough connections were provided to a camera operator.");
             }
             connections = connectionsA;
+            foreach (Connection conn in connections)
+            {
+                conn.CameraOperator = index;
+            }
         }
 
         public void provideServerSharedInformationPool(ServerSharedInformationPool pool)
@@ -59,6 +91,27 @@ namespace JKWatcher
             initialized = true;
         }
 
+        protected bool isDestroyed = false;
+        protected Mutex destructionMutex = new Mutex();
+
+        virtual public void Destroy()
+        {
+            lock (destructionMutex)
+            {
+                if (isDestroyed) return;
+                if(connections != null)
+                {
+                    foreach (Connection conn in connections)
+                    {
+                        conn.CameraOperator = null;
+                    }
+                }
+                connections = null;
+                infoPool = null;
+                isDestroyed = true;
+            }
+        }
+
         // Use this at the start of any function that requires everything to be initialized.
         protected void ThrowErrorIfNotInitialized()
         {
@@ -67,5 +120,18 @@ namespace JKWatcher
                 throw new Exception("CameraOperator is not initialized.");
             }
         }
+
+        public class ErroredEventArgs : EventArgs
+        {
+
+            public Exception Exception { get; private set; }
+
+            public ErroredEventArgs(Exception exception)
+            {
+                Exception = exception;
+            }
+        }
     }
+
+    
 }
