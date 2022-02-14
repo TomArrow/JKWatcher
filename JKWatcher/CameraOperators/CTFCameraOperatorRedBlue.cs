@@ -1087,6 +1087,9 @@ namespace JKWatcher.CameraOperators
             {
                 gradeMethod = "gradeForFlagDroppedWithKnownPosition(" + flagIsVisible.ToString()+","+ flagDistanceFromBase.ToString() + ")";
 
+                throw new NotImplementedException();
+
+                /* //First try:
                 grade = 1;
                 if (!flagIsVisible && this.isOnSameTeamAsFlag && flagDistanceFromBase<2000) { // Flag is still near base, so give recently died players on team a bonus
                     if(this.lastDeath < 4000) 
@@ -1128,7 +1131,7 @@ namespace JKWatcher.CameraOperators
 #if DEBUG && LOGDECISIONS
                 DecisionsLogger.logDecisionGrading(this);
 #endif
-                return grade;
+                return grade;*/
             }
 
             // Bigger value: worse decision

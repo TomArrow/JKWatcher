@@ -30,7 +30,7 @@ namespace JKWatcher
 
         #region clientinfo
         public string name { get; set; }
-        public JKClient.Team team { get; set; }
+        public Team team { get; set; }
         public bool infoValid { get; set; }
         public int clientNum { get; set; }
         public DateTime? lastClientInfoUpdate;

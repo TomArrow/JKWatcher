@@ -42,7 +42,7 @@ namespace JKWatcher
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
         //public bool verboseOutput { get; private set; } = false;
-        public int verboseOutput { get; private set; } = 0;
+        public int verboseOutput { get; private set; } = 5;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
@@ -503,7 +503,8 @@ namespace JKWatcher
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
-            foreach (Connection connection in conns)
+            DoExecuteCommand(commandLine.Text, conns.ToArray());
+            /*foreach (Connection connection in conns)
             {
                 if (connection.client.Status == ConnectionStatus.Active)
                 {
@@ -514,7 +515,26 @@ namespace JKWatcher
 
                     addToLog("Command \"" + command + "\" sent.");
                 }
-            }
+            }*/
+        }
+
+        private void updateButtonEnablednesses()
+        {
+            bool connectionsSelected = connectionsDataGrid.Items.Count > 0 && connectionsDataGrid.SelectedItems.Count > 0;
+            bool cameraOperatorsSelected = cameraOperatorsDataGrid.Items.Count > 0 && cameraOperatorsDataGrid.SelectedItems.Count > 0;
+            bool playersSelected = playerListDataGrid.Items.Count > 0 && playerListDataGrid.SelectedItems.Count > 0;
+
+            recordBtn.IsEnabled = connectionsSelected;
+            stopRecordBtn.IsEnabled = connectionsSelected;
+            commandSendBtn.IsEnabled = connectionsSelected;
+
+            deleteWatcherBtn.IsEnabled = cameraOperatorsSelected;
+
+            msgSendBtn.IsEnabled = connectionsSelected;
+            msgSendTeamBtn.IsEnabled = connectionsSelected;
+            msgSendPlayerBtn.IsEnabled = playersSelected && connectionsSelected; // Sending to specific players.
+
+            followBtn.IsEnabled = playersSelected && connectionsSelected; // Need to know who to follow and which connection to use
         }
 
         private void addCtfWatcherBtn_Click(object sender, RoutedEventArgs e)
@@ -533,18 +553,7 @@ namespace JKWatcher
 
         private void connectionsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (connectionsDataGrid.Items.Count > 0 && connectionsDataGrid.SelectedItems.Count > 0)
-            {
-                recordBtn.IsEnabled = true;
-                stopRecordBtn.IsEnabled = true;
-                commandSendBtn.IsEnabled = true;
-            }
-            else
-            {
-                recordBtn.IsEnabled = false;
-                stopRecordBtn.IsEnabled = false;
-                commandSendBtn.IsEnabled = false;
-            }
+            updateButtonEnablednesses();
         }
 
         private void deleteWatcherBtn_Click(object sender, RoutedEventArgs e)
@@ -567,27 +576,83 @@ namespace JKWatcher
 
         private void cameraOperatorsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (cameraOperatorsDataGrid.Items.Count > 0 && cameraOperatorsDataGrid.SelectedItems.Count > 0)
+            updateButtonEnablednesses();
+        }
+
+        private void msgSendBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            DoExecuteCommand("say \""+ commandLine.Text + "\"",conns.ToArray());
+        }
+
+        private void msgSendTeamBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            DoExecuteCommand("say_team \"" + commandLine.Text + "\"", conns.ToArray());
+
+        }
+
+        private void msgSendPlayerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+            List<PlayerInfo> recipients = playerListDataGrid.SelectedItems.Cast<PlayerInfo>().ToList();
+
+            foreach(PlayerInfo recipient in recipients)
             {
-                deleteWatcherBtn.IsEnabled = true;
+                DoExecuteCommand("tell "+recipient.clientNum+" \"" + commandLine.Text + "\"", conns.ToArray());
             }
-            else
+        }
+        private void DoExecuteCommand(string command, Connection conn)
+        {
+            DoExecuteCommand(command, new Connection[] { conn });
+        }
+
+        private void DoExecuteCommand(string command, Connection[] conns)
+        {
+            foreach (Connection connection in conns)
             {
-                deleteWatcherBtn.IsEnabled = false;
+                if (connection.client.Status == ConnectionStatus.Active)
+                {
+                    //string command = commandLine.Text;
+                    //commandLine.Text = "";
+                    //connection.client.ExecuteCommand(command);
+                    connection.leakyBucketRequester.requestExecution(command, RequestCategory.NONE, 1, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                    addToLog("[Conn "+connection.Index+", cN "+connection.client.clientNum+"] Command \"" + command + "\" sent.");
+                }
             }
         }
 
+        private void playerListDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            updateButtonEnablednesses();
+        }
 
-        /*
-private void verboseOutputCheck_Checked(object sender, RoutedEventArgs e)
-{
-verboseOutput = true;
-}
+        private void followBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+            List<PlayerInfo> selectedPlayers = playerListDataGrid.SelectedItems.Cast<PlayerInfo>().ToList();
 
-private void verboseOutputCheck_Unchecked(object sender, RoutedEventArgs e)
-{
+            if(selectedPlayers.Count > 1)
+            {
+                if(selectedPlayers.Count != conns.Count)
+                {
+                    addToLog("JKWatcher error: If you select more than one player to follow, the count of selected players must be equal to the count of selected connections. ("+ selectedPlayers.Count + " != "+ conns.Count + ")");
+                    return;
+                }
+                for(int i = 0; i < selectedPlayers.Count; i++) // First selected connection follows first selected player, and so on
+                {
+                    DoExecuteCommand("follow " + selectedPlayers[i].clientNum, conns[0]);
+                }
+            } else if(selectedPlayers.Count > 0)
+            {
+                DoExecuteCommand("follow " + selectedPlayers[0].clientNum, conns.ToArray());
+            }
 
-verboseOutput = false;
-}*/
+            
+        }
+
     }
 }

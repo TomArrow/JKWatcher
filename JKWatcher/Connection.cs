@@ -82,6 +82,7 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public int? ClientNum { get; set; } = null;
         public int? SpectatedPlayer { get; set; } = null;
         public int? Index { get; set; } = null;
         public int? CameraOperator { get; set; } = null;
@@ -648,6 +649,7 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;
 
             if (obj.FloodProtect >=-1)
