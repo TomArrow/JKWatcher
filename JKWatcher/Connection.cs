@@ -92,6 +92,8 @@ namespace JKWatcher
 
         private ServerSharedInformationPool infoPool;
 
+        public string GameTime { get; set; } = null;
+
         public bool isRecordingADemo { get; private set; } = false;
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
@@ -541,7 +543,9 @@ namespace JKWatcher
 
         private unsafe void Client_SnapshotParsed(object sender, EventArgs e)
         {
-            
+
+            infoPool.setGameTime(client.gameTime);
+
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
 
             ClientEntity[] entities = client.Entities;

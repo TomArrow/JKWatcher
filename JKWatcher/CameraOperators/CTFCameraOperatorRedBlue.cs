@@ -1087,9 +1087,9 @@ namespace JKWatcher.CameraOperators
             {
                 gradeMethod = "gradeForFlagDroppedWithKnownPosition(" + flagIsVisible.ToString()+","+ flagDistanceFromBase.ToString() + ")";
 
-                throw new NotImplementedException();
+                //throw new NotImplementedException();
 
-                /* //First try:
+                 //First try:
                 grade = 1;
                 if (!flagIsVisible && this.isOnSameTeamAsFlag && flagDistanceFromBase<2000) { // Flag is still near base, so give recently died players on team a bonus
                     if(this.lastDeath < 4000) 
@@ -1131,7 +1131,7 @@ namespace JKWatcher.CameraOperators
 #if DEBUG && LOGDECISIONS
                 DecisionsLogger.logDecisionGrading(this);
 #endif
-                return grade;*/
+                return grade;
             }
 
             // Bigger value: worse decision
@@ -1194,7 +1194,7 @@ namespace JKWatcher.CameraOperators
             sw = new StreamWriter(new FileStream("playerDecisionsDEBUG.csv", FileMode.Append, FileAccess.Write, FileShare.Read));
             if(sw.BaseStream.Position == 0)
             { // Empty file
-                sw.WriteLine("clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,gradegradeMethod");
+                sw.WriteLine("clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
             }
         }
 
@@ -1209,7 +1209,7 @@ namespace JKWatcher.CameraOperators
         {
             if(sw != null)
             {
-                sw.WriteLine($"\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.gradeMethod}\"");
+                sw.WriteLine($"\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
             }
         }
     }

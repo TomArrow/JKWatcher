@@ -1,6 +1,7 @@
 ﻿using JKClient;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -95,10 +96,27 @@ namespace JKWatcher
     }
 
     // Todo reset stuff on level restart and especially map change
-    class ServerSharedInformationPool
+    class ServerSharedInformationPool : INotifyPropertyChanged
     {
+        private int gameTime = 0;
+        public string GameTime { get; private set; }
+        public void setGameTime(int gameTime)
+        {
+            this.gameTime = gameTime;
+            int msec = gameTime;
+            int secs = msec / 1000;
+            int mins = secs / 60;
+
+            secs = secs % 60;
+            msec = msec % 1000;
+
+            GameTime = mins.ToString() +":"+ secs.ToString("D2");
+        }
+
         public PlayerInfo[] playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02).MaxClients];
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
+
+        public event PropertyChangedEventHandler PropertyChanged;
 
         public ServerSharedInformationPool()
         {

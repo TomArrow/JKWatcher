@@ -69,6 +69,7 @@
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Team" Binding="{Binding team}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
@@ -127,6 +128,7 @@
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="recordBtn" Click="recordBtn_Click" IsEnabled="False">Record</Button>
                 <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click" IsEnabled="False">Stop recording</Button>
+                <TextBox x:Name="gameTimeTxt" IsReadOnly="True" MinWidth="30" Text="{Binding GameTime,Mode=OneWay}"></TextBox>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.Columns>

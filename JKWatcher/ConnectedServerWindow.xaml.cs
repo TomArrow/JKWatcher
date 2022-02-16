@@ -37,7 +37,7 @@ namespace JKWatcher
         private const int maxLogLength = 10000;
         private string logString = "Begin of Log\n";
 
-        private ServerSharedInformationPool infoPool;
+        private ServerSharedInformationPool infoPool { get; set; }
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
@@ -57,6 +57,8 @@ namespace JKWatcher
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
             infoPool = new ServerSharedInformationPool();
+
+            gameTimeTxt.DataContext = infoPool;
 
             lock (connections)
             {
