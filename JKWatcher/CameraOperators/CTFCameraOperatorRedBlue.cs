@@ -24,9 +24,12 @@ namespace JKWatcher.CameraOperators
 
         private Task backgroundTask = null;
 
+        private DecisionsLogger decisionsLogger = null;
+
         public override void Initialize()
         {
             base.Initialize();
+            decisionsLogger = new DecisionsLogger(infoPool);
             CancellationToken ct = cts.Token;
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 OnErrored(new ErroredEventArgs( t.Exception));
@@ -263,7 +266,7 @@ namespace JKWatcher.CameraOperators
 
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
-                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { grade=float.PositiveInfinity}, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
+                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() {decisionsLogger = decisionsLogger, grade=float.PositiveInfinity}, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
                 for (int i = 0; i < infoPool.playerInfo.Length; i++) {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
                     {
@@ -271,6 +274,7 @@ namespace JKWatcher.CameraOperators
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
+                            decisionsLogger = decisionsLogger,
                             informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds,
                             distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity - flagPosition.Value).Length(),
                             isAlive = infoPool.playerInfo[i].IsAlive,
@@ -416,6 +420,7 @@ namespace JKWatcher.CameraOperators
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
+                            decisionsLogger = decisionsLogger,
                             isAlive = infoPool.playerInfo[i].IsAlive,
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
@@ -568,7 +573,7 @@ namespace JKWatcher.CameraOperators
                 
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
-                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
+                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
                 for (int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
@@ -577,6 +582,7 @@ namespace JKWatcher.CameraOperators
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
+                            decisionsLogger = decisionsLogger,
                             informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds,
                             distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity - flagCarrierPositionInOneSecond).Length(),
                             isAlive = infoPool.playerInfo[i].IsAlive,
@@ -704,6 +710,7 @@ namespace JKWatcher.CameraOperators
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
+                            decisionsLogger = decisionsLogger,
                             isAlive = infoPool.playerInfo[i].IsAlive,
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
@@ -808,7 +815,7 @@ namespace JKWatcher.CameraOperators
 
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
-                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
+                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
                 for (int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
@@ -817,6 +824,7 @@ namespace JKWatcher.CameraOperators
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
+                            decisionsLogger = decisionsLogger,
                             informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds,
                             distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity - flagPosition.Value).Length(),
                             isAlive = infoPool.playerInfo[i].IsAlive,
@@ -911,6 +919,9 @@ namespace JKWatcher.CameraOperators
 
         public struct PossiblePlayerDecision
         {
+
+            public DecisionsLogger decisionsLogger;
+
             // Important to do: Cap out some of these grading parameters
             // For example information age should not really get much worse beyond a certain point.
             // Just because we haven't heard from someone in 20 seconds doesn't make him an exponentially worse choice 
@@ -956,7 +967,7 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(isOnSameTeamAsFlag? 1.2f: 1.35f, 10000-lastDeath / 1000);
 
 #if DEBUG && LOGDECISIONS
-                DecisionsLogger.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(this);
 #endif
                 return grade;
             }
@@ -1025,7 +1036,7 @@ namespace JKWatcher.CameraOperators
                     }
                 }
 #if DEBUG && LOGDECISIONS
-                DecisionsLogger.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(this);
 #endif
                 return grade;
             }
@@ -1059,7 +1070,7 @@ namespace JKWatcher.CameraOperators
 
                     // We might also try and track who retted how many times to guess roles by numbers.
 #if DEBUG && LOGDECISIONS
-                    DecisionsLogger.logDecisionGrading(this);
+                    decisionsLogger?.logDecisionGrading(this);
 #endif
                     return grade;
                     
@@ -1078,7 +1089,7 @@ namespace JKWatcher.CameraOperators
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
 #if DEBUG && LOGDECISIONS
-                DecisionsLogger.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(this);
 #endif
                 return grade;
             }
@@ -1110,7 +1121,7 @@ namespace JKWatcher.CameraOperators
 
                         // We might also try and track who retted how many times to guess roles by numbers.
 #if DEBUG && LOGDECISIONS
-                        DecisionsLogger.logDecisionGrading(this);
+                        decisionsLogger?.logDecisionGrading(this);
 #endif
                         return grade;
                     }
@@ -1129,7 +1140,7 @@ namespace JKWatcher.CameraOperators
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
 #if DEBUG && LOGDECISIONS
-                DecisionsLogger.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(this);
 #endif
                 return grade;
             }
@@ -1164,7 +1175,7 @@ namespace JKWatcher.CameraOperators
 
                 grade *= this.isCarryingTheOtherTeamsFlag ? 1.15f : 1f; // Action from flag carrier against flag carrier is cool, give it a slight bonus
 #if DEBUG && LOGDECISIONS
-                DecisionsLogger.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(this);
 #endif
                 return grade;
             }
@@ -1182,34 +1193,36 @@ namespace JKWatcher.CameraOperators
         }
     }
 
-    static class DecisionsLogger
+    class DecisionsLogger
     {
-        private static StreamWriter sw = null;
+        private StreamWriter sw = null;
 
-        static DecisionsLogger()
+        ServerSharedInformationPool infoPool = null;
+
+
+        public DecisionsLogger(ServerSharedInformationPool _infoPool)
         {
-            AppDomain.CurrentDomain.ProcessExit +=
-                DecisionsLogger_Dtor;
+            infoPool = _infoPool;
 
-            sw = new StreamWriter(new FileStream("playerDecisionsDEBUG.csv", FileMode.Append, FileAccess.Write, FileShare.Read));
+            sw = new StreamWriter(new FileStream(Helpers.GetUnusedFilename("playerDecisionsDEBUG.csv"), FileMode.Append, FileAccess.Write, FileShare.Read));
             if(sw.BaseStream.Position == 0)
             { // Empty file
-                sw.WriteLine("clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
+                sw.WriteLine("time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
             }
         }
 
-        static void DecisionsLogger_Dtor(object sender, EventArgs e)
+        ~DecisionsLogger()
         {
             // clean it up
             sw.Close();
             sw.Dispose();
         }
 
-        public static void logDecisionGrading(CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)
+        public void logDecisionGrading(CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)
         {
             if(sw != null)
             {
-                sw.WriteLine($"\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
+                sw.WriteLine($"\"{infoPool.GameTime}\",\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
             }
         }
     }
