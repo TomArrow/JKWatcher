@@ -76,27 +76,28 @@ namespace JKWatcher.CameraOperators
                 System.Threading.Thread.Sleep(100);
                 ct.ThrowIfCancellationRequested();
 
-                foreach (Team team in teams)
-                {
-                    switch (infoPool.teamInfo[(int)team].flag)
+                if (!infoPool.isIntermission) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
+                    foreach (Team team in teams)
                     {
-                        case FlagStatus.FLAG_ATBASE:
-                            handleFlagAtBase(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
-                            break;
-                        case FlagStatus.FLAG_TAKEN:
-                            handleFlagTaken(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
-                            break;
-                        case FlagStatus.FLAG_DROPPED:
-                            handleFlagDropped(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
-                            break;
-                        default:
-                            // uh, dunno.
-                            break;
+                        switch (infoPool.teamInfo[(int)team].flag)
+                        {
+                            case FlagStatus.FLAG_ATBASE:
+                                handleFlagAtBase(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
+                                break;
+                            case FlagStatus.FLAG_TAKEN:
+                                handleFlagTaken(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
+                                break;
+                            case FlagStatus.FLAG_DROPPED:
+                                handleFlagDropped(team, infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team]);
+                                break;
+                            default:
+                                // uh, dunno.
+                                break;
+                        }
+                        lastFlagStatus[(int)team] = infoPool.teamInfo[(int)team].flag;
                     }
-                    lastFlagStatus[(int)team] = infoPool.teamInfo[(int)team].flag;
+
                 }
-
-
 
             }
         }

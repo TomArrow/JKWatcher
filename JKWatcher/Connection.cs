@@ -545,6 +545,7 @@ namespace JKWatcher
         {
 
             infoPool.setGameTime(client.gameTime);
+            infoPool.isIntermission = client.IsInterMission;
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
 

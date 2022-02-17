@@ -98,6 +98,8 @@ namespace JKWatcher
     // Todo reset stuff on level restart and especially map change
     class ServerSharedInformationPool : INotifyPropertyChanged
     {
+        public bool isIntermission { get; set; } = false;
+
         private int gameTime = 0;
         public string GameTime { get; private set; }
         public void setGameTime(int gameTime)
