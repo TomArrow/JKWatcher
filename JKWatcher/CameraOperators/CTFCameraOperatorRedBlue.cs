@@ -302,7 +302,7 @@ namespace JKWatcher.CameraOperators
 
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
-                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue);
+                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
                 });
 
                 if (flagVisible)
@@ -446,7 +446,7 @@ namespace JKWatcher.CameraOperators
 
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
-                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue);
+                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
                 });
 
                 // Flag carrier is not visible otherwise we would likely know who has the flag.
@@ -606,7 +606,7 @@ namespace JKWatcher.CameraOperators
 
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
-                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue);
+                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
                 });
 
                 if (currentlySpectatedPlayer == possibleNextPlayers[0].clientNum)
@@ -736,7 +736,7 @@ namespace JKWatcher.CameraOperators
 
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
-                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue);
+                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
                 });
 
                 // Flag is not visible otherwise we would likely know where it is.
@@ -852,7 +852,7 @@ namespace JKWatcher.CameraOperators
 
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
-                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue);
+                    return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue-100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
                 });
 
                 if (flagVisible)
@@ -988,7 +988,7 @@ namespace JKWatcher.CameraOperators
 
                     //float effectOfDeathTime = (float)Math.Pow(2.0, 4f - timeSinceInBase / 1000.0f);
                     float recentDeathAdvantageFactor = (float)Math.Pow(1.5, Math.Abs(this.lastDeath - 1500) / 1000); // This will count the more recently flag was seen at base
-                    float recentDeathDisadvantageFactor = (float)Math.Pow(1.3, 10000 - Math.Min(this.lastDeath, 10000) / 1000); // This will count the longer it's been
+                    float recentDeathDisadvantageFactor = (float)Math.Pow(1.3, (10000 - Math.Min(this.lastDeath, 10000)) / 1000); // This will count the longer it's been
                     
                     if(timeSinceInBase <= 3000f)
                     {
@@ -1013,7 +1013,7 @@ namespace JKWatcher.CameraOperators
 
                     // Opposite treatment for other team
                     float recentDeathAdvantageFactor = (float)Math.Pow(1.3, Math.Abs(this.lastDeath - 1500) / 1000); // This will count the more recently flag was seen at base
-                    float recentDeathDisadvantageFactor = (float)Math.Pow(1.3, 10000 - Math.Min(this.lastDeath, 10000) / 1000); // This will count the longer it's been
+                    float recentDeathDisadvantageFactor = (float)Math.Pow(1.3, (10000 - Math.Min(this.lastDeath, 10000)) / 1000); // This will count the longer it's been
 
 
                     if (timeSinceInBase <= 3000f)
@@ -1081,7 +1081,7 @@ namespace JKWatcher.CameraOperators
                     // If player is on opposing team and died recently, he's almost certainly a bad choice.
                     // If someone died recently he's almost certainly in his own base and not near the flag of the enemy team.
                     // TODO Adjust this automatically based on map size measured by distance between both flag bases
-                    grade *= (float)Math.Pow(1.5, 10000- Math.Min(this.lastDeath,10000) / 1000);
+                    grade *= (float)Math.Pow(1.5, (10000- Math.Min(this.lastDeath,10000)) / 1000);
                 }
 
                 grade *= (float)Math.Pow(3, Math.Min(this.informationAge, 7000) / 2000); // 2 second old information is 3 times worse. 4 second old information is 9 times  worse
@@ -1132,7 +1132,7 @@ namespace JKWatcher.CameraOperators
                     // If player is on opposing team and died recently, he's almost certainly a bad choice.
                     // If someone died recently he's almost certainly in his own base and not near the flag of the enemy team.
                     // TODO Adjust this automatically based on map size measured by distance between both flag bases
-                    grade *= (float)Math.Pow(1.5, 10000- Math.Min(this.lastDeath,10000) / 1000);
+                    grade *= (float)Math.Pow(1.5, (10000- Math.Min(this.lastDeath,10000)) / 1000);
                 }
 
                 grade *= (float)Math.Pow(3, Math.Min(this.informationAge,7000) / 2000); // 2 second old information is 3 times worse. 4 second old information is 9 times  worse
@@ -1214,8 +1214,22 @@ namespace JKWatcher.CameraOperators
         ~DecisionsLogger()
         {
             // clean it up
-            sw.Close();
-            sw.Dispose();
+            Destroy();
+        }
+
+        private bool isDestroyed = false;
+        private Mutex destructionMutex = new Mutex();
+        private void Destroy()
+        {
+            lock (destructionMutex)
+            {
+                if (!isDestroyed)
+                {
+                    sw.Close(); // Got cannot access a closed file once, strange.
+                    sw.Dispose();
+                    isDestroyed = true;
+                }
+            }
         }
 
         public void logDecisionGrading(CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)

@@ -31,7 +31,7 @@ namespace JKWatcher
         {
             lock (forcedLogFileName)
             {
-                File.WriteAllLines(forcedLogFileName, texts);
+                File.AppendAllLines(forcedLogFileName, texts);
             }
         }
 
