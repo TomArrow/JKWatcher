@@ -32,6 +32,7 @@ namespace JKWatcher.CameraOperators
             decisionsLogger = new DecisionsLogger(infoPool);
             CancellationToken ct = cts.Token;
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                HasErrored = true;
                 OnErrored(new ErroredEventArgs( t.Exception));
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
@@ -240,7 +241,7 @@ namespace JKWatcher.CameraOperators
                 //
 
                 // First off, is the flag visible RIGHT now?
-                bool flagVisible = flagItemNumber==-1 ? false: connection.client.Entities[flagItemNumber].CurrentValid;
+                bool flagVisible = flagItemNumber==-1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false);
                 if (flagVisible)
                 {
                     // Basically we don't HAVE to do anything in principle.
@@ -487,7 +488,7 @@ namespace JKWatcher.CameraOperators
             // Do we know WHERE is?
             int flagCarrier = infoPool.teamInfo[(int)flagTeam].lastFlagCarrier;
 
-            bool flagCarrierVisible = connection.client.Entities[flagCarrier].currentValidOrFilledFromPlayerState();
+            bool flagCarrierVisible = (connection.client.Entities?[flagCarrier].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false);
             bool currentlyFollowingFlagCarrier = flagCarrier == currentlySpectatedPlayer;
 
             if (!flagCarrierVisible)
@@ -590,7 +591,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            isVisible = connection.client.Entities[i].currentValidOrFilledFromPlayerState(),
+                            isVisible = (connection.client.Entities?[i].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false),
                             isCarryingTheFlag = i == flagCarrier,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
                             isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false
@@ -778,7 +779,7 @@ namespace JKWatcher.CameraOperators
                 //
 
                 // First off, is the flag visible RIGHT now?
-                bool flagVisible = flagItemNumber == -1 ? false: connection.client.Entities[flagItemNumber].CurrentValid; // If we don't know its item number it can't be visible either duh!
+                bool flagVisible = flagItemNumber == -1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false); // If we don't know its item number it can't be visible either duh!
                 if (flagVisible)
                 {
                     // Basically we don't HAVE to do anything in principle.
@@ -1226,9 +1227,16 @@ namespace JKWatcher.CameraOperators
             {
                 if (!isDestroyed)
                 {
-                    sw.Close(); // Got cannot access a closed file once, strange.
-                    sw.Dispose();
-                    isDestroyed = true;
+                    try // Idk why this is needed. Sometimes random clicks in UI make this happen
+                    {
+
+                        sw.Close(); // Got cannot access a closed file once, strange.
+                        sw.Dispose();
+                        isDestroyed = true; 
+                    } catch (Exception e)
+                    {
+                        Helpers.logToFile(new string[] { e.ToString() });
+                    }
                 }
             }
         }

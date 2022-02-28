@@ -84,8 +84,11 @@ namespace JKWatcher
 
         public int? ClientNum { get; set; } = null;
         public int? SpectatedPlayer { get; set; } = null;
+        public PlayerMoveType? PlayerMoveType { get; set; } = null;
         public int? Index { get; set; } = null;
         public int? CameraOperator { get; set; } = null;
+
+        public bool AlwaysFollowSomeone { get; set; } = true;
 
         //public ConnectionStatus Status => client != null ? client.Status : ConnectionStatus.Disconnected;
         public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
@@ -497,13 +500,13 @@ namespace JKWatcher
                     // Teams are inverted here because team is the team of the person who got killed
                     infoPool.teamInfo[(int)otherTeam].flag = FlagStatus.FLAG_DROPPED;
                     infoPool.teamInfo[(int)otherTeam].lastFlagUpdate = DateTime.Now;
-                    if (client.Entities[playerNum].CurrentValid) // Player who did kill is currently visible!
+                    if ((client.Entities?[playerNum].CurrentValid).GetValueOrDefault(false)) // Player who did kill is currently visible!
                     {
                         // We know where the flag is!
                         Vector3 locationOfFrag;
-                        locationOfFrag.X = client.Entities[playerNum].CurrentState.Position.Base[0];
-                        locationOfFrag.Y = client.Entities[playerNum].CurrentState.Position.Base[1];
-                        locationOfFrag.Z = client.Entities[playerNum].CurrentState.Position.Base[2];
+                        locationOfFrag.X = (client.Entities?[playerNum].CurrentState.Position.Base[0]).GetValueOrDefault(0.0f);
+                        locationOfFrag.Y = (client.Entities?[playerNum].CurrentState.Position.Base[1]).GetValueOrDefault(0.0f);
+                        locationOfFrag.Z = (client.Entities?[playerNum].CurrentState.Position.Base[2]).GetValueOrDefault(0.0f);
                         infoPool.teamInfo[(int)otherTeam].flagDroppedPosition = locationOfFrag;
                         infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
                     } else if (thisSnapshotObituaryAttackers.ContainsKey(playerNum))
@@ -546,6 +549,7 @@ namespace JKWatcher
 
             infoPool.setGameTime(client.gameTime);
             infoPool.isIntermission = client.IsInterMission;
+            PlayerMoveType = client.PlayerMoveType;
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
 
@@ -688,20 +692,42 @@ namespace JKWatcher
                 serverWindow.playerListDataGrid.ItemsSource = null;
                 serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
             });
+
+
+            if (AlwaysFollowSomeone && ClientNum == SpectatedPlayer) // Not following anyone. Let's follow someone.
+            {
+                int highestScore = int.MinValue;
+                int highestScorePlayer = -1;
+                // Pick player with highest score.
+                foreach(PlayerInfo player in infoPool.playerInfo)
+                {
+                    if(player.infoValid && player.team != Team.Spectator && player.score.score > highestScore)
+                    {
+                        highestScore = player.score.score;
+                        highestScorePlayer = player.clientNum;
+                    }
+                }
+                if(highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                {
+                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                }
+            }
         }
 
         public void disconnect()
         {
 
             client.Disconnected -= Client_Disconnected; // This only handles involuntary disconnects
+            client.Disconnected += (a,b)=> { // Replace handler that auto-reconnects with handler that disposes of client.
+                client.Stop();
+                client.Dispose();
+                serverWindow.addToLog("Disconnected.");
+            };
             client.Disconnect();
             client.ServerCommandExecuted -= ServerCommandExecuted;
             client.ServerInfoChanged -= Connection_ServerInfoChanged;
             client.SnapshotParsed -= Client_SnapshotParsed;
             client.EntityEvent -= Client_EntityEvent;
-            client.Stop();
-            client.Dispose();
-            serverWindow.addToLog("Disconnected.");
         }
 
         
@@ -865,6 +891,7 @@ namespace JKWatcher
                 infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * 14 + 15).Atoi();
                 infoPool.playerInfo[clientNum].score.perfect = commandEventArgs.Command.Argv(i * 14 + 16).Atoi() == 0 ? false : true;
                 infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * 14 + 17).Atoi();
+                infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
 
                 if ((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
                 {

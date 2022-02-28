@@ -13,16 +13,17 @@
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition></ColumnDefinition>
-            <ColumnDefinition></ColumnDefinition>
-            <ColumnDefinition></ColumnDefinition>
-            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="0.6*"></ColumnDefinition>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+            <ColumnDefinition Width="0.7*"></ColumnDefinition>
+            <ColumnDefinition Width="*" MaxWidth="150"></ColumnDefinition>
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
-            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="0.83*" MaxHeight="200" MinHeight="100"></RowDefinition>
+            <RowDefinition Height="20"></RowDefinition>
             <RowDefinition Height="2*"></RowDefinition>
         </Grid.RowDefinitions>
-        <DockPanel Grid.RowSpan="2">
+        <DockPanel Grid.RowSpan="3">
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="followBtn" Click="followBtn_Click" IsEnabled="False">Follow</Button>
             </WrapPanel>
@@ -74,14 +75,19 @@
 
             </DataGrid>
         </DockPanel>
-        <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3">
+        <WrapPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
+            <!--Various infos and outputs and stuff-->
+            <TextBox x:Name="gameTimeTxt" IsReadOnly="True" MinWidth="30" Text="{Binding GameTime,Mode=OneWay}"></TextBox>
+            
+        </WrapPanel>
+        <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="1">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
-                <TextBox x:Name="commandLine" MinWidth="350"></TextBox>
+                <TextBox x:Name="commandLine" MinWidth="300"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click" IsEnabled="False">Execute</Button>
                 <Button x:Name="msgSendBtn" Click="msgSendBtn_Click" IsEnabled="False">S</Button>
                 <Button x:Name="msgSendTeamBtn" Click="msgSendTeamBtn_Click" IsEnabled="False">T</Button>
                 <Button x:Name="msgSendPlayerBtn" Click="msgSendPlayerBtn_Click" IsEnabled="False">P</Button>
-                <Label>Verbosity level:</Label>
+                <Label>Verb.:</Label>
                 <ComboBox x:Name="verbosityComboBox" SelectionChanged="verbosityComboBox_SelectionChanged">
                     <ComboBoxItem Content="zero" Tag="0"></ComboBoxItem>
                     <ComboBoxItem Content="one" Tag="1"></ComboBoxItem>
@@ -96,8 +102,8 @@
                 <TabItem>
                     <TabItem.Header>
                         <WrapPanel>
-                            <Label>Colored</Label>
-                            <CheckBox x:Name="coloredLogCheck" IsChecked="{Binding LogColoredEnabled}"></CheckBox>
+                            <Label Padding="0" >Colored </Label>
+                            <CheckBox Padding="0" x:Name="coloredLogCheck" IsChecked="{Binding LogColoredEnabled}"></CheckBox>
                         </WrapPanel>
                     </TabItem.Header>
                     <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
@@ -110,8 +116,8 @@
                 <TabItem>
                     <TabItem.Header>
                         <WrapPanel>
-                            <Label>Plain</Label>
-                            <CheckBox x:Name="plainLogCheck" IsChecked="{Binding LogPlainEnabled}"></CheckBox>
+                            <Label Padding="0" >Plain </Label>
+                            <CheckBox Padding="0"  x:Name="plainLogCheck" IsChecked="{Binding LogPlainEnabled}"></CheckBox>
                         </WrapPanel>
                     </TabItem.Header>
                     <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
@@ -126,15 +132,17 @@
         <DockPanel Grid.Column="1">
 
             <WrapPanel DockPanel.Dock="Top">
-                <Button x:Name="recordBtn" Click="recordBtn_Click" IsEnabled="False">Record</Button>
-                <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click" IsEnabled="False">Stop recording</Button>
-                <TextBox x:Name="gameTimeTxt" IsReadOnly="True" MinWidth="30" Text="{Binding GameTime,Mode=OneWay}"></TextBox>
+                <Button x:Name="recordBtn" Click="recordBtn_Click" IsEnabled="False">Rec</Button>
+                <Button x:Name="stopRecordBtn" Click="stopRecordBtn_Click" IsEnabled="False">StopRec</Button>
+                <Button x:Name="newConBtn" Click="newConBtn_Click">NewCon</Button>
+                <Button x:Name="delBtn" Click="delBtn_Click" IsEnabled="False">Del</Button>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="cN" Binding="{Binding ClientNum}" Width="25"></DataGridTextColumn>
                     <DataGridTextColumn Header="psCN" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Rec" Binding="{Binding isRecordingADemo}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}"></DataGridTextColumn>
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
@@ -145,21 +153,26 @@
         <DockPanel Grid.Column="2">
             <DockPanel DockPanel.Dock="Bottom">
                 <WrapPanel DockPanel.Dock="Top">
-                    <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">Add CTF watcher</Button>
+                    <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">CTF</Button>
                     <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
                 </WrapPanel>
                 <DataGrid  IsReadOnly="True" DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
                         <DataGridTextColumn Header="Type" Binding="{Binding Type}"></DataGridTextColumn>
+                        <DataGridTextColumn Header="Errored" Binding="{Binding HasErrored}"></DataGridTextColumn>
                     </DataGrid.Columns>
 
                 </DataGrid>
             </DockPanel>
             
         </DockPanel>
-        <DockPanel x:Name="miniMapContainer" Grid.Column="3" Grid.Row="0" LastChildFill="True">
+        <DockPanel x:Name="miniMapContainer" Grid.Column="3" Grid.Row="0" Grid.RowSpan="2" LastChildFill="True">
             <Image x:Name="miniMap" Stretch="Fill" DockPanel.Dock="Left" VerticalAlignment="Center"></Image>
         </DockPanel>
+        <StackPanel Grid.Column="3" Grid.Row="2">
+
+            <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="True">Draw Minimap</CheckBox>
+        </StackPanel>
     </Grid>
 </Window>

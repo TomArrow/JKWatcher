@@ -15,6 +15,8 @@ namespace JKWatcher
         protected Connection[] connections = null;
         protected ServerSharedInformationPool infoPool = null;
 
+        public bool HasErrored {get;protected set;} = false;
+
         public event EventHandler<ErroredEventArgs> Errored;
         protected void OnErrored(ErroredEventArgs eventArgs)
         {

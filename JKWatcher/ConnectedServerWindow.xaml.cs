@@ -28,6 +28,7 @@ namespace JKWatcher
 
         public bool LogColoredEnabled { get; set; } = true;
         public bool LogPlainEnabled { get; set; } = false;
+        public bool DrawMiniMap { get; set; } = true;
 
         private ServerInfo serverInfo;
 
@@ -291,7 +292,7 @@ namespace JKWatcher
                 System.Threading.Thread.Sleep(100);
                 ct.ThrowIfCancellationRequested();
 
-                if (infoPool.playerInfo == null) continue;
+                if (infoPool.playerInfo == null || !DrawMiniMap) continue;
 
                 int imageWidth = (int)miniMapContainer.ActualWidth;
                 int imageHeight = (int)miniMapContainer.ActualHeight;
@@ -526,6 +527,7 @@ namespace JKWatcher
             bool cameraOperatorsSelected = cameraOperatorsDataGrid.Items.Count > 0 && cameraOperatorsDataGrid.SelectedItems.Count > 0;
             bool playersSelected = playerListDataGrid.Items.Count > 0 && playerListDataGrid.SelectedItems.Count > 0;
 
+            delBtn.IsEnabled = connectionsSelected;
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
             commandSendBtn.IsEnabled = connectionsSelected;
@@ -656,5 +658,53 @@ namespace JKWatcher
             
         }
 
+        private void checkDraw_Checked(object sender, RoutedEventArgs e)
+        {
+            DrawMiniMap = checkDraw.IsChecked.HasValue ? checkDraw.IsChecked.Value : false;
+        }
+
+        private void newConBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Connection newConnection = new Connection(this, connections[0].client.ServerInfo, infoPool);
+            lock (connections)
+            {
+                connections.Add(newConnection);
+            }
+            updateIndices();
+        }
+
+
+        private void delBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if(connections.Count < 2)
+            {
+                addToLog("Cannot remove connections if only one connection exists.");
+                return; // We won't delete our only remaining connection.
+            }
+
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            if(connections.Count - conns.Count < 1)
+            {
+                addToLog("Cannot remove connections if none would be left.");
+                return; // We won't delete all counnections. We want to keep at least one.
+            }
+
+            foreach (Connection conn in conns)
+            {
+                if (conn.Status == ConnectionStatus.Active)
+                {
+                    if(conn.CameraOperator != null)
+                    {
+                        addToLog("Cannot remove connection bound to a camera operator");
+                    } else
+                    {
+
+                        conn.disconnect();
+                        connections.Remove(conn);
+                    }
+                }
+            }
+        }
     }
 }
