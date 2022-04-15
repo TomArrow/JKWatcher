@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
@@ -33,6 +34,27 @@ namespace JKWatcher
             {
                 File.AppendAllLines(forcedLogFileName, texts);
             }
+        }
+
+        public static Mutex logMutex = new Mutex();
+        public static void debugLogToFile(string logPrefix,string[] texts)
+        {
+            Directory.CreateDirectory("debugLogs");
+            string fileName = "debugLogs/"+MakeValidFileName(logPrefix + ".log");
+
+            lock (logMutex)
+            {
+                File.AppendAllLines(fileName, texts);
+            }
+        }
+
+        // from: https://stackoverflow.com/a/847251
+        private static string MakeValidFileName(string name)
+        {
+            string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(System.IO.Path.GetInvalidFileNameChars()));
+            string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
+
+            return System.Text.RegularExpressions.Regex.Replace(name, invalidRegStr, "_");
         }
 
         // Takes array of strings and turns them into chunks of maxSize with a chosen separator.

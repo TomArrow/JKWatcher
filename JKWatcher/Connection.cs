@@ -210,7 +210,10 @@ namespace JKWatcher
             serverWindow.addToLog("Involuntary disconnect for some reason.", true);
             Status = client.Status;
 
-            bool wasRecordingADemo = isRecordingADemo;
+            if (isRecordingADemo)
+            {
+                wasRecordingADemo = true;
+            }
             if (wasRecordingADemo)
             {
                 serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
@@ -241,6 +244,8 @@ namespace JKWatcher
 
         }
 
+        bool wasRecordingADemo = false;
+
         // Client crashed for some reason
         private async Task ExceptionCallback(JKClientException exception)
         {
@@ -252,7 +257,10 @@ namespace JKWatcher
             serverWindow.addToLog("JKClient crashed: " + exception.ToString(),true);
             Debug.WriteLine(exception);
 
-            bool wasRecordingADemo = isRecordingADemo;
+            if (isRecordingADemo)
+            {
+                wasRecordingADemo = true;
+            }
             if (wasRecordingADemo)
             {
                 serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
@@ -652,6 +660,27 @@ namespace JKWatcher
                     }
                 }
             }
+
+
+
+            if (AlwaysFollowSomeone && ClientNum == SpectatedPlayer) // Not following anyone. Let's follow someone.
+            {
+                int highestScore = int.MinValue;
+                int highestScorePlayer = -1;
+                // Pick player with highest score.
+                foreach (PlayerInfo player in infoPool.playerInfo)
+                {
+                    if (player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1))
+                    {
+                        highestScore = player.score.score;
+                        highestScorePlayer = player.clientNum;
+                    }
+                }
+                if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                {
+                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                }
+            }
         }
 
 
@@ -701,7 +730,7 @@ namespace JKWatcher
                 // Pick player with highest score.
                 foreach(PlayerInfo player in infoPool.playerInfo)
                 {
-                    if(player.infoValid && player.team != Team.Spectator && player.score.score > highestScore)
+                    if(player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -709,7 +738,7 @@ namespace JKWatcher
                 }
                 if(highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
-                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
         }

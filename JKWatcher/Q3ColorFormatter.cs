@@ -17,7 +17,8 @@ namespace JKWatcher
 
 
         static Dictionary<char,int> hexColorStarters = new Dictionary<char,int> { { 'x', 3 },{ 'X',6 },{ 'y', 4 },{ 'Y',8 } };
-        static Regex hexColorRegex = new Regex("x[0-9a-f]{3}|y[0-9a-f]{4}|X[0-9a-f]{6}|Y[0-9a-f]{8}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        // Don't get confused. The "^" in the regex string actually just makes sure it's the beginning of the string. It's not literally matching the "^" even tho it seems that way
+        static Regex hexColorRegex = new Regex("^x[0-9a-f]{3}|^y[0-9a-f]{4}|^X[0-9a-f]{6}|^Y[0-9a-f]{8}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
 

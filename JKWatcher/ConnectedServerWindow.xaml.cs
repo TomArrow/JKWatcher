@@ -86,13 +86,24 @@ namespace JKWatcher
             }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
 
-            tokenSource = new CancellationTokenSource();
-            ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
-                addToLog(t.Exception.ToString(),true);
+            startLogStringUpdater();
+
+        }
+
+        private void startLogStringUpdater()
+        {
+            var tokenSource = new CancellationTokenSource();
+            CancellationToken ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                //addToLog(t.Exception.ToString(),true);
+                Helpers.logToFile(new string[] { t.Exception.ToString() });
+                Helpers.logToFile(dequeuedStrings.ToArray());
+                Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
+                dequeuedStrings.Clear();
+                stringsToForceWriteToLogFile.Clear();
+                startLogStringUpdater();
             }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
-
         }
 
         private void updateIndices()
@@ -122,15 +133,15 @@ namespace JKWatcher
         List<int> linesRunCounts = new List<int>();
         const int countOfLineSAllowed = 100;
 
+        List<string> dequeuedStrings = new List<string>();
+        List<string> stringsToForceWriteToLogFile = new List<string>();
+
         private void logStringUpdater(CancellationToken ct)
         {
             while (true)
             {
                 System.Threading.Thread.Sleep(10);
                 ct.ThrowIfCancellationRequested();
-
-                List<string> dequeuedStrings = new List<string>();
-                List<string> stringsToForceWriteToLogFile = new List<string>();
 
                 LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
@@ -155,6 +166,12 @@ namespace JKWatcher
                 {
                     Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
                 }
+#if DEBUG
+                Helpers.debugLogToFile(serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
+#endif
+
+                dequeuedStrings.Clear();
+                stringsToForceWriteToLogFile.Clear();
             }
             
         }
