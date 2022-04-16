@@ -31,7 +31,7 @@ namespace JKWatcher
             InitializeComponent();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            getServers();
+            //getServers();
         }
 
         public async void getServers()

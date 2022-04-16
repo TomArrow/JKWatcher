@@ -64,6 +64,7 @@ namespace JKWatcher
         public volatile int team;
     }
 
+
     struct TeamInfo
     {
 
@@ -77,6 +78,8 @@ namespace JKWatcher
         public volatile int flagItemNumber;
 
         public volatile int lastFlagCarrier;
+        public DateTime? lastFlagCarrierFragged;
+        public DateTime? lastFlagCarrierWorldDeath;
         public DateTime? lastFlagCarrierUpdate;
 
         // Positions of flag bases ( as fallback)
@@ -93,6 +96,7 @@ namespace JKWatcher
         public Vector3 flagDroppedPosition;
         public volatile int droppedFlagEntityNumber;
         public DateTime? lastFlagDroppedPositionUpdate;
+
     }
 
     // Todo reset stuff on level restart and especially map change

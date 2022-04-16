@@ -337,6 +337,20 @@ namespace JKWatcher
                     {
                         infoPool.teamInfo[teamToCheck].flagDroppedPosition = locationOfDeath;
                         infoPool.teamInfo[teamToCheck].lastFlagDroppedPositionUpdate = DateTime.Now;
+                        // Remmeber flag carrier deaths so we can keep the camera nearby for a bit longer if it was a relevant manner of death (everything that's not suicide)
+                        if(attacker != target) // If it was suicide we don't care
+                        {
+                            if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
+                            {
+                                infoPool.teamInfo[teamToCheck].lastFlagCarrierWorldDeath = DateTime.Now; // This could be unintentional so still funny and interesting
+                            }
+                            else  // was a normal frag
+                            {
+                                infoPool.teamInfo[teamToCheck].lastFlagCarrierFragged = DateTime.Now;
+                            }
+                        }
+                        
+                            
                     }
                 }
 
@@ -508,6 +522,7 @@ namespace JKWatcher
                     // Teams are inverted here because team is the team of the person who got killed
                     infoPool.teamInfo[(int)otherTeam].flag = FlagStatus.FLAG_DROPPED;
                     infoPool.teamInfo[(int)otherTeam].lastFlagUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)otherTeam].lastFlagCarrierFragged = DateTime.Now;
                     if ((client.Entities?[playerNum].CurrentValid).GetValueOrDefault(false)) // Player who did kill is currently visible!
                     {
                         // We know where the flag is!
