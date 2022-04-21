@@ -119,7 +119,7 @@ namespace JKWatcher.CameraOperators
             SAME_TEAM_PLAYER_WHO_DIED_IN_LAST_SECOND,
         }
         Dictionary<int, float>[] lastGradings = new Dictionary<int, float>[] { new Dictionary<int, float>(), new Dictionary<int, float>(), new Dictionary<int, float>(), new Dictionary<int, float>() };
-        bool stuckAround = false;
+        bool[] stuckAround = new bool[] { false, false,false,false };
         private void handleFlagAtBase(Team flagTeam, bool flagStatusChanged, FlagStatus lastLastFlagStatus)
         {
 
@@ -162,7 +162,7 @@ namespace JKWatcher.CameraOperators
             {
                 if ( lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
                 {
-                    stuckAround = stickAround; // When status has freshly changed to "at base", we have no valid reference value for "stuckAround" so we reset it to the current stickAround value.
+                    stuckAround[teamInt] = stickAround; // When status has freshly changed to "at base", we have no valid reference value for "stuckAround" so we reset it to the current stickAround value.
                 }
                 playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
                 lastGradings[teamInt].Clear();
@@ -187,9 +187,9 @@ namespace JKWatcher.CameraOperators
             if (flagPosition == null)
             {
                 // This is extremely unlikely, but we handle it anyway. If there was a kill a short while ago and we don't know where the flag is rn, stick around is used.
-                if (stickAround && stuckAround)
+                if (stickAround && stuckAround[teamInt])
                 {
-                    stuckAround = true;
+                    stuckAround[teamInt] = true;
                     return; // Do nothing basically.
                 }
 
@@ -270,7 +270,7 @@ namespace JKWatcher.CameraOperators
                     // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                     // Need to give the server a bit of time to react.
                     connection.leakyBucketRequester.requestExecution("follow " + nextPlayerTotry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-                    stuckAround = false;
+                    stuckAround[teamInt] = false;
                 }
 
             }
@@ -309,13 +309,13 @@ namespace JKWatcher.CameraOperators
                 // We assume that one of the clients is/was near the flag in the base if last flag position update is less than 200ms ago, as the client has seen it. This means the client likely would have also seen any players near it.
                 // We can use this knowledge to do some more fancy guesses.
                 bool flagVisibleSomewhere = flagLastSeen < 200; 
-                if (!flagVisibleSomewhere && stickAround && stuckAround)
+                if (!flagVisibleSomewhere && stickAround && stuckAround[teamInt])
                 {
-                    stuckAround = true;
+                    stuckAround[teamInt] = true;
                     return; // Stick around.
                 } else if (flagVisibleSomewhere)
                 {
-                    if (stickAround && stuckAround)
+                    if (stickAround && stuckAround[teamInt])
                     {
                         bool anyCloseByEnemiesConfirmed = false;
                         // Check if any enemies are close to the flag. If so, we override stick around and change NOW.
@@ -336,10 +336,10 @@ namespace JKWatcher.CameraOperators
                         }
                         if (!anyCloseByEnemiesConfirmed)
                         {
-                            stuckAround = true;
+                            stuckAround[teamInt] = true;
                             return;
                         }
-                    } else if(stuckAround) 
+                    } else if(stuckAround[teamInt]) 
                     {
                         // Now we check if maybe we stick around for longer than originally planned
                         // This is only meaningful if stuckAround is true, meaning that we haven't flicked to a different player in the meantime already.
@@ -372,7 +372,7 @@ namespace JKWatcher.CameraOperators
                                 || timeSinceLastFlagUpdate < 100
                                 )
                             {
-                                stuckAround = true;
+                                stuckAround[teamInt] = true;
                                 return;
                             }
                         }
@@ -446,7 +446,7 @@ namespace JKWatcher.CameraOperators
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
                         connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-                        stuckAround = false;
+                        stuckAround[teamInt] = false;
                     }
                 }
                 else
@@ -478,7 +478,7 @@ namespace JKWatcher.CameraOperators
                         // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                         // Need to give the server a bit of time to react.
                         connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-                        stuckAround = false;
+                        stuckAround[teamInt] = false;
                     }
 
                     // Todo: problem with this algorithm is that someone added to the list of "already cycled through" may become a 
@@ -814,7 +814,7 @@ namespace JKWatcher.CameraOperators
             {
                 if(lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
                 {
-                    stuckAround = stickAround;
+                    stuckAround[teamInt] = stickAround;
                 }
                 playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
                 lastGradings[teamInt].Clear();
@@ -937,7 +937,7 @@ namespace JKWatcher.CameraOperators
                     // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                     // Need to give the server a bit of time to react.
                     connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-                    stuckAround = false;
+                    stuckAround[teamInt] = false;
                 }
 
                 return;
@@ -956,15 +956,15 @@ namespace JKWatcher.CameraOperators
                     // re. stickARound
                     // Flag is visible. We don't really *have* to do anything. Let's respect stickAround
                     // If the flag is not visible, there's not that much reason to stick around really. 
-                    if(stickAround && stuckAround)
+                    if(stickAround && stuckAround[teamInt])
                     {
-                        stuckAround = true;
+                        stuckAround[teamInt] = true;
                         return;
-                    } else if (stuckAround && 
+                    } else if (stuckAround[teamInt] && 
                        (timeSinceFlagCarrierFrag < 7500 || timeSinceFlagCarrierWorldDeath < 5000 || timeSinceLastFlagUpdate < 100 ))
                     {
                         // Since the flag is actually visible we can stick around for even longer no problemo.
-                        stuckAround = true;
+                        stuckAround[teamInt] = true;
                         return;
                         // TODO 
                         // Just a thought. We might wanna handle the case where a flag disappears after someone actually touches it to return it to base. 
@@ -1069,7 +1069,7 @@ namespace JKWatcher.CameraOperators
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
                         connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-                        stuckAround = false;
+                        stuckAround[teamInt] = false;
                     }
                 }
                 else
@@ -1102,7 +1102,7 @@ namespace JKWatcher.CameraOperators
                         // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                         // Need to give the server a bit of time to react.
                         connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-                        stuckAround = false;
+                        stuckAround[teamInt] = false;
                     }
 
                 }
