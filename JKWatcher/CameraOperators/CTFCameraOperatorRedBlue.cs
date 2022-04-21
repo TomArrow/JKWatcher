@@ -81,7 +81,7 @@ namespace JKWatcher.CameraOperators
                 if (!infoPool.isIntermission) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
                     foreach (Team team in teams)
                     {
-                        bool statusChanged = infoPool.teamInfo[(int)team].flag == lastFlagStatus[(int)team];
+                        bool statusChanged = infoPool.teamInfo[(int)team].flag != lastFlagStatus[(int)team];
                         if (statusChanged)
                         {
                             lastLastFlagStatus[(int)team] = lastFlagStatus[(int)team];
