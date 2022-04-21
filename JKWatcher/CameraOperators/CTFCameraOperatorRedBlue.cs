@@ -142,12 +142,14 @@ namespace JKWatcher.CameraOperators
 
             double timeSinceFlagCarrierFrag = infoPool.teamInfo[teamInt].lastFlagCarrierFragged != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierFragged.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceFlagCarrierWorldDeath = infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath.Value).TotalMilliseconds : double.PositiveInfinity;
+            double timeSinceLastFlagUpdate = infoPool.teamInfo[teamInt].lastFlagUpdate != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
+            
             bool stickAround = false;
             // Check if we should stick around where we already are for a while. If there was a cool kill, we wanna see a couple seconds of aftermath.
             if (
                 timeSinceFlagCarrierFrag < 2500
                 || timeSinceFlagCarrierWorldDeath < 1500 
-                )
+                || timeSinceLastFlagUpdate < 100) // Since maybe message hasnt finished fully processing yet.... might need to solve this in a more clever way somehow, idk.
             {
                 // If there was a frag of the flag carrier, stick around for 2,5 seconds
                 // If there was a world death (like fall damage) of the flag carrier, stick around for 1,5 seconds
@@ -156,9 +158,12 @@ namespace JKWatcher.CameraOperators
                 stickAround = true;
             }
 
-            if (flagStatusChanged && lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
+            if (flagStatusChanged)
             {
-                stuckAround = stickAround; // When status has freshly changed to "at base", we have no valid reference value for "stuckAround" so we reset it to the current stickAround value.
+                if ( lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
+                {
+                    stuckAround = stickAround; // When status has freshly changed to "at base", we have no valid reference value for "stuckAround" so we reset it to the current stickAround value.
+                }
                 playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
                 lastGradings[teamInt].Clear();
             }
@@ -364,6 +369,7 @@ namespace JKWatcher.CameraOperators
                             if (
                                 timeSinceFlagCarrierFrag < 7500
                                 || timeSinceFlagCarrierWorldDeath < 5000
+                                || timeSinceLastFlagUpdate < 100
                                 )
                             {
                                 stuckAround = true;
@@ -783,15 +789,19 @@ namespace JKWatcher.CameraOperators
 
             double timeSinceFlagCarrierFrag = infoPool.teamInfo[teamInt].lastFlagCarrierFragged != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierFragged.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceFlagCarrierWorldDeath = infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath.Value).TotalMilliseconds : double.PositiveInfinity;
+            double timeSinceLastFlagUpdate = infoPool.teamInfo[teamInt].lastFlagUpdate != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
             bool stickAround = false;
             // Check if we should stick around where we already are for a while. If there was a cool kill, we wanna see a couple seconds of aftermath.
             // Technically we should still remain around since we are in flag dropped status now. 
             // However, our flag dropped algorithm is a little bit different so in reality it often leads to a switch and thus switches right after kill
             // which makes it jarring to watch. So let's not do that.
+            // Note: Problem here may be that the cs 23 command arrives first, so flag status may have changed without us having information about the flag carrier death yet.
+            // These should really come in the same message from the server as they're all reliable commands, so if we don't have that info yet, it's likely because it just 
+            // hasn't finished processing yet? So allow for stickAround if timeSinceLastFlagUpdate < 100 regardless to give it a lil bit of time.
             if (
                 timeSinceFlagCarrierFrag < 2500
                 || timeSinceFlagCarrierWorldDeath < 1500
-                )
+                || timeSinceLastFlagUpdate < 100)
             {
                 // If there was a frag of the flag carrier, stick around for 2,5 seconds
                 // If there was a world death (like fall damage) of the flag carrier, stick around for 1,5 seconds
@@ -951,7 +961,7 @@ namespace JKWatcher.CameraOperators
                         stuckAround = true;
                         return;
                     } else if (stuckAround && 
-                       (timeSinceFlagCarrierFrag < 7500 || timeSinceFlagCarrierWorldDeath < 5000 ))
+                       (timeSinceFlagCarrierFrag < 7500 || timeSinceFlagCarrierWorldDeath < 5000 || timeSinceLastFlagUpdate < 100 ))
                     {
                         // Since the flag is actually visible we can stick around for even longer no problemo.
                         stuckAround = true;

@@ -585,6 +585,11 @@ namespace JKWatcher
             {
 
                 if (entities[i].CurrentValid || entities[i].CurrentState.FilledFromPlayerState ) { 
+
+                    // TODO
+                    // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
+                    // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
+                    // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
                     infoPool.playerInfo[i].IsAlive = (entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_DEAD) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].position.X = entities[i].CurrentState.Position.Base[0];
                     infoPool.playerInfo[i].position.Y = entities[i].CurrentState.Position.Base[1];
@@ -841,8 +846,10 @@ namespace JKWatcher
                             }
                             int tmp = int.Parse(str[0].ToString());
                             infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                            infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
                             tmp = int.Parse(str[1].ToString());
                             infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                            infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
                         }
                         /*infoPool.redFlag = str[0] - '0';
                         infoPool.blueFlag = str[1] - '0';
