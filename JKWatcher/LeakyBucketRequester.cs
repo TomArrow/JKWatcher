@@ -148,9 +148,16 @@ namespace JKWatcher
                                 timeUntilNextRequestAllowed = whenCanIRequest(true);
                                 if (timeUntilNextRequestAllowed == 0)
                                 {
-                                    OnCommandExecuting(new CommandExecutingEventArgs(requestQueue[i].command));
-                                    lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
-                                    requestQueue.RemoveAt(i);
+                                    CommandExecutingEventArgs args = new CommandExecutingEventArgs(requestQueue[i].command);
+                                    OnCommandExecuting(args);
+                                    if (args.Cancel) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
+                                        somethingToDo = false;
+                                        soonestPredictedEvent = Math.Max(soonestPredictedEvent, args.NextRequestAllowedIfCancelled);
+                                    } else
+                                    {
+                                        lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
+                                        requestQueue.RemoveAt(i);
+                                    }
                                 } else
                                 {
                                     somethingToDo = false;
@@ -312,6 +319,19 @@ namespace JKWatcher
         public class CommandExecutingEventArgs : EventArgs
         {
             public TCommand Command { get; private set; }
+            public bool Cancel = false; // If you want to cancel this one
+            private int _nextRequestAllowedIfCancelled = 100; // We set 100 as default when we can continue if cancelled.
+            public int NextRequestAllowedIfCancelled // If you cancel, tell us when we can continue pls.
+            {
+                get
+                {
+                    return _nextRequestAllowedIfCancelled;
+                } 
+                set
+                {
+                    _nextRequestAllowedIfCancelled = Math.Max(_nextRequestAllowedIfCancelled, value);
+                }
+            }
             public CommandExecutingEventArgs(TCommand commandA)
             {
                 Command = commandA;

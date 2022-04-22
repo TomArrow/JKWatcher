@@ -120,7 +120,25 @@ namespace JKWatcher
         {
             if (client.Status == ConnectionStatus.Active) // safety check
             {
-                client.ExecuteCommand(e.Command);
+                int unacked = client.GetUnacknowledgedReliableCommandCount();
+                if(unacked < 5)
+                {
+
+                    client.ExecuteCommand(e.Command);
+                }
+                else
+                {
+                    // If there is more than 5 unacked commands, let's just chill.
+                    // This may happen due to bad connections.
+                    // Benefit is, this way we may send less overall if the connection is bad, because
+                    // Leakybucketrequester overwrites former commands with later ones of the same type.
+                    // It should also allow a lower delay when sending commands because otherwise the queue
+                    // may fill up to a crazy degree.
+                    e.Cancel = true;
+                }
+            } else
+            {
+                e.Cancel = true;
             }
         }
 
@@ -783,6 +801,7 @@ namespace JKWatcher
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
+        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo" };
 
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
@@ -804,6 +823,7 @@ namespace JKWatcher
             }
 
             if (serverWindow.verboseOutput ==5 || 
+                (serverWindow.verboseOutput >=4 && !serverCommandsVerbosityLevel4BlackList.Contains(commandEventArgs.Command.Argv(0))) || 
                 (serverWindow.verboseOutput >=2 && serverCommandsVerbosityLevel2WhiteList.Contains(commandEventArgs.Command.Argv(0))) || 
                 (serverWindow.verboseOutput ==0 && serverCommandsVerbosityLevel0WhiteList.Contains(commandEventArgs.Command.Argv(0)))
                 ) { 

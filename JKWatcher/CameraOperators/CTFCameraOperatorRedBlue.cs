@@ -162,6 +162,7 @@ namespace JKWatcher.CameraOperators
 
             if (flagStatusChanged)
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagStatus changed");
                 if ( lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
                 {
                     stuckAround[teamInt] = stickAround; // When status has freshly changed to "at base", we have no valid reference value for "stuckAround" so we reset it to the current stickAround value.
@@ -188,6 +189,7 @@ namespace JKWatcher.CameraOperators
 
             if (flagPosition == null)
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is Null");
                 // This is extremely unlikely, but we handle it anyway. If there was a kill a short while ago and we don't know where the flag is rn, stick around is used.
                 if (stickAround && stuckAround[teamInt])
                 {
@@ -270,7 +272,7 @@ namespace JKWatcher.CameraOperators
                     // Small delay. We want to get through this as quickly as possible. Also discard any scoreboard commands, this is more important.
                     // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                     // Need to give the server a bit of time to react.
-                    connection.leakyBucketRequester.requestExecution("follow " + nextPlayerTotry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    if(nextPlayerTotry != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + nextPlayerTotry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     stuckAround[teamInt] = false;
                 }
 
@@ -281,11 +283,13 @@ namespace JKWatcher.CameraOperators
                 // Ok we know where the flag is. Now what?
                 //
                 //
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is known");
 
                 // First off, is the flag visible RIGHT now?
                 bool flagVisible = flagItemNumber==-1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false);
                 if (flagVisible)
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag is visible");
                     // Basically we don't HAVE to do anything in principle.
                     // But:
                     // 1. If the player we are spectating right now is dead, he might respawn in a different place, so kinda unsafe.
@@ -413,7 +417,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
                         };
-                        tmp.gradeForFlagAtBase(!flagVisible);
+                        tmp.gradeForFlagAtBase(flagTeam, !flagVisible);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
                         {
                             // Grade has significantly improved since last time we graded this player, so let him be "re-cycled" lol
@@ -454,12 +458,13 @@ namespace JKWatcher.CameraOperators
 
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
-                        connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        if (possibleNextPlayers[0].clientNum != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                         stuckAround[teamInt] = false;
                     }
                 }
                 else
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag not visible handling");
                     // Flag is NOT visible. What this means is we need to find a player who CAN see the flag asap.
                     // This is more similar to the approach we take when we don't even know where the flag is at all
                     playersCycled[teamInt].Add(currentlySpectatedPlayer);
@@ -486,7 +491,7 @@ namespace JKWatcher.CameraOperators
                         // Small delay. We want to get through this as quickly as possible. Also discard any scoreboard commands, this is more important.
                         // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                         // Need to give the server a bit of time to react.
-                        connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                        if (nextPlayerToTry != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                         stuckAround[teamInt] = false;
                     }
 
@@ -544,6 +549,7 @@ namespace JKWatcher.CameraOperators
 
             if (flagStatusChanged)
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag status changed");
                 playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
                 lastGradings[teamInt].Clear();
             }
@@ -551,7 +557,7 @@ namespace JKWatcher.CameraOperators
             // Find out who has it
             if (infoPool.teamInfo[(int)flagTeam].lastFlagCarrierUpdate == null)
             {
-
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Carrier unknown");
                 // Uhm idk, that's weird. We know the flag's taken but we don't know who has it
                 // Maybe if the tool didn't witness the taking of the flag and didn't have time to receive the info from somewhere.
 
@@ -585,7 +591,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
                         };
-                        tmp.gradeForFlagTakenUnknownPlayer();
+                        tmp.gradeForFlagTakenUnknownPlayer(flagTeam);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
                         {
                             // Grade has significantly improved since last time we graded this player, so let him be "re-cycled" lol
@@ -633,7 +639,7 @@ namespace JKWatcher.CameraOperators
                     // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                     // Need to give the server a bit of time to react.
                     connection.leakyBucketRequester.requestExecution("score", RequestCategory.SCOREBOARD, 3, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-                    connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    if (nextPlayerToTry != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     stuckAround[teamInt] = false;
                 }
 
@@ -650,7 +656,7 @@ namespace JKWatcher.CameraOperators
 
             if (!flagCarrierVisible)
             {
-
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition invisible");
                 // Okay now get this... we know who the flag carrier is...
                 // How do we find out where he is?
                 // Simple, we follow him.
@@ -668,7 +674,7 @@ namespace JKWatcher.CameraOperators
                         return;
                     }
                     // Just follow him.
-                    connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     stuckAround[teamInt] = false;
                 }
                 else
@@ -727,13 +733,13 @@ namespace JKWatcher.CameraOperators
                         if (closestPlayer == -1)
                         {
                             // Ok we found nobody closer. Follow carrier himself.
-                            connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                             stuckAround[teamInt] = false;
                         }
                         else
                         {
                             // give this guy a chance.
-                            connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            if (closestPlayer != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                             stuckAround[teamInt] = false;
                         }
 
@@ -747,7 +753,7 @@ namespace JKWatcher.CameraOperators
                         }
 
                         // Don't really have any up to date information on anyone who's closer so just follow the carrier
-                        connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                        if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                         stuckAround[teamInt] = false;
                         // Todo: Maybe also consider that distance may not be a perfect measure, since someone could be through a wall and technically closer but a further player may actually see the flag carrier
                     }
@@ -759,6 +765,7 @@ namespace JKWatcher.CameraOperators
 
             } else
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag carrier visible");
                 // Flag carrier IS visible.
                 playersCycled[teamInt].Clear(); 
                 lastGradings[teamInt].Clear();
@@ -809,7 +816,7 @@ namespace JKWatcher.CameraOperators
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
                             isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false
                         };
-                        tmp.gradeForFlagTakenAndVisible(currentlyFollowingFlagCarrier);
+                        tmp.gradeForFlagTakenAndVisible(flagTeam, currentlyFollowingFlagCarrier);
                         possibleNextPlayers.Add(tmp);
                         if (i == currentlySpectatedPlayer) stayWithCurrentPlayerDecision = tmp;
                     }
@@ -840,7 +847,7 @@ namespace JKWatcher.CameraOperators
                     // Flag is visible but we're following the capper or the capper's team. Boring.
 
                     // Switch with decent speed but not too hectically (well, up for debate I guess. We'll see)
-                    connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 5, 600, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    if (possibleNextPlayers[0].clientNum != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 5, 600, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     stuckAround[teamInt] = false;
                 } else
                 {
@@ -858,7 +865,7 @@ namespace JKWatcher.CameraOperators
 
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
-                        connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        if (possibleNextPlayers[0].clientNum != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                         stuckAround[teamInt] = false;
                     }
                 }
@@ -912,7 +919,8 @@ namespace JKWatcher.CameraOperators
 
             if (flagStatusChanged)
             {
-                if(lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flagstatus changed");
+                if (lastLastFlagStatus == FlagStatus.FLAG_TAKEN)
                 {
                     stuckAround[teamInt] = stickAround;
                 }
@@ -926,6 +934,8 @@ namespace JKWatcher.CameraOperators
             if (infoPool.teamInfo[teamInt].lastFlagDroppedPositionUpdate != null
                 )
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag dropped position is unknown");
+
                 // Is the last time we updated dropped flag position more than 500ms older than last time we updated flag status?
                 // If so, we most likely still have the OLD flag dropped position from when it was dropped previously.
                 // This could happen due to us not being near where the flag drop happened or the dropped flag item not having spawned yet (most likely rare timing issue)
@@ -933,7 +943,7 @@ namespace JKWatcher.CameraOperators
 
                 if (!flagPositionUnknown)
                 {
-
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is known");
                     flagPosition = infoPool.teamInfo[teamInt].flagDroppedPosition; // Actual flag item
 
                     // TODO Be very careful here. We may know the position (from the drop notification) but not the item number.
@@ -941,6 +951,7 @@ namespace JKWatcher.CameraOperators
                     flagItemNumber = infoPool.teamInfo[teamInt].droppedFlagEntityNumber == 0 ? -1 : infoPool.teamInfo[teamInt].droppedFlagEntityNumber;
                 } else if (infoPool.teamInfo[teamInt].lastFlagUpdate != null && (DateTime.Now-infoPool.teamInfo[teamInt].lastFlagUpdate.Value).TotalMilliseconds < 500)
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is unknown shortly after drop");
                     // The flag position is unknown.
                     // It's only been a very short moment since the flag was dropped. Maybe the dropped flag item hasn't spawned yet or something like that. 
                     // This could be the case because flag status updates are reliable commands, but entities are evaluated afterwards. It's a very short timespan
@@ -952,6 +963,8 @@ namespace JKWatcher.CameraOperators
 
             if (flagPosition == null)
             {
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is null");
+
                 // Re. stickAround
                 // flagdropped is different from at base handling. We don't know where the flag is, so there isn't much of a point to sticking around because the implication is
                 // that we aren't near where whatever happened happened.
@@ -990,7 +1003,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.playerInfo[i].score.impressiveCount // Will only be filled on nwh but won't hurt anything otherwise. TODO : Do our own counting?
                         };
-                        tmp.gradeForFlagDroppedUnknownPosition(timeSinceAtBase);
+                        tmp.gradeForFlagDroppedUnknownPosition(flagTeam, timeSinceAtBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
                         {
                             // Grade has significantly improved since last time we graded this player, so let him be "re-cycled" lol
@@ -1036,7 +1049,7 @@ namespace JKWatcher.CameraOperators
                     // Small delay. We want to get through this as quickly as possible.
                     // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                     // Need to give the server a bit of time to react.
-                    connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    if (nextPlayerToTry != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     stuckAround[teamInt] = false;
                 }
 
@@ -1048,6 +1061,7 @@ namespace JKWatcher.CameraOperators
                 // Ok we know where the flag is. Now what?
                 //
                 //
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is known");
 
                 // First off, is the flag visible RIGHT now?
                 bool flagVisible = flagItemNumber == -1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false); // If we don't know its item number it can't be visible either duh!
@@ -1125,7 +1139,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.playerInfo[i].score.impressiveCount
                         };
-                        tmp.gradeForFlagDroppedWithKnownPosition(flagVisible,flagDistanceFromBase);
+                        tmp.gradeForFlagDroppedWithKnownPosition(flagTeam,flagVisible,flagDistanceFromBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
                         {
                             // Grade has significantly improved since last time we graded this player, so let him be "re-cycled" lol
@@ -1149,6 +1163,7 @@ namespace JKWatcher.CameraOperators
 
                 if (flagVisible)
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "flag is visible");
                     if (currentlySpectatedPlayer == possibleNextPlayers[0].clientNum)
                     {
                         return; // Flag is visible and we already have the best player choice
@@ -1166,12 +1181,13 @@ namespace JKWatcher.CameraOperators
 
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
-                        connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        if (possibleNextPlayers[0].clientNum != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                         stuckAround[teamInt] = false;
                     }
                 }
                 else
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag is not visible");
                     // Flag is NOT visible. What this means is we need to find a player who CAN see the flag asap.
                     // This is more similar to the approach we take when we don't even know where the flag is at all
                     playersCycled[teamInt].Add(currentlySpectatedPlayer);
@@ -1199,7 +1215,7 @@ namespace JKWatcher.CameraOperators
                         // Small delay. We want to get through this as quickly as possible. Also discard any scoreboard commands, this is more important.
                         // But don't use zero delay or we will be re-requesting the same player a lot of times, which is of no benefit
                         // Need to give the server a bit of time to react.
-                        connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                        if (nextPlayerToTry != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                         stuckAround[teamInt] = false;
                     }
 
@@ -1235,7 +1251,7 @@ namespace JKWatcher.CameraOperators
             public float grade { get; set; }
             public string gradeMethod { get; set; }
 
-            public float gradeForFlagTakenUnknownPlayer()
+            public float gradeForFlagTakenUnknownPlayer(Team team)
             {
                 gradeMethod = "gradeForFlagTakenUnknownPlayer()";
 
@@ -1260,12 +1276,12 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(isOnSameTeamAsFlag? 1.2f: 1.35f, 10000-lastDeath / 1000);
 
 #if DEBUG && LOGDECISIONS
-                decisionsLogger?.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
             }
             
-            public float gradeForFlagDroppedUnknownPosition(float timeSinceInBase)
+            public float gradeForFlagDroppedUnknownPosition(Team team,float timeSinceInBase)
             {
                 gradeMethod = "gradeForFlagDroppedUnknownPosition(" + timeSinceInBase.ToString() + ")";
 
@@ -1329,13 +1345,13 @@ namespace JKWatcher.CameraOperators
                     }
                 }
 #if DEBUG && LOGDECISIONS
-                decisionsLogger?.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
             }
 
             // Bigger value: worse decision
-            public float gradeForFlagAtBase(bool flagInvisibleDeathBonus = false)
+            public float gradeForFlagAtBase(Team team,bool flagInvisibleDeathBonus = false)
             {
                 gradeMethod = "gradeForFlagAtBase(" + flagInvisibleDeathBonus.ToString() +  ")";
 
@@ -1363,7 +1379,7 @@ namespace JKWatcher.CameraOperators
 
                     // We might also try and track who retted how many times to guess roles by numbers.
 #if DEBUG && LOGDECISIONS
-                    decisionsLogger?.logDecisionGrading(this);
+                    decisionsLogger?.logDecisionGrading(team, this);
 #endif
                     return grade;
                     
@@ -1382,12 +1398,12 @@ namespace JKWatcher.CameraOperators
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
 #if DEBUG && LOGDECISIONS
-                decisionsLogger?.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
             }
             
-            public float gradeForFlagDroppedWithKnownPosition(bool flagIsVisible,float flagDistanceFromBase)
+            public float gradeForFlagDroppedWithKnownPosition(Team team,bool flagIsVisible,float flagDistanceFromBase)
             {
                 gradeMethod = "gradeForFlagDroppedWithKnownPosition(" + flagIsVisible.ToString()+","+ flagDistanceFromBase.ToString() + ")";
 
@@ -1414,7 +1430,7 @@ namespace JKWatcher.CameraOperators
 
                         // We might also try and track who retted how many times to guess roles by numbers.
 #if DEBUG && LOGDECISIONS
-                        decisionsLogger?.logDecisionGrading(this);
+                        decisionsLogger?.logDecisionGrading(team, this);
 #endif
                         return grade;
                     }
@@ -1433,13 +1449,13 @@ namespace JKWatcher.CameraOperators
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
 #if DEBUG && LOGDECISIONS
-                decisionsLogger?.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
             }
 
             // Bigger value: worse decision
-            public float gradeForFlagTakenAndVisible(bool currentlyFollowingFlagCarrier)
+            public float gradeForFlagTakenAndVisible(Team team,bool currentlyFollowingFlagCarrier)
             {
                 gradeMethod = "gradeForFlagTakenAndVisible(" + currentlyFollowingFlagCarrier.ToString()+ ")";
 
@@ -1468,7 +1484,7 @@ namespace JKWatcher.CameraOperators
 
                 grade *= this.isCarryingTheOtherTeamsFlag ? 1.15f : 1f; // Action from flag carrier against flag carrier is cool, give it a slight bonus
 #if DEBUG && LOGDECISIONS
-                decisionsLogger?.logDecisionGrading(this);
+                decisionsLogger?.logDecisionGrading(team,this);
 #endif
                 return grade;
             }
@@ -1500,7 +1516,7 @@ namespace JKWatcher.CameraOperators
             sw = new StreamWriter(new FileStream(Helpers.GetUnusedFilename("playerDecisionsDEBUG.csv"), FileMode.Append, FileAccess.Write, FileShare.Read));
             if(sw.BaseStream.Position == 0)
             { // Empty file
-                sw.WriteLine("time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
+                sw.WriteLine("team,time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
             }
         }
 
@@ -1532,11 +1548,18 @@ namespace JKWatcher.CameraOperators
             }
         }
 
-        public void logDecisionGrading(CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)
+        public void logLine(Team team,string methodName,string line)
         {
             if(sw != null)
             {
-                sw.WriteLine($"\"{infoPool.GameTime}\",\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
+                sw.WriteLine($"\"{team.ToString()}\",\"{infoPool.GameTime}\",\"logLine\",\"{methodName}\",\"{line}\"");
+            }
+        }
+        public void logDecisionGrading(Team team, CTFCameraOperatorRedBlue.PossiblePlayerDecision possiblePlayerDecision)
+        {
+            if(sw != null)
+            {
+                sw.WriteLine($"\"{team.ToString()}\",\"{infoPool.GameTime}\",\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
             }
         }
     }
