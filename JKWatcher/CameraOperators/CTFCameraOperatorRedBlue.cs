@@ -110,6 +110,8 @@ namespace JKWatcher.CameraOperators
         }
 
 
+        // TODO For stick around, if the player we were following kills himself, and he was NOT the killer, maybe jump out of his body.
+
         HashSet<int>[] playersCycled = new HashSet<int>[] { new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int>() };
         enum FlagAtBasePlayerCyclePriority : int
         {
@@ -189,7 +191,6 @@ namespace JKWatcher.CameraOperators
                 // This is extremely unlikely, but we handle it anyway. If there was a kill a short while ago and we don't know where the flag is rn, stick around is used.
                 if (stickAround && stuckAround[teamInt])
                 {
-                    stuckAround[teamInt] = true;
                     return; // Do nothing basically.
                 }
 
@@ -311,7 +312,6 @@ namespace JKWatcher.CameraOperators
                 bool flagVisibleSomewhere = flagLastSeen < 200; 
                 if (!flagVisibleSomewhere && stickAround && stuckAround[teamInt])
                 {
-                    stuckAround[teamInt] = true;
                     return; // Stick around.
                 } else if (flagVisibleSomewhere)
                 {
@@ -324,7 +324,7 @@ namespace JKWatcher.CameraOperators
                             if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].team != flagTeam && infoPool.playerInfo[i].IsAlive)
                             {
                                 float informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds;
-                                float distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity*informationAge - flagPosition.Value).Length();
+                                float distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity*informationAge/1000.0f - flagPosition.Value).Length();
                                 if(informationAge < 200 && distance <= 200) 
                                 {
                                     // I say 200 units counts as being close enough to force a perspective change right this very moment.
@@ -336,8 +336,18 @@ namespace JKWatcher.CameraOperators
                         }
                         if (!anyCloseByEnemiesConfirmed)
                         {
-                            stuckAround[teamInt] = true;
                             return;
+                        }
+                        else // At least stick around for a second. So it's not a completely abrupt cut. Hell maybe TODO make it even persist into FlagTaken.
+                        {
+                            if (
+                                timeSinceFlagCarrierFrag < 1000
+                                || timeSinceFlagCarrierWorldDeath < 1000
+                                || timeSinceLastFlagUpdate < 100
+                                )
+                            {
+                                return;
+                            }
                         }
                     } else if(stuckAround[teamInt]) 
                     {
@@ -350,7 +360,7 @@ namespace JKWatcher.CameraOperators
                             if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].team != flagTeam && infoPool.playerInfo[i].IsAlive)
                             {
                                 float informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds;
-                                float distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity * informationAge - flagPosition.Value).Length();
+                                float distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity * informationAge/1000.0f - flagPosition.Value).Length();
                                 if (informationAge < 100 && distance <= 700)
                                 {
                                     // I say 700 units counts as close enough to trigger normal behavior. Anything farther away gives bonus time to stick around.
@@ -372,7 +382,6 @@ namespace JKWatcher.CameraOperators
                                 || timeSinceLastFlagUpdate < 100
                                 )
                             {
-                                stuckAround[teamInt] = true;
                                 return;
                             }
                         }
@@ -515,6 +524,24 @@ namespace JKWatcher.CameraOperators
             int teamInt = (int)flagTeam;
 
 
+            double timeSinceFlagCarrierFrag = infoPool.teamInfo[teamInt].lastFlagCarrierFragged != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierFragged.Value).TotalMilliseconds : double.PositiveInfinity;
+            double timeSinceFlagCarrierWorldDeath = infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath.Value).TotalMilliseconds : double.PositiveInfinity;
+            double timeSinceLastFlagUpdate = infoPool.teamInfo[teamInt].lastFlagUpdate != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
+
+
+            bool stickAround = false;
+            // Check if we should stick around where we already are for a while. If there was a cool kill, we wanna see a couple seconds of aftermath.
+            // But the flag is already stolen AGAIN, so we don't stick around for long. Only 0.5-1 second max just so the cut isn't COMPLETELY abrupt.
+            // Even like this we might already miss out on a quick ret so let's check if there's an enemy very close to retting and if so, switch immediately anyway.
+            if (
+                timeSinceFlagCarrierFrag < 1000
+                || timeSinceFlagCarrierWorldDeath < 500
+                || timeSinceLastFlagUpdate < 100) // Since maybe message hasnt finished fully processing yet.... might need to solve this in a more clever way somehow, idk.
+            {
+                stickAround = true;
+            }
+
+
             if (flagStatusChanged)
             {
                 playersCycled[teamInt].Clear(); // Reset cycling array if the flag status changed.
@@ -524,11 +551,20 @@ namespace JKWatcher.CameraOperators
             // Find out who has it
             if (infoPool.teamInfo[(int)flagTeam].lastFlagCarrierUpdate == null)
             {
+
                 // Uhm idk, that's weird. We know the flag's taken but we don't know who has it
                 // Maybe if the tool didn't witness the taking of the flag and didn't have time to receive the info from somewhere.
 
                 // We could probably just sit this one out but let's cycle through players anyway?
                 // Might be faster in some cases but might also be slower in others due to more commands having been sent?
+
+                // Let's make a compromise. If stickAround is active, we wait a bit. If not, we start cycling.
+                if (stickAround && stuckAround[teamInt])
+                {
+                    return;
+                }
+
+
                 playersCycled[teamInt].Add(currentlySpectatedPlayer);
 
                 // Assemble list of players we'd consider watching
@@ -598,7 +634,7 @@ namespace JKWatcher.CameraOperators
                     // Need to give the server a bit of time to react.
                     connection.leakyBucketRequester.requestExecution("score", RequestCategory.SCOREBOARD, 3, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     connection.leakyBucketRequester.requestExecution("follow " + nextPlayerToTry, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-
+                    stuckAround[teamInt] = false;
                 }
 
                 return;
@@ -608,11 +644,13 @@ namespace JKWatcher.CameraOperators
             // Do we know WHERE is?
             int flagCarrier = infoPool.teamInfo[(int)flagTeam].lastFlagCarrier;
 
+            // TODO Make this more flexible. Check generally if he is visible SOMEWHERE (not just on this associated connection). But make sure it doesnt break any of the existing logic.
             bool flagCarrierVisible = (connection.client.Entities?[flagCarrier].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false);
             bool currentlyFollowingFlagCarrier = flagCarrier == currentlySpectatedPlayer;
 
             if (!flagCarrierVisible)
             {
+
                 // Okay now get this... we know who the flag carrier is...
                 // How do we find out where he is?
                 // Simple, we follow him.
@@ -620,15 +658,24 @@ namespace JKWatcher.CameraOperators
                 // So we could give that a try.
                 // In short: If he disappeared recently (up to half second?) ago, just see if we know of any player who we know is closer
                 // to him. If not, just switch to the carrier himself.
-                if(infoPool.playerInfo[flagCarrier].lastFullPositionUpdate == null)
+                if (infoPool.playerInfo[flagCarrier].lastFullPositionUpdate == null)
                 {
-                    // We don't even know where the flag carrier is or was. Just follow him.
+                    // We don't even know where the flag carrier is or was. 
+                    // Check if we should stick around. Since his position is not known, we cannot decide whether anyone is near him,
+                    // so we err on the side of sticking around. This could miss rets sometimes but oh well.
+                    if (stickAround && stuckAround[teamInt])
+                    {
+                        return;
+                    }
+                    // Just follow him.
                     connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    stuckAround[teamInt] = false;
                 }
                 else
                 {
                     float lastSeen = (float)(DateTime.Now - infoPool.playerInfo[flagCarrier].lastFullPositionUpdate.Value).TotalMilliseconds / 1000.0f;
-                    if(lastSeen < 1f)
+
+                    if (lastSeen < 1f)
                     {
                         // In theory we could go more crazy here with the decision making process to find best match
                         // But highest priority should be to get the flag carrier visible again
@@ -641,13 +688,25 @@ namespace JKWatcher.CameraOperators
 
                         float closestDistance = currentDistance;
                         int closestPlayer = -1;
+                        bool anyCloseByPossibleReturnersConfirmed = false; // For stickAround
                         for (int i = 0; i < infoPool.playerInfo.Length; i++)
                         {
                             if (infoPool.playerInfo[i].team == flagTeam && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
                             {
+
+
                                 float lastSeenThisPlayer = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds / 1000.0f;
                                 if(lastSeenThisPlayer < 1f)
                                 {
+
+                                    float distanceRightNow = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity * lastSeenThisPlayer - (infoPool.playerInfo[flagCarrier].position + infoPool.playerInfo[flagCarrier].velocity * lastSeen)).Length();
+                                    if (distanceRightNow <= 200)
+                                    {
+                                        // I say 200 units counts as being close enough to force a perspective change right this very moment.
+                                        // If the info is more than 200 ms old, this player likely isn't actually visible or something weird is going on, so we let it go.
+                                        anyCloseByPossibleReturnersConfirmed = true;
+                                    }
+
                                     Vector3 playerPositionInOneSecond = infoPool.playerInfo[flagCarrier].position + (1f+lastSeen) * infoPool.playerInfo[flagCarrier].velocity;
                                     float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
                                     if(playerDistance < currentDistance)
@@ -659,24 +718,37 @@ namespace JKWatcher.CameraOperators
                             }
                         }
 
-                        if(closestPlayer == -1)
+                        // If no close by potential returners are confirmed, we can probably safely do the stick around. 
+                        if (!anyCloseByPossibleReturnersConfirmed && stickAround && stuckAround[teamInt])
+                        {
+                            return;
+                        }
+
+                        if (closestPlayer == -1)
                         {
                             // Ok we found nobody closer. Follow carrier himself.
                             connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            stuckAround[teamInt] = false;
                         }
                         else
                         {
                             // give this guy a chance.
                             connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            stuckAround[teamInt] = false;
                         }
 
                         // We don't do any cycling here because once you switch to the closer player you won't accidentally switch to him AGAIN
 
                     } else
                     {
+                        if (stickAround && stuckAround[teamInt])
+                        {
+                            return;
+                        }
+
                         // Don't really have any up to date information on anyone who's closer so just follow the carrier
                         connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-
+                        stuckAround[teamInt] = false;
                         // Todo: Maybe also consider that distance may not be a perfect measure, since someone could be through a wall and technically closer but a further player may actually see the flag carrier
                     }
                     
@@ -691,8 +763,12 @@ namespace JKWatcher.CameraOperators
                 playersCycled[teamInt].Clear(); 
                 lastGradings[teamInt].Clear();
 
+                float lastSeen = (float)(DateTime.Now - infoPool.playerInfo[flagCarrier].lastFullPositionUpdate.Value).TotalMilliseconds/1000.0f;
+
                 Vector3 flagCarrierPositionInOneSecond = infoPool.playerInfo[flagCarrier].position + infoPool.playerInfo[flagCarrier].velocity;
-                
+
+                bool anyCloseByPossibleReturnersConfirmed = false; // For stickAround
+
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
                 PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
@@ -700,12 +776,29 @@ namespace JKWatcher.CameraOperators
                 {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
                     {
+
+                        float informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds;
+                        
+                        // For stick around. Just quick check if any possible returners are near.
+                        if (infoPool.playerInfo[i].team == flagTeam)
+                        {
+                            float distanceRightNow = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity * informationAge/1000.0f - (infoPool.playerInfo[flagCarrier].position + infoPool.playerInfo[flagCarrier].velocity * lastSeen)).Length();
+                            
+                            if (distanceRightNow <= 200 && lastSeen < 0.2f)
+                            {
+
+                                // I say 200 units counts as being close enough to force a perspective change right this very moment.
+                                // If the info is more than 200 ms old, this player likely isn't actually visible or something weird is going on, so we let it go.
+                                anyCloseByPossibleReturnersConfirmed = true;
+                            }
+                        }
+
                         // Todo: Allow an option for using lastPositionUpdate instead of  lastFullPositionUpdate to get more up to date info
                         double lastDeath = infoPool.playerInfo[i].lastDeath.HasValue ? (DateTime.Now - infoPool.playerInfo[i].lastDeath.Value).TotalMilliseconds : 60000;
                         tmp = new PossiblePlayerDecision()
                         {
                             decisionsLogger = decisionsLogger,
-                            informationAge = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds,
+                            informationAge = informationAge,
                             distance = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity - flagCarrierPositionInOneSecond).Length(),
                             isAlive = infoPool.playerInfo[i].IsAlive,
                             clientNum = i,
@@ -726,6 +819,12 @@ namespace JKWatcher.CameraOperators
                     return; // Idk, not really much we can do here lol!
                 }
 
+                // If no close by potential returners are confirmed, we can probably safely do the stick around. 
+                if (!anyCloseByPossibleReturnersConfirmed && stickAround && stuckAround[teamInt])
+                {
+                    return;
+                }
+
                 // Sort players by how good they are as choices
                 possibleNextPlayers.Sort((a, b) => {
                     return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
@@ -742,7 +841,7 @@ namespace JKWatcher.CameraOperators
 
                     // Switch with decent speed but not too hectically (well, up for debate I guess. We'll see)
                     connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 5, 600, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-    
+                    stuckAround[teamInt] = false;
                 } else
                 {
                     // If the flag is visible and we're not speccing the capper, we need a greater persuasion to switch to a better player
@@ -760,6 +859,7 @@ namespace JKWatcher.CameraOperators
                         // Also with this type of switch (since it's not so urgent), allow 1 second delay from last switch
                         // so stuff doesn't get too frantic. 
                         connection.leakyBucketRequester.requestExecution("follow " + possibleNextPlayers[0].clientNum, RequestCategory.FOLLOW, 3, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        stuckAround[teamInt] = false;
                     }
                 }
                   
@@ -958,13 +1058,11 @@ namespace JKWatcher.CameraOperators
                     // If the flag is not visible, there's not that much reason to stick around really. 
                     if(stickAround && stuckAround[teamInt])
                     {
-                        stuckAround[teamInt] = true;
                         return;
                     } else if (stuckAround[teamInt] && 
                        (timeSinceFlagCarrierFrag < 7500 || timeSinceFlagCarrierWorldDeath < 5000 || timeSinceLastFlagUpdate < 100 ))
                     {
                         // Since the flag is actually visible we can stick around for even longer no problemo.
-                        stuckAround[teamInt] = true;
                         return;
                         // TODO 
                         // Just a thought. We might wanna handle the case where a flag disappears after someone actually touches it to return it to base. 
