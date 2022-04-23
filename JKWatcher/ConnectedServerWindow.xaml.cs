@@ -502,7 +502,8 @@ namespace JKWatcher
             foreach (Connection connection in connections)
             {
                 connection.stopDemoRecord();
-                connection.disconnect();
+                //connection.disconnect();
+                connection.CloseDown();
                 break;
             }
 
@@ -757,17 +758,36 @@ namespace JKWatcher
 
             foreach (Connection conn in conns)
             {
-                if (conn.Status == ConnectionStatus.Active)
-                {
+                //if (conn.Status == ConnectionStatus.Active) // We wanna be able to delete faulty/disconnected connections too. Even more actually! If a connection gets stuck, it shouldn't stay there forever.
+                //{
                     if(conn.CameraOperator != null)
                     {
                         addToLog("Cannot remove connection bound to a camera operator");
                     } else
                     {
 
-                        conn.disconnect();
+                        //conn.disconnect();
+                        conn.CloseDown();
                         connections.Remove(conn);
                     }
+                //}
+            }
+        }
+
+        private void reconBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (connections.Count == 0) return;
+
+            // we make a copy of the selected items because otherwise the command might change something
+            // that also results in a change of selecteditems and then it would only get the first item.
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            foreach (Connection conn in conns)
+            {
+                if (conn != null && conn.Status != ConnectionStatus.Active)
+                {
+                    //_=conn.hardReconnect();
+                    _=conn.Reconnect();
                 }
             }
         }

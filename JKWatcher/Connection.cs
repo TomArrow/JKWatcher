@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -88,6 +89,8 @@ namespace JKWatcher
         public int? Index { get; set; } = null;
         public int? CameraOperator { get; set; } = null;
 
+        private bool trulyDisconnected = true; // If we disconnected manually we want to stay disconnected.
+
         public bool AlwaysFollowSomeone { get; set; } = true;
 
         //public ConnectionStatus Status => client != null ? client.Status : ConnectionStatus.Disconnected;
@@ -101,7 +104,9 @@ namespace JKWatcher
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
 
-        // TODO Check every 5 min or so if connection was interrupted/ we are disconnected. If so, try reconnect.
+
+        private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
+
 
         public Connection(ConnectedServerWindow serverWindowA, string ip, ProtocolVersion protocol, ServerSharedInformationPool infoPoolA)
         {
@@ -116,14 +121,40 @@ namespace JKWatcher
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(serverInfo.Address.ToString(), serverInfo.Protocol);
+            createPeriodicReconnecter();
         }
-        public Connection( string ip, ProtocolVersion protocol, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
+        public Connection( string ipA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
-            _ = createConnection(ip, protocol);
+            _ = createConnection(ipA, protocolA);
+            createPeriodicReconnecter();
+        }
+
+        private void createPeriodicReconnecter()
+        {
+            var tokenSource = new CancellationTokenSource();
+            var ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { periodicReconnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+               serverWindow.addToLog(t.Exception.ToString(), true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
+            backgroundTasks.Add(tokenSource);
+        }
+
+        private void periodicReconnecter(CancellationToken ct)
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(5*60*1000); // 5 minutes
+                ct.ThrowIfCancellationRequested();
+
+                if (client.Status != ConnectionStatus.Active && !trulyDisconnected)
+                {
+                    Reconnect();
+                }
+            }
         }
 
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
@@ -154,14 +185,33 @@ namespace JKWatcher
 
         ~Connection()
         {
-            disconnect();
+            CloseDown();
+        }
+
+        bool closedDown = false;
+        Mutex closeDownMutex = new Mutex();
+
+        public void CloseDown()
+        {
+            lock (closeDownMutex)
+            {
+                if (closedDown) return;
+                foreach (CancellationTokenSource backgroundTask in backgroundTasks)
+                {
+                    backgroundTask.Cancel();
+                }
+                disconnect();
+                closedDown = true;
+            }
         }
 
         private string ip;
         private ProtocolVersion protocol;
 
-        private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA)
+        private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
         {
+            trulyDisconnected = false;
+
             ip = ipA;
             protocol = protocolA;
 
@@ -181,7 +231,15 @@ namespace JKWatcher
             try
             {
 
-                await client.Connect(ip, protocol);
+                Task connectTask = client.Connect(ip, protocol);
+                bool didConnect = connectTask.Wait(timeOut);
+                if (!didConnect)
+                {
+                    Status = client.Status;
+                    serverWindow.addToLog($"Failed to create connection. Timeout after {timeOut} milliseconds.", true);
+                    return false;
+                }
+
             } catch(Exception e)
             {
                 Status = client.Status;
@@ -189,7 +247,11 @@ namespace JKWatcher
                 return false;
             }
             Status = client.Status;
-
+            if (shouldBeRecordingADemo)
+            {
+                serverWindow.addToLog("createConnection: Attempting to start/resume demo recording. (shouldBeRecordingADemo = true)");
+                startDemoRecord();
+            }
 
             serverWindow.addToLog("New connection created.");
             return true;
@@ -201,20 +263,25 @@ namespace JKWatcher
         int DisconnectCallbackRecursion = 0;
         const int DisconnectCallbackRecursionLimit = 10;
 
-        private async Task<bool> hardReconnect()
+        public async Task<bool> hardReconnect()
         {
-            disconnect();
             Status = client.Status;
             bool success = false;
             while (success == false)
             {
-                System.Threading.Thread.Sleep(1000);
+                int delay = 1000 + (int)(1000 * Math.Pow(2, reconnectTriesCount));
+                System.Threading.Thread.Sleep(delay); // The more retries fail, the larger the delay between tries grows.
+                serverWindow.addToLog($"Reconnect try 1. Delay {delay} ms.");
                 if (reconnectTriesCount >= reconnectMaxTries)
                 {
-                    serverWindow.addToLog("Giving up on reconnect after 10 tries.", true);
+                    serverWindow.addToLog($"Giving up on reconnect after {reconnectTriesCount} tries.", true);
                     break;
                 }
-                success = await createConnection(ip, protocol);
+                if (Status == ConnectionStatus.Connected) // Don't try to reconnect if we somehow managed to already reconnect in some other way.
+                {
+                    break;
+                }
+                success = await Reconnect();
                 if (!success)
                 {
                     reconnectTriesCount++;
@@ -223,8 +290,15 @@ namespace JKWatcher
                     reconnectTriesCount = 0;
                 }
             }
+            reconnectTriesCount = 0;
             Status = client.Status;
             return success;
+        }
+
+        public async Task<bool> Reconnect()
+        {
+            disconnect();
+            return await createConnection(ip, protocol);
         }
 
         private async void Client_Disconnected(object sender, EventArgs e)
@@ -245,7 +319,7 @@ namespace JKWatcher
             if (wasRecordingADemo)
             {
                 serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
-                stopDemoRecord();
+                stopDemoRecord(true);
             }
 
             // Reconnect
@@ -262,7 +336,7 @@ namespace JKWatcher
             {
                 serverWindow.addToLog("Reconnected.");
 
-                if (wasRecordingADemo)
+                if (wasRecordingADemo || shouldBeRecordingADemo)
                 {
                     serverWindow.addToLog("Attempting to resume demo recording.");
                     startDemoRecord();
@@ -273,6 +347,7 @@ namespace JKWatcher
         }
 
         bool wasRecordingADemo = false;
+        bool shouldBeRecordingADemo = false;
 
         // Client crashed for some reason
         private async Task ExceptionCallback(JKClientException exception)
@@ -292,7 +367,7 @@ namespace JKWatcher
             if (wasRecordingADemo)
             {
                 serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
-                stopDemoRecord();
+                stopDemoRecord(true);
             }
 
             // Reconnect
@@ -313,7 +388,7 @@ namespace JKWatcher
             {
                 serverWindow.addToLog("Reconnected.");
 
-                if (wasRecordingADemo)
+                if (wasRecordingADemo || shouldBeRecordingADemo)
                 {
                     serverWindow.addToLog("Attempting to resume demo recording.");
                     startDemoRecord();
@@ -801,6 +876,7 @@ namespace JKWatcher
                 serverWindow.addToLog("Disconnected.");
             };
             client.Disconnect();
+            trulyDisconnected = true;
             client.ServerCommandExecuted -= ServerCommandExecuted;
             client.ServerInfoChanged -= Connection_ServerInfoChanged;
             client.SnapshotParsed -= Client_SnapshotParsed;
@@ -1004,14 +1080,18 @@ namespace JKWatcher
             }
         }
 
+        int lastDemoIterator = 0;
 
         public async void startDemoRecord(int iterator=0)
         {
+            shouldBeRecordingADemo = true;
             if (isRecordingADemo)
             {
                 serverWindow.addToLog("Demo is already being recorded...");
                 return;
             }
+
+            lastDemoIterator = iterator;
 
             serverWindow.addToLog("Initializing demo recording...");
             string timeString = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
@@ -1128,8 +1208,12 @@ namespace JKWatcher
                 isRecordingADemo = false;
             }
         }
-        public void stopDemoRecord()
+        public void stopDemoRecord(bool afterInvoluntaryDisconnect = false)
         {
+            if (!afterInvoluntaryDisconnect)
+            {
+                shouldBeRecordingADemo = false;
+            }
             serverWindow.addToLog("Stopping demo recording...");
             client.StopRecord_f();
             isRecordingADemo = false;
