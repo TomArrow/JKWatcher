@@ -28,7 +28,7 @@ namespace JKWatcher
 
         public bool LogColoredEnabled { get; set; } = true;
         public bool LogPlainEnabled { get; set; } = false;
-        public bool DrawMiniMap { get; set; } = true;
+        public bool DrawMiniMap { get; set; } = false;
 
         private ServerInfo serverInfo;
         private string ip;
@@ -45,7 +45,7 @@ namespace JKWatcher
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
         //public bool verboseOutput { get; private set; } = false;
-        public int verboseOutput { get; private set; } = 5;
+        public int verboseOutput { get; private set; } = 4;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
@@ -174,6 +174,7 @@ namespace JKWatcher
         public struct LogQueueItem {
             public string logString;
             public bool forceLogToFile;
+            public DateTime time;
         }
 
         ConcurrentQueue<LogQueueItem> logQueue = new ConcurrentQueue<LogQueueItem>();
@@ -183,6 +184,7 @@ namespace JKWatcher
         List<string> dequeuedStrings = new List<string>();
         List<string> stringsToForceWriteToLogFile = new List<string>();
 
+        string timeString = "", lastTimeString = "";
         private void logStringUpdater(CancellationToken ct)
         {
             while (true)
@@ -193,11 +195,16 @@ namespace JKWatcher
                 LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
                 {
+                    timeString = $"[{stringToAdd.time.ToString("yyyy-MM-dd HH:mm:ss")}]";
+                    bool timeStringChanged = timeString != lastTimeString;
                     if (stringToAdd.forceLogToFile)
                     {
+                        if(timeStringChanged) stringsToForceWriteToLogFile.Add(timeString);
                         stringsToForceWriteToLogFile.Add(stringToAdd.logString);
                     }
+                    if (timeStringChanged) dequeuedStrings.Add(timeString);
                     dequeuedStrings.Add(stringToAdd.logString);
+                    lastTimeString = timeString;
                 }
 
                 if (LogColoredEnabled)
@@ -324,7 +331,7 @@ namespace JKWatcher
 
         public void addToLog(string someString,bool forceLogToFile=false)
         {
-            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile });
+            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now });
         }
 
 
@@ -594,6 +601,7 @@ namespace JKWatcher
             bool playersSelected = playerListDataGrid.Items.Count > 0 && playerListDataGrid.SelectedItems.Count > 0;
 
             delBtn.IsEnabled = connectionsSelected;
+            reconBtn.IsEnabled = connectionsSelected;
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
             commandSendBtn.IsEnabled = connectionsSelected;

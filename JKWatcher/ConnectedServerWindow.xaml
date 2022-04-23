@@ -93,8 +93,8 @@
                     <ComboBoxItem Content="one" Tag="1"></ComboBoxItem>
                     <ComboBoxItem Content="two" Tag="2"></ComboBoxItem>
                     <ComboBoxItem Content="three" Tag="3"></ComboBoxItem>
-                    <ComboBoxItem Content="four" Tag="4"></ComboBoxItem>
-                    <ComboBoxItem Content="five" Tag="5" IsSelected="True"></ComboBoxItem>
+                    <ComboBoxItem Content="four" Tag="4" IsSelected="True"></ComboBoxItem>
+                    <ComboBoxItem Content="five" Tag="5"></ComboBoxItem>
                 </ComboBox>
                 <!--<CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>-->
             </WrapPanel>
@@ -173,7 +173,7 @@
         </DockPanel>
         <StackPanel Grid.Column="3" Grid.Row="2">
 
-            <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="True">Draw Minimap</CheckBox>
+            <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="False">Draw Minimap</CheckBox>
         </StackPanel>
     </Grid>
 </Window>

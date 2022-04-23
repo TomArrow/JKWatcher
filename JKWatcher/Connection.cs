@@ -154,6 +154,11 @@ namespace JKWatcher
                 {
                     Reconnect();
                 }
+                if (client.Status == ConnectionStatus.Active && shouldBeRecordingADemo && !isRecordingADemo)
+                {
+                    serverWindow.addToLog("periodicReconnecter: Attempting to start/resume demo recording. (shouldBeRecordingADemo = true)");
+                    startDemoRecord();
+                }
             }
         }
 
@@ -232,11 +237,22 @@ namespace JKWatcher
             {
 
                 Task connectTask = client.Connect(ip, protocol);
-                bool didConnect = connectTask.Wait(timeOut);
+                bool didConnect = false;
+                await Task.Run(()=> {
+                    bool didConnect = connectTask.Wait(timeOut);
+                });
                 if (!didConnect)
                 {
                     Status = client.Status;
-                    serverWindow.addToLog($"Failed to create connection. Timeout after {timeOut} milliseconds.", true);
+                    serverWindow.addToLog($"Failed to create connection. Timeout after {timeOut} milliseconds. May still connect who knows.", true);
+                    connectTask.ContinueWith((a)=> {
+                        Status = client.Status;
+                        if (shouldBeRecordingADemo)
+                        {
+                            serverWindow.addToLog("createConnection: Attempting to start/resume demo recording after delayed connect. (shouldBeRecordingADemo = true)");
+                            startDemoRecord();
+                        }
+                    },TaskContinuationOptions.NotOnCanceled);
                     return false;
                 }
 
@@ -271,17 +287,19 @@ namespace JKWatcher
             {
                 int delay = 1000 + (int)(1000 * Math.Pow(2, reconnectTriesCount));
                 System.Threading.Thread.Sleep(delay); // The more retries fail, the larger the delay between tries grows.
-                serverWindow.addToLog($"Reconnect try 1. Delay {delay} ms.");
+                serverWindow.addToLog($"Reconnect try {reconnectTriesCount+1}. Delay {delay} ms.");
                 if (reconnectTriesCount >= reconnectMaxTries)
                 {
                     serverWindow.addToLog($"Giving up on reconnect after {reconnectTriesCount} tries.", true);
                     break;
                 }
-                if (Status == ConnectionStatus.Connected) // Don't try to reconnect if we somehow managed to already reconnect in some other way.
+                if (client.Status == ConnectionStatus.Active) // Don't try to reconnect if we somehow managed to already reconnect in some other way.
                 {
                     break;
                 }
+                Status = client.Status;
                 success = await Reconnect();
+                Status = client.Status;
                 if (!success)
                 {
                     reconnectTriesCount++;
