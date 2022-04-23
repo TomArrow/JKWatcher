@@ -101,19 +101,29 @@ namespace JKWatcher
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
 
+        // TODO Check every 5 min or so if connection was interrupted/ we are disconnected. If so, try reconnect.
+
         public Connection(ConnectedServerWindow serverWindowA, string ip, ProtocolVersion protocol, ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             _ = createConnection(ip, protocol);
         }
-        public Connection(ConnectedServerWindow serverWindowA, ServerInfo serverInfo, ServerSharedInformationPool infoPoolA)
+        public Connection(ServerInfo serverInfo, ConnectedServerWindow serverWindowA,ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(serverInfo.Address.ToString(), serverInfo.Protocol);
+        }
+        public Connection( string ip, ProtocolVersion protocol, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
+        {
+            infoPool = infoPoolA;
+            serverWindow = serverWindowA;
+            leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
+            leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
+            _ = createConnection(ip, protocol);
         }
 
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)

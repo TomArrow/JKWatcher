@@ -10,7 +10,11 @@
         <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
     </Window.Resources>
     <Grid>
-        <DockPanel>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="30"></RowDefinition>
+        </Grid.RowDefinitions>
+        <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
@@ -30,5 +34,13 @@
 
             </DataGrid>
         </DockPanel>
+        <WrapPanel Grid.Row="1">
+            <Label>IP</Label>
+            <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
+            <Label>Protocol</Label>
+            <ComboBox x:Name="protocols"></ComboBox>
+
+            <Button x:Name="connectIPBtn" Click="connectIPBtn_Click">Manual connect</Button>
+        </WrapPanel>
     </Grid>
 </Window>

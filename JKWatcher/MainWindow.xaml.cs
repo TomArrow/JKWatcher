@@ -31,6 +31,8 @@ namespace JKWatcher
             InitializeComponent();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+            protocols.ItemsSource = System.Enum.GetValues(typeof(ProtocolVersion));
+            protocols.SelectedItem = ProtocolVersion.Protocol15;
             //getServers();
         }
 
@@ -94,6 +96,19 @@ namespace JKWatcher
             } else
             {
                 connectBtn.IsEnabled = false;
+            }
+        }
+
+        private void connectIPBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
+                connectedServerWindows.Add(newWindow);
+                newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
+                newWindow.Show();
             }
         }
     }

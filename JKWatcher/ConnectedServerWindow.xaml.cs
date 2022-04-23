@@ -31,6 +31,8 @@ namespace JKWatcher
         public bool DrawMiniMap { get; set; } = true;
 
         private ServerInfo serverInfo;
+        private string ip;
+        private ProtocolVersion protocol;
 
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
         private FullyObservableCollection<CameraOperator> cameraOperators = new FullyObservableCollection<CameraOperator>();
@@ -63,7 +65,52 @@ namespace JKWatcher
 
             lock (connections)
             {
-                connections.Add(new Connection(this, serverInfo, infoPool));
+                connections.Add(new Connection(serverInfo, this,  infoPool));
+            }
+            updateIndices();
+
+            logTxt.Text = "";
+            addToLog("Begin of Log\n");
+
+            this.Closed += ConnectedServerWindow_Closed;
+
+            var tokenSource = new CancellationTokenSource();
+            CancellationToken ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { miniMapUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(), true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
+            backgroundTasks.Add(tokenSource);
+
+            tokenSource = new CancellationTokenSource();
+            ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(),true);
+            }, TaskContinuationOptions.OnlyOnFaulted);
+            backgroundTasks.Add(tokenSource);
+
+            startLogStringUpdater();
+
+        } 
+        
+        public ConnectedServerWindow(string ipA, ProtocolVersion protocolA)
+        {
+            //this.DataContext = this;
+            //serverInfo = serverInfoA;
+            ip = ipA;
+            protocol = protocolA;
+            InitializeComponent();
+            this.Title = ipA + " ( Manual connect )"; // TODO Update name later
+
+            connectionsDataGrid.ItemsSource = connections;
+            cameraOperatorsDataGrid.ItemsSource = cameraOperators;
+
+            infoPool = new ServerSharedInformationPool();
+
+            gameTimeTxt.DataContext = infoPool;
+
+            lock (connections)
+            {
+                connections.Add(new Connection(ipA, protocolA, this,  infoPool));
             }
             updateIndices();
 
@@ -167,7 +214,8 @@ namespace JKWatcher
                     Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
                 }
 #if DEBUG
-                Helpers.debugLogToFile(serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
+                // TODO Clean this up, make it get serverInfo from connections if connected via ip.
+                Helpers.debugLogToFile(serverInfo == null ? ip : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
 #endif
 
                 dequeuedStrings.Clear();
@@ -420,7 +468,7 @@ namespace JKWatcher
 
             while(retVal.Count < count)
             {
-                Connection newConnection = new Connection(this,connections[0].client.ServerInfo,infoPool);
+                Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -682,7 +730,7 @@ namespace JKWatcher
 
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
-            Connection newConnection = new Connection(this, connections[0].client.ServerInfo, infoPool);
+            Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
             lock (connections)
             {
                 connections.Add(newConnection);
