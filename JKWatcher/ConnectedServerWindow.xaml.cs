@@ -62,6 +62,9 @@ namespace JKWatcher
             infoPool = new ServerSharedInformationPool();
 
             gameTimeTxt.DataContext = infoPool;
+            mapNameTxt.DataContext = infoPool;
+            scoreRedTxt.DataContext = infoPool;
+            scoreBlueTxt.DataContext = infoPool;
 
             lock (connections)
             {
