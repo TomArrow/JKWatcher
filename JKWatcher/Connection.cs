@@ -249,7 +249,15 @@ namespace JKWatcher
                 Task connectTask = client.Connect(ip, protocol);
                 bool didConnect = false;
                 await Task.Run(()=> {
-                    didConnect = connectTask.Wait(timeOut);
+                    try
+                    {
+
+                        didConnect = connectTask.Wait(timeOut);
+                    } catch(TaskCanceledException e)
+                    {
+                        // Who cares.
+                        didConnect = false;
+                    }
                 });
                 if (!didConnect)
                 {
@@ -1123,6 +1131,11 @@ namespace JKWatcher
         public async void startDemoRecord(int iterator=0)
         {
             shouldBeRecordingADemo = true;
+            if(client.Status != ConnectionStatus.Active)
+            {
+                serverWindow.addToLog("Can't record demo when disconnected. But trying to queue recording in case we connect.");
+                return;
+            }
             if (isRecordingADemo)
             {
                 serverWindow.addToLog("Demo is already being recorded...");

@@ -546,7 +546,7 @@ namespace JKWatcher
             int i = 0;
             foreach (Connection conn in conns)
             {
-                if (conn != null && !conn.isRecordingADemo && conn.client.Status == ConnectionStatus.Active)
+                if (conn != null && !conn.isRecordingADemo)
                 {
                     conn.startDemoRecord(i++);
                 }
