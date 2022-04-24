@@ -106,6 +106,10 @@ namespace JKWatcher
 
         private int gameTime = 0;
         public string GameTime { get; private set; }
+        public string MapName { get; set; }
+        public int ScoreRed { get; set; }
+        public int ScoreBlue { get; set; }
+
         public void setGameTime(int gameTime)
         {
             this.gameTime = gameTime;

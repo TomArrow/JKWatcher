@@ -506,15 +506,27 @@ namespace JKWatcher
 
             if (connections.Count == 0) return;
 
-            foreach (Connection connection in connections)
+            foreach (CameraOperator op in cameraOperators)
             {
-                connection.stopDemoRecord();
-                //connection.disconnect();
-                connection.CloseDown();
-                break;
+                lock (connections)
+                {
+                    op.Destroy();
+                }
+                cameraOperators.Remove(op);
+                updateIndices();
+                op.Errored -= CamOperator_Errored;
+            }
+            lock (connections)
+            {
+                foreach (Connection connection in connections)
+                {
+                    connection.stopDemoRecord();
+                    //connection.disconnect();
+                    connection.CloseDown();
+                    break;
+                }
             }
 
-            
         }
 
         

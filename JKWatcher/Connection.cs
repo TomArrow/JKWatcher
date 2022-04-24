@@ -213,6 +213,16 @@ namespace JKWatcher
         private string ip;
         private ProtocolVersion protocol;
 
+        private void afterConnect()
+        {
+            Status = client.Status;
+            infoPool.MapName = client.ServerInfo.MapName;
+            infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+            infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+        }
+
         private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
         {
             trulyDisconnected = false;
@@ -252,6 +262,7 @@ namespace JKWatcher
                             serverWindow.addToLog("createConnection: Attempting to start/resume demo recording after delayed connect. (shouldBeRecordingADemo = true)");
                             startDemoRecord();
                         }
+                        afterConnect();
                     },TaskContinuationOptions.NotOnCanceled);
                     return false;
                 }
@@ -268,6 +279,7 @@ namespace JKWatcher
                 serverWindow.addToLog("createConnection: Attempting to start/resume demo recording. (shouldBeRecordingADemo = true)");
                 startDemoRecord();
             }
+            afterConnect();
 
             serverWindow.addToLog("New connection created.");
             return true;
@@ -831,6 +843,12 @@ namespace JKWatcher
             ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;
 
+            infoPool.MapName = client.ServerInfo.MapName;
+            infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+            infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+
             if (obj.FloodProtect >=-1)
             {
                 // Don't trust a setting of 0. Could still have non-engine limiting that isn't captured by the sv_floodprotect cvar.
@@ -1040,7 +1058,9 @@ namespace JKWatcher
                 cg.numScores = MAX_CLIENTS;
             }*/
             infoPool.teamInfo[(int)Team.Red].teamScore = commandEventArgs.Command.Argv(2).Atoi();
+            infoPool.ScoreRed = commandEventArgs.Command.Argv(2).Atoi();
             infoPool.teamInfo[(int)Team.Blue].teamScore = commandEventArgs.Command.Argv(3).Atoi();
+            infoPool.ScoreBlue = commandEventArgs.Command.Argv(3).Atoi();
 
             for (i = 0; i < readScores; i++)
             {

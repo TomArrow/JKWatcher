@@ -78,6 +78,9 @@
         <WrapPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">
             <!--Various infos and outputs and stuff-->
             <TextBox x:Name="gameTimeTxt" IsReadOnly="True" MinWidth="30" Text="{Binding GameTime,Mode=OneWay}"></TextBox>
+            <TextBox x:Name="mapNameTxt" IsReadOnly="True" MinWidth="60" Text="{Binding MapName,Mode=OneWay}"></TextBox>
+            <TextBox x:Name="scoreRed" IsReadOnly="True" MinWidth="30" Text="{Binding ScoreRed,Mode=OneWay}"></TextBox>
+            <TextBox x:Name="scoreBlue" IsReadOnly="True" MinWidth="30" Text="{Binding ScoreBlue,Mode=OneWay}"></TextBox>
             
         </WrapPanel>
         <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="1">
