@@ -770,7 +770,7 @@ namespace JKWatcher.CameraOperators
                 playersCycled[teamInt].Clear(); 
                 lastGradings[teamInt].Clear();
 
-                float lastSeen = (float)(DateTime.Now - infoPool.playerInfo[flagCarrier].lastFullPositionUpdate.Value).TotalMilliseconds/1000.0f;
+                float lastSeen = infoPool.playerInfo[flagCarrier].lastFullPositionUpdate.HasValue ? (float)(DateTime.Now - infoPool.playerInfo[flagCarrier].lastFullPositionUpdate.Value).TotalMilliseconds/1000.0f : float.PositiveInfinity; // Need to check. In rare freak cases it can cause null object exception.
 
                 Vector3 flagCarrierPositionInOneSecond = infoPool.playerInfo[flagCarrier].position + infoPool.playerInfo[flagCarrier].velocity;
 

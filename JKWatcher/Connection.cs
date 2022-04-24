@@ -239,7 +239,7 @@ namespace JKWatcher
                 Task connectTask = client.Connect(ip, protocol);
                 bool didConnect = false;
                 await Task.Run(()=> {
-                    bool didConnect = connectTask.Wait(timeOut);
+                    didConnect = connectTask.Wait(timeOut);
                 });
                 if (!didConnect)
                 {
