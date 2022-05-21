@@ -108,7 +108,7 @@ namespace JKWatcher
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
 
-        public Connection(ConnectedServerWindow serverWindowA, string ip, ProtocolVersion protocol, ServerSharedInformationPool infoPoolA)
+        /*public Connection(ConnectedServerWindow serverWindowA, string ip, ProtocolVersion protocol, ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
@@ -122,14 +122,14 @@ namespace JKWatcher
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(serverInfo.Address.ToString(), serverInfo.Protocol);
             createPeriodicReconnecter();
-        }
-        public Connection( string ipA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
+        }*/
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
-            _ = createConnection(ipA, protocolA);
+            _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
         }
 
@@ -201,12 +201,12 @@ namespace JKWatcher
             lock (closeDownMutex)
             {
                 if (closedDown) return;
+                closedDown = true;
                 foreach (CancellationTokenSource backgroundTask in backgroundTasks)
                 {
                     backgroundTask.Cancel();
                 }
                 disconnect();
-                closedDown = true;
             }
         }
 
@@ -225,6 +225,8 @@ namespace JKWatcher
 
         private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
         {
+            if (closedDown) return false;
+
             trulyDisconnected = false;
 
             ip = ipA;
@@ -407,6 +409,8 @@ namespace JKWatcher
                 serverWindow.addToLog("Was recording a demo. Stopping recording if not already stopped.");
                 stopDemoRecord(true);
             }
+
+            if (closedDown) return;
 
             // Reconnect
             System.Threading.Thread.Sleep(1000);
@@ -848,6 +852,8 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            serverWindow.ServerName = obj.HostName;
+
             ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;
 
@@ -912,11 +918,17 @@ namespace JKWatcher
 
         public void disconnect()
         {
+            // In very very rare cases (some bug?) a weird disconnect can happen
+            // And it thinks demo is still recording or sth? So just be clean.
+            client.StopRecord_f(); 
+            isRecordingADemo = false;
 
             client.Disconnected -= Client_Disconnected; // This only handles involuntary disconnects
+            Client oldClientForHandler = client; // Since maybe we reconnect straight after this.
             client.Disconnected += (a,b)=> { // Replace handler that auto-reconnects with handler that disposes of client.
-                client.Stop();
-                client.Dispose();
+                oldClientForHandler.Stop();
+                oldClientForHandler.Dispose();
+                oldClientForHandler.StopRecord_f();
                 serverWindow.addToLog("Disconnected.");
             };
             client.Disconnect();
@@ -1138,8 +1150,17 @@ namespace JKWatcher
             }
             if (isRecordingADemo)
             {
-                serverWindow.addToLog("Demo is already being recorded...");
-                return;
+                if (!client.Demorecording)
+                {
+
+                    serverWindow.addToLog("isRecordingADemo indicates demo is already being recorded, but client says otherwise? Shouldn't really happen, some bug I guess. Try record anyway...");
+                    //isRecordingADemo = false;
+                } else
+                {
+
+                    serverWindow.addToLog("Demo is already being recorded...");
+                    return;
+                }
             }
 
             lastDemoIterator = iterator;

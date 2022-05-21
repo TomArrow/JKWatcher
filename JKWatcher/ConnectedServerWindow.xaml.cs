@@ -30,9 +30,28 @@ namespace JKWatcher
         public bool LogPlainEnabled { get; set; } = false;
         public bool DrawMiniMap { get; set; } = false;
 
-        private ServerInfo serverInfo;
-        private string ip;
-        private ProtocolVersion protocol;
+        //private ServerInfo serverInfo = null;
+        //private string ip;
+        public NetAddress netAddress { get; private set; }
+        public ProtocolVersion protocol { get; private set; }
+        private string serverName = null;
+        public string ServerName
+        {
+            get
+            {
+                return serverName;
+            }
+            set
+            {
+                if(value != serverName)
+                {
+                    Dispatcher.Invoke(()=> {
+                        this.Title = netAddress.ToString() + " (" + serverName + ")";
+                    });
+                }
+                serverName = value;
+            }
+        }
 
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
         private FullyObservableCollection<CameraOperator> cameraOperators = new FullyObservableCollection<CameraOperator>();
@@ -49,12 +68,19 @@ namespace JKWatcher
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
-        public ConnectedServerWindow(ServerInfo serverInfoA)
+        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null)
         {
             //this.DataContext = this;
-            serverInfo = serverInfoA;
+
+            //serverInfo = serverInfoA;
+            netAddress = netAddressA;
+            protocol = protocolA;
             InitializeComponent();
-            this.Title = serverInfo.Address.ToString() + " (" + serverInfo.HostName + ")";
+            this.Title = netAddressA.ToString();
+            if(serverNameA != null)
+            {
+                ServerName = serverNameA; // This will also change title.
+            }
 
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
@@ -68,7 +94,8 @@ namespace JKWatcher
 
             lock (connections)
             {
-                connections.Add(new Connection(serverInfo, this,  infoPool));
+                //connections.Add(new Connection(serverInfo, this,  infoPool));
+                connections.Add(new Connection(netAddress,protocol, this,  infoPool));
             }
             updateIndices();
 
@@ -95,7 +122,7 @@ namespace JKWatcher
 
         } 
         
-        public ConnectedServerWindow(string ipA, ProtocolVersion protocolA)
+        /*public ConnectedServerWindow(string ipA, ProtocolVersion protocolA)
         {
             //this.DataContext = this;
             //serverInfo = serverInfoA;
@@ -138,7 +165,7 @@ namespace JKWatcher
 
             startLogStringUpdater();
 
-        }
+        }*/
 
         private void startLogStringUpdater()
         {
@@ -225,7 +252,8 @@ namespace JKWatcher
                 }
 #if DEBUG
                 // TODO Clean this up, make it get serverInfo from connections if connected via ip.
-                Helpers.debugLogToFile(serverInfo == null ? ip : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
+                //Helpers.debugLogToFile(serverInfo == null ? netAddress.ToString() : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
+                Helpers.debugLogToFile(serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName, dequeuedStrings.ToArray());
 #endif
 
                 dequeuedStrings.Clear();
@@ -438,6 +466,11 @@ namespace JKWatcher
             }
         }
 
+        public void createCTFOperator()
+        {
+            createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
+        }
+
         private void createCameraOperator<T>() where T:CameraOperator, new()
         {
             
@@ -478,7 +511,8 @@ namespace JKWatcher
 
             while(retVal.Count < count)
             {
-                Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
+                //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -507,7 +541,7 @@ namespace JKWatcher
                 backgroundTask.Cancel();
             }
 
-            if (connections.Count == 0) return;
+            //if (connections.Count == 0) return; // doesnt really matter.
 
             foreach (CameraOperator op in cameraOperators)
             {
@@ -526,13 +560,23 @@ namespace JKWatcher
                     connection.stopDemoRecord();
                     //connection.disconnect();
                     connection.CloseDown();
-                    break;
+                    connections.Remove(connection);
                 }
             }
 
         }
 
-        
+        public void recordAll()
+        {
+            int i = 0;
+            foreach (Connection conn in connections)
+            {
+                if (conn != null)
+                {
+                    conn.startDemoRecord(i++);
+                }
+            }
+        }
 
         
         private void recordBtn_Click(object sender, RoutedEventArgs e)
@@ -754,7 +798,8 @@ namespace JKWatcher
 
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
-            Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
+            //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool);
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -765,11 +810,11 @@ namespace JKWatcher
 
         private void delBtn_Click(object sender, RoutedEventArgs e)
         {
-            if(connections.Count < 2)
+            /*if(connections.Count < 2) // We allow this now because we no longer have places relying on connections[0], specifically in places that create new connections.
             {
                 addToLog("Cannot remove connections if only one connection exists.");
                 return; // We won't delete our only remaining connection.
-            }
+            }*/
 
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 

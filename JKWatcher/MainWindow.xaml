@@ -18,6 +18,8 @@
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
+
+                <CheckBox x:Name="ctfAutoJoin">Auto-join and record CTF >6 players</CheckBox>
             </WrapPanel>
             <DataGrid IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
@@ -41,6 +43,7 @@
             <ComboBox x:Name="protocols"></ComboBox>
 
             <Button x:Name="connectIPBtn" Click="connectIPBtn_Click">Manual connect</Button>
+            
         </WrapPanel>
     </Grid>
 </Window>

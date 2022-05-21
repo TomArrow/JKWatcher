@@ -237,7 +237,7 @@ namespace JKWatcher
                         break;
                 }
             }
-            sleepInterruptor.Cancel();
+            sleepInterruptor.Cancel(); /// TODO Fix error where this is already disposed and crashes the program.
         }
 
 
