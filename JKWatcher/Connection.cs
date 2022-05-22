@@ -852,7 +852,11 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
-            serverWindow.ServerName = obj.HostName;
+            string serverName = client.ServerInfo.HostName;
+            if (serverName != "")
+            {
+                serverWindow.ServerName = obj.HostName;
+            }
 
             ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;

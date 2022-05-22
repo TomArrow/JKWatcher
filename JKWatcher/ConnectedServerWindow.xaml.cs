@@ -43,10 +43,10 @@ namespace JKWatcher
             }
             set
             {
-                if(value != serverName)
+                if (value != serverName)
                 {
                     Dispatcher.Invoke(()=> {
-                        this.Title = netAddress.ToString() + " (" + serverName + ")";
+                        this.Title = netAddress.ToString() + " (" + value + ")";
                     });
                 }
                 serverName = value;
@@ -818,11 +818,11 @@ namespace JKWatcher
 
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
-            if(connections.Count - conns.Count < 1)
+            /*if(connections.Count - conns.Count < 1)
             {
                 addToLog("Cannot remove connections if none would be left.");
                 return; // We won't delete all counnections. We want to keep at least one.
-            }
+            }*/
 
             foreach (Connection conn in conns)
             {
