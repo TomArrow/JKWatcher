@@ -549,10 +549,11 @@ namespace JKWatcher
                 {
                     op.Destroy();
                 }
-                cameraOperators.Remove(op);
+                //cameraOperators.Remove(op); // Don't , we're inside for each
                 updateIndices();
                 op.Errored -= CamOperator_Errored;
             }
+            cameraOperators.Clear();
             lock (connections)
             {
                 foreach (Connection connection in connections)
@@ -560,8 +561,9 @@ namespace JKWatcher
                     connection.stopDemoRecord();
                     //connection.disconnect();
                     connection.CloseDown();
-                    connections.Remove(connection);
+                    //connections.Remove(connection); // Don't, we're inside foreach
                 }
+                connections.Clear();
             }
 
         }

@@ -1144,6 +1144,7 @@ namespace JKWatcher
 
         int lastDemoIterator = 0;
 
+
         public async void startDemoRecord(int iterator=0)
         {
             shouldBeRecordingADemo = true;

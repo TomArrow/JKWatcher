@@ -99,7 +99,7 @@ namespace JKWatcher
                     {
                         if (serverInfo.Version == ClientVersion.JO_v1_02)
                         {
-                            if(serverInfo.Clients > 6 && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                            if(serverInfo.Clients >= 6 && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
                             {
                                 // We want to be speccing/recording this.
                                 // Check if we are already connected. If so, do nothing.
@@ -113,12 +113,15 @@ namespace JKWatcher
                                 }
                                 if (!alreadyConnected)
                                 {
-                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
-                                    connectedServerWindows.Add(newWindow);
-                                    newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
-                                    newWindow.Show();
-                                    newWindow.createCTFOperator();
-                                    newWindow.recordAll();
+                                    Dispatcher.Invoke(()=> {
+
+                                        ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                        connectedServerWindows.Add(newWindow);
+                                        newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
+                                        newWindow.Show();
+                                        newWindow.createCTFOperator();
+                                        newWindow.recordAll();
+                                    });
                                 }
                             }
 
