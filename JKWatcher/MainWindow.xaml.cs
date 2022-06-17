@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -61,6 +62,39 @@ namespace JKWatcher
             }
         }
 
+        Mutex serversTextFileMutex = new Mutex();
+        private NetAddress[] getManualServers()
+        {
+            lock (serversTextFileMutex)
+            {
+                List<NetAddress> manualServers = new List<NetAddress>();
+                try
+                {
+                    if (File.Exists("servers.txt"))
+                    {
+                        string[] manualIPs = File.ReadAllLines("servers.txt");
+                        foreach (string manualIP in manualIPs)
+                        {
+                            string stripped = manualIP.Trim();
+                            if(stripped.Length > 0)
+                            {
+                                NetAddress tmpAddress = NetAddress.FromString(stripped);
+                                if(tmpAddress != null)
+                                {
+                                    manualServers.Add(tmpAddress);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Helpers.logToFile(new string[] { e.ToString() });
+                }
+                return manualServers.ToArray();
+            }
+        }
+
         private async void ctfAutoConnecter(CancellationToken ct)
         {
             while (true)
@@ -74,7 +108,10 @@ namespace JKWatcher
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                 });
 
-                if(ctfAutoJoinActive)
+                NetAddress[] manualServers = getManualServers();
+                ServerBrowser.SetHiddenServers(manualServers);
+
+                if (ctfAutoJoinActive)
                 {
                     IEnumerable<ServerInfo> servers = null;
 
@@ -99,7 +136,7 @@ namespace JKWatcher
                     {
                         if (serverInfo.Version == ClientVersion.JO_v1_02)
                         {
-                            if(serverInfo.Clients >= 6 && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                            if(!serverInfo.NeedPassword && serverInfo.Clients >= 6 && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
                             {
                                 // We want to be speccing/recording this.
                                 // Check if we are already connected. If so, do nothing.
@@ -139,6 +176,9 @@ namespace JKWatcher
         {
             IEnumerable<ServerInfo> servers = null;
             connectBtn.IsEnabled = false;
+
+            NetAddress[] manualServers = getManualServers();
+            ServerBrowser.SetHiddenServers(manualServers);
 
             ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
 
