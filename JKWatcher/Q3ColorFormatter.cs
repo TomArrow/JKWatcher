@@ -18,7 +18,7 @@ namespace JKWatcher
 
         static Dictionary<char,int> hexColorStarters = new Dictionary<char,int> { { 'x', 3 },{ 'X',6 },{ 'y', 4 },{ 'Y',8 } };
         // Don't get confused. The "^" in the regex string actually just makes sure it's the beginning of the string. It's not literally matching the "^" even tho it seems that way
-        static Regex hexColorRegex = new Regex("^x[0-9a-f]{3}|^y[0-9a-f]{4}|^X[0-9a-f]{6}|^Y[0-9a-f]{8}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        static Regex hexColorRegex = new Regex("^x[0-9a-fA-F]{3}|^y[0-9a-fA-F]{4}|^X[0-9a-fA-F]{6}|^Y[0-9a-fA-F]{8}", RegexOptions.Compiled);
 
         static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
 
@@ -292,9 +292,9 @@ namespace JKWatcher
         {
             int charsLeft = inputString.Length - startIndex;
             char firstChar = inputString[startIndex];
-            if (hexSupport && hexColorStarters.ContainsKey(firstChar) && charsLeft >= hexColorStarters[firstChar])
+            if (hexSupport && hexColorStarters.ContainsKey(firstChar) && charsLeft > hexColorStarters[firstChar])
             {
-                string range = inputString.Substring(startIndex, hexColorStarters[firstChar]);
+                string range = inputString.Substring(startIndex, hexColorStarters[firstChar]+1);
                 if (!hexColorRegex.IsMatch(range))
                 {
                     // Interpret color as base jk2 color instead
