@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,6 +8,41 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+
+    class SleepInterrupter // To avoid any issues with calling cancellationtokensources that are already disposed etc.
+    {
+        struct TokenPair
+        {
+            public CancellationTokenSource cts;
+            public CancellationToken ct;
+        }
+        ConcurrentBag<TokenPair> tokens = new ConcurrentBag<TokenPair>();
+
+        public CancellationToken getCancellationToken()
+        {
+            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationToken ct = cts.Token;
+            TokenPair tp = new TokenPair { cts = cts, ct = ct };
+            lock (tokens)
+            {
+                tokens.Add(tp);
+            }
+            return ct;
+        }
+        public void CancelAll()
+        {
+            lock (tokens)
+            {
+                foreach (TokenPair tp in tokens)
+                {
+                    tp.cts.Cancel();
+                    tp.cts.Dispose();
+                }
+                tokens.Clear();
+            }
+        }
+    }
+
     class LeakyBucketRequester<TCommand,TKind> where TKind:IComparable
     {
         private volatile int burst = 1;
@@ -35,14 +71,18 @@ namespace JKWatcher
         Dictionary<TKind, DateTime> lastRequestTimesOfType = new Dictionary<TKind, DateTime>();
 
         private CancellationTokenSource cts = null;
+        private TaskCompletionSource<bool> loopEnded;
 
         public LeakyBucketRequester(int burstA, int periodA)
         {
             burst = burstA;
             period = periodA;
 
+            loopEnded = new TaskCompletionSource<bool>();
             cts = new CancellationTokenSource();
-            Task.Factory.StartNew(()=> { this.Run(cts.Token); }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            Task.Factory.StartNew(()=> { this.Run(cts.Token); }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t)=> {
+                loopEnded.TrySetResult(true);
+            });
         }
 
         public void changeParameters(int burstA, int periodA)
@@ -54,22 +94,25 @@ namespace JKWatcher
         ~LeakyBucketRequester()
         {
             Stop();
-            sleepInterruptor.Dispose();
-            sleepInterruptor = null;
+            //sleepInterruptor.Dispose();
+            //sleepInterruptor = null;
         }
 
         public void Stop()
         {
             cts.Cancel();
-            sleepInterruptor.Cancel();
-            CancellationTokenSource tmpCts = sleepInterruptor;
-            sleepInterruptor = new CancellationTokenSource();
-            tmpCts.Dispose();
+            loopEnded.Task.Wait();
+            sleepInterrupter.CancelAll();
+            //sleepInterruptor.Cancel();
+            //CancellationTokenSource tmpCts = sleepInterruptor;
+            //sleepInterruptor = new CancellationTokenSource();
+            //tmpCts.Dispose();
             cts.Dispose();
             cts = null;
         }
 
-        CancellationTokenSource sleepInterruptor = new CancellationTokenSource();
+        //CancellationTokenSource sleepInterruptor = new CancellationTokenSource();
+        SleepInterrupter sleepInterrupter = new SleepInterrupter();
 
         const int defaultTimeOut = 1100;
         const int safetyPadding = 10;
@@ -79,11 +122,12 @@ namespace JKWatcher
             int soonestPredictedEvent = defaultTimeOut;
             while (true)
             {
-                CancellationTokenSource tmpCts = sleepInterruptor;
-                sleepInterruptor = new CancellationTokenSource();
-                tmpCts.Dispose();
+                //CancellationTokenSource tmpCts = sleepInterruptor;
+                //sleepInterruptor = new CancellationTokenSource();
+                //tmpCts.Dispose();
                 try { 
-                    await Task.Delay(soonestPredictedEvent, sleepInterruptor.Token);
+                    //await Task.Delay(soonestPredictedEvent, sleepInterruptor.Token);
+                    await Task.Delay(soonestPredictedEvent, sleepInterrupter.getCancellationToken());
                 } catch (TaskCanceledException e)
                 {
                     // Do nothing, it's expected.
@@ -237,7 +281,8 @@ namespace JKWatcher
                         break;
                 }
             }
-            sleepInterruptor.Cancel(); /// TODO Fix error where this is already disposed and crashes the program.
+            //sleepInterruptor.Cancel(); /// TODO Fix error where this is already disposed and crashes the program.
+            sleepInterrupter.CancelAll();
         }
 
 
