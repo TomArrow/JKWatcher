@@ -23,7 +23,7 @@ namespace JKWatcher
     /// <summary>
     /// Interaction logic for ConnectedServerWindow.xaml
     /// </summary>
-    public partial class ConnectedServerWindow : Window
+    public partial class ConnectedServerWindow : Window, ConnectionProvider
     {
 
         public bool LogColoredEnabled { get; set; } = true;
@@ -482,6 +482,7 @@ namespace JKWatcher
                 Connection[] connectionsForCamOperator = getUnboundConnections(requiredConnectionCount);
                 camOperator.provideConnections(connectionsForCamOperator);
                 camOperator.provideServerSharedInformationPool(infoPool);
+                camOperator.provideConnectionProvider(this);
                 camOperator.Initialize();
                 cameraOperators.Add(camOperator);
                 updateIndices();
@@ -493,7 +494,7 @@ namespace JKWatcher
             addToLog("Camera Operator error: " + e.Exception.ToString(),true);
         }
 
-        private Connection[] getUnboundConnections(int count)
+        public Connection[] getUnboundConnections(int count)
         {
             List<Connection> retVal = new List<Connection>();
 
@@ -680,6 +681,11 @@ namespace JKWatcher
         {
             createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
         }
+        
+        private void addOCDWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            createCameraOperator<CameraOperators.OCDCameraOperator>();
+        }
 
         private void verbosityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -859,6 +865,30 @@ namespace JKWatcher
                     //_=conn.hardReconnect();
                     _=conn.Reconnect();
                 }
+            }
+        }
+
+
+        public bool requestConnectionDestruction(Connection conn)
+        {
+            if (conn.CameraOperator != null)
+            {
+                addToLog("Cannot remove connection bound to a camera operator");
+                return false;
+            }
+            else if (!connections.Contains(conn))
+            {
+                addToLog("WEIRD: Camera operator requesting deletion of a connection that is not part of this ConnectedServerWindow.");
+                return false;
+            }
+            else
+            {
+
+                //conn.disconnect();
+                conn.CloseDown();
+                connections.Remove(conn);
+                updateIndices();
+                return true;
             }
         }
     }

@@ -43,7 +43,7 @@ namespace JKWatcher
         }
     }
 
-    class LeakyBucketRequester<TCommand,TKind> where TKind:IComparable
+    public class LeakyBucketRequester<TCommand,TKind> where TKind:IComparable
     {
         private volatile int burst = 1;
         private volatile int period = 1100;

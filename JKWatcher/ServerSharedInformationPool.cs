@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace JKWatcher
 {
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
-    struct PlayerInfo
+    public struct PlayerInfo
     {
         #region position
         public Vector3 position;
@@ -45,7 +45,7 @@ namespace JKWatcher
         public volatile int powerUps;		// so can display quad/flag status
         #endregion
     }
-    struct PlayerScore
+    public struct PlayerScore
     {
         public volatile int client;
         public volatile int score;
@@ -65,7 +65,7 @@ namespace JKWatcher
     }
 
 
-    struct TeamInfo
+    public struct TeamInfo
     {
 
         public volatile int teamScore;
@@ -100,7 +100,7 @@ namespace JKWatcher
     }
 
     // Todo reset stuff on level restart and especially map change
-    class ServerSharedInformationPool : INotifyPropertyChanged
+    public class ServerSharedInformationPool : INotifyPropertyChanged
     {
         public bool isIntermission { get; set; } = false;
 
@@ -143,7 +143,7 @@ namespace JKWatcher
         }
     }
 
-    enum FlagStatus : int
+    public enum FlagStatus : int
     {
         FLAG_ATBASE = 0,
         FLAG_TAKEN,         // CTF

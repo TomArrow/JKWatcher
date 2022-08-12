@@ -54,7 +54,7 @@ namespace JKWatcher
         CS_MODELS=32
     }
 
-    enum RequestCategory
+    public enum RequestCategory
     {
         NONE,
         SCOREBOARD,
@@ -72,7 +72,7 @@ namespace JKWatcher
      * We try to generally stay within the limits though naturally. Experience will show how well it will work.
      * 
      */
-    class Connection : INotifyPropertyChanged
+    public class Connection : INotifyPropertyChanged
     {
         // Setting it a bit higher than in the jk2 code itself, just to be safe. Internet delays etc. could cause issues.
         // Still not absolutely foolproof I guess but about as good as I can do.

@@ -158,6 +158,7 @@
             <DockPanel DockPanel.Dock="Bottom">
                 <WrapPanel DockPanel.Dock="Top">
                     <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">CTF</Button>
+                    <Button x:Name="addOCDWatcherBtn" Click="addOCDWatcherBtn_Click">OCD</Button>
                     <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
                 </WrapPanel>
                 <DataGrid  IsReadOnly="True" DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
