@@ -87,12 +87,15 @@ namespace JKWatcher.CameraOperators
 
         List<int> lastActivePlayers = new List<int>();
 
-        public int MaxAllowedServerConnections { get; set; } = 4;
+        const int maxAllowedServerConnectionsUpperLimit = 4;
+        public int MaxAllowedServerConnections { get; set; } = maxAllowedServerConnectionsUpperLimit;
+        private DateTime lastMaxAllowedServerConnectionsChange = DateTime.Now;
 
         private Dictionary<int, int> lastFollowedPlayers = new Dictionary<int, int>(); // clientnum (watcher client) -> clientnum (player) dictionary. remember who we were watching last loop. to detect changes.
         private Dictionary<int, DateTime> lastFollowedPlayerChanges = new Dictionary<int, DateTime>(); // clientnum (watcher client) -> DateTime of last change.
 
         private double destructionDelayMs = 1000.0 * 60.0 * 10.0; // 10 minutes
+        private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 60.0; // 60 minutes
         private DateTime destructionDelayStartTime = DateTime.Now;
 
         private void MainLoopFunction()
@@ -166,6 +169,25 @@ namespace JKWatcher.CameraOperators
                 destructionDelayStartTime = DateTime.Now;
             }
 
+
+            // Check if there are any connections that are too much. ("Connection limit reached")
+            for(int i = connections.Count - 1; i > 0; i--)
+            {
+                if (connections[i].ConnectionLimitReached && connections.Count > 1 && MaxAllowedServerConnections > 1) // Can't destroy the last connection
+                {
+                    destroyConnection(connections[i]);
+                    MaxAllowedServerConnections--; // Lower our number here.
+                    lastMaxAllowedServerConnectionsChange = DateTime.Now;
+                }
+            }
+
+            if((DateTime.Now - lastMaxAllowedServerConnectionsChange).TotalMilliseconds > retryMoreConnectionsDelay && MaxAllowedServerConnections < maxAllowedServerConnectionsUpperLimit)
+            {
+                // After a certain time, let's try more again.
+                MaxAllowedServerConnections++;
+                lastMaxAllowedServerConnectionsChange = DateTime.Now;
+            }
+
             List<int> activeButUnfollowedPlayers = new List<int>();
             activeButUnfollowedPlayers.AddRange(activePlayers);
 
@@ -179,7 +201,7 @@ namespace JKWatcher.CameraOperators
 
                 if (activeButUnfollowedPlayers.Contains(currentlySpeccedPlayer)) activeButUnfollowedPlayers.Remove(currentlySpeccedPlayer);
 
-                if (lastFollowedPlayersCopy[myClientNum] != currentlySpeccedPlayer || !lastFollowedPlayerChanges.ContainsKey(myClientNum))
+                if (!lastFollowedPlayersCopy.ContainsKey(myClientNum) || lastFollowedPlayersCopy[myClientNum] != currentlySpeccedPlayer || !lastFollowedPlayerChanges.ContainsKey(myClientNum))
                 {
                     lastFollowedPlayerChanges[myClientNum] = DateTime.Now;
                 }
@@ -193,9 +215,10 @@ namespace JKWatcher.CameraOperators
 
                 // Check if any other connnection is speccing the same player for longer than this one
                 bool anyOtherConnectionBeenSpeccingLonger = false; // This variable indicates there's another watcher client watching this player and been doing so for longer than this one
+                bool anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = false; // If been speccing equally long, change connection with higher index.
                 foreach (Connection subConn in connections)
                 { 
-                    if(subConn != conn)
+                    if(!Object.ReferenceEquals(conn, subConn))
                     {
                         int subClientNum = conn.ClientNum.GetValueOrDefault(-1);
                         // I'm doing it in this convoluted way because I want to reuse the data from the above loop that checked for followed player changes.
@@ -205,12 +228,13 @@ namespace JKWatcher.CameraOperators
                         if (clientNumValuesAreStable)
                         {
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] < lastFollowedPlayerChanges[myClientNum]) anyOtherConnectionBeenSpeccingLonger = true;
+                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] == lastFollowedPlayerChanges[myClientNum] && subClientNum < myClientNum) anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = true;
                         }
                     }
                 }
 
                 //if (currentlySpectatedPlayers.Contains(currentlySpeccedPlayer))
-                if (anyOtherConnectionBeenSpeccingLonger)
+                if (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex)
                 {
                     // This guy is already being spectated, and for longer than by this connection. Let's spectate someone else instead.
                     if(activeButUnfollowedPlayers.Count > 0)
@@ -219,7 +243,7 @@ namespace JKWatcher.CameraOperators
                         activeButUnfollowedPlayers.RemoveAt(0);
                         conn.leakyBucketRequester.requestExecution("follow " + activePlayerToFollow, RequestCategory.FOLLOW, 5, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     }
-                }
+                } 
             }
 
 
