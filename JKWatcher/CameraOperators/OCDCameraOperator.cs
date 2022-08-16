@@ -92,6 +92,9 @@ namespace JKWatcher.CameraOperators
         private Dictionary<int, int> lastFollowedPlayers = new Dictionary<int, int>(); // clientnum (watcher client) -> clientnum (player) dictionary. remember who we were watching last loop. to detect changes.
         private Dictionary<int, DateTime> lastFollowedPlayerChanges = new Dictionary<int, DateTime>(); // clientnum (watcher client) -> DateTime of last change.
 
+        private double destructionDelayMs = 1000.0 * 60.0 * 10.0; // 10 minutes
+        private DateTime destructionDelayStartTime = DateTime.Now;
+
         private void MainLoopFunction()
         {
             // First, let's figure out the current count of players.
@@ -107,85 +110,115 @@ namespace JKWatcher.CameraOperators
                 if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].team != Team.Spectator && !myOwnConnections.Contains(i)) activePlayers.Add(i); // Don't count myself. Don't count spectators.
             }
 
-            if(activePlayers.Count > MaxAllowedServerConnections && !Enumerable.SequenceEqual(activePlayers,lastActivePlayers))
+            bool activePlayerPoolChanged = !Enumerable.SequenceEqual(activePlayers, lastActivePlayers);
+
+            if (activePlayers.Count > MaxAllowedServerConnections && activePlayerPoolChanged)
             {
                 Console.Beep();
             }
 
-            if (activePlayers.Count > connections.Count && connections.Count < MaxAllowedServerConnections) getMoreConnections(Math.Min(activePlayers.Count- connections.Count, MaxAllowedServerConnections-connections.Count)); // If more than 1 player here, get another connection
-            //if(activePlayers.Count() <= 1 && connections.Count() > 1) // If only 1 player here, get rid of extra connections.
-            if(activePlayers.Count < connections.Count && connections.Count > 1) // If only 1 player here, get rid of extra connections.
+            if (activePlayerPoolChanged)
             {
-                int connectionsToDestroy = Math.Min(connections.Count-1,connections.Count - activePlayers.Count);
-                for (int i = connections.Count-1; i > 0; i--)
-                {
-                    if (connectionsToDestroy == 0) break;
-                    int currentlySpeccedPlayer = connections[i].client.playerStateClientNum;
-
-                    // Check if the player this connection follows is being followed by another connection (otherwise not really safe to destroy)
-                    int othersFollowingSamePlayer = 0;
-                    for(int b = 0; b < connections.Count; b++)
-                    {
-                        if (b != i && connections[b].client.playerStateClientNum == currentlySpeccedPlayer) othersFollowingSamePlayer++;
-                    }
-                    if (othersFollowingSamePlayer == 0) continue; // We can't destroy this one. It's the only one following this player.
-
-                    if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0))
-                    {
-                        // We destroy the connection if there are no active players OR if it isn't spectating anyone anyway OR:
-                        // Explanation for the velocity part:
-                        // We have 2+ connections. We have 0 or 1 players. But we never destroy connections[0]. 
-                        // It's possible that the active player is being spectated by connections[1].
-                        // If we destroy connections[1], it will interrupt the demo until connections[0] spectates that player again.
-                        // This could interrupt a good defrag run.
-                        // So to be safe, we only destroy a connection if the player it is spectating is not moving.
-                        // Additionally, make sure the player's score is 0. The score is the time into the map. On very long maps like mountains, a player might have a velocity of 0 temporarily despite being in the middle of the run.
-                        destroyConnection(connections[i]);
-                        connectionsToDestroy--;
-                    }
-                }
+                // I guess we could track this for individual connections but let's just keep it simple. Destruction either happens or not, no matter how many destructions are needed.
+                // We want 10 mminute delay for destruction. During which active player pool should not change.
+                // Might, in some situations, result in too many connections existing for longer than the desired 10 minutes past their "expiration date" but whatever.
+                destructionDelayStartTime = DateTime.Now;
             }
 
+            if (activePlayers.Count > connections.Count && connections.Count < MaxAllowedServerConnections) getMoreConnections(Math.Min(activePlayers.Count- connections.Count, MaxAllowedServerConnections-connections.Count)); // If more than 1 player here, get another connection
+            //if(activePlayers.Count() <= 1 && connections.Count() > 1) // If only 1 player here, get rid of extra connections.
+            if(activePlayers.Count < connections.Count && connections.Count > 1) // Get rid of extra connections if too many
+            {
+                if((DateTime.Now- destructionDelayStartTime).TotalMilliseconds > destructionDelayMs) // Don't destroy immediately. Wait 10 minutes. Maybe a player went spec and will come back to play. Or maybe another player connects. Too many connects/disconnects are annoying and result in a lot of tiny demo files.
+                {
+                    int connectionsToDestroy = Math.Min(connections.Count-1,connections.Count - activePlayers.Count);
+                    for (int i = connections.Count-1; i > 0; i--)
+                    {
+                        if (connectionsToDestroy == 0) break;
+                        int currentlySpeccedPlayer = connections[i].client.playerStateClientNum;
+
+                        // Check if the player this connection follows is being followed by another connection (otherwise not really safe to destroy)
+                        int othersFollowingSamePlayer = 0;
+                        for(int b = 0; b < connections.Count; b++)
+                        {
+                            if (b != i && connections[b].client.playerStateClientNum == currentlySpeccedPlayer) othersFollowingSamePlayer++;
+                        }
+                        if (othersFollowingSamePlayer == 0) continue; // We can't destroy this one. It's the only one following this player.
+
+                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0))
+                        {
+                            // We destroy the connection if there are no active players OR if it isn't spectating anyone anyway OR:
+                            // Explanation for the velocity part:
+                            // We have 2+ connections. We have 0 or 1 players. But we never destroy connections[0]. 
+                            // It's possible that the active player is being spectated by connections[1].
+                            // If we destroy connections[1], it will interrupt the demo until connections[0] spectates that player again.
+                            // This could interrupt a good defrag run.
+                            // So to be safe, we only destroy a connection if the player it is spectating is not moving.
+                            // Additionally, make sure the player's score is 0. The score is the time into the map. On very long maps like mountains, a player might have a velocity of 0 temporarily despite being in the middle of the run.
+                            destroyConnection(connections[i]);
+                            connectionsToDestroy--;
+                        }
+                    }
+                }
+            } else
+            {
+                // Connection count is fine. Reset destruction delay start time.
+                destructionDelayStartTime = DateTime.Now;
+            }
+
+            List<int> activeButUnfollowedPlayers = new List<int>();
+            activeButUnfollowedPlayers.AddRange(activePlayers);
+
             // Detect changes in who we are following and remember the times a change happened.
+            Dictionary<int,int> lastFollowedPlayersCopy = new Dictionary<int, int>(lastFollowedPlayers);
+            lastFollowedPlayers.Clear();
             foreach (Connection conn in connections)
             {
                 int myClientNum = conn.ClientNum.GetValueOrDefault(-1);
                 int currentlySpeccedPlayer = conn.client.playerStateClientNum;
 
-                if (lastFollowedPlayers[myClientNum] != currentlySpeccedPlayer || !lastFollowedPlayerChanges.ContainsKey(myClientNum))
+                if (activeButUnfollowedPlayers.Contains(currentlySpeccedPlayer)) activeButUnfollowedPlayers.Remove(currentlySpeccedPlayer);
+
+                if (lastFollowedPlayersCopy[myClientNum] != currentlySpeccedPlayer || !lastFollowedPlayerChanges.ContainsKey(myClientNum))
                 {
                     lastFollowedPlayerChanges[myClientNum] = DateTime.Now;
                 }
                 lastFollowedPlayers[myClientNum] = currentlySpeccedPlayer;
             }
 
-            List<int> currentlySpectatedPlayers = new List<int>();
-            currentlySpectatedPlayers.AddRange(myOwnConnections); // This isn't strictly semantically logical but it will do the job. Avoid speccing itself.
             foreach (Connection conn in connections)
             {
                 int myClientNum = conn.ClientNum.GetValueOrDefault(-1);
                 int currentlySpeccedPlayer = conn.client.playerStateClientNum;
 
-                if (currentlySpectatedPlayers.Contains(currentlySpeccedPlayer))
-                {
-                    // This guy is already being spectated. Let's spectate someone else instead.
-                    int activePlayerToFollow = -1;
-                    foreach(int playerNum in activePlayers)
+                // Check if any other connnection is speccing the same player for longer than this one
+                bool anyOtherConnectionBeenSpeccingLonger = false; // This variable indicates there's another watcher client watching this player and been doing so for longer than this one
+                foreach (Connection subConn in connections)
+                { 
+                    if(subConn != conn)
                     {
-                        if (!currentlySpectatedPlayers.Contains(playerNum))
+                        int subClientNum = conn.ClientNum.GetValueOrDefault(-1);
+                        // I'm doing it in this convoluted way because I want to reuse the data from the above loop that checked for followed player changes.
+                        // Due to multithreading, things may have changed in the meantime, at least theoretically, and could result in weirdness. Followed player may have changed but lastFollowedPlayerChanges would not have been updated.
+                        // Likewise, I'm checking whether the clientNum exists as a key because the clientnum may have changed (a freshly created connection may not have had a clientnum yet)
+                        bool clientNumValuesAreStable = lastFollowedPlayers.ContainsKey(myClientNum) && lastFollowedPlayers.ContainsKey(subClientNum);
+                        if (clientNumValuesAreStable)
                         {
-                            activePlayerToFollow = playerNum;
-                            break;
+                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] < lastFollowedPlayerChanges[myClientNum]) anyOtherConnectionBeenSpeccingLonger = true;
                         }
                     }
-                    if(activePlayerToFollow != -1)
-                    {
-                        conn.leakyBucketRequester.requestExecution("follow " + activePlayerToFollow, RequestCategory.FOLLOW, 5, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
-                        currentlySpectatedPlayers.Add(activePlayerToFollow);
-                    }
-                } else
+                }
+
+                //if (currentlySpectatedPlayers.Contains(currentlySpeccedPlayer))
+                if (anyOtherConnectionBeenSpeccingLonger)
                 {
-                    currentlySpectatedPlayers.Add(currentlySpeccedPlayer);
+                    // This guy is already being spectated, and for longer than by this connection. Let's spectate someone else instead.
+                    if(activeButUnfollowedPlayers.Count > 0)
+                    {
+                        int activePlayerToFollow = activeButUnfollowedPlayers[0];
+                        activeButUnfollowedPlayers.RemoveAt(0);
+                        conn.leakyBucketRequester.requestExecution("follow " + activePlayerToFollow, RequestCategory.FOLLOW, 5, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    }
                 }
             }
 
