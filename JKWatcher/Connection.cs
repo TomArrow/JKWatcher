@@ -990,6 +990,9 @@ namespace JKWatcher
                 case "cs":
                     EvaluateCS(commandEventArgs);
                     break;
+                case "print":
+                    EvaluatePrint(commandEventArgs);
+                    break;
                 default:
                     break;
             }
@@ -1052,6 +1055,19 @@ namespace JKWatcher
                     }
                     break;
                 default:break;
+            }
+        }
+
+        public bool ConnectionLimitReached { get; private set; } = false;
+
+        void EvaluatePrint(CommandEventArgs commandEventArgs)
+        {
+            if(commandEventArgs.Command.Argc >= 2)
+            {
+                if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n")
+                {
+                    ConnectionLimitReached = true;
+                }
             }
         }
         

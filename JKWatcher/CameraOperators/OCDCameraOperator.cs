@@ -87,7 +87,7 @@ namespace JKWatcher.CameraOperators
 
         List<int> lastActivePlayers = new List<int>();
 
-        const int maxAllowedServerConnectionsUpperLimit = 4;
+        const int maxAllowedServerConnectionsUpperLimit = 10;
         public int MaxAllowedServerConnections { get; set; } = maxAllowedServerConnectionsUpperLimit;
         private DateTime lastMaxAllowedServerConnectionsChange = DateTime.Now;
 
@@ -115,7 +115,7 @@ namespace JKWatcher.CameraOperators
 
             bool activePlayerPoolChanged = !Enumerable.SequenceEqual(activePlayers, lastActivePlayers);
 
-            if (activePlayers.Count > MaxAllowedServerConnections && activePlayerPoolChanged)
+            if (activePlayers.Count > MaxAllowedServerConnections && activePlayerPoolChanged) // Also do this if MaxAllowedServerConnections changed
             {
                 Console.Beep();
             }
@@ -175,6 +175,7 @@ namespace JKWatcher.CameraOperators
             {
                 if (connections[i].ConnectionLimitReached && connections.Count > 1 && MaxAllowedServerConnections > 1) // Can't destroy the last connection
                 {
+                    //MaxAllowedServerConnections = connections.Count - 1; // Think about this some more
                     destroyConnection(connections[i]);
                     MaxAllowedServerConnections--; // Lower our number here.
                     lastMaxAllowedServerConnectionsChange = DateTime.Now;
@@ -220,7 +221,7 @@ namespace JKWatcher.CameraOperators
                 { 
                     if(!Object.ReferenceEquals(conn, subConn))
                     {
-                        int subClientNum = conn.ClientNum.GetValueOrDefault(-1);
+                        int subClientNum = subConn.ClientNum.GetValueOrDefault(-1);
                         // I'm doing it in this convoluted way because I want to reuse the data from the above loop that checked for followed player changes.
                         // Due to multithreading, things may have changed in the meantime, at least theoretically, and could result in weirdness. Followed player may have changed but lastFollowedPlayerChanges would not have been updated.
                         // Likewise, I'm checking whether the clientNum exists as a key because the clientnum may have changed (a freshly created connection may not have had a clientnum yet)
