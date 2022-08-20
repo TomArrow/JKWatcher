@@ -115,15 +115,27 @@ namespace JKWatcher.CameraOperators
 
             bool activePlayerPoolChanged = !Enumerable.SequenceEqual(activePlayers, lastActivePlayers);
 
+            /*bool newActivePlayerPoolIsSubsetofOld = true;
+            // Strike this: Check if new active player pool is subset of old. In which case dont reset disconnect timeout.
+            // This is actually nonsense. Don't do this. That's the very reason this exists in the first place.
+            foreach(int activePlayer in activePlayers)
+            {
+                if (!lastActivePlayers.Contains(activePlayer))
+                {
+                    newActivePlayerPoolIsSubsetofOld = false;
+                    break;
+                }
+            }*/
+
             if (activePlayers.Count > MaxAllowedServerConnections && activePlayerPoolChanged) // Also do this if MaxAllowedServerConnections changed
             {
                 Console.Beep();
             }
 
-            if (activePlayerPoolChanged)
+            if (activePlayerPoolChanged/* && !newActivePlayerPoolIsSubsetofOld*/)
             {
                 // I guess we could track this for individual connections but let's just keep it simple. Destruction either happens or not, no matter how many destructions are needed.
-                // We want 10 mminute delay for destruction. During which active player pool should not change.
+                // We want 10 mminute delay for destruction. During which active player pool should not change. // Strike this: Edit: Or if it changes, it should only change in that individual active players became inactive. Aka: No new players or other changes other than that.
                 // Might, in some situations, result in too many connections existing for longer than the desired 10 minutes past their "expiration date" but whatever.
                 destructionDelayStartTime = DateTime.Now;
             }
@@ -146,9 +158,8 @@ namespace JKWatcher.CameraOperators
                         {
                             if (b != i && connections[b].client.playerStateClientNum == currentlySpeccedPlayer) othersFollowingSamePlayer++;
                         }
-                        if (othersFollowingSamePlayer == 0) continue; // We can't destroy this one. It's the only one following this player.
 
-                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0))
+                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && othersFollowingSamePlayer > 0))
                         {
                             // We destroy the connection if there are no active players OR if it isn't spectating anyone anyway OR:
                             // Explanation for the velocity part:
