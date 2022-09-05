@@ -220,6 +220,9 @@ namespace JKWatcher.CameraOperators
                 lastFollowedPlayers[myClientNum] = currentlySpeccedPlayer;
             }
 
+            List<Connection> connectionsToDestroyList = new List<Connection>(); // Secondary place where connections get destroyed, more focused on individual ones instead of as a whole. This makes sure connections don't linger for too long when there's clearly too many of them.
+
+            bool isIndex0 = true;
             foreach (Connection conn in connections)
             {
                 int myClientNum = conn.ClientNum.GetValueOrDefault(-1);
@@ -228,6 +231,8 @@ namespace JKWatcher.CameraOperators
                 // Check if any other connnection is speccing the same player for longer than this one
                 bool anyOtherConnectionBeenSpeccingLonger = false; // This variable indicates there's another watcher client watching this player and been doing so for longer than this one
                 bool anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = false; // If been speccing equally long, change connection with higher index.
+                bool anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = false; // We never deleted the connection with index 0
+                bool subConnIsIndex0 = true;
                 foreach (Connection subConn in connections)
                 { 
                     if(!Object.ReferenceEquals(conn, subConn))
@@ -241,7 +246,18 @@ namespace JKWatcher.CameraOperators
                         {
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] < lastFollowedPlayerChanges[myClientNum]) anyOtherConnectionBeenSpeccingLonger = true;
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] == lastFollowedPlayerChanges[myClientNum] && subClientNum < myClientNum) anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = true;
+                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds && subConnIsIndex0) anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = true;
                         }
+                    }
+                    subConnIsIndex0 = false;
+                }
+
+                if (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex || anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay)
+                {
+                    if (activeButUnfollowedPlayers.Count == 0 && !isIndex0)
+                    {
+                        // Meaning, we don't really need this connection anymore.
+                        connectionsToDestroyList.Add(conn);
                     }
                 }
 
@@ -255,9 +271,15 @@ namespace JKWatcher.CameraOperators
                         activeButUnfollowedPlayers.RemoveAt(0);
                         conn.leakyBucketRequester.requestExecution("follow " + activePlayerToFollow, RequestCategory.FOLLOW, 5, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                     }
-                } 
+                }
+                isIndex0 = false;
             }
 
+            // As mentioned above, this is kind of a secondary mechanism to destroy connections to avoid having too many lingering connections around
+            foreach(Connection connToDestroy in connectionsToDestroyList)
+            {
+                destroyConnection(connToDestroy);
+            }
 
 
             lastActivePlayers.Clear();
