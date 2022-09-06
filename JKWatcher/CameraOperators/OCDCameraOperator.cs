@@ -220,7 +220,7 @@ namespace JKWatcher.CameraOperators
                 lastFollowedPlayers[myClientNum] = currentlySpeccedPlayer;
             }
 
-            List<Connection> connectionsToDestroyList = new List<Connection>(); // Secondary place where connections get destroyed, more focused on individual ones instead of as a whole. This makes sure connections don't linger for too long when there's clearly too many of them.
+            Queue<Connection> connectionsToDestroyList = new Queue<Connection>(); // Secondary place where connections get destroyed, more focused on individual ones instead of as a whole. This makes sure connections don't linger for too long when there's clearly too many of them.
 
             bool isIndex0 = true;
             foreach (Connection conn in connections)
@@ -246,18 +246,23 @@ namespace JKWatcher.CameraOperators
                         {
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] < lastFollowedPlayerChanges[myClientNum]) anyOtherConnectionBeenSpeccingLonger = true;
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] == lastFollowedPlayerChanges[myClientNum] && subClientNum < myClientNum) anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = true;
-                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds && subConnIsIndex0) anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = true;
+                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && subConnIsIndex0) anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = true;
                         }
                     }
                     subConnIsIndex0 = false;
                 }
 
+                //Followed by others
                 if (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex || anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay)
                 {
-                    if (activeButUnfollowedPlayers.Count == 0 && !isIndex0)
+                    // Meaning, we don't really need this connection anymore.
+                    if (activeButUnfollowedPlayers.Count == 0 && !isIndex0 && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds)
                     {
-                        // Meaning, we don't really need this connection anymore.
-                        connectionsToDestroyList.Add(conn);
+                        // Safe to destroy. Don't destroy in middle of run.
+                        if (activePlayers.Count() == 0 || conn.client.playerStateClientNum == conn.ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0)) {
+                            
+                            connectionsToDestroyList.Enqueue(conn);
+                        }
                     }
                 }
 
@@ -276,8 +281,13 @@ namespace JKWatcher.CameraOperators
             }
 
             // As mentioned above, this is kind of a secondary mechanism to destroy connections to avoid having too many lingering connections around
-            foreach(Connection connToDestroy in connectionsToDestroyList)
+            //foreach(Connection connToDestroy in connectionsToDestroyList)
+            //{
+            //    destroyConnection(connToDestroy);
+            //}
+            while(connectionsToDestroyList.Count() > 0)
             {
+                Connection connToDestroy = connectionsToDestroyList.Dequeue();
                 destroyConnection(connToDestroy);
             }
 
