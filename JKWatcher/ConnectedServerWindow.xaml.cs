@@ -250,11 +250,11 @@ namespace JKWatcher
                 {
                     Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
                 }
-#if DEBUG
+//#if DEBUG
                 // TODO Clean this up, make it get serverInfo from connections if connected via ip.
                 //Helpers.debugLogToFile(serverInfo == null ? netAddress.ToString() : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
                 Helpers.debugLogToFile(serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName, dequeuedStrings.ToArray());
-#endif
+//#endif
 
                 dequeuedStrings.Clear();
                 stringsToForceWriteToLogFile.Clear();
