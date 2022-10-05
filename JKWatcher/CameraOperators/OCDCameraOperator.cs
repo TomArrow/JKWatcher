@@ -246,7 +246,7 @@ namespace JKWatcher.CameraOperators
                         {
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] < lastFollowedPlayerChanges[myClientNum]) anyOtherConnectionBeenSpeccingLonger = true;
                             if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && lastFollowedPlayerChanges[subClientNum] == lastFollowedPlayerChanges[myClientNum] && subClientNum < myClientNum) anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex = true;
-                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && subConnIsIndex0) anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = true;
+                            if (lastFollowedPlayers[subClientNum] == lastFollowedPlayers[myClientNum] && subConnIsIndex0 && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[subClientNum]).TotalMilliseconds) anyOtherConnectionBeenSpeccingShorterButIsIndex0AndWeAreSpeccingLongerThanRemovalDelay = true;
                         }
                     }
                     subConnIsIndex0 = false;
