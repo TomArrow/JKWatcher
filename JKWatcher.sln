@@ -3,11 +3,16 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31205.134
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JKWatcher", "JKWatcher\JKWatcher.csproj", "{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKWatcher", "JKWatcher\JKWatcher.csproj", "{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKClient", "JKClient\JKClient\JKClient.csproj", "{152A799E-A186-4040-A0AA-FE22445333DF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetFieldsConverter", "NetFieldsConverter\NetFieldsConverter.csproj", "{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetFieldsConverter", "NetFieldsConverter\NetFieldsConverter.csproj", "{5818E7B3-E0CE-4E94-9CB9-0133454FCBC7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{4C92B75F-CF8D-4670-AAD4-9A4BF5D98E7C}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

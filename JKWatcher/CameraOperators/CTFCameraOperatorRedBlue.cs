@@ -1513,7 +1513,8 @@ namespace JKWatcher.CameraOperators
         {
             infoPool = _infoPool;
 
-            sw = new StreamWriter(new FileStream(Helpers.GetUnusedFilename("playerDecisionsDEBUG.csv"), FileMode.Append, FileAccess.Write, FileShare.Read));
+            Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "playerDecisionsDebugLogs"));
+            sw = new StreamWriter(new FileStream(Helpers.GetUnusedFilename(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "playerDecisionsDebugLogs\\playerDecisionsDEBUG.csv")), FileMode.Append, FileAccess.Write, FileShare.Read));
             if(sw.BaseStream.Position == 0)
             { // Empty file
                 sw.WriteLine("team,time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");

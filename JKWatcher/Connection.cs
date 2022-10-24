@@ -1215,7 +1215,7 @@ namespace JKWatcher
 
             serverWindow.addToLog("Initializing demo recording...");
             string timeString = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(timeString + "-" + client.ServerInfo.MapName+(iterator==0 ? "" : "_"+(iterator+1).ToString()), client.ServerInfo.Protocol);
+            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(Helpers.MakeValidFileName(timeString + "-" + client.ServerInfo.MapName+"_"+client.ServerInfo.HostName+(iterator==0 ? "" : "_"+(iterator+1).ToString())), client.ServerInfo.Protocol);
 
             TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
 

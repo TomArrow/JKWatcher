@@ -27,29 +27,71 @@ namespace JKWatcher
             return Path.ChangeExtension(baseFilename, "." + (index) + extension);
         }
 
+        private static int logfileWriteRetryDelay = 100;
+        private static int logfileWriteTimeout = 5000;
         public static string forcedLogFileName = "forcedLog.log";
         public static void logToFile(string[] texts)
         {
             lock (forcedLogFileName)
             {
-                File.AppendAllLines(forcedLogFileName, texts);
+                int retryTime = 0;
+                bool successfullyWritten = false;
+                while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                {
+                    try
+                    {
+
+                        File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", forcedLogFileName), texts);
+                        successfullyWritten = true;
+                    }
+                    catch (IOException)
+                    {
+                        // Wait 100 ms then try again. File is probably locked.
+                        // This will probably lock up the thread a bit in some cases
+                        // but the log display/write thread is separate from the rest of the 
+                        // program anyway so it shouldn't have a terrible impact other than a delayed
+                        // display.
+                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                        retryTime += logfileWriteRetryDelay;
+                    }
+                }
             }
         }
 
         public static Mutex logMutex = new Mutex();
         public static void debugLogToFile(string logPrefix,string[] texts)
         {
-            Directory.CreateDirectory("debugLogs");
+            Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogs"));
             string fileName = "debugLogs/"+MakeValidFileName(logPrefix + ".log");
 
             lock (logMutex)
             {
-                File.AppendAllLines(fileName, texts);
+                int retryTime = 0;
+                bool successfullyWritten = false;
+                while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                {
+                    try
+                    {
+
+                        File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", fileName), texts);
+                        successfullyWritten = true;
+                    }
+                    catch (IOException)
+                    {
+                        // Wait 100 ms then try again. File is probably locked.
+                        // This will probably lock up the thread a bit in some cases
+                        // but the log display/write thread is separate from the rest of the 
+                        // program anyway so it shouldn't have a terrible impact other than a delayed
+                        // display.
+                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                        retryTime += logfileWriteRetryDelay;
+                    }
+                }
             }
         }
 
         // from: https://stackoverflow.com/a/847251
-        private static string MakeValidFileName(string name)
+        public static string MakeValidFileName(string name)
         {
             string invalidChars = System.Text.RegularExpressions.Regex.Escape(new string(System.IO.Path.GetInvalidFileNameChars()));
             string invalidRegStr = string.Format(@"([{0}]*\.+$)|([{0}]+)", invalidChars);
@@ -146,14 +188,14 @@ namespace JKWatcher
         public static string GetUnusedDemoFilename(string baseFilename, JKClient.ProtocolVersion protocolVersion)
         {
             string extension = ".dm_" + ((int)protocolVersion).ToString();
-            if (!File.Exists("demos/"+baseFilename+ extension))
+            if (!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos/" +baseFilename+ extension)))
             {
                 return baseFilename;
             }
             //string extension = Path.GetExtension(baseFilename);
 
             int index = 1;
-            while (File.Exists("demos/" + baseFilename+ "("+ (++index).ToString()+")" + extension)) ;
+            while (File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos/" + baseFilename+ "("+ (++index).ToString()+")" + extension))) ;
 
             return baseFilename + "(" + (++index).ToString() + ")";
         }
