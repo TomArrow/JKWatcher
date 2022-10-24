@@ -99,11 +99,15 @@ namespace JKWatcher
 
         private async void ctfAutoConnecter(CancellationToken ct)
         {
+            bool nextCheckFast = false;
             while (true)
             {
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
-                System.Threading.Thread.Sleep(60000*5); // every 5 min
+                System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 *5); // every 5 min or 1 min if fast recheck requested (see code below)
+
                 ct.ThrowIfCancellationRequested();
+
+                nextCheckFast = false;
 
                 bool ctfAutoJoinActive = false;
                 Dispatcher.Invoke(()=> {
@@ -117,7 +121,7 @@ namespace JKWatcher
                 {
                     IEnumerable<ServerInfo> servers = null;
 
-                    ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
+                    ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 15000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                     try
                     {
@@ -138,30 +142,33 @@ namespace JKWatcher
                     {
                         if (serverInfo.Version == ClientVersion.JO_v1_02)
                         {
-                            if(!serverInfo.NeedPassword && serverInfo.Clients >= 6 && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                            bool alreadyConnected = false;
+                            foreach (ConnectedServerWindow window in connectedServerWindows)
                             {
-                                // We want to be speccing/recording this.
-                                // Check if we are already connected. If so, do nothing.
-                                bool alreadyConnected = false;
-                                foreach(ConnectedServerWindow window in connectedServerWindows)
+                                if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
                                 {
-                                    if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
-                                    {
-                                        alreadyConnected = true;
-                                    }
+                                    alreadyConnected = true;
                                 }
-                                if (!alreadyConnected)
-                                {
-                                    Dispatcher.Invoke(()=> {
+                            }
+                            // We want to be speccing/recording this.
+                            // Check if we are already connected. If so, do nothing.
+                            if (!alreadyConnected && !serverInfo.NeedPassword && (serverInfo.Clients >= 6 && serverInfo.StatusResponseReceived) && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                            {
+                                
+                                Dispatcher.Invoke(()=> {
 
-                                        ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
-                                        connectedServerWindows.Add(newWindow);
-                                        newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
-                                        newWindow.Show();
-                                        newWindow.createCTFOperator();
-                                        newWindow.recordAll();
-                                    });
-                                }
+                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                    connectedServerWindows.Add(newWindow);
+                                    newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
+                                    newWindow.Show();
+                                    newWindow.createCTFOperator();
+                                    newWindow.recordAll();
+                                });
+                            } else if (!alreadyConnected && serverInfo.Clients >= 6 && !serverInfo.StatusResponseReceived)
+                            {
+                                // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
+                                // arrive for some reason
+                                nextCheckFast = true;
                             }
 
                         }
