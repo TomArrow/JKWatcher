@@ -267,7 +267,8 @@ namespace JKWatcher
             try
             {
 
-                Task connectTask = client.Connect(ip, protocol);
+                //Task connectTask = client.Connect(ip, protocol);
+                Task connectTask = client.Connect(ip);
                 bool didConnect = false;
                 await Task.Run(()=> {
                     try
@@ -466,7 +467,7 @@ namespace JKWatcher
         private unsafe void Client_EntityEvent(object sender, EntityEventArgs e)
         {
             int snapshotNumber, serverTime;
-            client.GetCurrentSnapshotNumber(out snapshotNumber, out serverTime);
+            ((IJKClientImport)client).GetCurrentSnapshotNumber(out snapshotNumber, out serverTime);
 
             if(snapshotNumber != lastEventSnapshotNumber)
             {
