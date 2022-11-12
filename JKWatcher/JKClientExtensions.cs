@@ -11,7 +11,7 @@ namespace JKWatcher
     {
         public static bool currentValidOrFilledFromPlayerState(this ClientEntity entity)
         {
-            return entity.CurrentValid || entity.CurrentState.FilledFromPlayerState;
+            return entity.CurrentValid || entity.CurrentFilledFromPlayerState;
         }
     }
 }

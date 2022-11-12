@@ -749,7 +749,7 @@ namespace JKWatcher
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
-                if (entities[i].CurrentValid || entities[i].CurrentState.FilledFromPlayerState ) { 
+                if (entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState ) { 
 
                     // TODO
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
