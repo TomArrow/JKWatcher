@@ -656,7 +656,7 @@ namespace JKWatcher.CameraOperators
 
             if (!flagCarrierVisible)
             {
-                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition invisible");
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"FlagPosition invisible, flag carrier {flagCarrier}");
                 // Okay now get this... we know who the flag carrier is...
                 // How do we find out where he is?
                 // Simple, we follow him.
@@ -666,6 +666,7 @@ namespace JKWatcher.CameraOperators
                 // to him. If not, just switch to the carrier himself.
                 if (infoPool.playerInfo[flagCarrier].lastFullPositionUpdate == null)
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "No last full position update available."); // Log it since it should be rare.
                     // We don't even know where the flag carrier is or was. 
                     // Check if we should stick around. Since his position is not known, we cannot decide whether anyone is near him,
                     // so we err on the side of sticking around. This could miss rets sometimes but oh well.
@@ -715,7 +716,7 @@ namespace JKWatcher.CameraOperators
 
                                     Vector3 playerPositionInOneSecond = infoPool.playerInfo[flagCarrier].position + (1f+lastSeen) * infoPool.playerInfo[flagCarrier].velocity;
                                     float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
-                                    if(playerDistance < currentDistance)
+                                    if(playerDistance < closestDistance)
                                     {
                                         closestDistance = playerDistance;
                                         closestPlayer = i;
