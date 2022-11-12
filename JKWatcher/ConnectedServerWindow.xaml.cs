@@ -686,6 +686,11 @@ namespace JKWatcher
         {
             createCameraOperator<CameraOperators.OCDCameraOperator>();
         }
+        
+        private void addSpectatorWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            createCameraOperator<CameraOperators.SpectatorCameraOperator>();
+        }
 
         private void verbosityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -715,6 +720,17 @@ namespace JKWatcher
                     cameraOperators.Remove(op);
                     updateIndices();
                     op.Errored -= CamOperator_Errored;
+                }
+            }
+        }
+        private void watcherConfigBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<CameraOperator> ops = cameraOperatorsDataGrid.SelectedItems.Cast<CameraOperator>().ToList();
+            lock (cameraOperators)
+            {
+                foreach (CameraOperator op in ops)
+                {
+                    op.OpenDialog();
                 }
             }
         }

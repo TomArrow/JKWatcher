@@ -198,6 +198,12 @@ namespace JKWatcher
             }
         }
 
+        virtual public void OpenDialog()
+        {
+            // Camera Operators can implement this if they want, but they don't have to.
+            // They can use it to show some kind of dialogue for configuration.
+        }
+
         // Use this at the start of any function that requires everything to be initialized.
         protected void ThrowErrorIfNotInitialized()
         {
