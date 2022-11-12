@@ -29,6 +29,11 @@ namespace JKWatcher
         public DateTime? lastScoreUpdated;
         #endregion
 
+        #region nwh
+        public int nwhSpectatedPlayer { get; set; }
+        public DateTime? nwhSpectatedPlayerLastUpdate;
+        #endregion
+
         #region clientinfo
         public string name { get; set; }
         public Team team { get; set; }

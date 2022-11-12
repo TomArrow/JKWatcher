@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -1061,13 +1062,56 @@ namespace JKWatcher
 
         public bool ConnectionLimitReached { get; private set; } = false;
 
+        // Parse specs sent through NWH "specs" command.
+        // [1] = clientNumSpectator
+        // [2] = nameSpectator (with trailing whitespaces)
+        // [3] = nameSpectated (with trailing whitespaces)
+        // [4] = clientNumSpectated
+        Regex specsRegex = new Regex(@"^(\d+)\^3\) \^7 (.*?)\^7   (.*?)\((\d+)\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        bool skipSanityCheck = false;
+
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
-            if(commandEventArgs.Command.Argc >= 2)
+            Match specMatch;
+            if (commandEventArgs.Command.Argc >= 2)
             {
                 if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n")
                 {
                     ConnectionLimitReached = true;
+                } else if ((specMatch = specsRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (specMatch.Groups.Count < 5) return;
+
+                    int spectatingPlayer = -1;
+                    int spectatedPlayer = -1;
+                    int.TryParse(specMatch.Groups[1].Value, out spectatingPlayer);
+                    int.TryParse(specMatch.Groups[4].Value, out spectatedPlayer);
+
+                    //if(spectatingPlayer != -1 && spectatedPlayer != -1)
+                    if(spectatingPlayer >= 0 && spectatingPlayer < 32 && spectatedPlayer >= 0 && spectatedPlayer < 32)
+                    {
+                        // Do sanity check that names match
+                        // The regex match has trailing spaces so we just take a substring
+                        string spectatingActualName = infoPool.playerInfo[spectatingPlayer].name;
+                        string spectatingRegexName = specMatch.Groups[2].Value;
+                        string spectatedActualName = infoPool.playerInfo[spectatedPlayer].name;
+                        string spectatedRegexName = specMatch.Groups[3].Value;
+
+                        int spectatingStringMaxLength = Math.Min(spectatingActualName.Length, spectatingRegexName.Length);
+                        int spectatedStringMaxLength = Math.Min(spectatedActualName.Length, spectatedRegexName.Length);
+
+                        spectatingActualName = spectatingActualName.Substring(0, spectatingStringMaxLength);
+                        spectatingRegexName = spectatingRegexName.Substring(0, spectatingStringMaxLength);
+                        spectatedActualName = spectatedActualName.Substring(0, spectatedStringMaxLength);
+                        spectatedRegexName = spectatedRegexName.Substring(0, spectatedStringMaxLength);
+
+                        if (skipSanityCheck || (spectatingActualName == spectatingRegexName && spectatedActualName == spectatedRegexName && spectatingStringMaxLength > 0 && spectatedStringMaxLength > 0))
+                        {
+                            infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayer = spectatedPlayer;
+                            infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayerLastUpdate = DateTime.Now;
+                        }
+                    }
                 }
             }
         }
