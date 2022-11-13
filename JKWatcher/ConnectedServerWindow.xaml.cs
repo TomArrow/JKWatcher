@@ -67,10 +67,11 @@ namespace JKWatcher
         public int verboseOutput { get; private set; } = 4;
 
         private string password = null;
+        private string userInfoName = null;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
-        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null)
+        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null,string userInfoNameA = null)
         {
             //this.DataContext = this;
 
@@ -78,6 +79,7 @@ namespace JKWatcher
             netAddress = netAddressA;
             protocol = protocolA;
             password = passwordA;
+            userInfoName = userInfoNameA;
             InitializeComponent();
             this.Title = netAddressA.ToString();
             if(serverNameA != null)
@@ -98,7 +100,7 @@ namespace JKWatcher
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
-                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password));
+                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName));
             }
             updateIndices();
 
@@ -516,7 +518,7 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
-                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -826,7 +828,7 @@ namespace JKWatcher
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
-            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName);
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -885,6 +887,43 @@ namespace JKWatcher
                     _=conn.Reconnect();
                 }
             }
+        }
+
+        private void btnSetPassword_Click(object sender, RoutedEventArgs e)
+        {
+            password = passwordTxt.Text == "" ? null : passwordTxt.Text;
+            foreach (Connection conn in connections)
+            {
+                conn.SetPassword(password);
+            }
+        }
+
+        private void btnClearPassword_Click(object sender, RoutedEventArgs e)
+        {
+            passwordTxt.Text = "";
+        }
+
+        private void btnFillCurrentPassword_Click(object sender, RoutedEventArgs e)
+        {
+            passwordTxt.Text = password;
+        }
+
+        private void btnSetName_Click(object sender, RoutedEventArgs e)
+        {
+            userInfoName = nameTxt.Text == "" ? null : nameTxt.Text;
+            foreach (Connection conn in connections)
+            {
+                conn.SetUserInfoName(userInfoName);
+            }
+        }
+        private void btnClearName_Click(object sender, RoutedEventArgs e)
+        {
+            nameTxt.Text = "";
+        }
+
+        private void btnFillCurrentName_Click(object sender, RoutedEventArgs e)
+        {
+            nameTxt.Text = userInfoName;
         }
 
 

@@ -145,16 +145,36 @@ namespace JKWatcher
         }*/
 
         private string password = null;
+        private string userInfoName = null;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null)
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
+            userInfoName = userInfoNameA;
             password = passwordA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
+        }
+
+        public void SetPassword(string passwordA)
+        {
+            password = passwordA;
+            if(client != null)
+            {
+                client.Password = password != null ? password : "";
+            }
+        }
+
+        public void SetUserInfoName(string userInfoNameA)
+        {
+            userInfoName = userInfoNameA;
+            if(client != null)
+            {
+                client.Name = userInfoName != null ? userInfoName : "Padawan";
+            }
         }
 
         private void createPeriodicReconnecter()
@@ -257,7 +277,8 @@ namespace JKWatcher
             protocol = protocolA;
 
             client = new Client(new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02)); // Todo make more flexible
-            client.Name = "Padawan";
+            //client.Name = "Padawan";
+            client.Name = userInfoName == null ? "Padawan" : userInfoName;
 
             if(password != null)
             {

@@ -180,6 +180,18 @@
         <StackPanel Grid.Column="3" Grid.Row="2">
 
             <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="False">Draw Minimap</CheckBox>
+            <Label>Password</Label><TextBox x:Name="passwordTxt"></TextBox>
+            <WrapPanel>
+                <Button x:Name="btnSetPassword" Click="btnSetPassword_Click">Set</Button>
+                <Button x:Name="btnClearPassword" Click="btnClearPassword_Click">Clear input</Button>
+                <Button x:Name="btnFillCurrentPassword" Click="btnFillCurrentPassword_Click">Fill current</Button>
+            </WrapPanel>
+            <Label>Name</Label><TextBox x:Name="nameTxt"></TextBox>
+            <WrapPanel>
+                <Button x:Name="btnSetName" Click="btnSetName_Click">Set</Button>
+                <Button x:Name="btnClearName" Click="btnClearName_Click">Clear input</Button>
+                <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
+            </WrapPanel>
         </StackPanel>
     </Grid>
 </Window>
