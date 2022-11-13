@@ -17,6 +17,8 @@
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
+                <Label>Password</Label>
+                <TextBox x:Name="pwListTxt" MinWidth="150"></TextBox>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
 
                 <CheckBox x:Name="ctfAutoJoin">Auto-join and record CTF >6 players</CheckBox>
@@ -39,6 +41,8 @@
         <WrapPanel Grid.Row="1">
             <Label>IP</Label>
             <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
+            <Label>Password</Label>
+            <TextBox x:Name="pwTxt" MinWidth="150"></TextBox>
             <Label>Protocol</Label>
             <ComboBox x:Name="protocols"></ComboBox>
 

@@ -233,11 +233,12 @@ namespace JKWatcher
         private void connectBtn_Click(object sender, RoutedEventArgs e)
         {
             ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
             //MessageBox.Show(serverInfo.HostName);
-            if(serverInfo != null)
+            if (serverInfo != null)
             {
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
-                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address,serverInfo.Protocol,serverInfo.HostName);
+                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address,serverInfo.Protocol,serverInfo.HostName, pw);
                 connectedServerWindows.Add(newWindow);
                 newWindow.Closed += (a,b)=> { connectedServerWindows.Remove(newWindow); };
                 newWindow.Show();
@@ -264,11 +265,12 @@ namespace JKWatcher
         private void connectIPBtn_Click(object sender, RoutedEventArgs e)
         {
             string ip = ipTxt.Text;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
             ProtocolVersion? protocol = protocols.SelectedItem != null ? (ProtocolVersion)protocols.SelectedItem : null;
             if(ip.Length > 0 && protocol != null)
             {
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
-                ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value);
+                ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value,null,pw);
                 connectedServerWindows.Add(newWindow);
                 newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
                 newWindow.Show();

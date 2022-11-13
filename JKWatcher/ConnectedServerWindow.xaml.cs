@@ -66,15 +66,18 @@ namespace JKWatcher
         //public bool verboseOutput { get; private set; } = false;
         public int verboseOutput { get; private set; } = 4;
 
+        private string password = null;
+
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
-        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null)
+        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null)
         {
             //this.DataContext = this;
 
             //serverInfo = serverInfoA;
             netAddress = netAddressA;
             protocol = protocolA;
+            password = passwordA;
             InitializeComponent();
             this.Title = netAddressA.ToString();
             if(serverNameA != null)
@@ -95,7 +98,7 @@ namespace JKWatcher
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
-                connections.Add(new Connection(netAddress,protocol, this,  infoPool));
+                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password));
             }
             updateIndices();
 
@@ -513,7 +516,7 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
-                Connection newConnection = new Connection(netAddress,protocol, this,infoPool);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -823,7 +826,7 @@ namespace JKWatcher
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
-            Connection newConnection = new Connection(netAddress,protocol, this, infoPool);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password);
             lock (connections)
             {
                 connections.Add(newConnection);

@@ -143,10 +143,14 @@ namespace JKWatcher
             _ = createConnection(serverInfo.Address.ToString(), serverInfo.Protocol);
             createPeriodicReconnecter();
         }*/
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA)
+
+        private string password = null;
+
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null)
         {
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
+            password = passwordA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(addressA.ToString(), protocolA);
@@ -254,6 +258,11 @@ namespace JKWatcher
 
             client = new Client(new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02)); // Todo make more flexible
             client.Name = "Padawan";
+
+            if(password != null)
+            {
+                client.Password = password;
+            }
 
             client.ServerCommandExecuted += ServerCommandExecuted;
             client.ServerInfoChanged += Connection_ServerInfoChanged;
