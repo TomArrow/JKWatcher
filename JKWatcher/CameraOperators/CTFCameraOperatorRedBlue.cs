@@ -528,6 +528,8 @@ namespace JKWatcher.CameraOperators
             int currentlySpectatedPlayer = connection.client.playerStateClientNum;
             int teamInt = (int)flagTeam;
 
+            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Currently spectating {currentlySpectatedPlayer}");
+
 
             double timeSinceFlagCarrierFrag = infoPool.teamInfo[teamInt].lastFlagCarrierFragged != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierFragged.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceFlagCarrierWorldDeath = infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath.Value).TotalMilliseconds : double.PositiveInfinity;
@@ -567,6 +569,7 @@ namespace JKWatcher.CameraOperators
                 // Let's make a compromise. If stickAround is active, we wait a bit. If not, we start cycling.
                 if (stickAround && stuckAround[teamInt])
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                     return;
                 }
 
@@ -672,6 +675,7 @@ namespace JKWatcher.CameraOperators
                     // so we err on the side of sticking around. This could miss rets sometimes but oh well.
                     if (stickAround && stuckAround[teamInt])
                     {
+                        decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                         return;
                     }
                     // Just follow him.
@@ -684,6 +688,7 @@ namespace JKWatcher.CameraOperators
 
                     if (lastSeen < 1f)
                     {
+                        decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag carrier last seen less than 1 second ago. Guess closest player.");
                         // In theory we could go more crazy here with the decision making process to find best match
                         // But highest priority should be to get the flag carrier visible again
                         // We could also cycle here but again, we can simply switch to the carrier himself in worst case
@@ -714,7 +719,7 @@ namespace JKWatcher.CameraOperators
                                         anyCloseByPossibleReturnersConfirmed = true;
                                     }
 
-                                    Vector3 playerPositionInOneSecond = infoPool.playerInfo[flagCarrier].position + (1f+lastSeen) * infoPool.playerInfo[flagCarrier].velocity;
+                                    Vector3 playerPositionInOneSecond = infoPool.playerInfo[i].position + (1f+ lastSeenThisPlayer) * infoPool.playerInfo[i].velocity;
                                     float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
                                     if(playerDistance < closestDistance)
                                     {
@@ -728,6 +733,7 @@ namespace JKWatcher.CameraOperators
                         // If no close by potential returners are confirmed, we can probably safely do the stick around. 
                         if (!anyCloseByPossibleReturnersConfirmed && stickAround && stuckAround[teamInt])
                         {
+                            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                             return;
                         }
 
@@ -739,6 +745,7 @@ namespace JKWatcher.CameraOperators
                         }
                         else
                         {
+                            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Try follow {closestPlayer} as closest known player around (distance: {closestDistance}).");
                             // give this guy a chance.
                             if (closestPlayer != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                             stuckAround[teamInt] = false;
@@ -750,9 +757,11 @@ namespace JKWatcher.CameraOperators
                     {
                         if (stickAround && stuckAround[teamInt])
                         {
+                            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                             return;
                         }
 
+                        decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Last visible more than 1 second ago. Switch to flag carrier.");
                         // Don't really have any up to date information on anyone who's closer so just follow the carrier
                         if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                         stuckAround[teamInt] = false;
@@ -830,6 +839,7 @@ namespace JKWatcher.CameraOperators
                 // If no close by potential returners are confirmed, we can probably safely do the stick around. 
                 if (!anyCloseByPossibleReturnersConfirmed && stickAround && stuckAround[teamInt])
                 {
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                     return;
                 }
 
