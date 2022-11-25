@@ -747,7 +747,14 @@ namespace JKWatcher.CameraOperators
                         {
                             decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Try follow {closestPlayer} as closest known player around (distance: {closestDistance}).");
                             // give this guy a chance.
-                            if (closestPlayer != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            if (closestPlayer != currentlySpectatedPlayer)
+                            {
+                                connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            } else
+                            {
+                                // Okay we already ARE watching the one we think is the closest player. But flag carrier still invisible. Ok just switch to flag carrier.
+                                if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                            }
                             stuckAround[teamInt] = false;
                         }
 
