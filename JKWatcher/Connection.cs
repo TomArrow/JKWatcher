@@ -799,11 +799,11 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = entities[i].CurrentState.Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
-                    if((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
+                    if(((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
-                    } else if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
+                    } else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
@@ -1169,12 +1169,12 @@ namespace JKWatcher
                     infoPool.playerInfo[client].armor = commandEventArgs.Command.Argv(i * 6 + 5).Atoi();
                     infoPool.playerInfo[client].curWeapon = commandEventArgs.Command.Argv(i * 6 + 6).Atoi();
                     infoPool.playerInfo[client].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
-                    if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
+                    if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     }
-                    else if ((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
+                    else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
@@ -1229,12 +1229,12 @@ namespace JKWatcher
                 infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * 14 + 17).Atoi();
                 infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
 
-                if ((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0)
+                if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                 }
-                else if ((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0)
+                else if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
