@@ -83,6 +83,8 @@ namespace JKWatcher
         public volatile int flagItemNumber;
 
         public volatile int lastFlagCarrier;
+        public volatile bool lastFlagCarrierValid; // We set this to false if the flag is dropped or goes back to base. Or we might assume the wrong carrier when the flag is taken again if the proper carrier hasn't been set yet.
+        public DateTime? lastFlagCarrierValidUpdate;
         public DateTime? lastFlagCarrierFragged;
         public DateTime? lastFlagCarrierWorldDeath;
         public DateTime? lastFlagCarrierUpdate;

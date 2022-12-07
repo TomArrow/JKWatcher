@@ -531,6 +531,7 @@ namespace JKWatcher.CameraOperators
             decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Currently spectating {currentlySpectatedPlayer}");
 
 
+            double timeSinceLastFlagCarrierValidUpdate = infoPool.teamInfo[teamInt].lastFlagCarrierValidUpdate != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierValidUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceFlagCarrierFrag = infoPool.teamInfo[teamInt].lastFlagCarrierFragged != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierFragged.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceFlagCarrierWorldDeath = infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagCarrierWorldDeath.Value).TotalMilliseconds : double.PositiveInfinity;
             double timeSinceLastFlagUpdate = infoPool.teamInfo[teamInt].lastFlagUpdate != null ? (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
@@ -556,8 +557,29 @@ namespace JKWatcher.CameraOperators
                 lastGradings[teamInt].Clear();
             }
 
-            // Find out who has it
-            if (infoPool.teamInfo[(int)flagTeam].lastFlagCarrierUpdate == null)
+            if (!infoPool.teamInfo[(int)flagTeam].lastFlagCarrierValid) 
+            {
+
+                // TODO: In PURE THEORY, a racing condition could happen where flag status was updated to taken, but lastFlagUpdate wasn't updated yet (supremely unlikely as they follow each other almost directly).
+                // Then we could still have the old "lastFlagUpdate" value but the current flag status value and this construct here would fail. 
+                // Leave it for now as it's super unlikely, but keep it in mind in case it ever happens...
+                if(timeSinceLastFlagUpdate < 2500)
+                {
+                    // Very likely we got the update that the flag is taken, but we havent yet parsed the info about WHO took it/has it. Just wait around for a bit.
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag carrier is not yet known, wait a bit (rare-ish timing issue).");
+                    return;
+                } else
+                {
+                    // The info about the flag carrier isn't valid and the flag has been taken for 2.5+ seconds? PANIC!
+                    decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Flag carrier is not known after 5+ seconds of flag taken. PANIC! timeSinceLastFlagUpdate {timeSinceLastFlagUpdate}, timeSinceLastFlagCarrierValidUpdate {timeSinceLastFlagCarrierValidUpdate}");
+                    // In this case we don't return and instead we go through to the next block underneath that tries to switch to random people.
+                    // Really this is a very strange case and can probably only be explained by a completely horrible disastrous lag with the most weird timing.
+                    // In fact probably even a lag cannot truly explain this, but let's handle it anyway I guess.
+                }
+            }
+
+            // Find out who has it (does this ever make sense tbh?)
+            if (infoPool.teamInfo[(int)flagTeam].lastFlagCarrierUpdate == null || !infoPool.teamInfo[(int)flagTeam].lastFlagCarrierValid)
             {
                 decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Carrier unknown");
                 // Uhm idk, that's weird. We know the flag's taken but we don't know who has it
@@ -831,7 +853,7 @@ namespace JKWatcher.CameraOperators
                             isVisible = (connection.client.Entities?[i].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false),
                             isCarryingTheFlag = i == flagCarrier,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
-                            isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false
+                            isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false
                         };
                         tmp.gradeForFlagTakenAndVisible(flagTeam, currentlyFollowingFlagCarrier);
                         possibleNextPlayers.Add(tmp);

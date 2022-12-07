@@ -529,7 +529,7 @@ namespace JKWatcher
                 // Was it the flag carrier?
                 foreach (int teamToCheck in Enum.GetValues(typeof(Team)))
                 {
-                    if (infoPool.teamInfo[teamToCheck].lastFlagCarrierUpdate != null && infoPool.teamInfo[teamToCheck].lastFlagCarrier == target)
+                    if (infoPool.teamInfo[teamToCheck].lastFlagCarrierUpdate != null && infoPool.teamInfo[teamToCheck].lastFlagCarrier == target && infoPool.teamInfo[teamToCheck].lastFlagCarrierValid)
                     {
                         infoPool.teamInfo[teamToCheck].flagDroppedPosition = locationOfDeath;
                         infoPool.teamInfo[teamToCheck].lastFlagDroppedPositionUpdate = DateTime.Now;
@@ -709,6 +709,8 @@ namespace JKWatcher
                 {
                     infoPool.teamInfo[(int)team].lastFlagCarrier = playerNum;
                     infoPool.teamInfo[(int)team].lastFlagCarrierUpdate = DateTime.Now;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValid = true;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_TAKEN;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     serverWindow.addToLog(pi.Value.name + " got the " + teamAsString + " flag.");
@@ -717,6 +719,8 @@ namespace JKWatcher
                 {
                     // Teams are inverted here because team is the team of the person who got killed
                     infoPool.teamInfo[(int)otherTeam].flag = FlagStatus.FLAG_DROPPED;
+                    infoPool.teamInfo[(int)otherTeam].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)otherTeam].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)otherTeam].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)otherTeam].lastFlagCarrierFragged = DateTime.Now;
                     if ((client.Entities?[playerNum].CurrentValid).GetValueOrDefault(false)) // Player who did kill is currently visible!
@@ -739,6 +743,8 @@ namespace JKWatcher
                 } else if (messageType == CtfMessageType.FlagReturned)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(textInfo.ToTitleCase(teamAsString) + " flag was returned.");
@@ -746,6 +752,8 @@ namespace JKWatcher
                 else if (messageType == CtfMessageType.PlayerCapturedFlag && pi != null)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.Value.name + " captured the "+teamAsString+" flag.");
@@ -753,6 +761,8 @@ namespace JKWatcher
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.Value.name + " returned the " + teamAsString + " flag.");
@@ -802,10 +812,14 @@ namespace JKWatcher
                     if(((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     } else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
                 }
@@ -1063,6 +1077,13 @@ namespace JKWatcher
                             // Server will send cs 23 0 and cs 23 00 in succession, dunno why.
                             // The first one with the single zero is the obvious problem.
                             serverWindow.addToLog("Configstring weirdness, cs 23 had parameter "+str+"(Length "+str.Length+")");
+                            if(str.Length == 1 && str == "0")
+                            {
+                                infoPool.teamInfo[(int)Team.Red].flag = 0;
+                                infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
+                                infoPool.teamInfo[(int)Team.Blue].flag = 0;
+                                infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                            }
                         } else {
                             // If it was picked up or generally status changed, and it was at base before, remember this as the last time it was at base.
                             foreach (int teamToCheck in Enum.GetValues(typeof(Team))) { 
@@ -1077,6 +1098,19 @@ namespace JKWatcher
                             tmp = int.Parse(str[1].ToString());
                             infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
                             infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                        }
+
+                        // Reasoning: If a flag is dropped/in base, and then it is taken and our cam operator knows this, but the current flag carrier isn't updated *yet*, we will otherwise assume the wrong flag carrier.
+                        // So assume the lastflagcarrier info invalid until it is actually set again anew.
+                        if(infoPool.teamInfo[(int)Team.Red].flag != FlagStatus.FLAG_TAKEN)
+                        {
+                            infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = false;
+                            infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
+                        }
+                        if(infoPool.teamInfo[(int)Team.Blue].flag != FlagStatus.FLAG_TAKEN)
+                        {
+                            infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = false;
+                            infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         }
                         /*infoPool.redFlag = str[0] - '0';
                         infoPool.blueFlag = str[1] - '0';
@@ -1172,11 +1206,15 @@ namespace JKWatcher
                     if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     }
                     else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
                 }
@@ -1232,11 +1270,15 @@ namespace JKWatcher
                 if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                 }
                 else if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                 }
 
