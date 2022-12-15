@@ -57,6 +57,34 @@ namespace JKWatcher
                 }
             }
         }
+        public static string downloadLogFileName = "pk3DownloadLinks.txt";
+        public static void logDownloadLinks(string[] texts)
+        {
+            lock (downloadLogFileName)
+            {
+                int retryTime = 0;
+                bool successfullyWritten = false;
+                while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                {
+                    try
+                    {
+
+                        File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", downloadLogFileName), texts);
+                        successfullyWritten = true;
+                    }
+                    catch (IOException)
+                    {
+                        // Wait 100 ms then try again. File is probably locked.
+                        // This will probably lock up the thread a bit in some cases
+                        // but the log display/write thread is separate from the rest of the 
+                        // program anyway so it shouldn't have a terrible impact other than a delayed
+                        // display.
+                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                        retryTime += logfileWriteRetryDelay;
+                    }
+                }
+            }
+        }
 
         public static Mutex logMutex = new Mutex();
         public static void debugLogToFile(string logPrefix,string[] texts)

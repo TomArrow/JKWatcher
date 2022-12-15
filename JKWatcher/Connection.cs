@@ -82,6 +82,12 @@ namespace JKWatcher
         INFOCOMMANDS
     }
 
+    struct MvHttpDownloadInfo
+    {
+        public bool httpIsAvailable;
+        public string urlPrefix;
+    }
+
     /*
      * General notes regarding flood protection.
      * Old style servers only allow 1 command per second period. If you send a command within a second of another command,
@@ -102,6 +108,10 @@ namespace JKWatcher
         private ConnectedServerWindow serverWindow;
 
         public event PropertyChangedEventHandler PropertyChanged;
+        
+        // To detect changes.
+        private string lastKnownPakNames = "";
+        private string lastKnownPakChecksums = "";
 
         public int? ClientNum { get; set; } = null;
         public int? SpectatedPlayer { get; set; } = null;
@@ -123,6 +133,8 @@ namespace JKWatcher
         public bool isRecordingADemo { get; private set; } = false;
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
+
+        MvHttpDownloadInfo? mvHttpDownloadInfo = null;
 
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
@@ -928,6 +940,104 @@ namespace JKWatcher
             if (serverName != "")
             {
                 serverWindow.ServerName = obj.HostName;
+            }
+
+            // Check for referencedPaks
+            InfoString systemInfo = new InfoString( client.GetMappedConfigstring(ClientGame.Configstring.SystemInfo));
+            if(systemInfo["sv_referencedPakNames"] != lastKnownPakNames || systemInfo["sv_referencedPaks"] != lastKnownPakChecksums)
+            {
+                // Referenced paks changed:
+                lastKnownPakNames = systemInfo["sv_referencedPakNames"];
+                lastKnownPakChecksums = systemInfo["sv_referencedPaks"];
+
+                string lastKnownPakNamesCaptured = lastKnownPakNames; // Capture for parallel thread
+                string lastKnownPakChecksumsCaptured = lastKnownPakChecksums;
+                if(mvHttpDownloadInfo == null || mvHttpDownloadInfo.Value.httpIsAvailable){
+                    serverWindow.addToLog("Systeminfo: Referenced paks changed, trying to save to download list.");
+                    Task.Run(async () => {
+                        string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ");
+                        string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ");
+                        if(pakNames.Length != pakChecksums.Length)
+                        {
+                            serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
+                            return;
+                        } else if (pakNames.Length == 0)
+                        {
+                            serverWindow.addToLog("Referenced paks count is 0.");
+                            return;
+                        }
+
+                        if(mvHttpDownloadInfo == null)
+                        {
+                            // Let's get server info packet.
+                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)))
+                            {
+                                browser.Start(async (JKClientException ex)=> {
+                                    serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes: "+ex.ToString());
+                                });
+                                NetAddress serverAddress = NetAddress.FromString(ip);
+
+                                InfoString infoString = null;
+                                try { 
+                                    infoString = await browser.GetServerInfoInfo(serverAddress);
+                                }
+                                catch (Exception e)
+                                {
+                                    serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes (during await): " + e.ToString());
+                                    return;
+                                }
+
+                                MvHttpDownloadInfo tmpDLInfo = new MvHttpDownloadInfo();
+                                tmpDLInfo.httpIsAvailable = false;
+                                if (infoString.ContainsKey("mvhttp"))
+                                {
+                                    string serverAddressString = serverAddress.ToString();
+                                    string[] serverAddressStringParts = serverAddressString.Split(":");
+                                    if(serverAddressStringParts.Length > 0)
+                                    {
+                                        tmpDLInfo.httpIsAvailable = true;
+                                        tmpDLInfo.urlPrefix = "http://" + serverAddressStringParts[0] + ":" + infoString["mvhttp"] + "/";
+                                        serverWindow.addToLog($"Http downloads possible via port: {tmpDLInfo.urlPrefix}");
+                                    }
+                                } else if(infoString.ContainsKey("mvhttpurl"))
+                                {
+                                    tmpDLInfo.httpIsAvailable = true;
+                                    tmpDLInfo.urlPrefix = infoString["mvhttpurl"];
+                                    serverWindow.addToLog($"Http downloads possible via possibly external url: {tmpDLInfo.urlPrefix}");
+                                } else
+                                {
+                                    tmpDLInfo.httpIsAvailable = false; 
+                                    serverWindow.addToLog("Http downloads not available.");
+                                }
+
+                                mvHttpDownloadInfo = tmpDLInfo;
+
+                                browser.Stop();
+                            }
+                        }
+
+                        if(mvHttpDownloadInfo != null && mvHttpDownloadInfo.Value.httpIsAvailable)
+                        {
+
+                            List<string> downloadLinks = new List<string>();
+                            foreach(string pakName in pakNames)
+                            {
+                                string dlLink = mvHttpDownloadInfo.Value.urlPrefix + pakName + ".pk3";
+                                serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
+                                downloadLinks.Add(dlLink);
+                            }
+                            string[] downloadLinksArray = downloadLinks.ToArray();
+                            Dispatcher.CurrentDispatcher.Invoke(()=> {
+                                Helpers.logDownloadLinks(downloadLinksArray);
+                            });
+                        }
+
+
+                    });
+                } else
+                {
+                    serverWindow.addToLog("Systeminfo: Referenced paks changed, but http downloads are disabled.");
+                }
             }
 
             ClientNum = client.clientNum;
