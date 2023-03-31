@@ -159,10 +159,12 @@ namespace JKWatcher
         private string password = null;
         private string userInfoName = null;
         private bool demoTimeNameColors = false;
+        private bool attachClientNumToName = false;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false)
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false)
         {
             demoTimeNameColors = dateTimeColorNamesA;
+            attachClientNumToName = attachClientNumToNameA;
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             userInfoName = userInfoNameA;
@@ -191,6 +193,11 @@ namespace JKWatcher
         public void SetDemoTimeNameColors(bool doColor)
         {
             demoTimeNameColors = doColor;
+            updateName();
+        }
+        public void SetClientNumNameAttach(bool doAttach)
+        {
+            attachClientNumToName = doAttach;
             updateName();
         }
 
@@ -238,6 +245,11 @@ namespace JKWatcher
                             nameToUse = tmpName.ToString();
                         }
                     }
+                }
+                if (attachClientNumToName)
+                {
+                    int clientNum = client.clientNum;
+                    nameToUse += $" ^7(^2{clientNum}^7)";
                 }
                 client.Name = nameToUse;
             }

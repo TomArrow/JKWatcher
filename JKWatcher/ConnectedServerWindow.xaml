@@ -193,6 +193,7 @@
                 <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
             </WrapPanel>
             <CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
+            <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>
         </StackPanel>
     </Grid>
 </Window>
