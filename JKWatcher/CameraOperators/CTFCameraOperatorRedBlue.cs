@@ -974,7 +974,7 @@ namespace JKWatcher.CameraOperators
             if (infoPool.teamInfo[teamInt].lastFlagDroppedPositionUpdate != null
                 )
             {
-                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag dropped position is unknown");
+                decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag dropped position known?");
 
                 // Is the last time we updated dropped flag position more than 500ms older than last time we updated flag status?
                 // If so, we most likely still have the OLD flag dropped position from when it was dropped previously.
@@ -1315,7 +1315,7 @@ namespace JKWatcher.CameraOperators
                 // But if we don't know who has it, it's unlikely we know when it was taken anyway.
                 grade *= (float)Math.Pow(isOnSameTeamAsFlag? 1.2f: 1.35f, 10000-lastDeath / 1000);
 
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
@@ -1384,7 +1384,7 @@ namespace JKWatcher.CameraOperators
                         grade *= recentDeathAdvantageFactor;
                     }
                 }
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
@@ -1418,7 +1418,7 @@ namespace JKWatcher.CameraOperators
                     // We'll take our chances.
 
                     // We might also try and track who retted how many times to guess roles by numbers.
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                     decisionsLogger?.logDecisionGrading(team, this);
 #endif
                     return grade;
@@ -1437,7 +1437,7 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
@@ -1469,7 +1469,7 @@ namespace JKWatcher.CameraOperators
                         // We'll take our chances.
 
                         // We might also try and track who retted how many times to guess roles by numbers.
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                         decisionsLogger?.logDecisionGrading(team, this);
 #endif
                         return grade;
@@ -1488,7 +1488,7 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
                 return grade;
@@ -1523,7 +1523,7 @@ namespace JKWatcher.CameraOperators
                 }
 
                 grade *= this.isCarryingTheOtherTeamsFlag ? 1.15f : 1f; // Action from flag carrier against flag carrier is cool, give it a slight bonus
-#if DEBUG && LOGDECISIONS
+#if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team,this);
 #endif
                 return grade;

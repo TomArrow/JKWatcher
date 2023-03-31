@@ -1020,11 +1020,22 @@ namespace JKWatcher
                         {
 
                             List<string> downloadLinks = new List<string>();
-                            foreach(string pakName in pakNames)
+                            for(int pkI = 0; pkI<pakNames.Length; pkI++)
                             {
-                                string dlLink = mvHttpDownloadInfo.Value.urlPrefix + pakName + ".pk3";
-                                serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
-                                downloadLinks.Add(dlLink);
+                                string pakName = pakNames[pkI];
+                                string pakChecksum = pakChecksums[pkI];
+                                int pakChecksumInt;
+                                if (int.TryParse(pakChecksum, out pakChecksumInt))
+                                {
+                                    string dlLink = mvHttpDownloadInfo.Value.urlPrefix + pakName + ".pk3";
+                                    string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
+                                    serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
+                                    downloadLinks.Add($"{pakName},{hashString},{dlLink}");
+                                    PakDownloader.Enqueue(dlLink, pakChecksumInt);
+                                } else
+                                {
+                                    serverWindow.addToLog("Could not parse checksum integer, strange. Discarding.");
+                                }
                             }
                             string[] downloadLinksArray = downloadLinks.ToArray();
                             Dispatcher.CurrentDispatcher.Invoke(()=> {

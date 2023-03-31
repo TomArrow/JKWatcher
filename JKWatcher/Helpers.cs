@@ -57,7 +57,7 @@ namespace JKWatcher
                 }
             }
         }
-        public static string downloadLogFileName = "pk3DownloadLinks.txt";
+        public static string downloadLogFileName = "pk3DownloadLinks.csv";
         public static void logDownloadLinks(string[] texts)
         {
             lock (downloadLogFileName)
