@@ -68,14 +68,16 @@ namespace JKWatcher
 
         private string password = null;
         private string userInfoName = null;
+        private bool demoTimeColorNames = true;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
-        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null,string userInfoNameA = null)
+        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null,string userInfoNameA = null,bool demoTimeColorNamesA = true)
         {
             //this.DataContext = this;
 
             //serverInfo = serverInfoA;
+            demoTimeColorNames = demoTimeColorNamesA;
             netAddress = netAddressA;
             protocol = protocolA;
             password = passwordA;
@@ -100,7 +102,7 @@ namespace JKWatcher
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
-                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName));
+                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName, demoTimeColorNames));
             }
             updateIndices();
 
@@ -518,7 +520,7 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
-                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName, demoTimeColorNames);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -828,7 +830,7 @@ namespace JKWatcher
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
-            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName, demoTimeColorNames);
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -926,6 +928,14 @@ namespace JKWatcher
             nameTxt.Text = userInfoName;
         }
 
+        private void unixTimeNameColorsCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            demoTimeColorNames = unixTimeNameColorsCheck.IsChecked.HasValue && unixTimeNameColorsCheck.IsChecked.Value;
+            foreach (Connection conn in connections)
+            {
+                conn.SetDemoTimeNameColors(demoTimeColorNames);
+            }
+        }
 
         public bool requestConnectionDestruction(Connection conn)
         {

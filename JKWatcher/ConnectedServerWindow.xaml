@@ -192,6 +192,7 @@
                 <Button x:Name="btnClearName" Click="btnClearName_Click">Clear input</Button>
                 <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
             </WrapPanel>
+            <CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
         </StackPanel>
     </Grid>
 </Window>

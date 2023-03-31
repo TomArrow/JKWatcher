@@ -158,9 +158,11 @@ namespace JKWatcher
 
         private string password = null;
         private string userInfoName = null;
+        private bool demoTimeNameColors = false;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null)
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false)
         {
+            demoTimeNameColors = dateTimeColorNamesA;
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
             userInfoName = userInfoNameA;
@@ -183,9 +185,61 @@ namespace JKWatcher
         public void SetUserInfoName(string userInfoNameA)
         {
             userInfoName = userInfoNameA;
-            if(client != null)
+            updateName();
+        }
+
+        public void SetDemoTimeNameColors(bool doColor)
+        {
+            demoTimeNameColors = doColor;
+            updateName();
+        }
+
+        private void updateName()
+        {
+            if (client != null)
             {
-                client.Name = userInfoName != null ? userInfoName : "Padawan";
+                string nameToUse = userInfoName != null ? userInfoName : "Padawan";
+                if (demoTimeNameColors && client.Demorecording && !nameToUse.Contains("^"))
+                {
+                    DemoName_t demoName = client.getDemoName();
+                    if(demoName != null) // Pointless I guess, hmm
+                    {
+                        DateTime demoStartTime = demoName.time;
+                        string colorCodes = Convert.ToString(((DateTimeOffset)demoStartTime.ToUniversalTime()).ToUnixTimeSeconds(), 8);
+                        while(colorCodes.Length < 12)
+                        {
+                            colorCodes = "0" + colorCodes;
+                        }
+                        if(colorCodes.Length > 12)
+                        {
+                            serverWindow.addToLog("Datetime Colorcode for name is more than 12 letters! Weird.", true);
+                        }
+                        else
+                        {
+                            StringBuilder tmpName = new StringBuilder();
+                            while (nameToUse.Length < 6)
+                            {
+                                nameToUse += ".";
+                            }
+                            for(int i = 0; i < 6; i++)
+                            {
+                                tmpName.Append("^");
+                                tmpName.Append(colorCodes[i*2]);
+                                tmpName.Append("^");
+                                tmpName.Append(colorCodes[i*2+1]);
+                                tmpName.Append("^");
+                                tmpName.Append(colorCodes[i*2]);
+                                tmpName.Append(nameToUse[i]);
+                            }
+                            if(nameToUse.Length > 6)
+                            {
+                                tmpName.Append(nameToUse.Substring(6));
+                            }
+                            nameToUse = tmpName.ToString();
+                        }
+                    }
+                }
+                client.Name = nameToUse;
             }
         }
 
@@ -1117,7 +1171,8 @@ namespace JKWatcher
         {
             // In very very rare cases (some bug?) a weird disconnect can happen
             // And it thinks demo is still recording or sth? So just be clean.
-            client.StopRecord_f(); 
+            client.StopRecord_f();
+            updateName();
             isRecordingADemo = false;
 
             client.Disconnected -= Client_Disconnected; // This only handles involuntary disconnects
@@ -1126,6 +1181,19 @@ namespace JKWatcher
                 oldClientForHandler.Stop();
                 oldClientForHandler.Dispose();
                 oldClientForHandler.StopRecord_f();
+                try // I'm putting in a try because maybe at this point we are destroying the Connection object so it might not exist anymore later and lead to errors?
+                {
+                    updateName();
+                } catch(Exception e)
+                {
+                    try
+                    {
+                        serverWindow.addToLog("Error updating name after disconnect, coulda seen it coming I guess. "+e.ToString(),true);
+                    } catch(Exception e2)
+                    {
+                        // Eh whatever.
+                    }
+                }
                 serverWindow.addToLog("Disconnected.");
             };
             client.Disconnect();
@@ -1451,7 +1519,8 @@ namespace JKWatcher
             lastDemoIterator = iterator;
 
             serverWindow.addToLog("Initializing demo recording...");
-            string timeString = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            DateTime nowTime = DateTime.Now;
+            string timeString = nowTime.ToString("yyyy-MM-dd_HH-mm-ss");
             string unusedDemoFilename = Helpers.GetUnusedDemoFilename(Helpers.MakeValidFileName(timeString + "-" + client.ServerInfo.MapName+"_"+client.ServerInfo.HostName+(iterator==0 ? "" : "_"+(iterator+1).ToString())), client.ServerInfo.Protocol);
 
             TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
@@ -1551,13 +1620,17 @@ namespace JKWatcher
                 client.ExecuteCommand("clientlist");*/
             });
 
-            bool success = await client.Record_f(unusedDemoFilename, firstPacketRecordedTCS);
+            bool success = await client.Record_f(new DemoName_t {name= unusedDemoFilename,time=nowTime }, firstPacketRecordedTCS);
 
             if (success)
             {
 
                 serverWindow.addToLog("Demo recording started.");
                 isRecordingADemo = true;
+                if (demoTimeNameColors)
+                {
+                    updateName();
+                }
             }
             else
             {
@@ -1574,6 +1647,7 @@ namespace JKWatcher
             }
             serverWindow.addToLog("Stopping demo recording...");
             client.StopRecord_f();
+            updateName();
             isRecordingADemo = false;
             serverWindow.addToLog("Demo recording stopped.");
         }
