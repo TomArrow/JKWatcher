@@ -285,5 +285,11 @@ namespace JKWatcher
                 newWindow.Show();
             }*/
         }
+
+        private void colorDecoderBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var colorDecoderWindow = new ColorTimeDecoder();
+            colorDecoderWindow.Show();
+        }
     }
 }

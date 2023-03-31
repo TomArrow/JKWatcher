@@ -22,6 +22,7 @@
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
 
                 <CheckBox x:Name="ctfAutoJoin">Auto-join and record CTF >6 players</CheckBox>
+                <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
             </WrapPanel>
             <DataGrid IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
