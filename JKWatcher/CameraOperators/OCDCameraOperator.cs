@@ -20,7 +20,7 @@ namespace JKWatcher.CameraOperators
     class OCDCameraOperator : CameraOperator
     {
 
-        CancellationTokenSource cts = new CancellationTokenSource();
+        CancellationTokenSource cts = null;
 
         private Task backgroundTask = null;
 
@@ -28,10 +28,20 @@ namespace JKWatcher.CameraOperators
         public override void Initialize()
         {
             base.Initialize();
+            startBackground();
+        }
+
+        private void startBackground()
+        {
+            cts = new CancellationTokenSource();
             CancellationToken ct = cts.Token;
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 HasErrored = true;
                 OnErrored(new ErroredEventArgs(t.Exception));
+                Task.Run(() => {
+                    Thread.Sleep(5000);
+                    startBackground(); // Try to recover.
+                });
             }, TaskContinuationOptions.OnlyOnFaulted);
         }
 

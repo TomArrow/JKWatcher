@@ -13,7 +13,7 @@ namespace JKWatcher.CameraOperators
 {
     class SpectatorCameraOperator : CameraOperator
     {
-        CancellationTokenSource cts = new CancellationTokenSource();
+        CancellationTokenSource cts = null;
 
         private Task backgroundTask = null;
 
@@ -22,13 +22,22 @@ namespace JKWatcher.CameraOperators
         public override void Initialize()
         {
             base.Initialize();
+            startBackground();
+            OpenDialog();
+        }
+
+        private void startBackground()
+        {
+            cts = new CancellationTokenSource();
             CancellationToken ct = cts.Token;
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 HasErrored = true;
                 OnErrored(new ErroredEventArgs(t.Exception));
+                Task.Run(() => {
+                    Thread.Sleep(5000);
+                    startBackground(); // Try to recover.
+                });
             }, TaskContinuationOptions.OnlyOnFaulted);
-
-            OpenDialog();
         }
 
         bool dialogIsOpen = false;
