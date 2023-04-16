@@ -81,7 +81,7 @@
             <TextBox x:Name="mapNameTxt" IsReadOnly="True" MinWidth="60" Text="{Binding MapName,Mode=OneWay}"></TextBox>
             <TextBox x:Name="scoreRedTxt" IsReadOnly="True" MinWidth="30" Text="{Binding ScoreRed,Mode=OneWay}"></TextBox>
             <TextBox x:Name="scoreBlueTxt" IsReadOnly="True" MinWidth="30" Text="{Binding ScoreBlue,Mode=OneWay}"></TextBox>
-            
+            <CheckBox x:Name="noActivePlayersCheck" IsEnabled="False" IsChecked="{Binding NoActivePlayers,Mode=OneWay}" ToolTip="No active players">NAP</CheckBox>
         </WrapPanel>
         <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="1">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
@@ -146,9 +146,10 @@
                     <DataGridTextColumn Header="cN" Binding="{Binding ClientNum}" Width="25"></DataGridTextColumn>
                     <DataGridTextColumn Header="psCN" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Rec" Binding="{Binding isRecordingADemo}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Snaps" Binding="{Binding SnapStatus}"></DataGridTextColumn>
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
+                    <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
@@ -194,6 +195,14 @@
             </WrapPanel>
             <CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
             <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>
+            <WrapPanel>
+                <CheckBox x:Name="botOnlySnapsCheck" IsChecked="True" Checked="snapsCheck_Checked" Unchecked="snapsCheck_Checked">Bot-only snaps</CheckBox>
+                <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" TextChanged="snapsTxt_TextChanged">5</TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <CheckBox x:Name="emptySnapsCheck" IsChecked="True" Checked="snapsCheck_Checked" Unchecked="snapsCheck_Checked">Empty snaps</CheckBox>
+                <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" TextChanged="snapsTxt_TextChanged">2</TextBox>
+            </WrapPanel>
         </StackPanel>
     </Grid>
 </Window>

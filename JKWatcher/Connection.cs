@@ -88,6 +88,52 @@ namespace JKWatcher
         public string urlPrefix;
     }
 
+    public class SnapStatusInfo {
+        const int averageWindow = 30; // Max samples
+        const int averageWindowTime = 2000; // Max time window
+
+        private int lastServerTime = 0;
+        private int lastMessageNum = 0;
+        private struct SnapStatusInfoSnippet
+        {
+            public int duration; // difference from last serverTime
+            public int serverTime;
+            public int snapNumIncrementSinceLast; // (skipped packets+1 basically)
+        }
+
+        private SnapStatusInfoSnippet[] infoSnippets = new SnapStatusInfoSnippet[averageWindow];
+        private int index = 0;
+
+        public void addDataPoint(int messageNum, int serverTime)
+        {
+            infoSnippets[index].duration = serverTime - lastServerTime;
+            infoSnippets[index].snapNumIncrementSinceLast = messageNum - lastMessageNum;
+            infoSnippets[index].serverTime = serverTime;
+            lastServerTime = serverTime;
+            lastMessageNum = messageNum;
+            index = (index + 1) % averageWindow;
+        }
+
+        public override string ToString()
+        {
+            int timeTotal = 0;
+            int packetCount = 0;
+            int packetCountIncludingSkipped = 0;
+            foreach(SnapStatusInfoSnippet snippet in infoSnippets)
+            {
+                if((lastServerTime- snippet.serverTime) < averageWindowTime)
+                {
+                    packetCount++;
+                    packetCountIncludingSkipped += snippet.snapNumIncrementSinceLast;
+                    timeTotal += snippet.duration;
+                }
+            }
+            int receivedSnaps = timeTotal == 0 ? 0 : 1000 * packetCount / timeTotal;
+            int totalSnaps = timeTotal == 0 ? 0 : 1000 * packetCountIncludingSkipped / timeTotal;
+            return $"{receivedSnaps}/{totalSnaps}";
+        }
+    }
+
     /*
      * General notes regarding flood protection.
      * Old style servers only allow 1 command per second period. If you send a command within a second of another command,
@@ -120,6 +166,8 @@ namespace JKWatcher
         public int? CameraOperator { get; set; } = null;
 
         private bool trulyDisconnected = true; // If we disconnected manually we want to stay disconnected.
+
+        public SnapStatusInfo SnapStatus { get; private set; } = new SnapStatusInfo();
 
         public bool AlwaysFollowSomeone { get; set; } = true;
 
@@ -161,8 +209,11 @@ namespace JKWatcher
         private bool demoTimeNameColors = false;
         private bool attachClientNumToName = false;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false)
+        SnapsSettings snapsSettings = null;
+
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false, SnapsSettings snapsSettingsA = null)
         {
+            snapsSettings = snapsSettingsA;
             demoTimeNameColors = dateTimeColorNamesA;
             attachClientNumToName = attachClientNumToNameA;
             infoPool = infoPoolA;
@@ -851,8 +902,44 @@ namespace JKWatcher
             // then we immediately know who's carrying the flag
         }
 
+        private void snapsEnforcementUpdate()
+        {
+
+            if (snapsSettings != null)
+            {
+                if (snapsSettings.forceEmptySnaps && infoPool.NoActivePlayers)
+                {
+                    client.ClientForceSnaps = true;
+                    client.DesiredSnaps = snapsSettings.emptySnaps;
+                } else if (snapsSettings.forceBotOnlySnaps && infoPool.lastBotOnlyConfirmed != null && (DateTime.Now-infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000 )
+                {
+                    client.ClientForceSnaps = true;
+                    client.DesiredSnaps = snapsSettings.botOnlySnaps;
+                } else
+                {
+                    client.ClientForceSnaps = false;
+                    client.DesiredSnaps = 1000;
+                }
+            }
+            else
+            {
+                client.ClientForceSnaps = false;
+                client.DesiredSnaps = 1000;
+            }
+        }
+
+        protected void OnPropertyChanged(PropertyChangedEventArgs eventArgs)
+        {
+            PropertyChanged?.Invoke(this, eventArgs);
+        }
+
         private unsafe void Client_SnapshotParsed(object sender, EventArgs e)
         {
+
+            snapsEnforcementUpdate();
+
+            SnapStatus.addDataPoint(client.SnapNum,client.ServerTime);
+            OnPropertyChanged(new PropertyChangedEventArgs("SnapStatus"));
 
             infoPool.setGameTime(client.gameTime);
             infoPool.isIntermission = client.IsInterMission;
@@ -977,15 +1064,16 @@ namespace JKWatcher
             }
 
 
-
-            if (AlwaysFollowSomeone && ClientNum == SpectatedPlayer) // Not following anyone. Let's follow someone.
+            bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
+            bool onlyBotsActive = infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000;
+            if (AlwaysFollowSomeone && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
                 // Pick player with highest score.
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
-                    if (player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1))
+                    if (player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -996,6 +1084,11 @@ namespace JKWatcher
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
+        }
+
+        private bool playerIsLikelyBot(int clientNumber)
+        {
+            return clientNumber >= 0 && clientNumber <= client.ClientHandler.MaxClients && (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
         }
 
 
@@ -1143,8 +1236,13 @@ namespace JKWatcher
             {
                 return;
             }
+            bool noActivePlayers = true;
             for(int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
+                if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
+                {
+                    noActivePlayers = false;
+                }
                 infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
                 infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
@@ -1152,6 +1250,7 @@ namespace JKWatcher
 
                 infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
             }
+            infoPool.NoActivePlayers = noActivePlayers;
             serverWindow.Dispatcher.Invoke(() => {
 
                 serverWindow.playerListDataGrid.ItemsSource = null;
@@ -1177,6 +1276,8 @@ namespace JKWatcher
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
+
+            snapsEnforcementUpdate();
         }
 
         public void disconnect()
@@ -1442,6 +1543,8 @@ namespace JKWatcher
             infoPool.teamInfo[(int)Team.Blue].teamScore = commandEventArgs.Command.Argv(3).Atoi();
             infoPool.ScoreBlue = commandEventArgs.Command.Argv(3).Atoi();
 
+            bool anyNonBotPlayerActive = false;
+            bool anyPlayersActive = false;
             for (i = 0; i < readScores; i++)
             {
                 //
@@ -1467,6 +1570,23 @@ namespace JKWatcher
                 infoPool.playerInfo[clientNum].score.perfect = commandEventArgs.Command.Argv(i * 14 + 16).Atoi() == 0 ? false : true;
                 infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * 14 + 17).Atoi();
                 infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
+
+                if(infoPool.playerInfo[clientNum].score.ping != 0)
+                {
+                    infoPool.playerInfo[clientNum].score.lastNonZeroPing = DateTime.Now;
+                    infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing = 0;
+                } else
+                {
+                    infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing++;
+                }
+                if (infoPool.playerInfo[clientNum].team != Team.Spectator)
+                {
+                    anyPlayersActive = true;
+                    if (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 2) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    {
+                        anyNonBotPlayerActive = true;
+                    }
+                }
 
                 if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
@@ -1500,6 +1620,14 @@ namespace JKWatcher
 
 
             }
+            if (!anyNonBotPlayerActive && anyPlayersActive)
+            {
+                infoPool.lastBotOnlyConfirmed = DateTime.Now;
+            } else
+            {
+                infoPool.lastBotOnlyConfirmed = null;
+            }
+            snapsEnforcementUpdate();
         }
 
         int lastDemoIterator = 0;

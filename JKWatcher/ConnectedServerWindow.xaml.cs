@@ -20,6 +20,17 @@ using System.Collections.Concurrent;
 
 namespace JKWatcher
 {
+
+
+    public class SnapsSettings
+    {
+        public bool forceBotOnlySnaps = true;
+        public int botOnlySnaps = 5;
+        public bool forceEmptySnaps = true;
+        public int emptySnaps = 2;
+    }
+
+
     /// <summary>
     /// Interaction logic for ConnectedServerWindow.xaml
     /// </summary>
@@ -52,6 +63,8 @@ namespace JKWatcher
                 serverName = value;
             }
         }
+
+        SnapsSettings snapsSettings = new SnapsSettings();
 
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
         private FullyObservableCollection<CameraOperator> cameraOperators = new FullyObservableCollection<CameraOperator>();
@@ -99,11 +112,12 @@ namespace JKWatcher
             mapNameTxt.DataContext = infoPool;
             scoreRedTxt.DataContext = infoPool;
             scoreBlueTxt.DataContext = infoPool;
+            noActivePlayersCheck.DataContext = infoPool;
 
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
-                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName, demoTimeColorNames,attachClientNumToName));
+                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName, demoTimeColorNames,attachClientNumToName,snapsSettings));
             }
             updateIndices();
 
@@ -379,7 +393,15 @@ namespace JKWatcher
             while (true)
             {
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
-                System.Threading.Thread.Sleep(2000);
+                int timeout = 2000;
+                if (infoPool.NoActivePlayers)
+                {
+                    timeout = 30000;
+                } else if (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 15000)
+                {
+                    timeout = 10000;
+                }
+                System.Threading.Thread.Sleep(timeout);
                 ct.ThrowIfCancellationRequested();
 
                 foreach(Connection connection in connections)
@@ -521,7 +543,7 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
-                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName, demoTimeColorNames, attachClientNumToName);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName, demoTimeColorNames, attachClientNumToName,snapsSettings);
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -831,7 +853,7 @@ namespace JKWatcher
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
-            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName, demoTimeColorNames, attachClientNumToName);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName, demoTimeColorNames, attachClientNumToName,snapsSettings);
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -946,6 +968,30 @@ namespace JKWatcher
             {
                 conn.SetClientNumNameAttach(attachClientNumToName);
             }
+        }
+
+        private void updateSnapsSettings()
+        {
+            if (botOnlySnapsCheck == null || emptySnapsCheck == null || botOnlySnapsTxt == null || emptySnapsTxt == null)
+            {
+                return;
+            }
+            snapsSettings.forceBotOnlySnaps = botOnlySnapsCheck.IsChecked.HasValue && botOnlySnapsCheck.IsChecked.Value;
+            snapsSettings.forceEmptySnaps = emptySnapsCheck.IsChecked.HasValue && emptySnapsCheck.IsChecked.Value;
+            int.TryParse(botOnlySnapsTxt.Text, out snapsSettings.botOnlySnaps);
+            int.TryParse(emptySnapsTxt.Text, out snapsSettings.emptySnaps);
+            if (snapsSettings.botOnlySnaps < 1) snapsSettings.botOnlySnaps = 1;
+            if (snapsSettings.emptySnaps < 1) snapsSettings.emptySnaps = 1;
+        }
+
+        private void snapsCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            updateSnapsSettings();
+        }
+
+        private void snapsTxt_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            updateSnapsSettings();
         }
 
         public bool requestConnectionDestruction(Connection conn)

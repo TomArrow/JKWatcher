@@ -67,6 +67,8 @@ namespace JKWatcher
         public volatile int captures; // captures
         public volatile bool perfect;
         public volatile int team;
+        public DateTime? lastNonZeroPing;
+        public volatile int pingUpdatesSinceLastNonZeroPing;
     }
 
 
@@ -116,6 +118,10 @@ namespace JKWatcher
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }
+
+        public bool NoActivePlayers { get; set; }
+
+        public DateTime? lastBotOnlyConfirmed = null;
 
         public void setGameTime(int gameTime)
         {
