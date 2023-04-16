@@ -1088,7 +1088,7 @@ namespace JKWatcher
 
         private bool playerIsLikelyBot(int clientNumber)
         {
-            return clientNumber >= 0 && clientNumber <= client.ClientHandler.MaxClients && (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
+            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
         }
 
 
@@ -1582,7 +1582,7 @@ namespace JKWatcher
                 if (infoPool.playerInfo[clientNum].team != Team.Spectator)
                 {
                     anyPlayersActive = true;
-                    if (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 2) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    if (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4) // Be more safe. Anyone could have ping 0 by freak accident in theory.
                     {
                         anyNonBotPlayerActive = true;
                     }
