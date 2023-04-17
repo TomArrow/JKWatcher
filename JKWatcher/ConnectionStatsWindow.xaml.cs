@@ -35,9 +35,25 @@ namespace JKWatcher
             //    commandQueueGrid.ItemsSource = conn.leakyBucketRequester.ReadOnlyRequestList;
             //    recentCommandQueueGrid.ItemsSource = conn.leakyBucketRequester.RecentExecutedCommandsReadOnly;
             //});
-            conn.leakyBucketRequester.RequestListUpdated += LeakyBucketRequester_RequestListUpdated; ;
+            clientStatsPanel.DataContext = conn.clientStatistics;
+            clientStatsPanel2.DataContext = conn.clientStatistics;
+            conn.leakyBucketRequester.RequestListUpdated += LeakyBucketRequester_RequestListUpdated;
+
+            conn.PropertyChanged += Conn_PropertyChanged;
 
             this.Closed += ConnectionStatsWindow_Closed;
+        }
+
+        private void Conn_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName == "clientStatistics")
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    clientStatsPanel.DataContext = conn.clientStatistics;
+                    clientStatsPanel2.DataContext = conn.clientStatistics;
+                });
+            }
         }
 
         Connection conn = null;
@@ -45,6 +61,7 @@ namespace JKWatcher
         private void ConnectionStatsWindow_Closed(object sender, EventArgs e)
         {
             conn.leakyBucketRequester.RequestListUpdated -= LeakyBucketRequester_RequestListUpdated;
+            conn.PropertyChanged -= Conn_PropertyChanged;
             conn = null;
         }
 

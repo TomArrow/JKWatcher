@@ -12,7 +12,13 @@
             <RowDefinition></RowDefinition>
             <RowDefinition></RowDefinition>
         </Grid.RowDefinitions>
-        <DataGrid IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="commandQueueGrid" AutoGenerateColumns="False">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        
+        <DataGrid Grid.ColumnSpan="3" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="commandQueueGrid" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Type" Binding="{Binding type}"></DataGridTextColumn>
                 <DataGridTextColumn Header="MinTypeDelay" Binding="{Binding minimumDelayFromSameType}"></DataGridTextColumn>
@@ -21,7 +27,7 @@
             </DataGrid.Columns>
 
         </DataGrid>
-        <DataGrid Grid.Row="1" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="recentCommandQueueGrid" AutoGenerateColumns="False">
+        <DataGrid  Grid.ColumnSpan="3" Grid.Row="1" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="recentCommandQueueGrid" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Time" Binding="{Binding time}"></DataGridTextColumn>
                 <DataGridTextColumn Header="Type" Binding="{Binding request.type}"></DataGridTextColumn>
@@ -31,5 +37,58 @@
             </DataGrid.Columns>
 
         </DataGrid>
+        <StackPanel x:Name="clientStatsPanel" Grid.Row="2">
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120" FontSize="10">Demosize:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeKiB,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Demosize full flushed:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeFullFlushedKiB,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Delta snaps:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding deltaSnaps,Mode=OneWay}" Width="120"  FontSize="10" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Non-Delta snaps:</Label>
+                <TextBox Text="{Binding nonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Total messages:</Label>
+                <TextBox Text="{Binding totalMessages,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Skipped messages:</Label>
+                <TextBox Text="{Binding messagesSkipped,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Out of order messages:</Label>
+                <TextBox Text="{Binding messagesOutOfOrder,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+        </StackPanel>
+        <StackPanel x:Name="clientStatsPanel2" Grid.Row="2" Grid.Column="1">
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120" FontSize="10">Skippable messages:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSkippable,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (svc):</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableSvc,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (new cmd):</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNewCommands,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (non-delta):</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNonDelta,Mode=OneWay}" Width="120"  FontSize="10" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Unskipped (time):</Label>
+                <TextBox Text="{Binding messagesNotSkippedTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            
+        </StackPanel>
     </Grid>
 </Window>

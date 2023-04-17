@@ -80,7 +80,10 @@ namespace JKWatcher
         public event EventHandler<Tuple<Request[],FinishedRequest[]>> RequestListUpdated;
         public void OnRequestListUpdated()
         {
-            RequestListUpdated?.Invoke(this,new Tuple<Request[], FinishedRequest[]>(requestQueue.ToArray(),recentExecutedCommands.ToArray()));
+            if(RequestListUpdated?.GetInvocationList().Length > 0)
+            {
+                RequestListUpdated?.Invoke(this, new Tuple<Request[], FinishedRequest[]>(requestQueue.ToArray(), recentExecutedCommands.ToArray()));
+            }
         }
         private List<FinishedRequest> recentExecutedCommands = new List<FinishedRequest>();
         //public IReadOnlyCollection<FinishedRequest> RecentExecutedCommandsReadOnly => recentExecutedCommands.AsReadOnly();

@@ -154,6 +154,8 @@ namespace JKWatcher
         private ConnectedServerWindow serverWindow;
 
         public event PropertyChangedEventHandler PropertyChanged;
+
+        public JKClient.Statistics clientStatistics { get; private set; }
         
         // To detect changes.
         private string lastKnownPakNames = "";
@@ -420,6 +422,7 @@ namespace JKWatcher
             client.SnapshotParsed += Client_SnapshotParsed;
             client.EntityEvent += Client_EntityEvent;
             client.Disconnected += Client_Disconnected;
+            clientStatistics = client.Stats;
             Status = client.Status;
             
             client.Start(ExceptionCallback);
@@ -1316,6 +1319,7 @@ namespace JKWatcher
             client.ServerInfoChanged -= Connection_ServerInfoChanged;
             client.SnapshotParsed -= Client_SnapshotParsed;
             client.EntityEvent -= Client_EntityEvent;
+            clientStatistics = null;
         }
 
         
