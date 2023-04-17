@@ -321,7 +321,8 @@ namespace JKWatcher
             while (true)
             {
                 System.Threading.Thread.Sleep(5*60*1000); // 5 minutes
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 if (client.Status != ConnectionStatus.Active && !trulyDisconnected)
                 {

@@ -140,6 +140,7 @@
                 <Button x:Name="newConBtn" Click="newConBtn_Click">NewCon</Button>
                 <Button x:Name="delBtn" Click="delBtn_Click" IsEnabled="False">Del</Button>
                 <Button x:Name="reconBtn" Click="reconBtn_Click" IsEnabled="False">Recon</Button>
+                <Button x:Name="statsBtn" Click="statsBtn_Click" IsEnabled="False">Stats</Button>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.Columns>

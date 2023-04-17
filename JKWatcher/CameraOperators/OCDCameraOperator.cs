@@ -82,7 +82,8 @@ namespace JKWatcher.CameraOperators
             while (true)
             {
                 System.Threading.Thread.Sleep(100);
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 if (!infoPool.isIntermission)
                 { // No use during intermission, and avoid server errors popping up from trying to follow during intermission

@@ -105,7 +105,8 @@ namespace JKWatcher
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
                 System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 *2); // every 2 min or 1 min if fast recheck requested (see code below)
 
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 nextCheckFast = false;
 

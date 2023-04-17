@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -60,13 +61,56 @@ namespace JKWatcher
             DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,
         }
 
-        private struct Request {
-            public TCommand command;
-            public TKind type; // custom defined by caller
-            public int minimumDelayFromSameType;
-            public int priority;
+        public struct Request
+        {
+            public TCommand command { get; init; }
+            public TKind type { get; init; } // custom defined by caller
+            public int minimumDelayFromSameType { get; init; }
+            public int priority { get; init; }
         }
 
+        public struct FinishedRequest
+        {
+            public DateTime time { get; init; }
+            public Request request { get; init; }
+        }
+
+        // Some things to get stats from the outside
+        //public IReadOnlyCollection<Request> ReadOnlyRequestList => requestQueue.AsReadOnly();
+        public event EventHandler<Tuple<Request[],FinishedRequest[]>> RequestListUpdated;
+        public void OnRequestListUpdated()
+        {
+            RequestListUpdated?.Invoke(this,new Tuple<Request[], FinishedRequest[]>(requestQueue.ToArray(),recentExecutedCommands.ToArray()));
+        }
+        private List<FinishedRequest> recentExecutedCommands = new List<FinishedRequest>();
+        //public IReadOnlyCollection<FinishedRequest> RecentExecutedCommandsReadOnly => recentExecutedCommands.AsReadOnly();
+        private void LogCommand(Request command)
+        {
+            lock (recentExecutedCommands)
+            {
+                int removeCount = 0;
+                for (int i = 0; i < recentExecutedCommands.Count; i++)
+                {
+                    // Remove stuff older than 1 minute
+                    if ((DateTime.Now - recentExecutedCommands[i].time).TotalMilliseconds > 60000)
+                    {
+                        removeCount++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                if(removeCount > 0)
+                {
+                    recentExecutedCommands.RemoveRange(0, removeCount);
+                }
+                recentExecutedCommands.Add(new FinishedRequest() { time = DateTime.Now, request = command });
+            }
+        }
+
+
+        // Back to real stuff
         List<Request> requestQueue = new List<Request>();
         Dictionary<TKind, DateTime> lastRequestTimesOfType = new Dictionary<TKind, DateTime>();
 
@@ -107,7 +151,7 @@ namespace JKWatcher
             //CancellationTokenSource tmpCts = sleepInterruptor;
             //sleepInterruptor = new CancellationTokenSource();
             //tmpCts.Dispose();
-            cts.Dispose();
+            cts.Dispose(); 
             cts = null;
         }
 
@@ -132,7 +176,8 @@ namespace JKWatcher
                 {
                     // Do nothing, it's expected.
                 }
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
                 soonestPredictedEvent = defaultTimeOut;
 
                 int timeUntilNextRequestAllowed = whenCanIRequest();
@@ -146,6 +191,7 @@ namespace JKWatcher
                 bool somethingToDo = true;
                 while (somethingToDo)
                 {
+                    bool requestQueueChanged = false;
                     lock (requestQueue)
                     {
                         if(requestQueue.Count == 0)
@@ -200,7 +246,9 @@ namespace JKWatcher
                                     } else
                                     {
                                         lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
+                                        LogCommand(requestQueue[i]);
                                         requestQueue.RemoveAt(i);
+                                        requestQueueChanged = true;
                                     }
                                 } else
                                 {
@@ -213,6 +261,7 @@ namespace JKWatcher
                         }
                         if (!atLeastOneWantedExecution) somethingToDo = false;
                     }
+                    if (requestQueueChanged) OnRequestListUpdated();
                 }
 
 
@@ -229,6 +278,7 @@ namespace JKWatcher
                 minimumDelayFromSameType = minimumDelayFromSameType,
                 priority = priority
             };
+            bool requestQueueChanged = false;
             lock (requestQueue)
             {
                 // Remove overridden kinds from queue
@@ -241,6 +291,7 @@ namespace JKWatcher
                             if (requestQueue[i].type.CompareTo(overriddenKind) == 0)
                             {
                                 requestQueue.RemoveAt(i);
+                                requestQueueChanged = true;
                             }
                         }
                     }
@@ -262,6 +313,7 @@ namespace JKWatcher
                         if (!kindAlreadyExists)
                         {
                             requestQueue.Add(request);
+                            requestQueueChanged = true;
                         }
                         break;
                     case RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE:
@@ -271,16 +323,20 @@ namespace JKWatcher
                             if (requestQueue[i].type.CompareTo(kind) == 0)
                             {
                                 requestQueue.RemoveAt(i);
+                                requestQueueChanged = true;
                             }
                         }
                         requestQueue.Add(request);
+                        requestQueueChanged = true;
                         break;
                     case RequestBehavior.ENQUEUE:
                     default:
                         requestQueue.Add(request);
+                        requestQueueChanged = true;
                         break;
                 }
             }
+            if (requestQueueChanged) OnRequestListUpdated();
             //sleepInterruptor.Cancel(); /// TODO Fix error where this is already disposed and crashes the program.
             sleepInterrupter.CancelAll();
         }

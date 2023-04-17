@@ -242,7 +242,8 @@ namespace JKWatcher
             while (true)
             {
                 System.Threading.Thread.Sleep(10);
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
@@ -341,14 +342,15 @@ namespace JKWatcher
                 }
             });
         }
-        
+
         // Old style log string updater without colors:
         /* private void logStringUpdater(CancellationToken ct)
         {
             while (true)
             {
                 System.Threading.Thread.Sleep(10);
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 string stringToAdd;
                 
@@ -402,9 +404,10 @@ namespace JKWatcher
                     timeout = 10000;
                 }
                 System.Threading.Thread.Sleep(timeout);
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
-                foreach(Connection connection in connections)
+                foreach (Connection connection in connections)
                 {
                     if(connection.client.Status == ConnectionStatus.Active)
                     {
@@ -423,7 +426,8 @@ namespace JKWatcher
             while (true) {
 
                 System.Threading.Thread.Sleep(100);
-                ct.ThrowIfCancellationRequested();
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
 
                 if (infoPool.playerInfo == null || !DrawMiniMap) continue;
 
@@ -694,6 +698,7 @@ namespace JKWatcher
 
             delBtn.IsEnabled = connectionsSelected;
             reconBtn.IsEnabled = connectionsSelected;
+            statsBtn.IsEnabled = connectionsSelected;
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
             commandSendBtn.IsEnabled = connectionsSelected;
@@ -992,6 +997,23 @@ namespace JKWatcher
         private void snapsTxt_TextChanged(object sender, TextChangedEventArgs e)
         {
             updateSnapsSettings();
+        }
+
+        private void statsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (connections.Count == 0) return;
+
+            // we make a copy of the selected items because otherwise the command might change something
+            // that also results in a change of selecteditems and then it would only get the first item.
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            foreach (Connection conn in conns)
+            {
+                if (conn != null)
+                {
+                    new ConnectionStatsWindow(conn).Show();
+                }
+            }
         }
 
         public bool requestConnectionDestruction(Connection conn)
