@@ -377,7 +377,8 @@ namespace JKWatcher
             else
             {
                 thisBucketBurst -= expired;
-                lastTime = DateTime.Now - new TimeSpan(0, 0, 0, 0, expiredRemainder);
+                //lastTime = DateTime.Now - new TimeSpan(0, 0, 0, 0, expiredRemainder); // Old buggy code. Sometimes lets through commands without proper spacing. And if you get unlucky with automated commands and their timing, a command might never make it through for quite some time.
+                lastTime = thisBucketBurst == 0 ? DateTime.Now : DateTime.Now - new TimeSpan(0, 0, 0, 0, expiredRemainder);
             }
 
             if (thisBucketBurst < burst)
