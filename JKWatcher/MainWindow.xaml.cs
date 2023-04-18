@@ -111,9 +111,11 @@ namespace JKWatcher
                 nextCheckFast = false;
 
                 bool ctfAutoJoinActive = false;
+                bool ctfAutoJoinWithStrobeActive = false;
                 int minPlayersForJoin = 3;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
+                    ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
                     if(!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out minPlayersForJoin))
                     {
                         minPlayersForJoin = 3;
@@ -168,6 +170,10 @@ namespace JKWatcher
                                     newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
                                     newWindow.Show();
                                     newWindow.createCTFOperator();
+                                    if (ctfAutoJoinWithStrobeActive)
+                                    {
+                                        newWindow.createStrobeOperator();
+                                    }
                                     newWindow.recordAll();
                                 });
                             } else if (!alreadyConnected && serverInfo.Clients >= minPlayersForJoin && !serverInfo.StatusResponseReceived)

@@ -17,7 +17,7 @@
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
-                <Label>Password</Label>
+                <Label ToolTip="Password">PW</Label>
                 <TextBox x:Name="pwListTxt" MinWidth="150"></TextBox>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
 
@@ -25,7 +25,8 @@
                 <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="2">
                     3
                 </TextBox>
-                <Label Padding="2" Margin="2"> players</Label>
+                <Label Padding="2" Margin="2">players</Label>
+                <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="2">w/ strobe</CheckBox>
                 <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
             </WrapPanel>
             <DataGrid IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
@@ -46,7 +47,7 @@
         <WrapPanel Grid.Row="1">
             <Label>IP</Label>
             <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
-            <Label>Password</Label>
+            <Label ToolTip="Password">PW</Label>
             <TextBox x:Name="pwTxt" MinWidth="150"></TextBox>
             <Label>Protocol</Label>
             <ComboBox x:Name="protocols"></ComboBox>

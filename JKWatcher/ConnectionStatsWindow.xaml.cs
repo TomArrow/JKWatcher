@@ -37,6 +37,7 @@ namespace JKWatcher
             //});
             clientStatsPanel.DataContext = conn.clientStatistics;
             clientStatsPanel2.DataContext = conn.clientStatistics;
+            clientStatsPanel3.DataContext = conn.clientStatistics;
             conn.leakyBucketRequester.RequestListUpdated += LeakyBucketRequester_RequestListUpdated;
 
             conn.PropertyChanged += Conn_PropertyChanged;
@@ -52,6 +53,7 @@ namespace JKWatcher
                 {
                     clientStatsPanel.DataContext = conn.clientStatistics;
                     clientStatsPanel2.DataContext = conn.clientStatistics;
+                    clientStatsPanel3.DataContext = conn.clientStatistics;
                 });
             }
         }

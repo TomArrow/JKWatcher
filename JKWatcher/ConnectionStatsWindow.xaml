@@ -90,5 +90,21 @@
             </WrapPanel>
             
         </StackPanel>
+        <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">
+
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Client FPS:</Label>
+                <TextBox Text="{Binding lastFrameDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserCMD FPS:</Label>
+                <TextBox Text="{Binding lastUserCommandDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserPacket FPS:</Label>
+                <TextBox Text="{Binding lastUserPacketDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            
+        </StackPanel>
     </Grid>
 </Window>

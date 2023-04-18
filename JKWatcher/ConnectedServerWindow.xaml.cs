@@ -504,6 +504,10 @@ namespace JKWatcher
         {
             createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
         }
+        public void createStrobeOperator()
+        {
+            createCameraOperator<CameraOperators.StrobeCameraOperator>();
+        }
 
         private void createCameraOperator<T>() where T:CameraOperator, new()
         {
@@ -1014,6 +1018,11 @@ namespace JKWatcher
                     new ConnectionStatsWindow(conn).Show();
                 }
             }
+        }
+
+        private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            createCameraOperator<CameraOperators.StrobeCameraOperator>();
         }
 
         public bool requestConnectionDestruction(Connection conn)

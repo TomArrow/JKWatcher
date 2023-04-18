@@ -155,6 +155,12 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public event UserCommandGeneratedEventHandler ClientUserCommandGenerated;
+        internal void OnClientUserCommandGenerated(ref UserCommand cmd)
+        {
+            this.ClientUserCommandGenerated?.Invoke(this, ref cmd);
+        }
+
         public JKClient.Statistics clientStatistics { get; private set; }
         
         // To detect changes.
@@ -422,6 +428,7 @@ namespace JKWatcher
             client.SnapshotParsed += Client_SnapshotParsed;
             client.EntityEvent += Client_EntityEvent;
             client.Disconnected += Client_Disconnected;
+            client.UserCommandGenerated += Client_UserCommandGenerated;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -477,6 +484,14 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
+        // It also means we don't have to have watchers subscribe directly to the client because then that would break
+        // when we get disconnected/reconnected etc.
+        private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand)
+        {
+            OnClientUserCommandGenerated(ref modifiableCommand);
         }
 
         int reconnectTriesCount = 0;
@@ -1099,6 +1114,7 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            infoPool.lastBotOnlyConfirmed = null; // Because if a new player just entered, we have no idea if it's only a bot or  not until we get his ping via score command.
             string serverName = client.ServerInfo.HostName;
             if (serverName != "")
             {
@@ -1319,6 +1335,7 @@ namespace JKWatcher
             client.ServerInfoChanged -= Connection_ServerInfoChanged;
             client.SnapshotParsed -= Client_SnapshotParsed;
             client.EntityEvent -= Client_EntityEvent;
+            client.UserCommandGenerated -= Client_UserCommandGenerated;
             clientStatistics = null;
         }
 
