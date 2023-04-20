@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -429,6 +430,7 @@ namespace JKWatcher
             client.EntityEvent += Client_EntityEvent;
             client.Disconnected += Client_Disconnected;
             client.UserCommandGenerated += Client_UserCommandGenerated;
+            client.DebugEventHappened += Client_DebugEventHappened;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -484,6 +486,30 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void Client_DebugEventHappened(object sender, object e)
+        {
+            if(e is ConfigStringMismatch)
+            {
+                ConfigStringMismatch info = (ConfigStringMismatch)e;
+                serverWindow.addToLog($"DEBUG: Config string mismatch: \"{info.intendedString}\" became \"{info.actualString}\"",true);
+                Task.Run(()=> {
+                    MemoryStream ms = new MemoryStream();
+                    ms.Write(Encoding.UTF8.GetBytes($"{info.intendedString}\n{info.actualString}\n"));
+                    if(info.oldGsStringData != null)
+                    {
+                        ms.Write(info.oldGsStringData);
+                        ms.Write(Encoding.UTF8.GetBytes($"\n"));
+                    }
+                    if(info.newGsStringData != null)
+                    {
+                        ms.Write(info.newGsStringData);
+                        ms.Write(Encoding.UTF8.GetBytes($"\n"));
+                    }
+                    Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
+                });
+            }
         }
 
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
@@ -1336,6 +1362,7 @@ namespace JKWatcher
             client.SnapshotParsed -= Client_SnapshotParsed;
             client.EntityEvent -= Client_EntityEvent;
             client.UserCommandGenerated -= Client_UserCommandGenerated;
+            client.DebugEventHappened -= Client_DebugEventHappened;
             clientStatistics = null;
         }
 

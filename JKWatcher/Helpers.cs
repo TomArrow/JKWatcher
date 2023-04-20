@@ -57,6 +57,45 @@ namespace JKWatcher
                 }
             }
         }
+
+        static Mutex specificDebugMutex = new Mutex();
+
+        public static void logToSpecificDebugFile(byte[] data, string specificFileName)
+        {
+
+            Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogsSpecific"));
+            lock (specificDebugMutex)
+            {
+
+                string fullPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogsSpecific", specificFileName);
+                string fullPathUnique = Helpers.GetUnusedFilename(fullPath);
+
+                int retryTime = 0;
+                bool successfullyWritten = false;
+                while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                {
+                    try
+                    {
+
+                        File.WriteAllBytes(fullPathUnique,data);
+                        successfullyWritten = true;
+                    }
+                    catch (IOException)
+                    {
+                        // NOTE: I dont think this should even happen here. We're not appending. But let's be safe and catch any errors.
+                        // Don't want the software to crash because of a failed log file write.
+
+                        // Wait 100 ms then try again. File is probably locked.
+                        // This will probably lock up the thread a bit in some cases
+                        // but the log display/write thread is separate from the rest of the 
+                        // program anyway so it shouldn't have a terrible impact other than a delayed
+                        // display.
+                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                        retryTime += logfileWriteRetryDelay;
+                    }
+                }
+            }
+        }
         public static string downloadLogFileName = "pk3DownloadLinks.csv";
         public static void logDownloadLinks(string[] texts)
         {
