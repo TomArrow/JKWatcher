@@ -1,4 +1,5 @@
 ﻿using JKClient;
+using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -28,6 +29,7 @@ namespace JKWatcher
     {
 
         private List<ConnectedServerWindow> connectedServerWindows = new List<ConnectedServerWindow>();
+
 
 
 
@@ -104,6 +106,38 @@ namespace JKWatcher
             }
         }
 
+        Mutex sqliteStatsMutex = new Mutex(false,"Global\\JKWatcherSQliteStatsMutex");
+
+
+        private void saveServerStats(IEnumerable<ServerInfo> data)
+        {
+
+            try
+            {
+                lock (sqliteStatsMutex)
+                {
+                    var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "serverStats.db"),false);
+
+                    db.CreateTable<ServerInfoPublic>();
+                    db.BeginTransaction();
+                    // Save stats.
+                    foreach (ServerInfo serverInfo in data)
+                    {
+                        if (serverInfo.StatusResponseReceived)
+                        {
+                            db.Insert(ServerInfoPublic.convertFromJKClient(serverInfo));
+                        }
+                    }
+                    db.Commit();
+                    db.Close();
+                    db.Dispose();
+                }
+            } catch (Exception e)
+            {
+                Helpers.logToFile(new string[] { "Failed to save server stats to database.",e.ToString() });
+            }
+        }
+
         private async void ctfAutoConnecter(CancellationToken ct)
         {
             bool nextCheckFast = false;
@@ -153,6 +187,7 @@ namespace JKWatcher
 
                     if (servers == null) continue;
 
+
                     foreach (ServerInfo serverInfo in servers)
                     {
                         if (serverInfo.Version == ClientVersion.JO_v1_02)
@@ -191,10 +226,13 @@ namespace JKWatcher
                             }
 
                         }
-                    }
 
+
+                    }
+                    saveServerStats(servers);
                     serverBrowser.Stop();
                     serverBrowser.Dispose();
+
                 }
             }
         }
@@ -234,6 +272,7 @@ namespace JKWatcher
                 }
             }
 
+
             serverBrowser.Stop();
             serverBrowser.Dispose();
             serverListDataGrid.ItemsSource = filteredServers;
@@ -241,6 +280,7 @@ namespace JKWatcher
             {
                 connectBtn.IsEnabled = false;
             }
+            saveServerStats(servers);
         }
 
         Task ExceptionCallback(JKClientException exception)
