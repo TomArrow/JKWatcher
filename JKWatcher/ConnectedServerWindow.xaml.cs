@@ -245,6 +245,9 @@ namespace JKWatcher
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
 
+                string serverNameString = serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName;
+                stringsToForceWriteToLogFile.Add($"[{serverNameString}]");
+
                 LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
                 {
@@ -269,14 +272,14 @@ namespace JKWatcher
                     addStringsToPlain(dequeuedStrings.ToArray());
                 }
 
-                if(stringsToForceWriteToLogFile.Count > 0)
+                if(stringsToForceWriteToLogFile.Count > 1) // First one is the server name and IP.
                 {
                     Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
                 }
 //#if DEBUG
                 // TODO Clean this up, make it get serverInfo from connections if connected via ip.
                 //Helpers.debugLogToFile(serverInfo == null ? netAddress.ToString() : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
-                Helpers.debugLogToFile(serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName, dequeuedStrings.ToArray());
+                Helpers.debugLogToFile(serverNameString, dequeuedStrings.ToArray());
 //#endif
 
                 dequeuedStrings.Clear();

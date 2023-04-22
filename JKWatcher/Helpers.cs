@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,8 +12,51 @@ using System.Windows.Media.Imaging;
 
 namespace JKWatcher
 {
+
+    class GlobalMutexHelper : IDisposable
+    {
+        private Mutex mutex = null;
+        private bool active = false;
+
+        public GlobalMutexHelper(string mutexNameWithoutGlobal,int? timeout=5000)
+        {
+            mutex = new Mutex(false,$"Global\\{mutexNameWithoutGlobal}");
+            MutexSecurity sec = new MutexSecurity();
+            sec.AddAccessRule(new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid,null),MutexRights.FullControl,AccessControlType.Allow));
+            mutex.SetAccessControl(sec);
+
+            try
+            {
+                active = mutex.WaitOne(timeout == null || timeout < 0 ? Timeout.Infinite : timeout.Value,false);
+            } catch(AbandonedMutexException e)
+            {
+                active = true;
+            }
+
+            if (!active)
+            {
+                throw new Exception($"Failed to acquire acquire mutex \"{mutexNameWithoutGlobal}\".");
+            }
+        }
+        public void Dispose()
+        {
+            if(mutex != null)
+            {
+                if (active)
+                {
+                    mutex.ReleaseMutex();
+                }
+                mutex.Dispose();
+            }
+        }
+    }
+
     static class Helpers
     {
+
+
+
+
 
         public static string GetUnusedFilename(string baseFilename)
         {
@@ -32,29 +77,37 @@ namespace JKWatcher
         public static string forcedLogFileName = "forcedLog.log";
         public static void logToFile(string[] texts)
         {
-            lock (forcedLogFileName)
-            {
-                int retryTime = 0;
-                bool successfullyWritten = false;
-                while (!successfullyWritten && retryTime < logfileWriteTimeout)
-                {
-                    try
-                    {
+            try {
 
-                        File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", forcedLogFileName), texts);
-                        successfullyWritten = true;
-                    }
-                    catch (IOException)
+                //lock (forcedLogFileName)
+                using(new GlobalMutexHelper("JKWatcherForcedLogMutex"))
+                {
+                    int retryTime = 0;
+                    bool successfullyWritten = false;
+                    while (!successfullyWritten && retryTime < logfileWriteTimeout)
                     {
-                        // Wait 100 ms then try again. File is probably locked.
-                        // This will probably lock up the thread a bit in some cases
-                        // but the log display/write thread is separate from the rest of the 
-                        // program anyway so it shouldn't have a terrible impact other than a delayed
-                        // display.
-                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
-                        retryTime += logfileWriteRetryDelay;
+                        try
+                        {
+
+                            File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", forcedLogFileName), texts);
+                            successfullyWritten = true;
+                        }
+                        catch (IOException)
+                        {
+                            // Wait 100 ms then try again. File is probably locked.
+                            // This will probably lock up the thread a bit in some cases
+                            // but the log display/write thread is separate from the rest of the 
+                            // program anyway so it shouldn't have a terrible impact other than a delayed
+                            // display.
+                            System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                            retryTime += logfileWriteRetryDelay;
+                        }
                     }
                 }
+            }
+            catch(Exception ex)
+            {
+                // Failed to get  mutex, weird...
             }
         }
 
@@ -128,33 +181,43 @@ namespace JKWatcher
         public static Mutex logMutex = new Mutex();
         public static void debugLogToFile(string logPrefix,string[] texts)
         {
+            string validizedName = MakeValidFileName(logPrefix);
             Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogs"));
-            string fileName = "debugLogs/"+MakeValidFileName(logPrefix + ".log");
+            string fileName = "debugLogs/"+validizedName + ".log";
 
-            lock (logMutex)
+            try
             {
-                int retryTime = 0;
-                bool successfullyWritten = false;
-                while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                //lock (logMutex)
+                using (new GlobalMutexHelper($"JKWatcherDebugLog{validizedName.Replace('\\','_')}"))
                 {
-                    try
+                    int retryTime = 0;
+                    bool successfullyWritten = false;
+                    while (!successfullyWritten && retryTime < logfileWriteTimeout)
                     {
+                        try
+                        {
 
-                        File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", fileName), texts);
-                        successfullyWritten = true;
-                    }
-                    catch (IOException)
-                    {
-                        // Wait 100 ms then try again. File is probably locked.
-                        // This will probably lock up the thread a bit in some cases
-                        // but the log display/write thread is separate from the rest of the 
-                        // program anyway so it shouldn't have a terrible impact other than a delayed
-                        // display.
-                        System.Threading.Thread.Sleep(logfileWriteRetryDelay);
-                        retryTime += logfileWriteRetryDelay;
+                            File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", fileName), texts);
+                            successfullyWritten = true;
+                        }
+                        catch (IOException)
+                        {
+                            // Wait 100 ms then try again. File is probably locked.
+                            // This will probably lock up the thread a bit in some cases
+                            // but the log display/write thread is separate from the rest of the 
+                            // program anyway so it shouldn't have a terrible impact other than a delayed
+                            // display.
+                            System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                            retryTime += logfileWriteRetryDelay;
+                        }
                     }
                 }
             }
+            catch(Exception e)
+            {
+                // Weird.
+            }
+            
         }
 
         // from: https://stackoverflow.com/a/847251

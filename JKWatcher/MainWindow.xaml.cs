@@ -106,15 +106,13 @@ namespace JKWatcher
             }
         }
 
-        Mutex sqliteStatsMutex = new Mutex(false,"Global\\JKWatcherSQliteStatsMutex");
-
 
         private void saveServerStats(IEnumerable<ServerInfo> data)
         {
 
             try
             {
-                lock (sqliteStatsMutex)
+                using (new GlobalMutexHelper("JKWatcherSQliteStatsMutex"))
                 {
                     var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "serverStats.db"),false);
 

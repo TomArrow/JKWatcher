@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using JKClient;
+using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +20,7 @@ namespace JKWatcher
 		public string MapName { get; set; }
 		public string Game { get; set; }
 		public string GameName { get; set; }
-		public GameType GameType { get; set; }
+		public string GameType { get; set; }
 		public int Clients { get; set; }
 		public int ClientsIncludingBots { get; set; }
 		public int MaxClients { get; set; }
@@ -31,8 +32,8 @@ namespace JKWatcher
 		public bool TrueJedi { get; set; }
 		public bool WeaponDisable { get; set; }
 		public bool ForceDisable { get; set; }
-		public ProtocolVersion Protocol { get; set; }
-		public ClientVersion Version { get; set; }
+		public string Protocol { get; set; }
+		public string Version { get; set; }
 		public string ServerGameVersionString { get; set; }
 		public string Location { get; set; }
 		public bool NWH { get; set; } // NWH mod detection
