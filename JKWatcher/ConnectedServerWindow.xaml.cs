@@ -17,17 +17,55 @@ using System.Windows.Shapes;
 using System.Drawing;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace JKWatcher
 {
 
 
-    public class SnapsSettings
+    public class SnapsSettings : INotifyPropertyChanged
     {
-        public bool forceBotOnlySnaps = true;
-        public int botOnlySnaps = 5;
-        public bool forceEmptySnaps = true;
-        public int emptySnaps = 2;
+        private int _botOnlySnaps = 5;
+        private int _emptySnaps = 2;
+
+        public bool forceBotOnlySnaps { get; set; } = true;
+        public int botOnlySnaps { 
+            get {
+                return _botOnlySnaps;
+            } 
+            set {
+                int fixedValue = Math.Max(1, value);
+                if (fixedValue != _botOnlySnaps)
+                {
+                    _botOnlySnaps = fixedValue;
+                    OnPropertyChanged();
+                }
+            } 
+        }
+        public bool forceEmptySnaps { get; set; } = true;
+        public int emptySnaps
+        {
+            get
+            {
+                return _emptySnaps;
+            }
+            set
+            {
+                int fixedValue = Math.Max(1, value);
+                if (fixedValue != _emptySnaps)
+                {
+                    _emptySnaps = fixedValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged([CallerMemberName] string name = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
     }
 
 
@@ -64,7 +102,7 @@ namespace JKWatcher
             }
         }
 
-        SnapsSettings snapsSettings = new SnapsSettings();
+        public SnapsSettings snapsSettings = new SnapsSettings();
 
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
         private FullyObservableCollection<CameraOperator> cameraOperators = new FullyObservableCollection<CameraOperator>();
@@ -141,6 +179,8 @@ namespace JKWatcher
             backgroundTasks.Add(tokenSource);
 
             startLogStringUpdater();
+
+            snapsSettingsControls.DataContext = snapsSettings;
 
         } 
         
@@ -236,7 +276,7 @@ namespace JKWatcher
         List<string> dequeuedStrings = new List<string>();
         List<string> stringsToForceWriteToLogFile = new List<string>();
 
-        string timeString = "", lastTimeString = "";
+        string timeString = "", lastTimeString = "", lastTimeStringForced = "";
         private void logStringUpdater(CancellationToken ct)
         {
             while (true)
@@ -252,13 +292,13 @@ namespace JKWatcher
                 while (logQueue.TryDequeue(out stringToAdd))
                 {
                     timeString = $"[{stringToAdd.time.ToString("yyyy-MM-dd HH:mm:ss")}]";
-                    bool timeStringChanged = timeString != lastTimeString;
                     if (stringToAdd.forceLogToFile)
                     {
-                        if(timeStringChanged) stringsToForceWriteToLogFile.Add(timeString);
+                        if(lastTimeStringForced != timeString) stringsToForceWriteToLogFile.Add(timeString);
                         stringsToForceWriteToLogFile.Add(stringToAdd.logString);
+                        lastTimeStringForced = timeString;
                     }
-                    if (timeStringChanged) dequeuedStrings.Add(timeString);
+                    if (timeString != lastTimeString) dequeuedStrings.Add(timeString);
                     dequeuedStrings.Add(stringToAdd.logString);
                     lastTimeString = timeString;
                 }
@@ -506,6 +546,10 @@ namespace JKWatcher
         public void createCTFOperator()
         {
             createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
+        }
+        public void createOCDefragOperator()
+        {
+            createCameraOperator<CameraOperators.OCDCameraOperator>();
         }
         public void createStrobeOperator()
         {
@@ -945,13 +989,17 @@ namespace JKWatcher
             passwordTxt.Text = password;
         }
 
-        private void btnSetName_Click(object sender, RoutedEventArgs e)
+        public void setUserInfoName(string name = null)
         {
-            userInfoName = nameTxt.Text == "" ? null : nameTxt.Text;
+            userInfoName = name;
             foreach (Connection conn in connections)
             {
                 conn.SetUserInfoName(userInfoName);
             }
+        }
+        private void btnSetName_Click(object sender, RoutedEventArgs e)
+        {
+            this.setUserInfoName(nameTxt.Text == "" ? null : nameTxt.Text);
         }
         private void btnClearName_Click(object sender, RoutedEventArgs e)
         {
@@ -981,7 +1029,7 @@ namespace JKWatcher
                 conn.SetClientNumNameAttach(attachClientNumToName);
             }
         }
-
+        /*
         private void updateSnapsSettings()
         {
             if (botOnlySnapsCheck == null || emptySnapsCheck == null || botOnlySnapsTxt == null || emptySnapsTxt == null)
@@ -995,6 +1043,19 @@ namespace JKWatcher
             if (snapsSettings.botOnlySnaps < 1) snapsSettings.botOnlySnaps = 1;
             if (snapsSettings.emptySnaps < 1) snapsSettings.emptySnaps = 1;
         }
+        private void writeSnapsSettingsToGUI()
+        {
+            if (botOnlySnapsCheck == null || emptySnapsCheck == null || botOnlySnapsTxt == null || emptySnapsTxt == null)
+            {
+                return;
+            }
+            botOnlySnapsCheck.IsChecked = snapsSettings.forceBotOnlySnaps;
+            emptySnapsCheck.IsChecked = snapsSettings.forceEmptySnaps;
+            botOnlySnapsTxt.Text = snapsSettings.botOnlySnaps.ToString();
+            emptySnapsTxt.Text = snapsSettings.emptySnaps.ToString();
+            if (snapsSettings.botOnlySnaps < 1) snapsSettings.botOnlySnaps = 1;
+            if (snapsSettings.emptySnaps < 1) snapsSettings.emptySnaps = 1;
+        }
 
         private void snapsCheck_Checked(object sender, RoutedEventArgs e)
         {
@@ -1004,7 +1065,7 @@ namespace JKWatcher
         private void snapsTxt_TextChanged(object sender, TextChangedEventArgs e)
         {
             updateSnapsSettings();
-        }
+        }*/
 
         private void statsBtn_Click(object sender, RoutedEventArgs e)
         {

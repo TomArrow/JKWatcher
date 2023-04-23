@@ -19,6 +19,13 @@ using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Salaros.Configuration;
+using System.Windows.Threading;
+
+// TODO: Javascripts that can be executed and interoperate with the program?
+// Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
+// TODO Save server players info as json
+
 
 namespace JKWatcher
 {
@@ -45,6 +52,11 @@ namespace JKWatcher
             protocols.ItemsSource = System.Enum.GetValues(typeof(ProtocolVersion));
             protocols.SelectedItem = ProtocolVersion.Protocol15;
             //getServers();
+
+            configsComboBox.ItemsSource = Directory.GetFiles("configs", "*.ini").Select(s => System.IO.Path.GetFileNameWithoutExtension(s)).ToArray();
+
+
+
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
@@ -191,11 +203,14 @@ namespace JKWatcher
                         if (serverInfo.Version == ClientVersion.JO_v1_02)
                         {
                             bool alreadyConnected = false;
-                            foreach (ConnectedServerWindow window in connectedServerWindows)
+                            lock (connectedServerWindows)
                             {
-                                if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
+                                foreach (ConnectedServerWindow window in connectedServerWindows)
                                 {
-                                    alreadyConnected = true;
+                                    if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
+                                    {
+                                        alreadyConnected = true;
+                                    }
                                 }
                             }
                             // We want to be speccing/recording this.
@@ -205,16 +220,19 @@ namespace JKWatcher
                                 
                                 Dispatcher.Invoke(()=> {
 
-                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
-                                    connectedServerWindows.Add(newWindow);
-                                    newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
-                                    newWindow.Show();
-                                    newWindow.createCTFOperator();
-                                    if (ctfAutoJoinWithStrobeActive)
+                                    lock (connectedServerWindows)
                                     {
-                                        newWindow.createStrobeOperator();
+                                        ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                        connectedServerWindows.Add(newWindow);
+                                        newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                        newWindow.Show();
+                                        newWindow.createCTFOperator();
+                                        if (ctfAutoJoinWithStrobeActive)
+                                        {
+                                            newWindow.createStrobeOperator();
+                                        }
+                                        newWindow.recordAll();
                                     }
-                                    newWindow.recordAll();
                                 });
                             } else if (!alreadyConnected && serverInfo.Clients >= minPlayersForJoin && !serverInfo.StatusResponseReceived)
                             {
@@ -294,11 +312,14 @@ namespace JKWatcher
             //MessageBox.Show(serverInfo.HostName);
             if (serverInfo != null)
             {
-                //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
-                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address,serverInfo.Protocol,serverInfo.HostName, pw);
-                connectedServerWindows.Add(newWindow);
-                newWindow.Closed += (a,b)=> { connectedServerWindows.Remove(newWindow); };
-                newWindow.Show();
+                lock (connectedServerWindows)
+                {
+                    //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw);
+                    connectedServerWindows.Add(newWindow);
+                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Show();
+                }
             }
         }
 
@@ -326,11 +347,14 @@ namespace JKWatcher
             ProtocolVersion? protocol = protocols.SelectedItem != null ? (ProtocolVersion)protocols.SelectedItem : null;
             if(ip.Length > 0 && protocol != null)
             {
-                //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
-                ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value,null,pw);
-                connectedServerWindows.Add(newWindow);
-                newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
-                newWindow.Show();
+                lock (connectedServerWindows)
+                {
+                    //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value, null, pw);
+                    connectedServerWindows.Add(newWindow);
+                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Show();
+                }
             }
             /*ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
             //MessageBox.Show(serverInfo.HostName);
@@ -348,5 +372,233 @@ namespace JKWatcher
             var colorDecoderWindow = new ColorTimeDecoder();
             colorDecoderWindow.Show();
         }
+
+
+        class ServerToConnect
+        {
+            public string hostName = null;
+            public string playerName = null;
+            public bool autoRecord = false;
+            public int retries = 5;
+            public int? botSnaps = 5;
+            public string[] watchers = null;
+
+            public ServerToConnect(ConfigSection config)
+            {
+                hostName = config["hostName"]?.Trim();
+                if (hostName == null || hostName.Length == 0) throw new Exception("ServerConnectConfig: hostName must be provided");
+                playerName = config["playerName"]?.Trim();
+                autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
+                retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
+                botSnaps = config["botSnaps"]?.Trim().Atoi();
+                watchers = config["watchers"]?.Trim().Split(',');
+
+            }
+
+            public bool FitsRequirements(ServerInfo serverInfo)
+            {
+                if (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName))) // Improve this to also find non-colorcoded terms etc
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+
+        void ConnectFromConfig(ServerInfo serverInfo, ServerToConnect serverToConnect)
+        {
+            Debug.WriteLine(serverInfo.Address.ToString());
+            Dispatcher.Invoke(() => {
+
+                lock (connectedServerWindows)
+                {
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, serverToConnect.playerName);
+                    connectedServerWindows.Add(newWindow);
+                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Show();
+                    /*if(serverToConnect.playerName != null)
+                    {
+                        newWindow.setUserInfoName(serverToConnect.playerName);
+                    }*/
+                    if (serverToConnect.botSnaps != null)
+                    {
+                        newWindow.snapsSettings.botOnlySnaps = serverToConnect.botSnaps.Value;
+                    }
+                    if (serverToConnect.watchers != null)
+                    {
+                        foreach (string camera in serverToConnect.watchers)
+                        {
+                            switch (camera)
+                            {
+                                case "defrag":
+                                case "ocd":
+                                    newWindow.createOCDefragOperator();
+                                    break;
+                                case "ctf":
+                                    newWindow.createCTFOperator();
+                                    break;
+                                case "strobe":
+                                    newWindow.createStrobeOperator();
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                    if (serverToConnect.autoRecord)
+                    {
+                        newWindow.recordAll();
+                    }
+                }
+            });
+        }
+
+        private void executeConfig(ConfigParser cp)
+        {
+            if (cp.GetValue("__general__","ctfAutoConnect",0) == 1)
+            {
+                ctfAutoJoin.IsChecked = true;
+            }
+            if (cp.GetValue("__general__", "ctfAutoConnectWithStrobe", 0) == 1)
+            {
+                ctfAutoJoinWithStrobe.IsChecked = true;
+            }
+            List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
+            foreach(ConfigSection section in cp.Sections)
+            {
+                if (section.SectionName == "__general__") continue;
+
+                if(section["hostName"] != null)
+                {
+                    serversToConnect.Add(new ServerToConnect(section));
+                }
+            }
+            if (serversToConnect.Count > 0)
+            {
+                int tries = 0;
+
+                Task.Run(async () => {
+
+                    while (serversToConnect.Count > 0)
+                    {
+
+
+                        List<ServerToConnect> elementsToRemove = new List<ServerToConnect>();
+
+                        foreach (ServerToConnect serverToConnect in serversToConnect)
+                        {
+                            if (serverToConnect.retries < tries)
+                            {
+                                elementsToRemove.Add(serverToConnect);
+                            }
+                        }
+                        foreach (ServerToConnect elementToRemove in elementsToRemove)
+                        {
+                            serversToConnect.Remove(elementToRemove);
+                        }
+                        elementsToRemove.Clear();
+
+
+                        IEnumerable<ServerInfo> servers = null;
+
+                        ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+
+                        try
+                        {
+
+                            serverBrowser.Start(ExceptionCallback);
+                            servers = await serverBrowser.GetNewList();
+                            //servers = await serverBrowser.RefreshList();
+                        }
+                        catch (Exception e)
+                        {
+                            // Just in case getting servers crashes or sth.
+                            continue;
+                        }
+
+                        if (servers == null) continue;
+
+
+                        foreach (ServerInfo serverInfo in servers)
+                        {
+                            if (serverInfo.Version == ClientVersion.JO_v1_02)
+                            {
+                                bool wantToConnect = false;
+                                ServerToConnect wishServer = null;
+                                foreach (ServerToConnect serverToConnect in serversToConnect)
+                                {
+                                    if (serverToConnect.FitsRequirements(serverInfo))
+                                    {
+                                        wantToConnect = true;
+                                        wishServer = serverToConnect;
+                                        elementsToRemove.Add(serverToConnect);
+                                    }
+                                }
+                                if (!wantToConnect) continue;
+
+                                bool alreadyConnected = false;
+                                lock (connectedServerWindows)
+                                {
+                                    foreach (ConnectedServerWindow window in connectedServerWindows)
+                                    {
+                                        if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
+                                        {
+                                            alreadyConnected = true;
+                                        }
+                                    }
+                                }
+                                // We want to be speccing/recording this.
+                                // Check if we are already connected. If so, do nothing.
+                                if (!alreadyConnected && !serverInfo.NeedPassword)
+                                {
+
+                                    ConnectFromConfig(serverInfo,wishServer);
+                                    
+                                }
+
+                            }
+
+
+                        }
+
+                        foreach (ServerToConnect elementToRemove in elementsToRemove)
+                        {
+                            serversToConnect.Remove(elementToRemove);
+                        }
+                        elementsToRemove.Clear();
+
+                        saveServerStats(servers);
+                        serverBrowser.Stop();
+                        serverBrowser.Dispose();
+
+                        tries++;
+                    }
+                
+                });
+            }
+        }
+
+        private void executeConfig_Click(object sender, RoutedEventArgs e)
+        {
+            string config = configsComboBox.SelectedItem != null ? (string)configsComboBox.SelectedItem : null;
+            if (config != null)
+            {
+                try
+                {
+                    ConfigParser cp = new ConfigParser($"configs/{config}.ini");
+                    executeConfig(cp);
+                } catch(Exception ex)
+                {
+                    Helpers.logToFile(new string[] {$"Error executing config: {ex.ToString()}" });
+                }
+            }
+        }
+
+
+
     }
 }

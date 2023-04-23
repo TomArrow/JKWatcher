@@ -197,14 +197,16 @@
             </WrapPanel>
             <CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
             <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>
-            <WrapPanel>
-                <CheckBox x:Name="botOnlySnapsCheck" IsChecked="True" Checked="snapsCheck_Checked" Unchecked="snapsCheck_Checked">Bot-only snaps</CheckBox>
-                <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" TextChanged="snapsTxt_TextChanged">5</TextBox>
-            </WrapPanel>
-            <WrapPanel>
-                <CheckBox x:Name="emptySnapsCheck" IsChecked="True" Checked="snapsCheck_Checked" Unchecked="snapsCheck_Checked">Empty snaps</CheckBox>
-                <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" TextChanged="snapsTxt_TextChanged">2</TextBox>
-            </WrapPanel>
+            <StackPanel x:Name="snapsSettingsControls">
+                <WrapPanel>
+                    <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
+                    <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
+                </WrapPanel>
+                <WrapPanel>
+                    <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
+                    <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
+                </WrapPanel>
+            </StackPanel>
         </StackPanel>
     </Grid>
 </Window>

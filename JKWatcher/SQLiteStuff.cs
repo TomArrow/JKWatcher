@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace JKWatcher
@@ -45,7 +46,8 @@ namespace JKWatcher
 		static ServerInfoPublic() {
 			MapperConfiguration configuration = new MapperConfiguration(cfg =>
 			{
-				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=>string.Join(',',src.Players)));
+				//cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=>string.Join(',',src.Players)));
+				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=> JsonSerializer.Serialize(src.Players,null)));
 			});
 #if DEBUG
 			configuration.AssertConfigurationIsValid();

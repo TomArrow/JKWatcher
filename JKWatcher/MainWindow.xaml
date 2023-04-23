@@ -53,6 +53,9 @@
             <ComboBox x:Name="protocols"></ComboBox>
 
             <Button x:Name="connectIPBtn" Click="connectIPBtn_Click">Manual connect</Button>
+
+            <ComboBox x:Name="configsComboBox" Margin="5 0 0 0"></ComboBox>
+            <Button x:Name="executeConfigBtn" Click="executeConfig_Click">Execute</Button>
             
         </WrapPanel>
     </Grid>
