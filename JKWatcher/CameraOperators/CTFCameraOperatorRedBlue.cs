@@ -1512,11 +1512,12 @@ namespace JKWatcher.CameraOperators
 
                 grade = 1;
 
-                if (isOnSameTeamAsFlag)
+                if (isOnSameTeamAsFlag/* && this.isAlive*/) // Don't give ret bonus if dead maybe? Nonsensical. Or make longer time dead -> less buff?
                 {
                     // Good retter more interesting to watch
-                    grade /= this.retCount > 0 ? this.retCount : 1f;
+                    grade /= this.retCount > 0 ? (float)Math.Pow((double)this.retCount,1.0/3.0) : 1f; // It's now the cubic root. So 8 rets vs 1 will roughly double probability, 27 vs 1 will 3 fold probability. It was just too strong before with linear. 9 rets vs 1 ret would surpass the impact of 2000  units of distance or being dead. Ridiculous.
                 }
+                // TODO Debuff if not currently visible? But might make camp visibility less likely, sad. hmm
                 grade *= (float)Math.Pow(3, Math.Min(this.informationAge, 7000) / 2000); // 2 second old information is 3 times worse. 4 second old information is 9 times  worse
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
