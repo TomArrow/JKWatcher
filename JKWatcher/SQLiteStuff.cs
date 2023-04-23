@@ -39,12 +39,13 @@ namespace JKWatcher
 		public bool NWH { get; set; } // NWH mod detection
 		public int FloodProtect { get; set; } = -1; // -1 if not yet set, -2 if server does not send it at all
 		public bool Pure { get; set; }
+		public string Players { get; set; }
 
 		static IMapper mapper;
 		static ServerInfoPublic() {
 			MapperConfiguration configuration = new MapperConfiguration(cfg =>
 			{
-				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>();
+				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=>string.Join(',',src.Players)));
 			});
 #if DEBUG
 			configuration.AssertConfigurationIsValid();
