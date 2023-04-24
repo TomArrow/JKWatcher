@@ -1665,6 +1665,7 @@ namespace JKWatcher
                     //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
                     bool helpRequested = false;
+                    bool reframeRequested = false;
                     int markMinutes = 1;
                     switch (messageBits[0])
                     {
@@ -1673,6 +1674,7 @@ namespace JKWatcher
                             {
                                 leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                 leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
 
                                 return;
                             }
@@ -1688,6 +1690,11 @@ namespace JKWatcher
                             helpRequested = true;
                             break;
                         case "!mark":
+                        case "!markme":
+                            if(messageBits[0] == "!markme")
+                            {
+                                reframeRequested = true;
+                            }
                             markRequested = true;
                             if (messageBits.Length > 1)
                             {
@@ -1695,6 +1702,11 @@ namespace JKWatcher
                             }
                             break;
                         case "mark":
+                        case "markme":
+                            if (messageBits[0] == "markme")
+                            {
+                                reframeRequested = true;
+                            }
                             if (pm.type == ChatType.PRIVATE)
                             {
                                 markRequested = true;
@@ -1711,10 +1723,13 @@ namespace JKWatcher
                         serverWindow.addToLog($"help requested by \"{pm.playerName}\" (clientNum {pm.playerNum})\n");
                         leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                         leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                         return;
                     }
 
                     int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
+
+                    string withReframe = reframeRequested ? "+reframe" : "";
                     if (markRequested)
                     {
                         ServerInfo thisServerInfo = client?.ServerInfo;
@@ -1724,7 +1739,7 @@ namespace JKWatcher
                         }
                         StringBuilder demoCutCommand = new StringBuilder();
                         DateTime now = DateTime.Now;
-                        demoCutCommand.Append($"rem demo cut requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+                        demoCutCommand.Append($"rem demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
                         demoCutCommand.Append("DemoCutter ");
                         string demoPath = client?.AbsoluteDemoName;
                         if(demoPath == null)
@@ -1733,13 +1748,23 @@ namespace JKWatcher
                         }
                         string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts"), demoPath);
                         demoCutCommand.Append($"\"{relativeDemoPath}\" ");
-                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}";
+                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}";
                         filename = Helpers.MakeValidFileName(filename);
+                        filename = Helpers.DemoCuttersanitizeFilename(filename,false);
                         demoCutCommand.Append($"\"{filename}\" ");
                         demoCutCommand.Append(Math.Max(0, demoTime- markMinutes*60000).ToString());
                         demoCutCommand.Append(" ");
                         demoCutCommand.Append((demoTime + 60000).ToString());
                         demoCutCommand.Append("\n");
+
+                        if (reframeRequested)
+                        {
+                            demoCutCommand.Append("DemoReframer ");
+                            demoCutCommand.Append($"\"{filename}.dm_15\" ");
+                            demoCutCommand.Append($"\"{filename}_reframed.dm_15\" ");
+                            demoCutCommand.Append(pm.playerNum);
+                            demoCutCommand.Append("\n");
+                        }
 
                         Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
                     }
@@ -1747,9 +1772,8 @@ namespace JKWatcher
                     {
                         return;
                     }
-
-                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Your time was marked for demo cutting, {markMinutes} minute(s) into the past. For reference, the current demo time is {demoTime}.\"",RequestCategory.NONE,0,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null);
-                    serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past\n");
+                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {demoTime}.\"",RequestCategory.NONE,0,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null);
+                    serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past\n");
                     return;
                 }
             }
