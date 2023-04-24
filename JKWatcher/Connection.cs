@@ -1660,13 +1660,16 @@ namespace JKWatcher
 
                     string[] messageBits = pm.message.ToLower().Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (messageBits.Length == 0 || messageBits.Length > 2) return;
+                    if (messageBits.Length == 0 || messageBits.Length > 3) return;
 
                     //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
                     bool helpRequested = false;
                     bool reframeRequested = false;
                     int markMinutes = 1;
+                    int reframeClientNum = pm.playerNum;
+                    int requiredCommandParts = 1;
+                    int maxClientsHere = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
                     switch (messageBits[0])
                     {
                         default:
@@ -1691,29 +1694,51 @@ namespace JKWatcher
                             break;
                         case "!mark":
                         case "!markme":
-                            if(messageBits[0] == "!markme")
+                        case "!markas":
+
+                            if (messageBits[0] == "!markas")
+                            {
+                                reframeRequested = true;
+                                requiredCommandParts = 2;
+                                if (messageBits.Length > 1 && int.TryParse(messageBits[1], out int tmp) && tmp >= 0 && tmp < maxClientsHere)
+                                {
+                                    reframeClientNum = tmp;
+                                }
+                            }
+                            else if (messageBits[0] == "!markme")
                             {
                                 reframeRequested = true;
                             }
                             markRequested = true;
-                            if (messageBits.Length > 1)
+                            if (messageBits.Length > requiredCommandParts)
                             {
                                 markMinutes = Math.Max(1, messageBits[1].Atoi());
                             }
                             break;
                         case "mark":
                         case "markme":
-                            if (messageBits[0] == "markme")
-                            {
-                                reframeRequested = true;
-                            }
+                        case "markas":
                             if (pm.type == ChatType.PRIVATE)
                             {
                                 markRequested = true;
-                            }
-                            if (messageBits.Length == 2)
-                            {
-                                markMinutes = Math.Max(1, messageBits[1].Atoi());
+
+                                if (messageBits[0] == "markas")
+                                {
+                                    reframeRequested = true;
+                                    requiredCommandParts = 2;
+                                    if (messageBits.Length > 1 && int.TryParse(messageBits[1], out int tmp) && tmp >= 0 && tmp < maxClientsHere)
+                                    {
+                                        reframeClientNum = tmp;
+                                    }
+                                }
+                                else if (messageBits[0] == "markme")
+                                {
+                                    reframeRequested = true;
+                                }
+                                if (messageBits.Length > requiredCommandParts)
+                                {
+                                    markMinutes = Math.Max(1, messageBits[1].Atoi());
+                                }
                             }
                             break;
                     }
@@ -1729,7 +1754,8 @@ namespace JKWatcher
 
                     int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
 
-                    string withReframe = reframeRequested ? "+reframe" : "";
+                    string asClientNum = reframeClientNum != pm.playerNum ? $"(as {reframeClientNum})" : "";
+                    string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
                     if (markRequested)
                     {
                         ServerInfo thisServerInfo = client?.ServerInfo;
@@ -1761,8 +1787,8 @@ namespace JKWatcher
                         {
                             demoCutCommand.Append("DemoReframer ");
                             demoCutCommand.Append($"\"{filename}.dm_15\" ");
-                            demoCutCommand.Append($"\"{filename}_reframed.dm_15\" ");
-                            demoCutCommand.Append(pm.playerNum);
+                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}.dm_15\" ");
+                            demoCutCommand.Append(reframeClientNum);
                             demoCutCommand.Append("\n");
                         }
 
