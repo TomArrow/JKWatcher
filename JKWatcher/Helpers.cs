@@ -111,6 +111,44 @@ namespace JKWatcher
             }
         }
 
+        public static string requestedDemoCutLogFile = "demoCuts.bat";
+        public static void logRequestedDemoCut(string[] texts)
+        {
+            try {
+
+                Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"));
+                //lock (forcedLogFileName)
+                using(new GlobalMutexHelper("JKWatcherRequestedDemoCutLogMutex"))
+                {
+                    int retryTime = 0;
+                    bool successfullyWritten = false;
+                    while (!successfullyWritten && retryTime < logfileWriteTimeout)
+                    {
+                        try
+                        {
+
+                            File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts", requestedDemoCutLogFile), texts);
+                            successfullyWritten = true;
+                        }
+                        catch (IOException)
+                        {
+                            // Wait 100 ms then try again. File is probably locked.
+                            // This will probably lock up the thread a bit in some cases
+                            // but the log display/write thread is separate from the rest of the 
+                            // program anyway so it shouldn't have a terrible impact other than a delayed
+                            // display.
+                            System.Threading.Thread.Sleep(logfileWriteRetryDelay);
+                            retryTime += logfileWriteRetryDelay;
+                        }
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                // Failed to get  mutex, weird...
+            }
+        }
+
         static Mutex specificDebugMutex = new Mutex();
 
         public static void logToSpecificDebugFile(byte[] data, string specificFileName)

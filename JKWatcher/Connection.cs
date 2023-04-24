@@ -1390,6 +1390,10 @@ namespace JKWatcher
                 case "print":
                     EvaluatePrint(commandEventArgs);
                     break;
+                case "chat":
+                case "tchat":
+                    EvaluateChat(commandEventArgs);
+                    break;
                 default:
                     break;
             }
@@ -1531,29 +1535,251 @@ namespace JKWatcher
             }
         }
         
+        struct ParsedChatMessage
+        {
+            public string playerName;
+            public int playerNum;
+            public ChatType type;
+            public string message;
+        }
+        enum ChatType
+        {
+            NONE,
+            PRIVATE,
+            TEAM,
+            PUBLIC
+        }
+        const string privateChatBegin = "[";
+        const string teamChatBegin = "(";
+        const string privateChatSeparator = "^7]: ^6";
+        const string teamChatSeparator = "^7): ^5";
+        const string publicChatSeparator = "^7: ^2";
+        ParsedChatMessage? ParseChatMessage(string nameChatSegmentA)
+        {
+            string nameChatSegment = nameChatSegmentA;
+            ChatType detectedChatType = ChatType.PUBLIC;
+            if (nameChatSegment.Length < privateChatBegin.Length + 1)
+            {
+                return null; // Idk
+            }
+
+            string separator;
+            if (nameChatSegment.Substring(0, privateChatBegin.Length) == privateChatBegin)
+            {
+                detectedChatType = ChatType.PRIVATE;
+                nameChatSegment = nameChatSegment.Substring(privateChatBegin.Length);
+                separator = privateChatSeparator;
+            } else if (nameChatSegment.Substring(0, teamChatBegin.Length) == teamChatBegin)
+            {
+                detectedChatType = ChatType.TEAM;
+                nameChatSegment = nameChatSegment.Substring(teamChatBegin.Length);
+                separator = teamChatSeparator;
+            }
+            else
+            {
+                separator = publicChatSeparator;
+            }
+
+            int separatorLength = separator.Length;
+
+            string[] nameChatSplits = nameChatSegment.Split(new string[] { separator }, StringSplitOptions.None);
+
+            List<int> possiblePlayers = new List<int>();
+            if (nameChatSplits.Length > 2)
+            {
+                // WTf. Someone is messing around and having a complete meme name or meme message consisting of the separator sequence.
+                // Let's TRY find out who it is.
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < nameChatSplits.Length - 1; i++)
+                {
+                    if (i != 0)
+                    {
+                        sb.Append(separator);
+                    }
+                    sb.Append(nameChatSplits[i]);
+                    string possibleName = sb.ToString();
+                    foreach (PlayerInfo playerInfo in infoPool.playerInfo)
+                    {
+                        if (playerInfo.infoValid && playerInfo.name == possibleName)
+                        {
+                            possiblePlayers.Add(playerInfo.clientNum);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (PlayerInfo playerInfo in infoPool.playerInfo)
+                {
+                    if (playerInfo.infoValid && playerInfo.name == nameChatSplits[0])
+                    {
+                        possiblePlayers.Add(playerInfo.clientNum);
+                    }
+                }
+            }
+            if (possiblePlayers.Count == 0)
+            {
+                serverWindow.addToLog($"Could not identify sender of (t)chat message. Zero matches: {nameChatSegmentA}", true);
+                return null;
+            }
+            else if (possiblePlayers.Count > 1)
+            {
+                serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA}", true);
+                return null;
+            }
+
+            int playerNum = possiblePlayers[0];
+            string playerName = infoPool.playerInfo[playerNum].name;
+            if (playerName == null)
+            {
+                serverWindow.addToLog($"Received message from player whose name in infoPool is now null, wtf.", true);
+                return null;
+            }
+
+            return new ParsedChatMessage() { message = nameChatSegment.Substring(playerName.Length + separatorLength).Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType };
+        }
+
+        void EvaluateChat(CommandEventArgs commandEventArgs)
+        {
+            try { 
+                if (client?.Demorecording != true) return; // Why mark demo times if we're not recording...
+                if (commandEventArgs.Command.Argc >= 2)
+                {
+
+                    int? myClientNum = client?.clientNum;
+                    if (!myClientNum.HasValue) return;
+                    string nameChatSegment = commandEventArgs.Command.Argv(1);
+
+                    ParsedChatMessage? pmMaybe = ParseChatMessage(nameChatSegment);
+
+                    if (!pmMaybe.HasValue) return;
+
+                    ParsedChatMessage pm = pmMaybe.Value;
+                    
+                    if (pm.playerNum == myClientNum || pm.message == null) return; // Message from myself. Ignore.
+
+                    string[] messageBits = pm.message.ToLower().Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (messageBits.Length == 0 || messageBits.Length > 2) return;
+
+                    StringBuilder response = new StringBuilder();
+                    bool markRequested = false;
+                    bool helpRequested = false;
+                    int markMinutes = 1;
+                    switch (messageBits[0])
+                    {
+                        default:
+                            if(pm.type == ChatType.PRIVATE)
+                            {
+                                response.Append("I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo. If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10");
+                            }
+                            break;
+                        case "!help":
+                        case "help":
+                        case "demohelp":
+                            if (pm.type == ChatType.PRIVATE) {
+                                helpRequested = true;
+                            }
+                            break;
+                        case "!demohelp":
+                            helpRequested = true;
+                            break;
+                        case "!mark":
+                            markRequested = true;
+                            if (messageBits.Length > 1)
+                            {
+                                markMinutes = Math.Max(1, messageBits[1].Atoi());
+                            }
+                            break;
+                        case "mark":
+                            if (pm.type == ChatType.PRIVATE)
+                            {
+                                markRequested = true;
+                            }
+                            if (messageBits.Length == 2)
+                            {
+                                markMinutes = Math.Max(1, messageBits[1].Atoi());
+                            }
+                            break;
+                    }
+
+                    if (helpRequested)
+                    {
+                        serverWindow.addToLog($"help requested by \"{pm.playerName}\" (clientNum {pm.playerNum})\n");
+                        response.Append("Here is your help: Type !demohelp for help or !mark to mark a time point for a demo. If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10");
+                    }
+
+                    int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
+                    if (markRequested)
+                    {
+                        ServerInfo thisServerInfo = client?.ServerInfo;
+                        if(thisServerInfo == null)
+                        {
+                            return;
+                        }
+                        StringBuilder demoCutCommand = new StringBuilder();
+                        DateTime now = DateTime.Now;
+                        demoCutCommand.Append($"rem demo cut requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+                        demoCutCommand.Append("DemoCutter ");
+                        string demoPath = client?.AbsoluteDemoName;
+                        if(demoPath == null)
+                        {
+                            return;
+                        }
+                        string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts"), demoPath);
+                        demoCutCommand.Append($"\"{relativeDemoPath}\" ");
+                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}";
+                        filename = Helpers.MakeValidFileName(filename);
+                        demoCutCommand.Append($"\"{filename}\" ");
+                        demoCutCommand.Append(Math.Max(0, demoTime- markMinutes*60000).ToString());
+                        demoCutCommand.Append(" ");
+                        demoCutCommand.Append((demoTime + 60000).ToString());
+                        demoCutCommand.Append("\n");
+
+                        Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
+                    } else if(response.Length > 0)
+                    {
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{response.ToString()}\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        return;
+                    }  else
+                    {
+                        return;
+                    }
+
+                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Your time was marked for demo cutting, {markMinutes} minute(s) into the past. For reference, the current demo time is {demoTime}.\"",RequestCategory.NONE,0,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null);
+                    serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past\n");
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                serverWindow.addToLog("Error evaluating chat: " + e.ToString(), true);
+            }
+        }
+        
         void EvaluateTInfo(CommandEventArgs commandEventArgs)
         {
             int i;
-            int client;
+            int theClient;
 
             int numSortedTeamPlayers = commandEventArgs.Command.Argv(1).Atoi();
 
             for (i = 0; i < numSortedTeamPlayers; i++)
             {
-                client = commandEventArgs.Command.Argv(i * 6 + 2).Atoi();
+                theClient = commandEventArgs.Command.Argv(i * 6 + 2).Atoi();
 
                 //sortedTeamPlayers[i] = client;
 
-                if(client < 0 || client >= 32)
+                if(theClient < 0 || theClient >= 32)
                 {
-                    serverWindow.addToLog("TeamInfo client weird number "+client.ToString());
+                    serverWindow.addToLog("TeamInfo client weird number "+theClient.ToString());
                 } else { 
 
-                    infoPool.playerInfo[client].location = commandEventArgs.Command.Argv(i * 6 + 3).Atoi();
-                    infoPool.playerInfo[client].health = commandEventArgs.Command.Argv(i * 6 + 4).Atoi();
-                    infoPool.playerInfo[client].armor = commandEventArgs.Command.Argv(i * 6 + 5).Atoi();
-                    infoPool.playerInfo[client].curWeapon = commandEventArgs.Command.Argv(i * 6 + 6).Atoi();
-                    infoPool.playerInfo[client].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
+                    infoPool.playerInfo[theClient].location = commandEventArgs.Command.Argv(i * 6 + 3).Atoi();
+                    infoPool.playerInfo[theClient].health = commandEventArgs.Command.Argv(i * 6 + 4).Atoi();
+                    infoPool.playerInfo[theClient].armor = commandEventArgs.Command.Argv(i * 6 + 5).Atoi();
+                    infoPool.playerInfo[theClient].curWeapon = commandEventArgs.Command.Argv(i * 6 + 6).Atoi();
+                    infoPool.playerInfo[theClient].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
                     if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
