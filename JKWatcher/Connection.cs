@@ -1662,7 +1662,7 @@ namespace JKWatcher
 
                     if (messageBits.Length == 0 || messageBits.Length > 2) return;
 
-                    StringBuilder response = new StringBuilder();
+                    //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
                     bool helpRequested = false;
                     int markMinutes = 1;
@@ -1671,7 +1671,10 @@ namespace JKWatcher
                         default:
                             if(pm.type == ChatType.PRIVATE)
                             {
-                                response.Append("I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo. If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10");
+                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+
+                                return;
                             }
                             break;
                         case "!help":
@@ -1706,7 +1709,9 @@ namespace JKWatcher
                     if (helpRequested)
                     {
                         serverWindow.addToLog($"help requested by \"{pm.playerName}\" (clientNum {pm.playerNum})\n");
-                        response.Append("Here is your help: Type !demohelp for help or !mark to mark a time point for a demo. If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10");
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        return;
                     }
 
                     int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
@@ -1737,11 +1742,8 @@ namespace JKWatcher
                         demoCutCommand.Append("\n");
 
                         Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
-                    } else if(response.Length > 0)
-                    {
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{response.ToString()}\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                        return;
-                    }  else
+                    }
+                    else
                     {
                         return;
                     }
