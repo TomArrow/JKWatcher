@@ -1712,7 +1712,7 @@ namespace JKWatcher
                             markRequested = true;
                             if (messageBits.Length > requiredCommandParts)
                             {
-                                markMinutes = Math.Max(1, messageBits[1].Atoi());
+                                markMinutes = Math.Max(1, messageBits[requiredCommandParts].Atoi());
                             }
                             break;
                         case "mark":
@@ -1737,7 +1737,7 @@ namespace JKWatcher
                                 }
                                 if (messageBits.Length > requiredCommandParts)
                                 {
-                                    markMinutes = Math.Max(1, messageBits[1].Atoi());
+                                    markMinutes = Math.Max(1, messageBits[requiredCommandParts].Atoi());
                                 }
                             }
                             break;
