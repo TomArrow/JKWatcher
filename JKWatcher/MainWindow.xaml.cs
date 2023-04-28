@@ -52,8 +52,16 @@ namespace JKWatcher
             protocols.ItemsSource = System.Enum.GetValues(typeof(ProtocolVersion));
             protocols.SelectedItem = ProtocolVersion.Protocol15;
             //getServers();
+            string[] configs =null;
+            try
+            {
+                configs = Directory.GetFiles("configs", "*.ini").Select(s => System.IO.Path.GetFileNameWithoutExtension(s)).ToArray();
+                configsComboBox.ItemsSource = configs;
+            } catch(Exception e)
+            {
+                // Don't care.
+            }
 
-            configsComboBox.ItemsSource = Directory.GetFiles("configs", "*.ini").Select(s => System.IO.Path.GetFileNameWithoutExtension(s)).ToArray();
 
 
 
@@ -164,10 +172,12 @@ namespace JKWatcher
                 bool ctfAutoJoinActive = false;
                 bool ctfAutoJoinWithStrobeActive = false;
                 int minPlayersForJoin = 3;
+                bool jkaMode = false;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
-                    if(!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out minPlayersForJoin))
+                    jkaMode = jkaModeCheck.IsChecked == true;
+                    if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out minPlayersForJoin))
                     {
                         minPlayersForJoin = 3;
                     }
@@ -180,7 +190,7 @@ namespace JKWatcher
                 {
                     IEnumerable<ServerInfo> servers = null;
 
-                    ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 30000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 30000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                     try
                     {
@@ -200,7 +210,7 @@ namespace JKWatcher
 
                     foreach (ServerInfo serverInfo in servers)
                     {
-                        if (serverInfo.Version == ClientVersion.JO_v1_02)
+                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode)
                         {
                             bool alreadyConnected = false;
                             lock (connectedServerWindows)
@@ -262,7 +272,13 @@ namespace JKWatcher
             NetAddress[] manualServers = getManualServers();
             ServerBrowser.SetHiddenServers(manualServers);
 
-            ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
+
+            bool jkaMode = false;
+            Dispatcher.Invoke(() => {
+                jkaMode = jkaModeCheck.IsChecked == true;
+            });
+
+            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
 
             try
             {
@@ -282,7 +298,7 @@ namespace JKWatcher
 
             foreach(ServerInfo serverInfo in servers)
             {
-                if(serverInfo.Version == ClientVersion.JO_v1_02)
+                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode)
                 {
                     filteredServers.Add(serverInfo);
                 }
@@ -467,6 +483,11 @@ namespace JKWatcher
             {
                 ctfAutoJoinWithStrobe.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "jkaMode", 0) == 1)
+            {
+                jkaModeCheck.IsChecked = true;
+            }
+            bool jkaMode = jkaModeCheck.IsChecked == true;
             List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
             foreach(ConfigSection section in cp.Sections)
             {
@@ -505,7 +526,7 @@ namespace JKWatcher
 
                         IEnumerable<ServerInfo> servers = null;
 
-                        ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                         try
                         {

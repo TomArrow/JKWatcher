@@ -20,59 +20,59 @@ namespace JKWatcher
 
     enum ConfigStringDefines
     {
-        CS_MUSIC = 2,
-        CS_MESSAGE = 3,     // from the map worldspawn's message field
-        CS_MOTD = 4,        // g_motd string for server message of the day
-        CS_WARMUP = 5,      // server time when the match will be restarted
-        CS_SCORES1 = 6,
-        CS_SCORES2 = 7,
-        CS_VOTE_TIME = 8,
-        CS_VOTE_STRING = 9,
-        CS_VOTE_YES = 10,
-        CS_VOTE_NO = 11,
+        //CS_MUSIC = 2,
+        //CS_MESSAGE = 3,     // from the map worldspawn's message field
+        //CS_MOTD = 4,        // g_motd string for server message of the day
+        //CS_WARMUP = 5,      // server time when the match will be restarted
+        //CS_SCORES1 = 6,
+        //CS_SCORES2 = 7,
+        //CS_VOTE_TIME = 8,
+        //CS_VOTE_STRING = 9,
+        //CS_VOTE_YES = 10,
+        //CS_VOTE_NO = 11,
 
-        CS_TEAMVOTE_TIME = 12,
-        CS_TEAMVOTE_STRING = 14,
+        //CS_TEAMVOTE_TIME = 12,
+        //CS_TEAMVOTE_STRING = 14,
 
-        CS_TEAMVOTE_YES = 16,
-        CS_TEAMVOTE_NO = 18,
+        //CS_TEAMVOTE_YES = 16,
+        //CS_TEAMVOTE_NO = 18,
 
-        CS_GAME_VERSION = 20,
-        CS_LEVEL_START_TIME = 21,       // so the timer only shows the current level
-        CS_INTERMISSION = 22,       // when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
+        //CS_GAME_VERSION = 20,
+        //CS_LEVEL_START_TIME = 21,       // so the timer only shows the current level
+        //CS_INTERMISSION = 22,       // when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
         CS_FLAGSTATUS = 23,     // string indicating flag status in CTF
-        CS_SHADERSTATE = 24,
-        CS_BOTINFO = 25,
+        //CS_SHADERSTATE = 24,
+        //CS_BOTINFO = 25,
 
-        CS_MVSDK = 26,      // CS for mvsdk specific configuration
+        //CS_MVSDK = 26,      // CS for mvsdk specific configuration
 
-        CS_ITEMS = 27,      // string of 0's and 1's that tell which items are present
+        //CS_ITEMS = 27,      // string of 0's and 1's that tell which items are present
 
-        CS_CLIENT_JEDIMASTER = 28,      // current jedi master
-        CS_CLIENT_DUELWINNER = 29,      // current duel round winner - needed for printing at top of scoreboard
-        CS_CLIENT_DUELISTS = 30,        // client numbers for both current duelists. Needed for a number of client-side things.
+        //CS_CLIENT_JEDIMASTER = 28,      // current jedi master
+        //CS_CLIENT_DUELWINNER = 29,      // current duel round winner - needed for printing at top of scoreboard
+        //CS_CLIENT_DUELISTS = 30,        // client numbers for both current duelists. Needed for a number of client-side things.
 
         // these are also in be_aas_def.h - argh (rjr)
-        CS_MODELS=32
+        //CS_MODELS=32
     }
 
     enum PersistantEnum {
-        PERS_SCORE,                     // !!! MUST NOT CHANGE, SERVER AND GAME BOTH REFERENCE !!!
-        PERS_HITS,                      // total points damage inflicted so damage beeps can sound on change
-        PERS_RANK,                      // player rank or team rank
-        PERS_TEAM,                      // player team
-        PERS_SPAWN_COUNT,               // incremented every respawn
-        PERS_PLAYEREVENTS,              // 16 bits that can be flipped for events
-        PERS_ATTACKER,                  // clientnum of last damage inflicter
-        PERS_ATTACKEE_ARMOR,            // health/armor of last person we attacked
-        PERS_KILLED,                    // count of the number of times you died
+        PERS_SCORE=0,                     // !!! MUST NOT CHANGE, SERVER AND GAME BOTH REFERENCE !!!
+        //PERS_HITS=1,                      // total points damage inflicted so damage beeps can sound on change
+        //PERS_RANK=2,                      // player rank or team rank
+        //PERS_TEAM=3,                      // player team
+        //PERS_SPAWN_COUNT=4,               // incremented every respawn
+        //PERS_PLAYEREVENTS=5,              // 16 bits that can be flipped for events
+        //PERS_ATTACKER=6,                  // clientnum of last damage inflicter
+        //PERS_ATTACKEE_ARMOR=7,            // health/armor of last person we attacked
+        //PERS_KILLED=8,                    // count of the number of times you died
                                         // player awards tracking
-        PERS_IMPRESSIVE_COUNT,          // two railgun hits in a row
-        PERS_EXCELLENT_COUNT,           // two successive kills in a short amount of time
-        PERS_DEFEND_COUNT,              // defend awards
-        PERS_ASSIST_COUNT,              // assist awards
-        PERS_GAUNTLET_FRAG_COUNT,       // kills with the guantlet
-        PERS_CAPTURES                   // captures
+        //PERS_IMPRESSIVE_COUNT=9,          // two railgun hits in a row
+        //PERS_EXCELLENT_COUNT=10,           // two successive kills in a short amount of time
+        //PERS_DEFEND_COUNT=11,              // defend awards
+        //PERS_ASSIST_COUNT=12,              // assist awards
+        //PERS_GAUNTLET_FRAG_COUNT=13,       // kills with the guantlet
+        //PERS_CAPTURES=14                   // captures
     }
 
     public enum RequestCategory
@@ -220,8 +220,15 @@ namespace JKWatcher
 
         SnapsSettings snapsSettings = null;
 
+
+        private bool jkaMode = false;
+
         public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false, SnapsSettings snapsSettingsA = null)
         {
+            if(protocolA == ProtocolVersion.Protocol26)
+            {
+                jkaMode = true;
+            }
             snapsSettings = snapsSettingsA;
             demoTimeNameColors = dateTimeColorNamesA;
             attachClientNumToName = attachClientNumToNameA;
@@ -415,7 +422,19 @@ namespace JKWatcher
             ip = ipA;
             protocol = protocolA;
 
-            client = new Client(new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02)); // Todo make more flexible
+            IClientHandler handler = null;
+            if(protocol == ProtocolVersion.Protocol15)
+            {
+                handler = new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02);
+            } else if(protocol == ProtocolVersion.Protocol26)
+            {
+                handler = new JAClientHandler(ProtocolVersion.Protocol26, ClientVersion.JA_v1_01);
+            } else
+            {
+                serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);
+                return false;
+            }
+            client = new Client(handler); // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = userInfoName == null ? "Padawan" : userInfoName;
 
@@ -997,16 +1016,25 @@ namespace JKWatcher
             {
                 return;
             }
+
+            int EFDeadFlag = jkaMode ? (int)JKAStuff.EntityFlags.EF_DEAD : (int)JOStuff.EntityFlags.EF_DEAD;
+            int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
+            int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
+            int ETTeam = jkaMode ? (int)JKAStuff.entityType_t.ET_TEAM : (int)JOStuff.entityType_t.ET_TEAM;
+            int ETItem = jkaMode ? (int)JKAStuff.entityType_t.ET_ITEM : (int)JOStuff.entityType_t.ET_ITEM;
+            //int EFBounceHalf = jkaMode ? 0 : (int)JOStuff.EntityFlags.EF_BOUNCE_HALF; // ?!?!
+
+
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
-                if (entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState ) { 
+                if (entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState ) {
 
                     // TODO
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
-                    infoPool.playerInfo[i].IsAlive = (entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_DEAD) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    infoPool.playerInfo[i].IsAlive = (entities[i].CurrentState.EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].position.X = entities[i].CurrentState.Position.Base[0];
                     infoPool.playerInfo[i].position.Y = entities[i].CurrentState.Position.Base[1];
                     infoPool.playerInfo[i].position.Z = entities[i].CurrentState.Position.Base[2];
@@ -1019,13 +1047,13 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = entities[i].CurrentState.Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
-                    if(((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
-                    } else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    } else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
@@ -1063,7 +1091,7 @@ namespace JKWatcher
                 if (entities[i].CurrentValid)
                 { 
                     // Flag bases
-                    if(entities[i].CurrentState.EntityType == (int)entityType_t.ET_TEAM)
+                    if(entities[i].CurrentState.EntityType == ETTeam)
                     {
                         Team team = (Team)entities[i].CurrentState.ModelIndex;
                         if (team == Team.Blue || team == Team.Red)
@@ -1074,7 +1102,7 @@ namespace JKWatcher
                             infoPool.teamInfo[(int)team].flagBaseEntityNumber = i;
                             infoPool.teamInfo[(int)team].lastFlagBasePositionUpdate = DateTime.Now;
                         }
-                    } else if (entities[i].CurrentState.EntityType == (int)entityType_t.ET_ITEM)
+                    } else if (entities[i].CurrentState.EntityType == ETItem)
                     {
                         if(entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ||
                             entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Blue].flagItemNumber
@@ -1084,7 +1112,7 @@ namespace JKWatcher
                             Team team = entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ? Team.Red : Team.Blue;
 
                             // Check if it's base flag item or dropped one
-                            if ((entities[i].CurrentState.EntityFlags & (int)EntityFlags.EF_BOUNCE_HALF) != 0)
+                            if ((entities[i].CurrentState.EntityFlags & (int)JOStuff.EntityFlags.EF_BOUNCE_HALF) != 0 || (jkaMode && infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_DROPPED)) // This is DIRTY.
                             {
                                 // This very likely is a dropped flag, as dropped flags get the EF_BOUNCE_HALF entity flag.
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
@@ -1093,7 +1121,7 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].droppedFlagEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
 
-                            } else
+                            } else if (!jkaMode || infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_ATBASE) // This is DIRTY. I hate it. Timing could mess this up. Hmm or maybe not? Configstrings are handled first. Hmm. Well it's the best I can do for JKA.
                             {
                                 // This very likely is a base flag item, as it doesn't have an EF_BOUNCE_HALF entity flag.
                                 infoPool.teamInfo[(int)team].flagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
@@ -1817,6 +1845,10 @@ namespace JKWatcher
 
             int numSortedTeamPlayers = commandEventArgs.Command.Argv(1).Atoi();
 
+
+            int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
+            int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
+
             for (i = 0; i < numSortedTeamPlayers; i++)
             {
                 theClient = commandEventArgs.Command.Argv(i * 6 + 2).Atoi();
@@ -1833,14 +1865,14 @@ namespace JKWatcher
                     infoPool.playerInfo[theClient].armor = commandEventArgs.Command.Argv(i * 6 + 5).Atoi();
                     infoPool.playerInfo[theClient].curWeapon = commandEventArgs.Command.Argv(i * 6 + 6).Atoi();
                     infoPool.playerInfo[theClient].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
-                    if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     }
-                    else if (((infoPool.playerInfo[i].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
@@ -1861,6 +1893,9 @@ namespace JKWatcher
             {
                 readScores = JKClient.Common.MaxClientScoreSend;
             }
+
+            int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
+            int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
 
             /*if (cg.numScores > JKClient.Common.MaxClients)
             {
@@ -1916,14 +1951,14 @@ namespace JKWatcher
                     }
                 }
 
-                if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_REDFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                 }
-                else if (((infoPool.playerInfo[clientNum].powerUps & (1 << (int)ItemList.powerup_t.PW_BLUEFLAG)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                else if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                 {
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
                     infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
@@ -2012,7 +2047,7 @@ namespace JKWatcher
                 ServerInfo curServerInfo = client.ServerInfo;
                 string[] serverInfoParts = new string[] { "Recording demo",
                     time,
-                    curServerInfo.Address.ToString(),
+                    curServerInfo.Address?.ToString(),
                     curServerInfo.HostName,
                     curServerInfo.ServerGameVersionString,
                     curServerInfo.Location,

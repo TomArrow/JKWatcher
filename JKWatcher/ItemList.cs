@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+	class JOStuff { 
 
 	public enum EntityFlags :int {
 		EF_DEAD = 0x00000001,       // don't draw a foe marker over players with EF_DEAD
@@ -1157,5 +1158,6 @@ namespace JKWatcher
 			return null;
 		}
 
+	}
 	}
 }

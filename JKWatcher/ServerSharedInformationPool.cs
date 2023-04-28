@@ -141,18 +141,36 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        public ServerSharedInformationPool()
+
+        private bool jkaMode = false;
+        public ServerSharedInformationPool(bool jkaModeA)
         {
-            teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
-            teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;
+            jkaMode = jkaModeA;
+            if (jkaMode)
+            {
+                teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG).Value;
+                teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+
+            } else
+            {
+                teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
+                teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+            }
         }
 
         public void ResetInfo()
         {
             playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02).MaxClients];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
-            teamInfo[(int)JKClient.Team.Red].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_REDFLAG).Value;
-            teamInfo[(int)JKClient.Team.Blue].flagItemNumber = ItemList.BG_FindItemForPowerup(ItemList.powerup_t.PW_BLUEFLAG).Value;
+            if (jkaMode)
+            {
+                teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG).Value;
+                teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+            } else
+            {
+                teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
+                teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+            }
         }
     }
 

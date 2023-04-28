@@ -16,9 +16,11 @@
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
+
+                <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Label ToolTip="Password">PW</Label>
-                <TextBox x:Name="pwListTxt" MinWidth="150"></TextBox>
+                <TextBox x:Name="pwListTxt" Width="100"></TextBox>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
 
                 <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="2">Auto-join and record CTF >= </CheckBox>

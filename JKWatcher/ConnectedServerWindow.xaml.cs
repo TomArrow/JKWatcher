@@ -144,7 +144,7 @@ namespace JKWatcher
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
-            infoPool = new ServerSharedInformationPool();
+            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26);
 
             gameTimeTxt.DataContext = infoPool;
             mapNameTxt.DataContext = infoPool;
@@ -452,7 +452,7 @@ namespace JKWatcher
 
                 foreach (Connection connection in connections)
                 {
-                    if(connection.client.Status == ConnectionStatus.Active)
+                    if(connection.client?.Status == ConnectionStatus.Active)
                     {
                         //connection.client.ExecuteCommand("score");
                         connection.leakyBucketRequester.requestExecution("score",RequestCategory.SCOREBOARD,0,2000,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
