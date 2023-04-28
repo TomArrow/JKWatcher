@@ -1522,7 +1522,7 @@ namespace JKWatcher
             Match specMatch;
             if (commandEventArgs.Command.Argc >= 2)
             {
-                if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n")
+                if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || (commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") && commandEventArgs.Command.Argv(0) == "print"))
                 {
                     ConnectionLimitReached = true;
                 } else if ((specMatch = specsRegex.Match(commandEventArgs.Command.Argv(1))).Success)
