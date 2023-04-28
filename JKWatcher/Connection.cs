@@ -1670,6 +1670,7 @@ namespace JKWatcher
                     int reframeClientNum = pm.playerNum;
                     int requiredCommandParts = 1;
                     int maxClientsHere = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
+                    // Idea: let people define their own binds so they don't have to use markme? hm
                     switch (messageBits[0])
                     {
                         default:
@@ -1774,7 +1775,7 @@ namespace JKWatcher
                         }
                         string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts"), demoPath);
                         demoCutCommand.Append($"\"{relativeDemoPath}\" ");
-                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}";
+                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{myClientNum}";
                         filename = Helpers.MakeValidFileName(filename);
                         filename = Helpers.DemoCuttersanitizeFilename(filename,false);
                         demoCutCommand.Append($"\"{filename}\" ");
