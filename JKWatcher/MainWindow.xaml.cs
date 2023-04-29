@@ -179,7 +179,7 @@ namespace JKWatcher
                     jkaMode = jkaModeCheck.IsChecked == true;
                     if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out minPlayersForJoin))
                     {
-                        minPlayersForJoin = 3;
+                        minPlayersForJoin = 4;
                     }
                 });
 

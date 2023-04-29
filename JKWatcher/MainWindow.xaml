@@ -25,7 +25,7 @@
 
                 <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="2">Auto-join and record CTF >= </CheckBox>
                 <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="2">
-                    3
+                    4
                 </TextBox>
                 <Label Padding="2" Margin="2">players</Label>
                 <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="2">w/ strobe</CheckBox>

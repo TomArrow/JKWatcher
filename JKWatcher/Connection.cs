@@ -273,6 +273,7 @@ namespace JKWatcher
             if (client != null)
             {
                 string nameToUse = userInfoName != null ? userInfoName : "Padawan";
+                bool clientNumAlreadyAdded = false;
                 if (demoTimeNameColors && client.Demorecording && !nameToUse.Contains("^"))
                 {
                     DemoName_t demoName = client.getDemoName();
@@ -290,33 +291,72 @@ namespace JKWatcher
                         }
                         else
                         {
-                            StringBuilder tmpName = new StringBuilder();
-                            while (nameToUse.Length < 6)
+                            if (jkaMode) // Lesss elegant but works I guess. JKA doesn't have background colors.
                             {
-                                nameToUse += ".";
-                            }
-                            for(int i = 0; i < 6; i++)
+                                string clientNumAddition = "";
+                                if (attachClientNumToName) // For JKA we attach the clientnum here already so we can use it for the colors as well. Not elegant but better than filling with points more than necessary
+                                {
+                                    int clientNum = (client?.clientNum).GetValueOrDefault(-1);
+                                    if (clientNum != -1)
+                                    {
+                                        clientNumAddition = $"({clientNum})";
+                                        clientNumAlreadyAdded = true;
+                                    }
+                                }
+
+                                while ((nameToUse.Length+clientNumAddition.Length) < 12)
+                                {
+                                    nameToUse += ".";
+                                }
+                                nameToUse += clientNumAddition;
+
+                                StringBuilder tmpName = new StringBuilder();
+
+                                for (int i = 0; i < 12; i++)
+                                {
+                                    tmpName.Append("^");
+                                    tmpName.Append(colorCodes[i]);
+                                    tmpName.Append(nameToUse[i]);
+                                }
+                                if (nameToUse.Length > 12)
+                                {
+                                    tmpName.Append(nameToUse.Substring(12));
+                                }
+                                nameToUse = tmpName.ToString();
+                            } else
                             {
-                                tmpName.Append("^");
-                                tmpName.Append(colorCodes[i*2]);
-                                tmpName.Append("^");
-                                tmpName.Append(colorCodes[i*2+1]);
-                                tmpName.Append("^");
-                                tmpName.Append(colorCodes[i*2]);
-                                tmpName.Append(nameToUse[i]);
+
+                                StringBuilder tmpName = new StringBuilder();
+                                while (nameToUse.Length < 6)
+                                {
+                                    nameToUse += ".";
+                                }
+                                for (int i = 0; i < 6; i++)
+                                {
+                                    tmpName.Append("^");
+                                    tmpName.Append(colorCodes[i * 2]);
+                                    tmpName.Append("^");
+                                    tmpName.Append(colorCodes[i * 2 + 1]);
+                                    tmpName.Append("^");
+                                    tmpName.Append(colorCodes[i * 2]);
+                                    tmpName.Append(nameToUse[i]);
+                                }
+                                if (nameToUse.Length > 6)
+                                {
+                                    tmpName.Append(nameToUse.Substring(6));
+                                }
+                                nameToUse = tmpName.ToString();
                             }
-                            if(nameToUse.Length > 6)
-                            {
-                                tmpName.Append(nameToUse.Substring(6));
-                            }
-                            nameToUse = tmpName.ToString();
                         }
                     }
                 }
-                if (attachClientNumToName)
+                if (attachClientNumToName && !clientNumAlreadyAdded)
                 {
-                    int clientNum = client.clientNum;
-                    nameToUse += $" ^7(^2{clientNum}^7)";
+                    int clientNum = (client?.clientNum).GetValueOrDefault(-1);
+                    if(clientNum != -1)
+                    {
+                        nameToUse += $" ^7(^2{clientNum}^7)";
+                    }
                 }
                 client.Name = nameToUse;
             }
