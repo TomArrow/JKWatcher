@@ -997,6 +997,19 @@ namespace JKWatcher
             PropertyChanged?.Invoke(this, eventArgs);
         }
 
+
+        int lastRequestedAlwaysFollowSpecClientNum = -1;
+        DateTime[] clientsWhoDontWantToBeSpectated = new DateTime[32] { // Looool this is cringe xd
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+        };
+
+
         private unsafe void Client_SnapshotParsed(object sender, EventArgs e)
         {
 
@@ -1144,9 +1157,10 @@ namespace JKWatcher
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
                 // Pick player with highest score.
+findHighestScore:
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
-                    if (player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
+                    if ((DateTime.Now-clientsWhoDontWantToBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -1154,6 +1168,7 @@ namespace JKWatcher
                 }
                 if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
+                    lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
@@ -1339,7 +1354,7 @@ namespace JKWatcher
                 // Pick player with highest score.
                 foreach(PlayerInfo player in infoPool.playerInfo)
                 {
-                    if(player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1))
+                    if((DateTime.Now - clientsWhoDontWantToBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -1347,6 +1362,7 @@ namespace JKWatcher
                 }
                 if(highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
+                    lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
@@ -1509,6 +1525,8 @@ namespace JKWatcher
 
         public bool ConnectionLimitReached { get; private set; } = false;
 
+        private DateTime lastClientDoesNotWishToBeSpectated = DateTime.Now.AddYears(-1);
+
         // Parse specs sent through NWH "specs" command.
         // [1] = clientNumSpectator
         // [2] = nameSpectator (with trailing whitespaces)
@@ -1522,7 +1540,14 @@ namespace JKWatcher
             Match specMatch;
             if (commandEventArgs.Command.Argc >= 2)
             {
-                if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || (commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") && commandEventArgs.Command.Argv(0) == "print"))
+                if(commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7") && commandEventArgs.Command.Argv(0) == "print")
+                {
+                    if(lastRequestedAlwaysFollowSpecClientNum >= 0 && lastRequestedAlwaysFollowSpecClientNum<32)
+                    {
+                        clientsWhoDontWantToBeSpectated[lastRequestedAlwaysFollowSpecClientNum] = DateTime.Now;
+                    }
+                    lastClientDoesNotWishToBeSpectated = DateTime.Now;
+                } else if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || (commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") && commandEventArgs.Command.Argv(0) == "print"))
                 {
                     ConnectionLimitReached = true;
                 } else if ((specMatch = specsRegex.Match(commandEventArgs.Command.Argv(1))).Success)
