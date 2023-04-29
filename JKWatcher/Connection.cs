@@ -739,7 +739,7 @@ namespace JKWatcher
                 thisSnapshotObituaryAttackers.Clear();
             }
 
-            if (e.EventType == ClientGame.EntityEvent.Obituary)
+            if (e.EventType == ClientGame.EntityEvent.Obituary) // TODO Fix it up for JKA
             {
                 // TODO Important. See if we can correlate death events to ctf frag events. That way we could know where
                 //  the flag carrier was killed and thus where the flag is
