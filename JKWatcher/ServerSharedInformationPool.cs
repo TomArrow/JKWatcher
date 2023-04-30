@@ -65,6 +65,8 @@ namespace JKWatcher
         public volatile int defendCount; // bc?
         public volatile int assistCount;
         public volatile int captures; // captures
+        public volatile int killed; // times he got killed. Some JKA mods send this.
+        public volatile bool killedIsFilled; // Indicate if killed value was sent
         public volatile bool perfect;
         public volatile int team;
         public DateTime? lastNonZeroPing;

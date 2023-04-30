@@ -426,9 +426,20 @@ namespace JKWatcher
         }*/
 
 
-
-        public void addToLog(string someString,bool forceLogToFile=false)
+        Dictionary<string,DateTime> rateLimitedErrorMessages = new Dictionary<string,DateTime>();
+        // Use timeout (milliseconds) for messages that might happen often.
+        public void addToLog(string someString,bool forceLogToFile=false,int timeOut = 0)
         {
+            if(timeOut != 0)
+            {
+                if (rateLimitedErrorMessages.ContainsKey(someString) && rateLimitedErrorMessages[someString] > DateTime.Now)
+                {
+                    return; // Skipping repeated message.
+                } else
+                {
+                    rateLimitedErrorMessages[someString] = DateTime.Now.AddMilliseconds(timeOut);
+                }
+            }
             logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now });
         }
 
