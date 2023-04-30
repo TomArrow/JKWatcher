@@ -2004,13 +2004,27 @@ findHighestScore:
                     {
                         readScores = JKClient.Common.MaxClientScoreSend;
                     }
-                } else
+                    /*if (commandEventArgs.Command.Argc - 4 < readScores * scoreboardOffset)
+                    {
+                        serverWindow.addToLog($"Scoreboard error: Detected Japro or Japlus sbut even with limited scores count, not enough data received (argc-4:{commandEventArgs.Command.Argc - 4},readScores*offset={readScores * scoreboardOffset}), wtf? Defaulting to legacy offset 14.", true, 1000 * 60 * 60); // Only show this error once per hour.
+                        scoreboardOffset = 14;
+                    }*/
+                }
+                else
                 {
                     serverWindow.addToLog($"Scoreboard error: calculated offset is neither 14 nor 15 (argc:{commandEventArgs.Command.Argc},readScores={readScores},offset:{scoreboardOffset}), wtf? Defaulting to legacy behavior.", true,1000*60*60); // Only show this error once per hour.
                     scoreboardOffset = 14;
                     if (readScores > JKClient.Common.MaxClientScoreSend)
                     {
                         readScores = JKClient.Common.MaxClientScoreSend;
+                    }
+                }
+                if (commandEventArgs.Command.Argc - 4 < readScores * scoreboardOffset)
+                {
+                    serverWindow.addToLog($"Scoreboard error: Not enough data received even after checks (argc-4:{commandEventArgs.Command.Argc - 4},readScores*offset={readScores * scoreboardOffset}), WTF? Reducing readScores until ok.", true, 1000 * 60 * 60); // Only show this error once per hour.
+                    while(commandEventArgs.Command.Argc - 4 < readScores * scoreboardOffset)
+                    {
+                        readScores--;
                     }
                 }
             }
