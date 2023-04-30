@@ -2041,11 +2041,11 @@ findHighestScore:
                 infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
                 if(scoreboardOffset == 15)
                 {
-                    infoPool.playerInfo[clientNum].score.killed = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
-                    infoPool.playerInfo[clientNum].score.killedIsFilled = true;
+                    infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
+                    infoPool.playerInfo[clientNum].score.deathsIsFilled = true;
                 } else
                 {
-                    infoPool.playerInfo[clientNum].score.killedIsFilled = false;
+                    infoPool.playerInfo[clientNum].score.deathsIsFilled = false;
                 }
                 infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
 
