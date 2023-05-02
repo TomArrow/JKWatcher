@@ -1212,7 +1212,7 @@ findHighestScore:
                 if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
                     lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
-                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
         }
@@ -1236,6 +1236,10 @@ findHighestScore:
                 this.JAProDetected = true;
             } else if(obj.GameName.Contains("Movie Battles II", StringComparison.OrdinalIgnoreCase))
             {
+                if (!this.MBIIDetected)
+                {
+                    infoPool.ResetFlagItemNumbers(true);
+                }
                 this.MBIIDetected = true;
             }
             infoPool.lastBotOnlyConfirmed = null; // Because if a new player just entered, we have no idea if it's only a bot or  not until we get his ping via score command.
@@ -1418,7 +1422,7 @@ findHighestScore:
                 if(highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
                     lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
-                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
 

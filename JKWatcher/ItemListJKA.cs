@@ -1355,9 +1355,24 @@ Only in One Flag CTF games
 			BG_FindItemForPowerup
 			==============
 			*/
-			public static int? BG_FindItemForPowerup(powerup_t pw)
+			public static int? BG_FindItemForPowerup(powerup_t pw,bool isMBII)
 			{
-				int i;
+                if (isMBII)
+                {
+                    switch (pw) {
+						case powerup_t.PW_REDFLAG:
+							return 55;
+						case powerup_t.PW_BLUEFLAG:
+							return 56;
+						case powerup_t.PW_NEUTRALFLAG:
+							return 57;
+						default:
+							throw new NotImplementedException("Dunno about item numbers other than flags for MBII.");
+					}
+
+                }
+
+                int i;
 
 				for (i = 0; i < bg_itemlist.Count; i++)
 				{
@@ -1377,7 +1392,7 @@ Only in One Flag CTF games
 			==============
 			BG_FindItemForHoldable
 			==============
-			*/
+			
 			public static int? BG_FindItemForHoldable(holdable_t pw)
 			{
 				int i;
@@ -1393,7 +1408,7 @@ Only in One Flag CTF games
 				//Com_Error(ERR_DROP, "HoldableItem not found");
 
 				return null;
-			}
+			}*/
 
 
 			/*
@@ -1401,21 +1416,20 @@ Only in One Flag CTF games
 			BG_FindItemForWeapon
 
 			===============
-			*/
 			public static int? BG_FindItemForWeapon(weapon_t weapon)
 			{
-				/*gitem_t* it;
+				//gitem_t* it;
 
-				for (it = bg_itemlist + 1; it->classname; it++)
-				{
-					if (it->giType ==itemType_t.IT_WEAPON && it->giTag == (int)weapon)
-					{
-						return it;
-					}
-				}
-
-				Com_Error(ERR_DROP, "Couldn't find item for weapon %i", weapon);
-				return null;*/
+				//for (it = bg_itemlist + 1; it->classname; it++)
+				//{
+				//	if (it->giType ==itemType_t.IT_WEAPON && it->giTag == (int)weapon)
+				//	{
+				//		return it;
+				//	}
+				//}
+//
+				//Com_Error(ERR_DROP, "Couldn't find item for weapon %i", weapon);
+				//return null;
 
 				int i;
 
@@ -1429,23 +1443,23 @@ Only in One Flag CTF games
 
 				return null;
 			}
+			*/
 
 			/*
 			===============
 			BG_FindItem
 
 			===============
-			*/
 			public static int? BG_FindItem(string classname)
 			{
-				/*gitem_t* it;
+				//gitem_t* it;
 
-				for (it = bg_itemlist + 1 ; it->classname ; it++ ) {
-					if ( !Q_stricmp(it->classname, classname) )
-						return it;
-				}
+				//for (it = bg_itemlist + 1 ; it->classname ; it++ ) {
+				//	if ( !Q_stricmp(it->classname, classname) )
+				//		return it;
+				//}
 
-				return null;*/
+				//return null;
 				int i;
 
 				string lowerClassname = classname.ToLower();
@@ -1459,6 +1473,7 @@ Only in One Flag CTF games
 
 				return null;
 			}
+*/
 
 		}
 	}
