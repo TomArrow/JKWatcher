@@ -1000,6 +1000,7 @@ void CL_SendPureChecksums(void) {
 
 
 int main(int argc,char** argv) {
+	
 	if (argc < 2) {
 		throw std::exception("no file specified");
 	}
@@ -1007,11 +1008,26 @@ int main(int argc,char** argv) {
 		int countFiles = argc - 1;
 		for (int i = 0; i < countFiles; i++) {
 			char* fileName = argv[i + 1];
+
+			bool hasNonNumberChars = false;
+			int theStrLen = strlen(fileName);
+			for (int a = 0; a < theStrLen; a++) {
+				if (fileName[a] >= '0' && fileName[a] <= '9') {
+
+				}
+				else {
+					hasNonNumberChars = true;
+				}
+			}
+			if (!hasNonNumberChars) {
+				fs_checksumFeed = atoi(fileName);
+				continue;
+			}
+
 			char* fileNameJson = new char[strlen(fileName)+2];
 			char* fileNamePcs = new char[strlen(fileName)+1];
 			strcpy(fileNameJson, fileName);
 			strcpy(fileNamePcs, fileName);
-			int theStrLen = strlen(fileNameJson);
 			fileNameJson[theStrLen + 1] = 0;
 			fileNameJson[theStrLen] = 'n';
 			fileNameJson[theStrLen -1] = 'o';
@@ -1042,8 +1058,9 @@ int main(int argc,char** argv) {
 			fwrite(headerLongs,4,headerLongCount,binFile);
 			fclose(binFile);
 
-			//std::cout << "checksum: " << pack->checksum << "\n";
-			//std::cout << "pure_checksum: " << pack->pure_checksum << "\n";
+			std::cout << "using checksumFeed: " << fs_checksumFeed << "\n";
+			std::cout << "checksum: " << pack->checksum << "\n";
+			std::cout << "pure_checksum: " << pack->pure_checksum << "\n";
 			std::cout << "\n\n";
 			delete[] fileNameJson;
 		}

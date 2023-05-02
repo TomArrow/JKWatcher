@@ -480,6 +480,16 @@ namespace JKWatcher
             client = new Client(handler); // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = userInfoName == null ? "Padawan" : userInfoName;
+            /*if (jkaMode)
+            {
+                CheckSumFile[] checkSumFiles = new CheckSumFile[]{
+                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets0.hl")},
+                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets1.hl")},
+                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets2.hl")},
+                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets3.hl"),hasCgame=true,hasUI=true},
+                }; 
+                client.SetAssetChecksumFiles(checkSumFiles);
+            }*/
 
             if(password != null)
             {
