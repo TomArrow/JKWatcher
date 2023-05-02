@@ -584,11 +584,18 @@ namespace JKWatcher
             }
         }
 
+        DateTime lastForcedActivity = DateTime.Now;
+
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
         // It also means we don't have to have watchers subscribe directly to the client because then that would break
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand)
         {
+            if((DateTime.Now-lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
+            {
+                modifiableCommand.ForwardMove = 127;
+                lastForcedActivity = DateTime.Now;
+            }
             OnClientUserCommandGenerated(ref modifiableCommand);
         }
 
