@@ -224,6 +224,7 @@ namespace JKWatcher
         private bool jkaMode = false;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
+        private bool MBIIDetected = false;
 
         public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false, SnapsSettings snapsSettingsA = null)
         {
@@ -1233,6 +1234,9 @@ findHighestScore:
             else if(obj.GameName.Contains("japro", StringComparison.OrdinalIgnoreCase))
             {
                 this.JAProDetected = true;
+            } else if(obj.GameName.Contains("Movie Battles II", StringComparison.OrdinalIgnoreCase))
+            {
+                this.MBIIDetected = true;
             }
             infoPool.lastBotOnlyConfirmed = null; // Because if a new player just entered, we have no idea if it's only a bot or  not until we get his ping via score command.
             string serverName = client.ServerInfo.HostName;
@@ -1465,7 +1469,7 @@ findHighestScore:
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
-        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo" };
+        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats" };
 
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
@@ -1965,18 +1969,9 @@ findHighestScore:
 
             readScores = commandEventArgs.Command.Argv(1).Atoi();
 
-            //if (readScores > JKClient.Common.MaxClientScoreSend)
-            //{
-            //    readScores = JKClient.Common.MaxClientScoreSend;
-            //}
-
             int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
             int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
 
-            /*if (cg.numScores > JKClient.Common.MaxClients)
-            {
-                cg.numScores = MAX_CLIENTS;
-            }*/
             infoPool.teamInfo[(int)Team.Red].teamScore = commandEventArgs.Command.Argv(2).Atoi();
             infoPool.ScoreRed = commandEventArgs.Command.Argv(2).Atoi();
             infoPool.teamInfo[(int)Team.Blue].teamScore = commandEventArgs.Command.Argv(3).Atoi();
@@ -1994,9 +1989,18 @@ findHighestScore:
             // we revert to the conservative legacy behavior. Could potentially result in weirdness sometimes but we'll see.
             // We'll throw  a little warning.
             int scoreboardOffset = (commandEventArgs.Command.Argc-4)/readScores;
-            if(scoreboardOffset != 14 && scoreboardOffset != 15)
+            if(!(scoreboardOffset == 14 && !this.MBIIDetected) && !(scoreboardOffset == 15 && !this.MBIIDetected) && !(scoreboardOffset == 9 && this.MBIIDetected ))
             {
-                if(this.JAPlusDetected || this.JAProDetected)
+                if(this.MBIIDetected)
+                {
+                    serverWindow.addToLog($"Scoreboard error: calculated offset with MB II detected is not 9 (argc:{commandEventArgs.Command.Argc},readScores={readScores},offset:{scoreboardOffset}), wtf? Resetting score count and setting offset 9.", true, 1000 * 60 * 60); // Only show this error once per hour.
+                    scoreboardOffset = 9;
+                    if (readScores > JKClient.Common.MaxClientScoreSend)
+                    {
+                        readScores = JKClient.Common.MaxClientScoreSend;
+                    }
+                }
+                else if(this.JAPlusDetected || this.JAProDetected)
                 {
                     serverWindow.addToLog($"Scoreboard error: calculated offset is neither 14 nor 15 (argc:{commandEventArgs.Command.Argc},readScores={readScores},offset:{scoreboardOffset}), wtf? But detected japlus or japro. Resetting score count but using offset 15.", true, 1000 * 60 * 60); // Only show this error once per hour.
                     scoreboardOffset = 15;
@@ -2004,11 +2008,6 @@ findHighestScore:
                     {
                         readScores = JKClient.Common.MaxClientScoreSend;
                     }
-                    /*if (commandEventArgs.Command.Argc - 4 < readScores * scoreboardOffset)
-                    {
-                        serverWindow.addToLog($"Scoreboard error: Detected Japro or Japlus sbut even with limited scores count, not enough data received (argc-4:{commandEventArgs.Command.Argc - 4},readScores*offset={readScores * scoreboardOffset}), wtf? Defaulting to legacy offset 14.", true, 1000 * 60 * 60); // Only show this error once per hour.
-                        scoreboardOffset = 14;
-                    }*/
                 }
                 else
                 {
@@ -2037,29 +2036,47 @@ findHighestScore:
                 {
                     continue;
                 }
-                infoPool.playerInfo[clientNum].score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                infoPool.playerInfo[clientNum].score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
-                infoPool.playerInfo[clientNum].score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
-                infoPool.playerInfo[clientNum].score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
-                infoPool.playerInfo[clientNum].score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
-                powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                infoPool.playerInfo[clientNum].score.powerUps = powerups; // duplicated from entities?
-                infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
-                infoPool.playerInfo[clientNum].score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                infoPool.playerInfo[clientNum].score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
-                infoPool.playerInfo[clientNum].score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
-                infoPool.playerInfo[clientNum].score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
-                infoPool.playerInfo[clientNum].score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi();
-                infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi();
-                infoPool.playerInfo[clientNum].score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true;
-                infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
-                if(scoreboardOffset == 15)
+                infoPool.playerInfo[clientNum].score.deathsIsFilled = false;
+                if (!this.MBIIDetected) // Wtf is this i hear you say? MBII only has 9. And no, I have no idea which values are what for MBII anyway.
                 {
-                    infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
-                    infoPool.playerInfo[clientNum].score.deathsIsFilled = true;
+                    infoPool.playerInfo[clientNum].score.shortScoresMBII = false;
+
+                    infoPool.playerInfo[clientNum].score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
+                    infoPool.playerInfo[clientNum].score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                    infoPool.playerInfo[clientNum].score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                    infoPool.playerInfo[clientNum].score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
+                    infoPool.playerInfo[clientNum].score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                    powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                    infoPool.playerInfo[clientNum].score.powerUps = powerups; // duplicated from entities?
+                    infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
+                    infoPool.playerInfo[clientNum].score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                    infoPool.playerInfo[clientNum].score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    infoPool.playerInfo[clientNum].score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
+
+                    infoPool.playerInfo[clientNum].score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
+                    infoPool.playerInfo[clientNum].score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi();
+                    infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi();
+                    infoPool.playerInfo[clientNum].score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true;
+                    infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
+
+                    if (scoreboardOffset == 15)
+                    {
+                        infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
+                        infoPool.playerInfo[clientNum].score.deathsIsFilled = true;
+                    }
                 } else
                 {
-                    infoPool.playerInfo[clientNum].score.deathsIsFilled = false;
+                    infoPool.playerInfo[clientNum].score.shortScoresMBII = true;
+                    // Scores in MBII appear to be: ClientNum, Ping, Remaining Lives, Score, R, K, D, A, 1(not sure what)
+                    infoPool.playerInfo[clientNum].score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
+                    infoPool.playerInfo[clientNum].score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                    infoPool.playerInfo[clientNum].score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                    infoPool.playerInfo[clientNum].score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
+                    infoPool.playerInfo[clientNum].score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                    infoPool.playerInfo[clientNum].score.kills = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                    infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                    infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    infoPool.playerInfo[clientNum].score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
                 }
                 infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
 
@@ -2203,7 +2220,7 @@ findHighestScore:
                 leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false)
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode)
                 { // replace with more sophisticated detection
                     // doing a detection here to not annoy ctf players.
                     // will still annoy ffa players until better detection.
@@ -2214,7 +2231,7 @@ findHighestScore:
                 // TwiMod (DARK etc)
                 leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false) // Might not be accurate idk
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode) // Might not be accurate idk
                 {
                     leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                     leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

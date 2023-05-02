@@ -65,12 +65,22 @@ namespace JKWatcher
         public volatile int defendCount; // bc?
         public volatile int assistCount;
         public volatile int captures; // captures
-        public volatile int deaths; // times he got killed. Some JKA mods send this.
-        public volatile bool deathsIsFilled; // Indicate if killed value was sent
+
         public volatile bool perfect;
         public volatile int team;
         public DateTime? lastNonZeroPing;
         public volatile int pingUpdatesSinceLastNonZeroPing;
+
+        public volatile int deaths; // times he got killed. Some JKA mods send this.
+        public volatile bool deathsIsFilled; // Indicate if killed value was sent
+
+        // Special values only MB II uses.
+        public volatile int mbIIrounds; // shows as "R" on scoreboard 
+        public volatile int remainingLives; 
+        public volatile int kills; 
+        public volatile int mbIImysteryValue; 
+        public volatile bool shortScoresMBII; // Indicate if only 9 score info things were sent.
+
     }
 
 
