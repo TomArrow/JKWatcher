@@ -436,6 +436,7 @@ void QDECL Com_sprintf(char* dest, int size, const char* fmt, ...) {
 /* GLOBAL.H - RSAREF types and constants */
 
 #include <string.h>
+#include <fstream>
 
 /* POINTER defines a generic pointer type */
 typedef unsigned char* POINTER;
@@ -756,7 +757,7 @@ static int FS_HashFileName(const char* fname, int hashSize) {
 
 
 // stripped down to bare minimum
-static pack_t* FS_LoadZipFile(char* zipfile, const char* basename)
+static pack_t* FS_LoadZipFile(char* zipfile, const char* basename, int** headerLongsPtr, int* headerLongsNum)
 {
 	fileInPack_t* buildBuffer;
 	pack_t* pack;
@@ -852,7 +853,10 @@ static pack_t* FS_LoadZipFile(char* zipfile, const char* basename)
 	pack->checksum = LittleLong(pack->checksum);
 	pack->pure_checksum = LittleLong(pack->pure_checksum);
 
-	free(fs_headerLongs);
+
+	*headerLongsPtr = fs_headerLongs;
+	*headerLongsNum = fs_numHeaderLongs;
+	//free(fs_headerLongs);
 
 	pack->buildBuffer = buildBuffer;
 
@@ -1003,11 +1007,45 @@ int main(int argc,char** argv) {
 		int countFiles = argc - 1;
 		for (int i = 0; i < countFiles; i++) {
 			char* fileName = argv[i + 1];
-			pack_t* pack =FS_LoadZipFile(fileName,"whatever");
+			char* fileNameJson = new char[strlen(fileName)+2];
+			char* fileNamePcs = new char[strlen(fileName)+1];
+			strcpy(fileNameJson, fileName);
+			strcpy(fileNamePcs, fileName);
+			int theStrLen = strlen(fileNameJson);
+			fileNameJson[theStrLen + 1] = 0;
+			fileNameJson[theStrLen] = 'n';
+			fileNameJson[theStrLen -1] = 'o';
+			fileNameJson[theStrLen -2] = 's';
+			fileNameJson[theStrLen -3] = 'j';
+			fileNamePcs[theStrLen -1] = 0;
+			fileNamePcs[theStrLen -2] = 'l';
+			fileNamePcs[theStrLen -3] = 'h';
+
+			int* headerLongs = NULL;
+			int headerLongCount = 0;
+			pack_t* pack =FS_LoadZipFile(fileName,"whatever",&headerLongs, &headerLongCount);
 			std::cout << "file: " << fileName << "\n";
-			std::cout << "checksum: " << pack->checksum << "\n";
-			std::cout << "pure_checksum: " << pack->pure_checksum << "\n";
+
+			std::ofstream jsonFile(fileNameJson);
+			jsonFile << "[";
+			for (int c = 0; c < headerLongCount; c++) {
+				if (c != 0) {
+					jsonFile << ",";
+				}
+				jsonFile << headerLongs[c];
+			}
+			jsonFile << "]";
+			jsonFile.close();
+
+			FILE* binFile = fopen(fileNamePcs, "wb");
+
+			fwrite(headerLongs,4,headerLongCount,binFile);
+			fclose(binFile);
+
+			//std::cout << "checksum: " << pack->checksum << "\n";
+			//std::cout << "pure_checksum: " << pack->pure_checksum << "\n";
 			std::cout << "\n\n";
+			delete[] fileNameJson;
 		}
 	}
 }
