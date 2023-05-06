@@ -480,7 +480,7 @@ namespace JKWatcher
             client = new Client(handler); // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = userInfoName == null ? "Padawan" : userInfoName;
-            /*if (jkaMode)
+            if (jkaMode)
             {
                 CheckSumFile[] checkSumFiles = new CheckSumFile[]{
                     new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets0.hl")},
@@ -489,7 +489,7 @@ namespace JKWatcher
                     new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets3.hl"),hasCgame=true,hasUI=true},
                 }; 
                 client.SetAssetChecksumFiles(checkSumFiles);
-            }*/
+            }
 
             if(password != null)
             {
@@ -1616,7 +1616,7 @@ findHighestScore:
             Match specMatch;
             if (commandEventArgs.Command.Argc >= 2)
             {
-                if(commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7") && commandEventArgs.Command.Argv(0) == "print")
+                if((commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client is currently on another map^1.^7") || commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7")) && commandEventArgs.Command.Argv(0) == "print")
                 {
                     if(lastRequestedAlwaysFollowSpecClientNum >= 0 && lastRequestedAlwaysFollowSpecClientNum<32)
                     {
