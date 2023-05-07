@@ -78,6 +78,7 @@ namespace JKWatcher
             //    new FrameworkPropertyMetadata { DefaultValue = 165 }
             //);
             HiResTimerSetter.UnlockTimerResolution();
+            WindowPositionManager.Activate();
         }
 
         ~MainWindow()
@@ -234,6 +235,7 @@ namespace JKWatcher
                                     {
                                         ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
                                         connectedServerWindows.Add(newWindow);
+                                        newWindow.Loaded += NewWindow_Loaded;
                                         newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
                                         newWindow.Show();
                                         newWindow.createCTFOperator();
@@ -263,6 +265,12 @@ namespace JKWatcher
             }
         }
 
+        private void NewWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            Window wnd = (Window)sender;
+            WindowPositionManager.RegisterWindow(wnd);
+            wnd.Loaded -= NewWindow_Loaded;
+        }
 
         public async void getServers()
         {
@@ -333,6 +341,7 @@ namespace JKWatcher
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw);
                     connectedServerWindows.Add(newWindow);
+                    newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
                     newWindow.Show();
                 }
@@ -368,6 +377,7 @@ namespace JKWatcher
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value, null, pw);
                     connectedServerWindows.Add(newWindow);
+                    newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
                     newWindow.Show();
                 }
@@ -434,6 +444,7 @@ namespace JKWatcher
                 {
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, serverToConnect.playerName);
                     connectedServerWindows.Add(newWindow);
+                    newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
                     newWindow.Show();
                     /*if(serverToConnect.playerName != null)
