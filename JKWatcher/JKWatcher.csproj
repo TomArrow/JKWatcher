@@ -24,6 +24,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="hl\basejka\assets0.hl" />
+    <None Remove="hl\basejka\assets1.hl" />
+    <None Remove="hl\basejka\assets2.hl" />
+    <None Remove="hl\basejka\assets3.hl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="hl\basejka\assets0.hl" />
+    <EmbeddedResource Include="hl\basejka\assets1.hl" />
+    <EmbeddedResource Include="hl\basejka\assets2.hl" />
+    <EmbeddedResource Include="hl\basejka\assets3.hl" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
   </ItemGroup>
 

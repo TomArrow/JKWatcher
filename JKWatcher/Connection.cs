@@ -480,13 +480,13 @@ namespace JKWatcher
             client = new Client(handler); // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = userInfoName == null ? "Padawan" : userInfoName;
-            if (jkaMode)
+            if (jkaMode) // TODO Detect mods and proceed accordingly
             {
                 CheckSumFile[] checkSumFiles = new CheckSumFile[]{
-                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets0.hl")},
-                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets1.hl")},
-                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets2.hl")},
-                    new CheckSumFile(){ headerLongData = File.ReadAllBytes("jka/assets3.hl"),hasCgame=true,hasUI=true},
+                    new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets0.hl")},
+                    new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets1.hl")},
+                    new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets2.hl")},
+                    new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets3.hl"),hasCgame=true,hasUI=true},
                 }; 
                 client.SetAssetChecksumFiles(checkSumFiles);
             }

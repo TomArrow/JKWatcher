@@ -54,6 +54,27 @@ namespace JKWatcher
     static class Helpers
     {
 
+        static public byte[] GetResourceData(string path)
+        {
+            path = path.Replace("\\",".");
+            path = path.Replace("/",".");
+            var ass = System.Reflection.Assembly.GetExecutingAssembly();
+            var stream = ass.GetManifestResourceStream(typeof(Helpers),path);
+            if(stream != null)
+            {
+                using (MemoryStream ms = new MemoryStream((int)stream.Length))
+                {
+
+                    stream.CopyTo(ms);
+                    stream.Dispose();
+                    return ms.ToArray();
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
         static public unsafe string DemoCuttersanitizeFilename(string input , bool allowExtension)
         {
             
