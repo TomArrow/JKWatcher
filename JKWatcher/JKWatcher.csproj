@@ -24,6 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="hl\basejk2\assets0.hl" />
+    <None Remove="hl\basejk2\assets1.hl" />
+    <None Remove="hl\basejk2\assets2.hl" />
+    <None Remove="hl\basejk2\assets3.hl" />
+    <None Remove="hl\basejk2\assets4.hl" />
+    <None Remove="hl\basejk2\assets5.hl" />
+    <None Remove="hl\basejk2\assets6.hl" />
     <None Remove="hl\basejka\assets0.hl" />
     <None Remove="hl\basejka\assets1.hl" />
     <None Remove="hl\basejka\assets2.hl" />
@@ -31,6 +38,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="hl\basejk2\assets0.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets1.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets2.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets3.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets4.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets5.hl" />
+    <EmbeddedResource Include="hl\basejk2\assets6.hl" />
     <EmbeddedResource Include="hl\basejka\assets0.hl" />
     <EmbeddedResource Include="hl\basejka\assets1.hl" />
     <EmbeddedResource Include="hl\basejka\assets2.hl" />

@@ -490,6 +490,34 @@ namespace JKWatcher
                 }; 
                 client.SetAssetChecksumFiles(checkSumFiles);
             }
+            else
+            {
+                CheckSumFile[] checkSumFiles = null;
+                // TODO Fix this if we ever allow connecting to 1.03/1.04
+                if (true) // JK2 1.02 
+                {
+                    checkSumFiles = new CheckSumFile[]{
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl"),hasCgame=true,hasUI=true},
+                    };
+                } else if (false) // JK2 1.03
+                {
+                    checkSumFiles = new CheckSumFile[]{
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl"),hasCgame=true,hasUI=true},
+                    };
+                } else // JK2 1.04
+                {
+                    checkSumFiles = new CheckSumFile[]{
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets5.hl"),hasCgame=true,hasUI=true},
+                    };
+                }
+                client.SetAssetChecksumFiles(checkSumFiles);
+            }
 
             if(password != null)
             {
