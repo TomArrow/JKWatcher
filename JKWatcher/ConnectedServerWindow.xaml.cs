@@ -1095,6 +1095,19 @@ namespace JKWatcher
             }
         }
 
+        private void netDebugCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            bool doNetDebug = netDebugCheck.IsChecked == true;
+            foreach (Connection conn in connections)
+            {
+                Client theclient = conn.client;
+                if(theclient != null)
+                {
+                    theclient.DebugNet = doNetDebug;
+                }
+            }
+        }
+
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)
         {
             createCameraOperator<CameraOperators.StrobeCameraOperator>();

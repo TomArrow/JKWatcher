@@ -232,7 +232,17 @@ namespace JKWatcher
 
         static Mutex specificDebugMutex = new Mutex();
 
-        public static void logToSpecificDebugFile(byte[] data, string specificFileName)
+
+        public static void logToSpecificDebugFile(string[] lines, string specificFileName, bool append = false)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach(string line in lines)
+            {
+                sb.AppendLine(line);
+            }
+            logToSpecificDebugFile(Encoding.UTF8.GetBytes(sb.ToString()),specificFileName,append);
+        }
+        public static void logToSpecificDebugFile(byte[] data, string specificFileName, bool append = false)
         {
 
             Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogsSpecific"));
@@ -240,7 +250,7 @@ namespace JKWatcher
             {
 
                 string fullPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "debugLogsSpecific", specificFileName);
-                string fullPathUnique = Helpers.GetUnusedFilename(fullPath);
+                string fullPathUnique = append ? fullPath : Helpers.GetUnusedFilename(fullPath);
 
                 int retryTime = 0;
                 bool successfullyWritten = false;
@@ -248,8 +258,17 @@ namespace JKWatcher
                 {
                     try
                     {
+                        if (append)
+                        {
+                            using (FileStream fs = new FileStream(fullPath, FileMode.Append))
+                            {
+                                fs.Write(data);
+                            }
+                        }
+                        else{
 
-                        File.WriteAllBytes(fullPathUnique,data);
+                            File.WriteAllBytes(fullPathUnique, data);
+                        }
                         successfullyWritten = true;
                     }
                     catch (IOException)

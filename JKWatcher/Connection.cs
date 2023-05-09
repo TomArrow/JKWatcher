@@ -609,6 +609,10 @@ namespace JKWatcher
                     }
                     Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
                 });
+            } else if(e is NetDebug)
+            {
+                NetDebug nb = (NetDebug)e;
+                Helpers.logToSpecificDebugFile(new string[] {nb.debugString },"netDebug.log",true);
             }
         }
 

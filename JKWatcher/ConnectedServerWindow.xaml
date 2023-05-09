@@ -207,6 +207,7 @@
                     <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
                 </WrapPanel>
             </StackPanel>
+            <CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>
         </StackPanel>
     </Grid>
 </Window>
