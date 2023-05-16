@@ -1024,7 +1024,7 @@ namespace JKWatcher
 
         private void unixTimeNameColorsCheck_Checked(object sender, RoutedEventArgs e)
         {
-            demoTimeColorNames = unixTimeNameColorsCheck.IsChecked.HasValue && unixTimeNameColorsCheck.IsChecked.Value;
+            demoTimeColorNames = unixTimeNameColorsCheck.IsChecked == true;
             foreach (Connection conn in connections)
             {
                 conn.SetDemoTimeNameColors(demoTimeColorNames);
@@ -1034,7 +1034,7 @@ namespace JKWatcher
         private void attachClientNumToNameCheck_Checked(object sender, RoutedEventArgs e)
         {
 
-            attachClientNumToName = attachClientNumToNameCheck.IsChecked.HasValue && unixTimeNameColorsCheck.IsChecked.Value;
+            attachClientNumToName = attachClientNumToNameCheck.IsChecked == true;
             foreach (Connection conn in connections)
             {
                 conn.SetClientNumNameAttach(attachClientNumToName);
