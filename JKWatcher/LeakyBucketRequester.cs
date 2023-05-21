@@ -73,6 +73,7 @@ namespace JKWatcher
         {
             public DateTime time { get; init; }
             public Request request { get; init; }
+            public bool discarded { get; init; }
         }
 
         // Some things to get stats from the outside
@@ -87,7 +88,7 @@ namespace JKWatcher
         }
         private List<FinishedRequest> recentExecutedCommands = new List<FinishedRequest>();
         //public IReadOnlyCollection<FinishedRequest> RecentExecutedCommandsReadOnly => recentExecutedCommands.AsReadOnly();
-        private void LogCommand(Request command)
+        private void LogCommand(Request command, bool discarded)
         {
             lock (recentExecutedCommands)
             {
@@ -108,7 +109,7 @@ namespace JKWatcher
                 {
                     recentExecutedCommands.RemoveRange(0, removeCount);
                 }
-                recentExecutedCommands.Add(new FinishedRequest() { time = DateTime.Now, request = command });
+                recentExecutedCommands.Add(new FinishedRequest() { time = DateTime.Now, request = command, discarded=discarded });
             }
         }
 
@@ -246,10 +247,17 @@ namespace JKWatcher
                                     if (args.Cancel) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
                                         somethingToDo = false;
                                         soonestPredictedEvent = Math.Max(soonestPredictedEvent, args.NextRequestAllowedIfCancelled);
+                                        thisBucketBurst--; // Since it's cancelled, it shouldn't affect our burst
+                                    } else if (args.Discard) { // Allow the event receivers to discard the execution for whatever reason (for example invalid/unsupported command)
+
+                                        LogCommand(requestQueue[i],true);
+                                        requestQueue.RemoveAt(i);
+                                        requestQueueChanged = true;
+                                        thisBucketBurst--; // Since it's discarded, it shouldn't affect our burst
                                     } else
                                     {
                                         lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
-                                        LogCommand(requestQueue[i]);
+                                        LogCommand(requestQueue[i],false);
                                         requestQueue.RemoveAt(i);
                                         requestQueueChanged = true;
                                     }
@@ -425,6 +433,7 @@ namespace JKWatcher
         {
             public TCommand Command { get; private set; }
             public bool Cancel = false; // If you want to cancel this one
+            public bool Discard = false; // If you want to discard this one
             private int _nextRequestAllowedIfCancelled = 100; // We set 100 as default when we can continue if cancelled.
             public int NextRequestAllowedIfCancelled // If you cancel, tell us when we can continue pls.
             {

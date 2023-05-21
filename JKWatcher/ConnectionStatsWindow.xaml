@@ -29,6 +29,7 @@
         </DataGrid>
         <DataGrid  Grid.ColumnSpan="3" Grid.Row="1" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="recentCommandQueueGrid" AutoGenerateColumns="False">
             <DataGrid.Columns>
+                <DataGridTextColumn Header="Disc." Binding="{Binding discarded}"></DataGridTextColumn>
                 <DataGridTextColumn Header="Time" Binding="{Binding time}"></DataGridTextColumn>
                 <DataGridTextColumn Header="Type" Binding="{Binding request.type}"></DataGridTextColumn>
                 <DataGridTextColumn Header="MinTypeDelay" Binding="{Binding request.minimumDelayFromSameType}"></DataGridTextColumn>

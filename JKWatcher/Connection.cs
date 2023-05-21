@@ -397,6 +397,32 @@ namespace JKWatcher
 
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
         {
+            // Check if the command is supported by server (it's just a crude array that gets elements added if server responds that a command is unsupported. Don't waste time, burst allowance, bandwidth and demo size sending useless commands).
+            bool firstNonSpaceFound = false;
+            int firstTrueSpace = -1;
+            for(int i = 0; i < e.Command.Length; i++)
+            {
+                if(e.Command[i] == ' ')
+                {
+                    if (firstNonSpaceFound)
+                    {
+                        firstTrueSpace = i;
+                        break;
+                    }
+                }
+                else
+                {
+                    firstNonSpaceFound = true;
+                }
+            }
+            string commandForValidityCheck = (firstTrueSpace != -1 ? e.Command.Substring(0, firstTrueSpace) : e.Command).Trim().ToLower();
+            if (infoPool.unsupportedCommands.Contains(commandForValidityCheck))
+            {
+                e.Discard = true;
+                return;
+            }
+
+            // Ok command is valid, let's see...
             if (client.Status == ConnectionStatus.Active) // safety check
             {
                 int unacked = client.GetUnacknowledgedReliableCommandCount();
@@ -1539,6 +1565,7 @@ findHighestScore:
                 case "cs":
                     EvaluateCS(commandEventArgs);
                     break;
+                case "fprint":
                 case "print":
                     EvaluatePrint(commandEventArgs);
                     break;
@@ -1643,9 +1670,12 @@ findHighestScore:
         Regex specsRegex = new Regex(@"^(\d+)\^3\) \^7 (.*?)\^7   (.*?)\((\d+)\)\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         bool skipSanityCheck = false;
 
+        Regex unknownCmdRegex = new Regex(@"^unknown (?:cmd|command) ([^\n]+?)\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
             Match specMatch;
+            Match unknownCmdMatch;
             if (commandEventArgs.Command.Argc >= 2)
             {
                 if((commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client is currently on another map^1.^7") || commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7")) && commandEventArgs.Command.Argv(0) == "print")
@@ -1691,6 +1721,19 @@ findHighestScore:
                             infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayer = spectatedPlayer;
                             infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayerLastUpdate = DateTime.Now;
                         }
+                    }
+                } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (unknownCmdMatch.Groups.Count < 2) return;
+
+                    string unknownCmd = unknownCmdMatch.Groups[1].Value.Trim().ToLower();
+
+
+                    if (!infoPool.unsupportedCommands.Contains(unknownCmd)) // This isn't PERFECTLY threadsafe, but it should be fine. Shouldn't end up with too many duplicates.
+                    {
+                        serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this server. Noting.");
+                        infoPool.unsupportedCommands.Add(unknownCmd);
                     }
                 }
             }

@@ -155,7 +155,10 @@ namespace JKWatcher.CameraOperators
                 {
                     // Request spectator info from NWH
                     // TODO: Make it detect if this is actually NWH. If not, don't bother.
-                    connections[0].leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 4, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    if (!infoPool.unsupportedCommands.Contains("specs"))
+                    {
+                        connections[0].leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 4, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    }
                 }
 
                 if (guyToFollow != -1 && matches == 1) // If there are multiple matches, there is ambiguity which we don't want.
@@ -169,8 +172,11 @@ namespace JKWatcher.CameraOperators
 
                     if(timeSinceKnown > 10000.0)
                     {
-                        // Somehow not working. Maybe giga amount of players on server and actual player ping not available. Or too many matches over and over. Ok. Request specs info from NWH.
-                        connections[0].leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 4, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        if (!infoPool.unsupportedCommands.Contains("specs"))
+                        {
+                            // Somehow not working. Maybe giga amount of players on server and actual player ping not available. Or too many matches over and over. Ok. Request specs info from NWH.
+                            connections[0].leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 4, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        }
                     }
                 }
 

@@ -1,5 +1,6 @@
 ﻿using JKClient;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -134,6 +135,8 @@ namespace JKWatcher
         public bool NoActivePlayers { get; set; }
 
         public DateTime? lastBotOnlyConfirmed = null;
+
+        public ConcurrentBag<string> unsupportedCommands = new ConcurrentBag<string>();
 
         public void setGameTime(int gameTime)
         {
