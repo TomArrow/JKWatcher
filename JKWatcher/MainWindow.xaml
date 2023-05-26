@@ -40,15 +40,36 @@
                     </TextBox>
                 </WrapPanel>
             </StackPanel>
-            <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" AutoGenerateColumns="False" ItemsSource="{Binding ElementName=serverListDataGrid,Path=SelectedItem.Players}">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Score" Binding="{Binding score}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Ping" Binding="{Binding ping}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="IsBot" Binding="{Binding isBot}"></DataGridTextColumn>
-                </DataGrid.Columns>
+            <TabControl DockPanel.Dock="Bottom">
+                <TabItem Header="Players">
+                    <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False"  VerticalScrollBarVisibility="Auto" AutoGenerateColumns="False" ItemsSource="{Binding ElementName=serverListDataGrid,Path=SelectedItem.Players}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Score" Binding="{Binding score}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Ping" Binding="{Binding ping}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="IsBot" Binding="{Binding isBot}"></DataGridTextColumn>
+                        </DataGrid.Columns>
 
-            </DataGrid>
+                    </DataGrid>
+                </TabItem>
+                <TabItem Header="Info">
+                    <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False"  VerticalScrollBarVisibility="Auto" AutoGenerateColumns="False" ItemsSource="{Binding ElementName=serverListDataGrid,Path=SelectedItem.InfoStringValues}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Key" Binding="{Binding Key}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Value" Binding="{Binding Value}"></DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+                <TabItem Header="Status">
+                    <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False"  VerticalScrollBarVisibility="Auto" AutoGenerateColumns="False" ItemsSource="{Binding ElementName=serverListDataGrid,Path=SelectedItem.StatusInfoStringValues}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Key" Binding="{Binding Key}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Value" Binding="{Binding Value}"></DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </TabItem>
+                
+            </TabControl>
         </DockPanel>
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
