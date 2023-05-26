@@ -21,6 +21,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Salaros.Configuration;
 using System.Windows.Threading;
+using System.ComponentModel;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -32,13 +33,14 @@ namespace JKWatcher
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
 
         private List<ConnectedServerWindow> connectedServerWindows = new List<ConnectedServerWindow>();
 
 
 
+        public bool executionInProgress { get; private set; } = false;
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
@@ -79,6 +81,8 @@ namespace JKWatcher
             //);
             HiResTimerSetter.UnlockTimerResolution();
             WindowPositionManager.Activate();
+
+            executingTxt.DataContext = this;
         }
 
         ~MainWindow()
@@ -165,6 +169,8 @@ namespace JKWatcher
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
                 System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 *2); // every 2 min or 1 min if fast recheck requested (see code below)
 
+                if (executionInProgress) continue;
+
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
 
@@ -172,26 +178,37 @@ namespace JKWatcher
 
                 bool ctfAutoJoinActive = false;
                 bool ctfAutoJoinWithStrobeActive = false;
-                int minPlayersForJoin = 3;
+                bool ffaAutoJoinActive = false;
+                string ffaAutoJoinExclude = null;
+                int ctfMinPlayersForJoin = 4;
+                int ffaMinPlayersForJoin = 2;
                 bool jkaMode = false;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
+                    ffaAutoJoinActive = ffaAutoJoin.IsChecked == true;
+                    ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
-                    if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out minPlayersForJoin))
+                    if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out ctfMinPlayersForJoin))
                     {
-                        minPlayersForJoin = 4;
+                        ctfMinPlayersForJoin = 4;
+                    }
+                    if (!int.TryParse(ffaAutoJoinMinPlayersTxt.Text, out ffaMinPlayersForJoin))
+                    {
+                        ffaMinPlayersForJoin = 4;
                     }
                 });
+
+                string[] ffaAutoJoinExcludeList = ffaAutoJoinExclude == null ? null : ffaAutoJoinExclude.Split(",",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
 
                 NetAddress[] manualServers = getManualServers();
                 ServerBrowser.SetHiddenServers(manualServers);
 
-                if (ctfAutoJoinActive)
+                if (ctfAutoJoinActive || ffaAutoJoinActive)
                 {
                     IEnumerable<ServerInfo> servers = null;
 
-                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 30000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                     try
                     {
@@ -226,31 +243,74 @@ namespace JKWatcher
                             }
                             // We want to be speccing/recording this.
                             // Check if we are already connected. If so, do nothing.
-                            if (!alreadyConnected && !serverInfo.NeedPassword && (serverInfo.Clients >= minPlayersForJoin && serverInfo.StatusResponseReceived) && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
-                            {
-                                
-                                Dispatcher.Invoke(()=> {
-
-                                    lock (connectedServerWindows)
+                            if(!alreadyConnected && !serverInfo.NeedPassword) { 
+                                if(ctfAutoJoinActive && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY)) { 
+                                    if (serverInfo.Clients >= ctfMinPlayersForJoin && serverInfo.StatusResponseReceived)
                                     {
-                                        ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
-                                        connectedServerWindows.Add(newWindow);
-                                        newWindow.Loaded += NewWindow_Loaded;
-                                        newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
-                                        newWindow.Show();
-                                        newWindow.createCTFOperator();
-                                        if (ctfAutoJoinWithStrobeActive)
-                                        {
-                                            newWindow.createStrobeOperator();
-                                        }
-                                        newWindow.recordAll();
+                                
+                                        Dispatcher.Invoke(()=> {
+
+                                            lock (connectedServerWindows)
+                                            {
+                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                                connectedServerWindows.Add(newWindow);
+                                                newWindow.Loaded += NewWindow_Loaded;
+                                                newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.Show();
+                                                newWindow.createCTFOperator();
+                                                if (ctfAutoJoinWithStrobeActive)
+                                                {
+                                                    newWindow.createStrobeOperator();
+                                                }
+                                                newWindow.recordAll();
+                                            }
+                                        });
+                                    } else if (serverInfo.Clients >= ctfMinPlayersForJoin && !serverInfo.StatusResponseReceived)
+                                    {
+                                        // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
+                                        // arrive for some reason
+                                        nextCheckFast = true;
                                     }
-                                });
-                            } else if (!alreadyConnected && serverInfo.Clients >= minPlayersForJoin && !serverInfo.StatusResponseReceived)
-                            {
-                                // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
-                                // arrive for some reason
-                                nextCheckFast = true;
+                                } else if (ffaAutoJoinActive && !(serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                                {
+                                    // Check for exclude filter
+                                    if(ffaAutoJoinExcludeList != null)
+                                    {
+                                        bool serverIsExcluded = false;
+                                        foreach(string excludeString in ffaAutoJoinExcludeList)
+                                        {
+                                            if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                serverIsExcluded = true;
+                                                break;
+                                            }
+                                        }
+                                        if (serverIsExcluded) continue; // Skip this one.
+                                    }
+
+                                    if (serverInfo.Clients >= ffaMinPlayersForJoin && serverInfo.StatusResponseReceived)
+                                    {
+
+                                        Dispatcher.Invoke(() => {
+
+                                            lock (connectedServerWindows)
+                                            {
+                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false });
+                                                connectedServerWindows.Add(newWindow);
+                                                newWindow.Loaded += NewWindow_Loaded;
+                                                newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.Show();
+                                                newWindow.recordAll();
+                                            }
+                                        });
+                                    }
+                                    else if (serverInfo.Clients >= ffaMinPlayersForJoin && !serverInfo.StatusResponseReceived)
+                                    {
+                                        // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
+                                        // arrive for some reason
+                                        nextCheckFast = true;
+                                    }
+                                }
                             }
 
                         }
@@ -286,7 +346,7 @@ namespace JKWatcher
                 jkaMode = jkaModeCheck.IsChecked == true;
             });
 
-            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15));
+            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true};
 
             try
             {
@@ -442,7 +502,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, serverToConnect.playerName);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
@@ -494,6 +554,16 @@ namespace JKWatcher
             {
                 ctfAutoJoinWithStrobe.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "ffaAutoConnect", 0) == 1)
+            {
+                ffaAutoJoin.IsChecked = true;
+            }
+            string ffaAutoConnectExclude = cp.GetValue("__general__", "ffaAutoConnectExclude", "");
+            if (ffaAutoConnectExclude != null)
+            {
+                ffaAutoConnectExclude = ffaAutoConnectExclude.Trim();
+                ffaAutoJoinExcludeTxt.Text = ffaAutoConnectExclude;
+            }
             if (cp.GetValue("__general__", "jkaMode", 0) == 1)
             {
                 jkaModeCheck.IsChecked = true;
@@ -537,7 +607,7 @@ namespace JKWatcher
 
                         IEnumerable<ServerInfo> servers = null;
 
-                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L,ForceStatus=true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L,ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                         try
                         {
@@ -609,23 +679,37 @@ namespace JKWatcher
 
                         tries++;
                     }
-                
+                    executionInProgress = false;
+
+
                 });
             }
         }
 
+        private Mutex executionInProgressMutex = new Mutex();
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
         private void executeConfig_Click(object sender, RoutedEventArgs e)
         {
-            string config = configsComboBox.SelectedItem != null ? (string)configsComboBox.SelectedItem : null;
-            if (config != null)
-            {
-                try
+            lock (executionInProgressMutex) { 
+                if(executionInProgress)
                 {
-                    ConfigParser cp = new ConfigParser($"configs/{config}.ini");
-                    executeConfig(cp);
-                } catch(Exception ex)
+                    MessageBox.Show("Execution already in progress, please wait.");
+                    return;
+                }
+                string config = configsComboBox.SelectedItem != null ? (string)configsComboBox.SelectedItem : null;
+                if (config != null)
                 {
-                    Helpers.logToFile(new string[] {$"Error executing config: {ex.ToString()}" });
+                    try
+                    {
+                        ConfigParser cp = new ConfigParser($"configs/{config}.ini");
+                        executeConfig(cp);
+                        executionInProgress = true;
+                    } catch(Exception ex)
+                    {
+                        Helpers.logToFile(new string[] {$"Error executing config: {ex.ToString()}" });
+                    }
                 }
             }
         }

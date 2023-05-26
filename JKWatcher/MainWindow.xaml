@@ -14,6 +14,42 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="30"></RowDefinition>
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <DockPanel Grid.Column="1">
+            <StackPanel DockPanel.Dock="Top">
+                <WrapPanel>
+                    <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ctf matches">Auto-rec CTF >=</CheckBox>
+                    <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                        4
+                    </TextBox>
+                    <Label Padding="2" Margin="1" FontSize="10" ToolTip="players">pl.</Label>
+                    <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="1" FontSize="10" ToolTip="w/ strobe">str.</CheckBox>
+                </WrapPanel>
+                <WrapPanel>
+                    <CheckBox x:Name="ffaAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ffa matches. Single client but will upgrade to CTF if gametype changes. Will upgrade to use Strobe if clicked above.">Auto-rec FFA >=</CheckBox>
+                    <TextBox x:Name="ffaAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                        2
+                    </TextBox>
+                    <Label Padding="2" Margin="1" FontSize="10" ToolTip="exclude server names that include these strings (comma-separated)">excl.</Label>
+                    <TextBox x:Name="ffaAutoJoinExcludeTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10" Width="50">
+                        defrag
+                    </TextBox>
+                </WrapPanel>
+            </StackPanel>
+            <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" AutoGenerateColumns="False" ItemsSource="{Binding ElementName=serverListDataGrid,Path=SelectedItem.Players}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Score" Binding="{Binding score}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Ping" Binding="{Binding ping}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="IsBot" Binding="{Binding isBot}"></DataGridTextColumn>
+                </DataGrid.Columns>
+
+            </DataGrid>
+        </DockPanel>
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
 
@@ -23,30 +59,27 @@
                 <TextBox x:Name="pwListTxt" Width="100"></TextBox>
                 <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
 
-                <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="2">Auto-join and record CTF >= </CheckBox>
-                <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="2">
-                    4
-                </TextBox>
-                <Label Padding="2" Margin="2">players</Label>
-                <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="2">w/ strobe</CheckBox>
+                
                 <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
             </WrapPanel>
-            <DataGrid IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
+            <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="PW" Binding="{Binding NeedPassword}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Cl" Binding="{Binding ClientsIncludingBots}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="RCl" Binding="{Binding RealClients}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Max" Binding="{Binding MaxClients}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="MapName" Binding="{Binding MapName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Game" Binding="{Binding Game}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Clients" Binding="{Binding Clients}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="MaxClients" Binding="{Binding MaxClients}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}" MaxWidth="200"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Ping" Binding="{Binding Ping}"></DataGridTextColumn>
                     <DataGridTextColumn Header="MaxPing" Binding="{Binding MaxPing}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
         </DockPanel>
-        <WrapPanel Grid.Row="1">
+        <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">
             <Label>IP</Label>
             <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
             <Label ToolTip="Password">PW</Label>
@@ -58,6 +91,9 @@
 
             <ComboBox x:Name="configsComboBox" Margin="5 0 0 0"></ComboBox>
             <Button x:Name="executeConfigBtn" Click="executeConfig_Click">Execute</Button>
+            <WrapPanel x:Name="executingTxtWrap" >
+                <TextBox IsReadOnly="True" x:Name="executingTxt" ToolTip="Is currently executing" Text="{Binding executionInProgress,Mode=OneWay}"></TextBox>
+            </WrapPanel>
             
         </WrapPanel>
     </Grid>

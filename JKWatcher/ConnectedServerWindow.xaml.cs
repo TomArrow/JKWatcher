@@ -118,22 +118,41 @@ namespace JKWatcher
         public int verboseOutput { get; private set; } = 4;
 
         private string password = null;
-        private string userInfoName = null;
-        private bool demoTimeColorNames = true;
-        private bool attachClientNumToName = true;
+        //private string userInfoName = null;
+        //private bool demoTimeColorNames = true;
+        //private bool attachClientNumToName = true;
 
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
-        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null,string userInfoNameA = null,bool demoTimeColorNamesA = true)
+        public class ConnectionOptions : INotifyPropertyChanged {
+            public bool autoUpgradeToCTF { get; set; } = false;
+            public bool autoUpgradeToCTFWithStrobe { get; set; } = false;
+
+            public bool attachClientNumToName { get; set; } = true;
+            public bool demoTimeColorNames { get; set; } = true;
+            public string userInfoName { get; set; } = null;
+
+            public event PropertyChangedEventHandler PropertyChanged;
+        }
+
+        ConnectionOptions _connectionOptions = null;
+
+        public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {
+            if(connectionOptions == null)
+            {
+                connectionOptions = new ConnectionOptions();
+            }
+            _connectionOptions = connectionOptions;
+
             //this.DataContext = this;
 
             //serverInfo = serverInfoA;
-            demoTimeColorNames = demoTimeColorNamesA;
+            //demoTimeColorNames = demoTimeColorNamesA;
             netAddress = netAddressA;
             protocol = protocolA;
             password = passwordA;
-            userInfoName = userInfoNameA;
+            //userInfoName = userInfoNameA;
             InitializeComponent();
             this.Title = netAddressA.ToString();
             if(serverNameA != null)
@@ -151,11 +170,13 @@ namespace JKWatcher
             scoreRedTxt.DataContext = infoPool;
             scoreBlueTxt.DataContext = infoPool;
             noActivePlayersCheck.DataContext = infoPool;
-
+            
+            Connection newCon = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password, /*_connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames,attachClientNumToName,*/snapsSettings);
+            newCon.ServerInfoChanged += Con_ServerInfoChanged;
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
-                connections.Add(new Connection(netAddress,protocol, this,  infoPool,password, userInfoName, demoTimeColorNames,attachClientNumToName,snapsSettings));
+                connections.Add(newCon);
             }
             updateIndices();
 
@@ -181,9 +202,49 @@ namespace JKWatcher
             startLogStringUpdater();
 
             snapsSettingsControls.DataContext = snapsSettings;
+            connectionSettingsControls.DataContext = _connectionOptions;
 
-        } 
-        
+        }
+
+        private void Con_ServerInfoChanged(ServerInfo obj)
+        {
+            if(_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
+            {
+                bool alreadyHaveCTFWatcher = false;
+                bool alreadyHaveStrobeWatcher = false;
+                lock (cameraOperators)
+                {
+                    foreach (CameraOperator op in cameraOperators)
+                    {
+                        if (op is CameraOperators.CTFCameraOperatorRedBlue) alreadyHaveCTFWatcher = true;
+                        if (op is CameraOperators.StrobeCameraOperator) alreadyHaveStrobeWatcher = true;
+                    }
+                }
+                if(!alreadyHaveCTFWatcher || (!alreadyHaveStrobeWatcher && _connectionOptions.autoUpgradeToCTFWithStrobe))
+                {
+                    _connectionOptions.attachClientNumToName = true;
+                    _connectionOptions.demoTimeColorNames = true;
+                    Dispatcher.Invoke(() => {
+                        bool anyNewWatcherCreated = false;
+                        if (!alreadyHaveCTFWatcher)
+                        {
+                            this.createCTFOperator();
+                            anyNewWatcherCreated = true;
+                        }
+                        if (!alreadyHaveStrobeWatcher && _connectionOptions.autoUpgradeToCTFWithStrobe)
+                        {
+                            this.createStrobeOperator();
+                            anyNewWatcherCreated = true;
+                        }
+                        if (anyNewWatcherCreated)
+                        {
+                            this.recordAll();
+                        }
+                    });
+                }
+            }
+        }
+
         /*public ConnectedServerWindow(string ipA, ProtocolVersion protocolA)
         {
             //this.DataContext = this;
@@ -609,7 +670,8 @@ namespace JKWatcher
             while(retVal.Count < count)
             {
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
-                Connection newConnection = new Connection(netAddress,protocol, this,infoPool,password, userInfoName, demoTimeColorNames, attachClientNumToName,snapsSettings);
+                Connection newConnection = new Connection(netAddress,protocol, this,infoPool, _connectionOptions,password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
+                newConnection.ServerInfoChanged += Con_ServerInfoChanged;
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -920,7 +982,8 @@ namespace JKWatcher
         private void newConBtn_Click(object sender, RoutedEventArgs e)
         {
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
-            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, password, userInfoName, demoTimeColorNames, attachClientNumToName,snapsSettings);
+            Connection newConnection = new Connection(netAddress,protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
+            newConnection.ServerInfoChanged += Con_ServerInfoChanged;
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -957,6 +1020,7 @@ namespace JKWatcher
 
                         //conn.disconnect();
                         conn.CloseDown();
+                        conn.ServerInfoChanged -= Con_ServerInfoChanged;
                         connections.Remove(conn);
                     }
                 //}
@@ -973,7 +1037,7 @@ namespace JKWatcher
 
             foreach (Connection conn in conns)
             {
-                if (conn != null && conn.Status != ConnectionStatus.Active)
+                if (conn != null /*&& conn.Status != ConnectionStatus.Active*/) // Allow to do it always. A connection may crash and wrongly show as active.
                 {
                     //_=conn.hardReconnect();
                     _=conn.Reconnect();
@@ -1002,11 +1066,11 @@ namespace JKWatcher
 
         public void setUserInfoName(string name = null)
         {
-            userInfoName = name;
-            foreach (Connection conn in connections)
-            {
-                conn.SetUserInfoName(userInfoName);
-            }
+            _connectionOptions.userInfoName = name;
+            //foreach (Connection conn in connections)
+            //{
+            //    conn.SetUserInfoName(_connectionOptions.userInfoName);
+            //}
         }
         private void btnSetName_Click(object sender, RoutedEventArgs e)
         {
@@ -1019,27 +1083,27 @@ namespace JKWatcher
 
         private void btnFillCurrentName_Click(object sender, RoutedEventArgs e)
         {
-            nameTxt.Text = userInfoName;
+            nameTxt.Text = _connectionOptions.userInfoName;
         }
-
+        /*
         private void unixTimeNameColorsCheck_Checked(object sender, RoutedEventArgs e)
         {
-            demoTimeColorNames = unixTimeNameColorsCheck.IsChecked == true;
-            foreach (Connection conn in connections)
-            {
-                conn.SetDemoTimeNameColors(demoTimeColorNames);
-            }
+            _connectionOptions.demoTimeColorNames = unixTimeNameColorsCheck.IsChecked == true;
+            //foreach (Connection conn in connections)
+            //{
+            //    conn.SetDemoTimeNameColors(_connectionOptions.demoTimeColorNames);
+            //}
         }
 
         private void attachClientNumToNameCheck_Checked(object sender, RoutedEventArgs e)
         {
 
-            attachClientNumToName = attachClientNumToNameCheck.IsChecked == true;
-            foreach (Connection conn in connections)
-            {
-                conn.SetClientNumNameAttach(attachClientNumToName);
-            }
-        }
+            _connectionOptions.attachClientNumToName = attachClientNumToNameCheck.IsChecked == true;
+            //foreach (Connection conn in connections)
+            //{
+            //    conn.SetClientNumNameAttach(attachClientNumToName);
+            //}
+        }*/
         /*
         private void updateSnapsSettings()
         {

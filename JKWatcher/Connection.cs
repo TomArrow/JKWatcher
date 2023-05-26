@@ -157,6 +157,7 @@ namespace JKWatcher
         public event PropertyChangedEventHandler PropertyChanged;
 
         public event UserCommandGeneratedEventHandler ClientUserCommandGenerated;
+        public event Action<ServerInfo> ServerInfoChanged; // forward to the outside if desired
         internal void OnClientUserCommandGenerated(ref UserCommand cmd)
         {
             this.ClientUserCommandGenerated?.Invoke(this, ref cmd);
@@ -214,35 +215,50 @@ namespace JKWatcher
         }*/
 
         private string password = null;
-        private string userInfoName = null;
-        private bool demoTimeNameColors = false;
-        private bool attachClientNumToName = false;
+        //private string userInfoName = null;
+        //private bool demoTimeNameColors = false;
+        //private bool attachClientNumToName = false;
 
         SnapsSettings snapsSettings = null;
 
+        ConnectedServerWindow.ConnectionOptions _connectionOptions = null;
 
         private bool jkaMode = false;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, string passwordA = null, string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false, SnapsSettings snapsSettingsA = null)
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null)
         {
-            if(protocolA == ProtocolVersion.Protocol26)
+            if(connectionOptions == null)
+            {
+                throw new InvalidOperationException("Cannot create connection with null connectionOptions");
+            }
+            _connectionOptions = connectionOptions;
+            _connectionOptions.PropertyChanged += _connectionOptions_PropertyChanged;
+            if (protocolA == ProtocolVersion.Protocol26)
             {
                 jkaMode = true;
             }
             snapsSettings = snapsSettingsA;
-            demoTimeNameColors = dateTimeColorNamesA;
-            attachClientNumToName = attachClientNumToNameA;
+            //demoTimeNameColors = dateTimeColorNamesA;
+            //attachClientNumToName = attachClientNumToNameA;
             infoPool = infoPoolA;
             serverWindow = serverWindowA;
-            userInfoName = userInfoNameA;
+            //userInfoName = userInfoNameA;
             password = passwordA;
             leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
+        }
+
+        private void _connectionOptions_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName == "demoTimeColorNames" || e.PropertyName == "userInfoName" || e.PropertyName == "attachClientNumToName")
+            {
+                updateName();
+            }
         }
 
         public void SetPassword(string passwordA)
@@ -253,7 +269,7 @@ namespace JKWatcher
                 client.Password = password != null ? password : "";
             }
         }
-
+        /*
         public void SetUserInfoName(string userInfoNameA)
         {
             userInfoName = userInfoNameA;
@@ -269,15 +285,15 @@ namespace JKWatcher
         {
             attachClientNumToName = doAttach;
             updateName();
-        }
+        }*/
 
         private void updateName()
         {
             if (client != null)
             {
-                string nameToUse = userInfoName != null ? userInfoName : "Padawan";
+                string nameToUse = _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan";
                 bool clientNumAlreadyAdded = false;
-                if (demoTimeNameColors && client.Demorecording && !nameToUse.Contains("^"))
+                if (_connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
                 {
                     DemoName_t demoName = client.getDemoName();
                     if(demoName != null) // Pointless I guess, hmm
@@ -297,7 +313,7 @@ namespace JKWatcher
                             if (jkaMode) // Lesss elegant but works I guess. JKA doesn't have background colors.
                             {
                                 string clientNumAddition = "";
-                                if (attachClientNumToName) // For JKA we attach the clientnum here already so we can use it for the colors as well. Not elegant but better than filling with points more than necessary
+                                if (_connectionOptions.attachClientNumToName) // For JKA we attach the clientnum here already so we can use it for the colors as well. Not elegant but better than filling with points more than necessary
                                 {
                                     int clientNum = (client?.clientNum).GetValueOrDefault(-1);
                                     if (clientNum != -1)
@@ -353,7 +369,7 @@ namespace JKWatcher
                         }
                     }
                 }
-                if (attachClientNumToName && !clientNumAlreadyAdded)
+                if (_connectionOptions.attachClientNumToName && !clientNumAlreadyAdded)
                 {
                     int clientNum = (client?.clientNum).GetValueOrDefault(-1);
                     if(clientNum != -1)
@@ -465,6 +481,7 @@ namespace JKWatcher
                 {
                     backgroundTask.Cancel();
                 }
+                _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 disconnect();
             }
         }
@@ -505,7 +522,7 @@ namespace JKWatcher
             }
             client = new Client(handler); // Todo make more flexible
             //client.Name = "Padawan";
-            client.Name = userInfoName == null ? "Padawan" : userInfoName;
+            client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
             if (jkaMode) // TODO Detect mods and proceed accordingly
             {
                 CheckSumFile[] checkSumFiles = new CheckSumFile[]{
@@ -1297,12 +1314,17 @@ findHighestScore:
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
         }
 
+        private void OnServerInfoChanged(ServerInfo obj)
+        {
+            this.ServerInfoChanged?.Invoke(obj);
+        }
 
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            OnServerInfoChanged(obj);
             //obj.GameName
-            if(/*obj.GameName.Contains("JA+ Mod", StringComparison.OrdinalIgnoreCase) || */obj.GameName.Contains("JA+", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^5X^2Jedi ^5Academy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^4U^3A^5Galaxy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("AbyssMod", StringComparison.OrdinalIgnoreCase))
+            if (/*obj.GameName.Contains("JA+ Mod", StringComparison.OrdinalIgnoreCase) || */obj.GameName.Contains("JA+", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^5X^2Jedi ^5Academy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^4U^3A^5Galaxy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("AbyssMod", StringComparison.OrdinalIgnoreCase))
             {
                 this.JAPlusDetected = true;
             }
@@ -1352,7 +1374,7 @@ findHighestScore:
                         if(mvHttpDownloadInfo == null)
                         {
                             // Let's get server info packet.
-                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)))
+                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
                             {
                                 browser.Start(async (JKClientException ex)=> {
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes: "+ex.ToString());
@@ -1991,8 +2013,8 @@ findHighestScore:
                         if (reframeRequested)
                         {
                             demoCutCommand.Append("DemoReframer ");
-                            demoCutCommand.Append($"\"{filename}.dm_15\" ");
-                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}.dm_15\" ");
+                            demoCutCommand.Append($"\"{filename}.dm_{(int)this.protocol}\" ");
+                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}.dm_{(int)this.protocol}\" ");
                             demoCutCommand.Append(reframeClientNum);
                             demoCutCommand.Append("\n");
                         }
@@ -2372,7 +2394,7 @@ findHighestScore:
 
                 serverWindow.addToLog("Demo recording started.");
                 isRecordingADemo = true;
-                if (demoTimeNameColors)
+                if (_connectionOptions.demoTimeColorNames)
                 {
                     updateName();
                 }
