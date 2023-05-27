@@ -23,24 +23,30 @@
 
         <DockPanel Grid.Column="1">
             <StackPanel DockPanel.Dock="Top">
-                <WrapPanel>
-                    <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ctf matches">Auto-rec CTF >=</CheckBox>
-                    <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
-                        4
-                    </TextBox>
-                    <Label Padding="2" Margin="1" FontSize="10" ToolTip="players">pl.</Label>
-                    <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="1" FontSize="10" ToolTip="w/ strobe">str.</CheckBox>
-                </WrapPanel>
-                <WrapPanel>
-                    <CheckBox x:Name="ffaAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ffa matches. Single client but will upgrade to CTF if gametype changes. Will upgrade to use Strobe if clicked above.">Auto-rec FFA >=</CheckBox>
-                    <TextBox x:Name="ffaAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
-                        2
-                    </TextBox>
-                    <Label Padding="2" Margin="1" FontSize="10" ToolTip="exclude server names that include these strings (comma-separated)">excl.</Label>
-                    <TextBox x:Name="ffaAutoJoinExcludeTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10" Width="50">
-                        defrag
-                    </TextBox>
-                </WrapPanel>
+                <GroupBox Header="Autorecord">
+                    <StackPanel>
+                        <WrapPanel>
+                            <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ctf matches">CTF >=</CheckBox>
+                            <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                                4
+                            </TextBox>
+                            <Label Padding="2" Margin="1" FontSize="10" ToolTip="players">pl.</Label>
+                            <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="1" FontSize="10" ToolTip="w/ strobe">str.</CheckBox>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <CheckBox x:Name="ffaAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ffa matches. Single client but will upgrade to CTF if gametype changes. Will upgrade to use Strobe if clicked above.">FFA >=</CheckBox>
+                            <TextBox x:Name="ffaAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                                2
+                            </TextBox>
+                            <Label Padding="2" Margin="1" FontSize="10" ToolTip="exclude server names that include these strings (comma-separated)">excl.</Label>
+                            <TextBox x:Name="ffaAutoJoinExcludeTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10" Width="50">
+                                defrag
+                            </TextBox>
+                            <CheckBox x:Name="ffaAutoJoinSilent" Padding="2" Margin="1" FontSize="10" ToolTip="silent (no teamchat/chat messages on demorecord, no auto-respond to private messages except commands)">sil.</CheckBox>
+                        </WrapPanel>
+                    </StackPanel>
+                </GroupBox>
+                
             </StackPanel>
             <TabControl DockPanel.Dock="Bottom">
                 <TabItem Header="Players">

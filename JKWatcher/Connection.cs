@@ -411,6 +411,41 @@ namespace JKWatcher
             }
         }
 
+        // !!!!TODO: If we are currently in an intermission, only allow whitelisted commands. Some servers will
+        // turn any non whitelisted commands into a "say", particularly base, basejk and basejka servers.
+        // Implement a way to delay commands so we can go on with the next one instead of retrying the same over and over.
+        // Once intermission ends we can do others.
+        // Also, when in an intermission, send an occasional click or 2 to end the intermission? Not that important tho i guess
+        string[] intermissionCommandWhitelistJKA = new string[] { 
+            
+            // Server
+            "userinfo","disconnect","cp","vdr","download","nextdl","stopdl","donedl",
+
+            // Game always
+            "say","say_team","tell","voice_cmd","score",
+
+            // Bot commands
+            // There's a bunch of bot related commands that seem to be ok too but have other restrictions. Whatever. Let's not allow them I guess
+
+            // Game Intermission
+            // Technically the below won't turn into a say but will give an error which isnt nice either.
+            "give", "giveother", "god", "notarget", "noclip", "kill", "teamtask", "levelshot", "follow", "follownext", "followprev", "team", "duelteam", "siegeclass", "forcechanged", "where", "callvote", "vote", "callteamvote", "teamvote", "gc", "setviewpos", "stats" 
+        };
+        string[] intermissionCommandWhitelistJK2 = new string[] { 
+            
+            // Server
+            "userinfo","disconnect","cp","vdr","download","nextdl","stopdl","donedl",
+
+            // Game always
+            "say","say_team","tell","vsay","vsay_team","vtell","vosay","vosay_team","votell","vtaunt","score",
+
+            // Bot commands
+            // There's a bunch of bot related commands that seem to be ok too but have other restrictions. Whatever. Let's not allow them I guess
+
+            // Game Intermission
+            // Technically the below won't turn into a say but will give an error which isnt nice either.
+            "give", "god" ,"notarget" ,"noclip" ,"kill" ,"teamtask" ,"levelshot" ,"follow", "follownext", "followprev", "team", "forcechanged", "where", "callvote", "vote", "callteamvote", "teamvote", "gc", "setviewpos", "stats"
+        };
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
         {
             // Check if the command is supported by server (it's just a crude array that gets elements added if server responds that a command is unsupported. Don't waste time, burst allowance, bandwidth and demo size sending useless commands).
@@ -436,6 +471,27 @@ namespace JKWatcher
             {
                 e.Discard = true;
                 return;
+            }
+            if (infoPool.isIntermission)
+            {
+                if (jkaMode)
+                {
+                    if (!intermissionCommandWhitelistJKA.Contains(commandForValidityCheck))
+                    {
+                        e.Delay = true;
+                        e.NextTryAllowedIfDelayed = 500;
+                        return;
+                    }
+                }
+                else
+                {
+                    if (!intermissionCommandWhitelistJK2.Contains(commandForValidityCheck))
+                    {
+                        e.Delay = true;
+                        e.NextTryAllowedIfDelayed = 500;
+                        return;
+                    }
+                }
             }
 
             // Ok command is valid, let's see...
@@ -1905,10 +1961,11 @@ findHighestScore:
                         default:
                             if(pm.type == ChatType.PRIVATE)
                             {
-                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-
+                                if (!_connectionOptions.silentMode) { 
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                }
                                 return;
                             }
                             break;
@@ -1976,9 +2033,12 @@ findHighestScore:
                     if (helpRequested)
                     {
                         serverWindow.addToLog($"help requested by \"{pm.playerName}\" (clientNum {pm.playerNum})\n");
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        if (!_connectionOptions.silentMode)
+                        {
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        }
                         return;
                     }
 
@@ -2028,7 +2088,10 @@ findHighestScore:
                     {
                         return;
                     }
-                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {demoTime}.\"",RequestCategory.NONE,0,0,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null);
+                    if (!_connectionOptions.silentMode)
+                    {
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {demoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                    }
                     serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past\n");
                     return;
                 }
@@ -2341,7 +2404,7 @@ findHighestScore:
                 leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode)
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode)
                 { // replace with more sophisticated detection
                     // doing a detection here to not annoy ctf players.
                     // will still annoy ffa players until better detection.
@@ -2352,7 +2415,7 @@ findHighestScore:
                 // TwiMod (DARK etc)
                 leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode) // Might not be accurate idk
+                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode) // Might not be accurate idk
                 {
                     leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                     leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

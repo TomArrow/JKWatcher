@@ -198,6 +198,7 @@
             <StackPanel x:Name="connectionSettingsControls">
                 <!--<CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
                 <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>-->
+                <CheckBox IsChecked="{Binding silentMode,Mode=TwoWay}">Silent mode</CheckBox>
                 <CheckBox IsChecked="{Binding demoTimeColorNames,Mode=TwoWay}">Demotime name colors</CheckBox>
                 <CheckBox IsChecked="{Binding attachClientNumToName,Mode=TwoWay}">Attach clientNum</CheckBox>
                 <WrapPanel>

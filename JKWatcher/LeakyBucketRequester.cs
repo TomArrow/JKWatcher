@@ -67,6 +67,22 @@ namespace JKWatcher
             public TKind type { get; init; } // custom defined by caller
             public int minimumDelayFromSameType { get; init; }
             public int priority { get; init; }
+            public DateTime? earliestExecution { get; init; }
+
+            public Request(Request source, DateTime? earliestExecutionA = null)
+            {
+                command = source.command;
+                type = source.type;
+                minimumDelayFromSameType = source.minimumDelayFromSameType;
+                priority = source.priority;
+                if(earliestExecutionA != null)
+                {
+                    earliestExecution = earliestExecutionA;
+                } else
+                {
+                    earliestExecution = source.earliestExecution;
+                }
+            }
         }
 
         public struct FinishedRequest
@@ -235,6 +251,11 @@ namespace JKWatcher
                                     }
                                 }
 
+                                if(requestQueue[i].earliestExecution.HasValue && requestQueue[i].earliestExecution > DateTime.Now)
+                                {
+                                    wantstoExecute = false;
+                                }
+
                                 if (!wantstoExecute) continue;
 
                                 atLeastOneWantedExecution = true;
@@ -244,21 +265,25 @@ namespace JKWatcher
                                 {
                                     CommandExecutingEventArgs args = new CommandExecutingEventArgs(requestQueue[i].command);
                                     OnCommandExecuting(args);
-                                    if (args.Cancel) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
+                                    if (args.Delay) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
+                                        Request modifiedRequest = new Request(requestQueue[i], (DateTime.Now + new TimeSpan(0, 0, 0,0, args.NextTryAllowedIfDelayed)));
+                                        requestQueue[i] = modifiedRequest;
+                                        thisBucketBurst--; // Since it's delayed, it shouldn't affect our burst
+                                    } else if (args.Cancel) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
                                         somethingToDo = false;
                                         soonestPredictedEvent = Math.Max(soonestPredictedEvent, args.NextRequestAllowedIfCancelled);
                                         thisBucketBurst--; // Since it's cancelled, it shouldn't affect our burst
                                     } else if (args.Discard) { // Allow the event receivers to discard the execution for whatever reason (for example invalid/unsupported command)
 
                                         LogCommand(requestQueue[i],true);
-                                        requestQueue.RemoveAt(i);
+                                        requestQueue.RemoveAt(i--); // -- because otherwise the removal messes with the for loop?
                                         requestQueueChanged = true;
                                         thisBucketBurst--; // Since it's discarded, it shouldn't affect our burst
                                     } else
                                     {
                                         lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
                                         LogCommand(requestQueue[i],false);
-                                        requestQueue.RemoveAt(i);
+                                        requestQueue.RemoveAt(i--); // -- because otherwise the removal messes with the for loop?
                                         requestQueueChanged = true;
                                     }
                                 } else
@@ -281,13 +306,14 @@ namespace JKWatcher
 
         // The kind parameter is a user-defined request kind parameter to be able to group requests of a desired kind together and be able to specify the request behavior of that group (like ignore previous commands of the same type for choosing who to follow)
         // overriddenKinds defines kinds that the current request will override. If any requests of that kind exist, they will be deleted by adding this request.
-        public async void requestExecution(TCommand command, TKind kind, int priority = 0,int minimumDelayFromSameType=0, RequestBehavior requestBehavior = RequestBehavior.ENQUEUE, TKind[] overriddenKinds = null)
+        public async void requestExecution(TCommand command, TKind kind, int priority = 0,int minimumDelayFromSameType=0, RequestBehavior requestBehavior = RequestBehavior.ENQUEUE, TKind[] overriddenKinds = null, int? delayFromNow = null)
         {
             Request request = new Request() {
                 command = command,
                 type = kind,
                 minimumDelayFromSameType = minimumDelayFromSameType,
-                priority = priority
+                priority = priority,
+                earliestExecution = delayFromNow.HasValue ? (DateTime.Now + new TimeSpan(0,0,0,0,delayFromNow.Value)) : null
             };
             bool requestQueueChanged = false;
             lock (requestQueue)
@@ -432,8 +458,10 @@ namespace JKWatcher
         public class CommandExecutingEventArgs : EventArgs
         {
             public TCommand Command { get; private set; }
-            public bool Cancel = false; // If you want to cancel this one
+            public bool Cancel = false; // If you want to cancel/halt execution of commands for a bit and continue later
             public bool Discard = false; // If you want to discard this one
+            public bool Delay = false; // If you want to delay this one particular command
+            private int _nextTryAllowedIfDelayed = 100; // We set 100 as default when we can retry after delaying a command.
             private int _nextRequestAllowedIfCancelled = 100; // We set 100 as default when we can continue if cancelled.
             public int NextRequestAllowedIfCancelled // If you cancel, tell us when we can continue pls.
             {
@@ -444,6 +472,17 @@ namespace JKWatcher
                 set
                 {
                     _nextRequestAllowedIfCancelled = Math.Max(_nextRequestAllowedIfCancelled, value);
+                }
+            }
+            public int NextTryAllowedIfDelayed // If you cancel, tell us when we can continue pls.
+            {
+                get
+                {
+                    return _nextTryAllowedIfDelayed;
+                } 
+                set
+                {
+                    _nextTryAllowedIfDelayed = Math.Max(_nextTryAllowedIfDelayed, value);
                 }
             }
             public CommandExecutingEventArgs(TCommand commandA)

@@ -130,6 +130,7 @@ namespace JKWatcher
 
             public bool attachClientNumToName { get; set; } = true;
             public bool demoTimeColorNames { get; set; } = true;
+            public bool silentMode { get; set; } = false;
             public string userInfoName { get; set; } = null;
 
             public event PropertyChangedEventHandler PropertyChanged;
@@ -224,6 +225,7 @@ namespace JKWatcher
                 {
                     _connectionOptions.attachClientNumToName = true;
                     _connectionOptions.demoTimeColorNames = true;
+                    _connectionOptions.silentMode = false;
                     Dispatcher.Invoke(() => {
                         bool anyNewWatcherCreated = false;
                         if (!alreadyHaveCTFWatcher)

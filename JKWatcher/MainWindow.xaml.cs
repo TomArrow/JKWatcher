@@ -179,6 +179,7 @@ namespace JKWatcher
                 bool ctfAutoJoinActive = false;
                 bool ctfAutoJoinWithStrobeActive = false;
                 bool ffaAutoJoinActive = false;
+                bool ffaAutoJoinSilentActive = false;
                 string ffaAutoJoinExclude = null;
                 int ctfMinPlayersForJoin = 4;
                 int ffaMinPlayersForJoin = 2;
@@ -188,6 +189,7 @@ namespace JKWatcher
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
                     ffaAutoJoinActive = ffaAutoJoin.IsChecked == true;
+                    ffaAutoJoinSilentActive = ffaAutoJoinSilent.IsChecked == true;
                     ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
                     allJK2Versions = allJK2VersionsCheck.IsChecked == true;
@@ -298,7 +300,7 @@ namespace JKWatcher
 
                                             lock (connectedServerWindows)
                                             {
-                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false });
+                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive });
                                                 connectedServerWindows.Add(newWindow);
                                                 newWindow.Loaded += NewWindow_Loaded;
                                                 newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
@@ -488,6 +490,7 @@ namespace JKWatcher
 
             public bool FitsRequirements(ServerInfo serverInfo)
             {
+                if (serverInfo.HostName == null) return false;
                 if (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName))) // Improve this to also find non-colorcoded terms etc
                 {
                     return true;
@@ -562,6 +565,10 @@ namespace JKWatcher
             if (cp.GetValue("__general__", "ffaAutoConnect", 0) == 1)
             {
                 ffaAutoJoin.IsChecked = true;
+            }
+            if (cp.GetValue("__general__", "ffaAutoConnectSilent", 0) == 1)
+            {
+                ffaAutoJoinSilent.IsChecked = true;
             }
             string ffaAutoConnectExclude = cp.GetValue("__general__", "ffaAutoConnectExclude", "");
             if (ffaAutoConnectExclude != null)
