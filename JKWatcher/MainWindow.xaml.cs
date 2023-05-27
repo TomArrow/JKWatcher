@@ -183,12 +183,14 @@ namespace JKWatcher
                 int ctfMinPlayersForJoin = 4;
                 int ffaMinPlayersForJoin = 2;
                 bool jkaMode = false;
+                bool allJK2Versions = false;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
                     ffaAutoJoinActive = ffaAutoJoin.IsChecked == true;
                     ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
+                    allJK2Versions = allJK2VersionsCheck.IsChecked == true;
                     if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out ctfMinPlayersForJoin))
                     {
                         ctfMinPlayersForJoin = 4;
@@ -208,7 +210,7 @@ namespace JKWatcher
                 {
                     IEnumerable<ServerInfo> servers = null;
 
-                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15,allJK2Versions)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                     try
                     {
@@ -228,7 +230,8 @@ namespace JKWatcher
 
                     foreach (ServerInfo serverInfo in servers)
                     {
-                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode)
+                        bool statusReceived = serverInfo.StatusResponseReceived; // We get this value first because it seems in rare situations 1.03 servers can slip through. Maybe status just arrives a bit later and then with very unlucky timing the status received underneath passes but higher up the version was still set to JO_v1_02 because the status hadn't been received yet?
+                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions)
                         {
                             bool alreadyConnected = false;
                             lock (connectedServerWindows)
@@ -245,7 +248,7 @@ namespace JKWatcher
                             // Check if we are already connected. If so, do nothing.
                             if(!alreadyConnected && !serverInfo.NeedPassword) { 
                                 if(ctfAutoJoinActive && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY)) { 
-                                    if (serverInfo.Clients >= ctfMinPlayersForJoin && serverInfo.StatusResponseReceived)
+                                    if (serverInfo.RealClients >= ctfMinPlayersForJoin && statusReceived)
                                     {
                                 
                                         Dispatcher.Invoke(()=> {
@@ -265,7 +268,7 @@ namespace JKWatcher
                                                 newWindow.recordAll();
                                             }
                                         });
-                                    } else if (serverInfo.Clients >= ctfMinPlayersForJoin && !serverInfo.StatusResponseReceived)
+                                    } else if (serverInfo.Clients >= ctfMinPlayersForJoin && !statusReceived)
                                     {
                                         // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
                                         // arrive for some reason
@@ -288,7 +291,7 @@ namespace JKWatcher
                                         if (serverIsExcluded) continue; // Skip this one.
                                     }
 
-                                    if (serverInfo.Clients >= ffaMinPlayersForJoin && serverInfo.StatusResponseReceived)
+                                    if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived)
                                     {
 
                                         Dispatcher.Invoke(() => {
@@ -304,7 +307,7 @@ namespace JKWatcher
                                             }
                                         });
                                     }
-                                    else if (serverInfo.Clients >= ffaMinPlayersForJoin && !serverInfo.StatusResponseReceived)
+                                    else if (serverInfo.Clients >= ffaMinPlayersForJoin && !statusReceived)
                                     {
                                         // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
                                         // arrive for some reason
@@ -342,11 +345,13 @@ namespace JKWatcher
 
 
             bool jkaMode = false;
+            bool allJK2Versions = false;
             Dispatcher.Invoke(() => {
                 jkaMode = jkaModeCheck.IsChecked == true;
+                allJK2Versions = allJK2VersionsCheck.IsChecked == true;
             });
 
-            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true};
+            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions)) { ForceStatus = true};
 
             try
             {
@@ -366,7 +371,7 @@ namespace JKWatcher
 
             foreach(ServerInfo serverInfo in servers)
             {
-                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode)
+                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions)
                 {
                     filteredServers.Add(serverInfo);
                 }
@@ -568,6 +573,10 @@ namespace JKWatcher
             {
                 jkaModeCheck.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "allJK2Versions", 0) == 1)
+            {
+                allJK2VersionsCheck.IsChecked = true;
+            }
             bool jkaMode = jkaModeCheck.IsChecked == true;
             List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
             foreach(ConfigSection section in cp.Sections)
@@ -607,7 +616,7 @@ namespace JKWatcher
 
                         IEnumerable<ServerInfo> servers = null;
 
-                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L,ForceStatus=true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15)) { RefreshTimeout = 10000L,ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L,ForceStatus=true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L,ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                         try
                         {
@@ -627,7 +636,7 @@ namespace JKWatcher
 
                         foreach (ServerInfo serverInfo in servers)
                         {
-                            if (serverInfo.Version == ClientVersion.JO_v1_02)
+                            if (/*serverInfo.Version == ClientVersion.JO_v1_02*/true) // Don't care for the config execution.
                             {
                                 bool wantToConnect = false;
                                 ServerToConnect wishServer = null;

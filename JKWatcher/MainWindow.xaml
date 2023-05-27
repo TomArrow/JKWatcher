@@ -3,11 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:JKWatcher"
+        xmlns:local="clr-namespace:JKWatcher" 
+        xmlns:local1="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Window.Resources>
         <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
+        <local1:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></local1:BooleanToVisibilityConverter>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -74,6 +76,7 @@
         <DockPanel Grid.Row="0">
             <WrapPanel DockPanel.Dock="Top">
 
+                <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">All JK2 Versions</CheckBox>
                 <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Label ToolTip="Password">PW</Label>
@@ -85,6 +88,7 @@
             </WrapPanel>
             <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
+                    <DataGridTextColumn Header="Ver" Binding="{Binding Version}" Visibility="{Binding Source={x:Reference allJK2VersionsCheck},Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}"></DataGridTextColumn>
                     <DataGridTextColumn Header="PW" Binding="{Binding NeedPassword}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Cl" Binding="{Binding ClientsIncludingBots}"></DataGridTextColumn>
                     <DataGridTextColumn Header="RCl" Binding="{Binding RealClients}"></DataGridTextColumn>

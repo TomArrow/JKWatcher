@@ -512,6 +512,9 @@ namespace JKWatcher
             if(protocol == ProtocolVersion.Protocol15)
             {
                 handler = new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02);
+            } else if(protocol == ProtocolVersion.Protocol16)
+            {
+                handler = new JOClientHandler(ProtocolVersion.Protocol16, ClientVersion.JO_v1_04);
             } else if(protocol == ProtocolVersion.Protocol26)
             {
                 handler = new JAClientHandler(ProtocolVersion.Protocol26, ClientVersion.JA_v1_01);
@@ -1374,7 +1377,7 @@ findHighestScore:
                         if(mvHttpDownloadInfo == null)
                         {
                             // Let's get server info packet.
-                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
+                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(obj.Protocol)) { ForceStatus = true })
                             {
                                 browser.Start(async (JKClientException ex)=> {
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes: "+ex.ToString());
