@@ -161,6 +161,10 @@ namespace JKWatcher
             }
         }
 
+
+        List<ServerToConnect> serversToConnectDelayed = new List<ServerToConnect>();
+
+
         private async void ctfAutoConnecter(CancellationToken ct)
         {
             bool nextCheckFast = false;
@@ -208,11 +212,19 @@ namespace JKWatcher
                 NetAddress[] manualServers = getManualServers();
                 ServerBrowser.SetHiddenServers(manualServers);
 
-                if (ctfAutoJoinActive || ffaAutoJoinActive)
+
+                int delayedConnectServersCount = 0;
+                lock (serversToConnectDelayed)
+                {
+                    delayedConnectServersCount = serversToConnectDelayed.Count;
+                }
+
+                if (ctfAutoJoinActive || ffaAutoJoinActive || delayedConnectServersCount > 0)
                 {
                     IEnumerable<ServerInfo> servers = null;
 
-                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15,allJK2Versions)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+
+                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15,allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
 
                     try
                     {
@@ -229,11 +241,19 @@ namespace JKWatcher
 
                     if (servers == null) continue;
 
-
+                    List<ServerInfo> baselineFilteredServers = new List<ServerInfo>();
                     foreach (ServerInfo serverInfo in servers)
                     {
+                        if(serverInfo.HostName != null) // Some just come back like that sometimes, idk why.
+                        {
+                            baselineFilteredServers.Add(serverInfo);
+                        }
+                        else
+                        {
+                            continue;
+                        }
                         bool statusReceived = serverInfo.StatusResponseReceived; // We get this value first because it seems in rare situations 1.03 servers can slip through. Maybe status just arrives a bit later and then with very unlucky timing the status received underneath passes but higher up the version was still set to JO_v1_02 because the status hadn't been received yet?
-                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions)
+                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions || delayedConnectServersCount > 0)
                         {
                             bool alreadyConnected = false;
                             lock (connectedServerWindows)
@@ -249,6 +269,28 @@ namespace JKWatcher
                             // We want to be speccing/recording this.
                             // Check if we are already connected. If so, do nothing.
                             if(!alreadyConnected && !serverInfo.NeedPassword) { 
+
+                                if(delayedConnectServersCount > 0)
+                                {
+                                    ServerToConnect srvTCChosen = null;
+                                    lock (serversToConnectDelayed) { 
+                                        foreach (ServerToConnect srvTC in serversToConnectDelayed)
+                                        {
+                                            if (srvTC.FitsRequirements(serverInfo))
+                                            {
+                                                srvTCChosen = srvTC;
+                                                break;
+                                            }
+                                        }
+                                        if(srvTCChosen != null)
+                                        {
+                                            ConnectFromConfig(serverInfo, srvTCChosen);
+                                            continue;
+                                            //serversToConnectDelayed.Remove(srvTCChosen); // actually dont delete it.
+                                        }
+                                    }
+                                }
+
                                 if(ctfAutoJoinActive && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY)) { 
                                     if (serverInfo.RealClients >= ctfMinPlayersForJoin && statusReceived)
                                     {
@@ -322,7 +364,7 @@ namespace JKWatcher
 
 
                     }
-                    saveServerStats(servers);
+                    saveServerStats(baselineFilteredServers);
                     serverBrowser.Stop();
                     serverBrowser.Dispose();
 
@@ -471,8 +513,11 @@ namespace JKWatcher
         {
             public string hostName = null;
             public string playerName = null;
+            public string password = null;
             public bool autoRecord = false;
+            public bool delayed = false;
             public int retries = 5;
+            public int minRealPlayers = 1;
             public int? botSnaps = 5;
             public string[] watchers = null;
 
@@ -481,11 +526,18 @@ namespace JKWatcher
                 hostName = config["hostName"]?.Trim();
                 if (hostName == null || hostName.Length == 0) throw new Exception("ServerConnectConfig: hostName must be provided");
                 playerName = config["playerName"]?.Trim();
+                password = config["password"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',');
+                minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
+                delayed = config["delayed"]?.Trim().Atoi() > 0;
 
+                if(minRealPlayers>0 && !delayed)
+                {
+                    throw new Exception("ServerConnectConfig: minPlayers value > 0 requires delayed=1");
+                }
             }
 
             public bool FitsRequirements(ServerInfo serverInfo)
@@ -493,7 +545,7 @@ namespace JKWatcher
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName))) // Improve this to also find non-colorcoded terms etc
                 {
-                    return true;
+                    return (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) && (!serverInfo.NeedPassword || serverInfo.NeedPassword && password != null && password.Length > 0);
                 }
                 else
                 {
@@ -510,7 +562,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
@@ -552,6 +604,7 @@ namespace JKWatcher
             });
         }
 
+
         private void executeConfig(ConfigParser cp)
         {
             if (cp.GetValue("__general__","ctfAutoConnect",0) == 1)
@@ -586,13 +639,22 @@ namespace JKWatcher
             }
             bool jkaMode = jkaModeCheck.IsChecked == true;
             List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
-            foreach(ConfigSection section in cp.Sections)
+            lock (serversToConnectDelayed)
             {
-                if (section.SectionName == "__general__") continue;
-
-                if(section["hostName"] != null)
+                serversToConnectDelayed.Clear();
+                foreach (ConfigSection section in cp.Sections)
                 {
-                    serversToConnect.Add(new ServerToConnect(section));
+                    if (section.SectionName == "__general__") continue;
+
+                    if (section["hostName"] != null)
+                    {
+                        var newServer = new ServerToConnect(section);
+                        if (newServer.delayed)
+                        {
+                            serversToConnectDelayed.Add(newServer);
+                        }
+                        serversToConnect.Add(newServer);
+                    }
                 }
             }
             if (serversToConnect.Count > 0)
@@ -724,7 +786,9 @@ namespace JKWatcher
                         executionInProgress = true;
                     } catch(Exception ex)
                     {
-                        Helpers.logToFile(new string[] {$"Error executing config: {ex.ToString()}" });
+                        string errorString = $"Error executing config: {ex.ToString()}";
+                        Helpers.logToFile(new string[] { errorString });
+                        MessageBox.Show(errorString);
                     }
                 }
             }
