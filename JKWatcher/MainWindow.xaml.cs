@@ -303,6 +303,7 @@ namespace JKWatcher
                                                 connectedServerWindows.Add(newWindow);
                                                 newWindow.Loaded += NewWindow_Loaded;
                                                 newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.ShowActivated = false;
                                                 newWindow.Show();
                                                 newWindow.createCTFOperator();
                                                 if (ctfAutoJoinWithStrobeActive)
@@ -346,6 +347,7 @@ namespace JKWatcher
                                                 connectedServerWindows.Add(newWindow);
                                                 newWindow.Loaded += NewWindow_Loaded;
                                                 newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.ShowActivated = false;
                                                 newWindow.Show();
                                                 newWindow.recordAll();
                                             }
@@ -452,6 +454,7 @@ namespace JKWatcher
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.ShowActivated = false;
                     newWindow.Show();
                 }
             }
@@ -488,6 +491,7 @@ namespace JKWatcher
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.ShowActivated = false;
                     newWindow.Show();
                 }
             }
@@ -498,6 +502,7 @@ namespace JKWatcher
                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                 connectedServerWindows.Add(newWindow);
                 newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
+                                                newWindow.ShowActivated = false;
                 newWindow.Show();
             }*/
         }
@@ -566,6 +571,7 @@ namespace JKWatcher
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.ShowActivated = false;
                     newWindow.Show();
                     /*if(serverToConnect.playerName != null)
                     {
