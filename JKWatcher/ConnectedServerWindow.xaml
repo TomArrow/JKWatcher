@@ -26,6 +26,7 @@
         <DockPanel Grid.RowSpan="3">
             <WrapPanel DockPanel.Dock="Top">
                 <Button x:Name="followBtn" Click="followBtn_Click" IsEnabled="False">Follow</Button>
+                <Button x:Name="refreshPlayersBtn" Click="refreshPlayersBtn_Click" IsEnabled="True">Refresh</Button>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="playerListDataGrid_SelectionChanged">
                 <DataGrid.RowStyle>
@@ -71,6 +72,11 @@
                     <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Team" Binding="{Binding team}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Ping" Binding="{Binding score.ping}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Score" Binding="{Binding score.score}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Rets" Binding="{Binding score.impressiveCount}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>

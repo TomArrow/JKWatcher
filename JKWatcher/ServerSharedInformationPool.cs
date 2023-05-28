@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace JKWatcher
 {
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
-    public struct PlayerInfo
+    public class PlayerInfo
     {
         #region position
         public Vector3 position;
@@ -26,7 +26,7 @@ namespace JKWatcher
         public DateTime? lastDeath;
 
         #region score
-        public PlayerScore score;
+        public PlayerScore score { get; set; } = new PlayerScore();
         public DateTime? lastScoreUpdated;
         #endregion
 
@@ -51,21 +51,21 @@ namespace JKWatcher
         public volatile int powerUps;		// so can display quad/flag status
         #endregion
     }
-    public struct PlayerScore
+    public class PlayerScore
     {
         public volatile int client;
-        public volatile int score;
-        public volatile int ping;
+        public int score { get; set; }
+        public int ping { get; set; }
         public volatile int time;
         public volatile int scoreFlags;
         public volatile int powerUps;
         public volatile int accuracy;
-        public volatile int impressiveCount; // rets?
+        public int impressiveCount { get; set; } // rets?
         public volatile int excellentCount;
         public volatile int guantletCount;
-        public volatile int defendCount; // bc?
+        public int defendCount { get; set; } // bc?
         public volatile int assistCount;
-        public volatile int captures; // captures
+        public int captures { get; set; } // captures
 
         public volatile bool perfect;
         public volatile int team;
@@ -160,6 +160,10 @@ namespace JKWatcher
         private bool jkaMode = false;
         public ServerSharedInformationPool(bool jkaModeA)
         {
+            for(int i = 0; i < playerInfo.Length; i++)
+            {
+                playerInfo[i] = new PlayerInfo();
+            }
             jkaMode = jkaModeA;
             if (jkaMode)
             {

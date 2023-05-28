@@ -1079,7 +1079,7 @@ namespace JKWatcher
                     default:break;
                 }
 
-                PlayerInfo? pi = null;
+                PlayerInfo pi = null;
 
                 if(playerNum >= 0 && playerNum <= client.ClientHandler.MaxClients)
                 {
@@ -1100,7 +1100,7 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_TAKEN;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
-                    serverWindow.addToLog(pi.Value.name + " got the " + teamAsString + " flag.");
+                    serverWindow.addToLog(pi.name + " got the " + teamAsString + " flag.");
 
                 } else if (messageType == CtfMessageType.FraggedFlagCarrier && pi != null)
                 {
@@ -1125,7 +1125,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)otherTeam].flagDroppedPosition = thisSnapshotObituaryAttackers[playerNum];
                         infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
                     } 
-                    serverWindow.addToLog(pi.Value.name + " killed carrier of " + otherTeamAsString + " flag.");
+                    serverWindow.addToLog(pi.name + " killed carrier of " + otherTeamAsString + " flag.");
                     
                 } else if (messageType == CtfMessageType.FlagReturned)
                 {
@@ -1143,7 +1143,7 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
-                    serverWindow.addToLog(pi.Value.name + " captured the "+teamAsString+" flag.");
+                    serverWindow.addToLog(pi.name + " captured the "+teamAsString+" flag.");
                 }
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
@@ -1152,7 +1152,7 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
-                    serverWindow.addToLog(pi.Value.name + " returned the " + teamAsString + " flag.");
+                    serverWindow.addToLog(pi.name + " returned the " + teamAsString + " flag.");
                 }
 
             }
@@ -1556,9 +1556,11 @@ findHighestScore:
             }
             infoPool.NoActivePlayers = noActivePlayers;
             serverWindow.Dispatcher.Invoke(() => {
-
-                serverWindow.playerListDataGrid.ItemsSource = null;
-                serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
+                lock (serverWindow.playerListDataGrid)
+                {
+                    serverWindow.playerListDataGrid.ItemsSource = null;
+                    serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
+                }
             });
 
 

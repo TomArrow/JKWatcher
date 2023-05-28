@@ -1174,6 +1174,15 @@ namespace JKWatcher
             }
         }
 
+        private void refreshPlayersBtn_Click(object sender, RoutedEventArgs e)
+        {
+            lock (playerListDataGrid)
+            {
+                playerListDataGrid.ItemsSource = null;
+                playerListDataGrid.ItemsSource = infoPool.playerInfo;
+            }
+        }
+
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)
         {
             createCameraOperator<CameraOperators.StrobeCameraOperator>();
