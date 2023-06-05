@@ -148,7 +148,8 @@ namespace JKWatcher
                     bool overlaps = true;
                     bool positionIsLegal = true;
                     bool rightReached = false;
-                    while (overlaps && positionIsLegal)
+                    int safetyIndex = 0;
+                    while (overlaps && positionIsLegal && safetyIndex++ < 1_000_000)
                     {
                         overlaps = false;
                         WindowPositionData overlappingWindow = new WindowPositionData();
@@ -195,6 +196,11 @@ namespace JKWatcher
                             }
                         }
 
+                    }
+
+                    if(safetyIndex >= 1_000_000)
+                    {
+                        Helpers.logToFile(new string[] { "Window position manager possible infinite loop detected." });
                     }
 
                     if (positionIsLegal)

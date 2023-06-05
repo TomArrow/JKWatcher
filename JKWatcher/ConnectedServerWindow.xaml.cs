@@ -28,6 +28,7 @@ namespace JKWatcher
     {
         private int _botOnlySnaps = 5;
         private int _emptySnaps = 2;
+        private int _afkMaxSnaps = 2;
 
         public bool forceBotOnlySnaps { get; set; } = true;
         public int botOnlySnaps { 
@@ -56,6 +57,24 @@ namespace JKWatcher
                 if (fixedValue != _emptySnaps)
                 {
                     _emptySnaps = fixedValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool forceAFKSnapDrop { get; set; } = true;
+        public int afkMaxSnaps
+        {
+            get
+            {
+                return _afkMaxSnaps;
+            }
+            set
+            {
+                int fixedValue = Math.Max(1, value);
+                if (fixedValue != _afkMaxSnaps)
+                {
+                    _afkMaxSnaps = fixedValue;
                     OnPropertyChanged();
                 }
             }

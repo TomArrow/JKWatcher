@@ -596,20 +596,14 @@ namespace JKWatcher
             {
                 CheckSumFile[] checkSumFiles = null;
                 // TODO Fix this if we ever allow connecting to 1.03/1.04
-                if (true) // JK2 1.02 
+                if (protocol == ProtocolVersion.Protocol15) // JK2 1.02 
                 {
                     checkSumFiles = new CheckSumFile[]{
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl"),hasCgame=true,hasUI=true},
                     };
-                } else if (false) // JK2 1.03
-                {
-                    checkSumFiles = new CheckSumFile[]{
-                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
-                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl")},
-                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl"),hasCgame=true,hasUI=true},
-                    };
-                } else // JK2 1.04
+                }
+                else if ( protocol == ProtocolVersion.Protocol16) // JK2 1.04
                 {
                     checkSumFiles = new CheckSumFile[]{
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
@@ -617,7 +611,14 @@ namespace JKWatcher
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl")},
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets5.hl"),hasCgame=true,hasUI=true},
                     };
-                }
+                } else // JK2 1.03 // TODO Detect this properly here.
+                {
+                    checkSumFiles = new CheckSumFile[]{
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl")},
+                        new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl"),hasCgame=true,hasUI=true},
+                    };
+                } 
                 client.SetAssetChecksumFiles(checkSumFiles);
             }
 
@@ -1165,11 +1166,13 @@ namespace JKWatcher
 
             if (snapsSettings != null)
             {
+                client.AfkDropSnaps = snapsSettings.forceAFKSnapDrop;
+                client.AfkDropSnapsMinFPS = snapsSettings.afkMaxSnaps;
                 if (snapsSettings.forceEmptySnaps && infoPool.NoActivePlayers)
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.emptySnaps;
-                } else if (snapsSettings.forceBotOnlySnaps && infoPool.lastBotOnlyConfirmed != null && (DateTime.Now-infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000 )
+                } else if (snapsSettings.forceBotOnlySnaps && (infoPool.lastBotOnlyConfirmed != null && (DateTime.Now-infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000 || infoPool.botOnlyGuaranteed) )
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.botOnlySnaps;
@@ -1345,7 +1348,7 @@ namespace JKWatcher
 
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
-            bool onlyBotsActive = infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000;
+            bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
             if (AlwaysFollowSomeone && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
@@ -1370,7 +1373,7 @@ findHighestScore:
 
         private bool playerIsLikelyBot(int clientNumber)
         {
-            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
+            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (infoPool.playerInfo[clientNumber].confirmedBot || !infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
         }
 
         private void OnServerInfoChanged(ServerInfo obj)
@@ -1541,6 +1544,7 @@ findHighestScore:
                 return;
             }
             bool noActivePlayers = true;
+            bool anyNonBotActivePlayers = false;
             for(int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
                 if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
@@ -1551,9 +1555,16 @@ findHighestScore:
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
                 infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                 infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
+                infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > -0.5f; // Checking for -1 basically but it's float so be safe.
+
+                if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
+                {
+                    anyNonBotActivePlayers = true;
+                }
 
                 infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
             }
+            infoPool.botOnlyGuaranteed = !anyNonBotActivePlayers;
             infoPool.NoActivePlayers = noActivePlayers;
             serverWindow.Dispatcher.Invoke(() => {
                 lock (serverWindow.playerListDataGrid)
@@ -1564,7 +1575,9 @@ findHighestScore:
             });
 
 
-            if (AlwaysFollowSomeone && ClientNum == SpectatedPlayer) // Not following anyone. Let's follow someone.
+            // Any reason to have this here when it's already in snapshotparsed?
+            // The one in snapshotparsed is also more advanced and does more cool stuff like check for bots
+            /*if (AlwaysFollowSomeone && ClientNum == SpectatedPlayer) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
@@ -1582,7 +1595,7 @@ findHighestScore:
                     lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
-            }
+            }*/
 
             snapsEnforcementUpdate();
         }
@@ -2277,7 +2290,7 @@ findHighestScore:
                 if (infoPool.playerInfo[clientNum].team != Team.Spectator)
                 {
                     anyPlayersActive = true;
-                    if (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    if (!infoPool.playerInfo[clientNum].confirmedBot && (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
                     {
                         anyNonBotPlayerActive = true;
                     }

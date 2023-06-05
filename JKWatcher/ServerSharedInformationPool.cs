@@ -39,6 +39,7 @@ namespace JKWatcher
         public string name { get; set; }
         public Team team { get; set; }
         public bool infoValid { get; set; }
+        public bool confirmedBot { get; set; }
         public int clientNum { get; set; }
         public DateTime? lastClientInfoUpdate;
         #endregion
@@ -135,6 +136,8 @@ namespace JKWatcher
         public bool NoActivePlayers { get; set; }
 
         public DateTime? lastBotOnlyConfirmed = null;
+        
+        public bool botOnlyGuaranteed = false;
 
         public ConcurrentBag<string> unsupportedCommands = new ConcurrentBag<string>();
 

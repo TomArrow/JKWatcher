@@ -79,6 +79,10 @@
                 <TextBox  Margin="0" Padding="2" Text="{Binding messagesSkippable,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120" FontSize="10">SuperSkippable msgs:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSuperSkippable,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (svc):</Label>
                 <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableSvc,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
             </WrapPanel>
@@ -93,10 +97,6 @@
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Unskipped (time):</Label>
                 <TextBox Text="{Binding messagesNotSkippedTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
-            </WrapPanel>
-            <WrapPanel>
-                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Demo current time:</Label>
-                <TextBox Text="{Binding demoCurrentTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
             </WrapPanel>
             
         </StackPanel>
@@ -113,6 +113,10 @@
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserPacket FPS:</Label>
                 <TextBox Text="{Binding lastUserPacketDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Demo current time:</Label>
+                <TextBox Text="{Binding demoCurrentTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
             </WrapPanel>
             
         </StackPanel>
