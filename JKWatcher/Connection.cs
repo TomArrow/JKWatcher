@@ -1270,6 +1270,17 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
+
+                    if (SpectatedPlayer.HasValue)
+                    {
+                        infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                    }
+                } else
+                {
+                    if (SpectatedPlayer.HasValue)
+                    {
+                        infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                    }
                 }
             }
 
@@ -1299,9 +1310,14 @@ namespace JKWatcher
             for (int i = client.ClientHandler.MaxClients; i < JKClient.Common.MaxGEntities; i++)
             {
                 if (entities[i].CurrentValid)
-                { 
+                {
+                    if (SpectatedPlayer.HasValue)
+                    {
+                        infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                    }
+
                     // Flag bases
-                    if(entities[i].CurrentState.EntityType == ETTeam)
+                    if (entities[i].CurrentState.EntityType == ETTeam)
                     {
                         Team team = (Team)entities[i].CurrentState.ModelIndex;
                         if (team == Team.Blue || team == Team.Red)
@@ -1342,6 +1358,13 @@ namespace JKWatcher
                                 
                             }
                         }
+                    }
+                }
+                else
+                {
+                    if (SpectatedPlayer.HasValue)
+                    {
+                        infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
                     }
                 }
             }

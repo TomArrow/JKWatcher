@@ -427,6 +427,7 @@ namespace JKWatcher.CameraOperators
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            visibilityMultiplier = flagItemNumber == -1 ? 1.0f: infoPool.getVisibilityMultiplier(i, flagItemNumber),
                         };
                         tmp.gradeForFlagAtBase(flagTeam, !flagVisible);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -731,12 +732,56 @@ namespace JKWatcher.CameraOperators
                         Vector3 currentSpectatedPlayerPositionInOneSecond = infoPool.playerInfo[currentlySpectatedPlayer].position + infoPool.playerInfo[currentlySpectatedPlayer].velocity;
                         float currentDistance = (currentSpectatedPlayerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
 
-                        float closestDistance = currentDistance;
-                        int closestPlayer = -1;
+                        //float closestDistance = currentDistance;
+                        //int closestPlayer = -1;
                         bool anyCloseByPossibleReturnersConfirmed = false; // For stickAround
+                        List<PossiblePlayerDecision> possiblePlayers = new List<PossiblePlayerDecision>();
+                        PossiblePlayerDecision tmp;
                         for (int i = 0; i < infoPool.playerInfo.Length; i++)
                         {
-                            if (infoPool.playerInfo[i].team == flagTeam && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
+                            if (i != currentlySpectatedPlayer && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
+                            {
+                                float lastSeenThisPlayer = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds / 1000.0f;
+
+                                if (lastSeenThisPlayer < 1f)
+                                { 
+                                    if(infoPool.playerInfo[i].team == flagTeam)
+                                    {
+                                        float distanceRightNow = (infoPool.playerInfo[i].position + infoPool.playerInfo[i].velocity * lastSeenThisPlayer - (infoPool.playerInfo[flagCarrier].position + infoPool.playerInfo[flagCarrier].velocity * lastSeen)).Length();
+                                        if (distanceRightNow <= 200)
+                                        {
+                                            // I say 200 units counts as being close enough to force a perspective change right this very moment.
+                                            // If the info is more than 200 ms old, this player likely isn't actually visible or something weird is going on, so we let it go.
+                                            anyCloseByPossibleReturnersConfirmed = true;
+                                        }
+                                    }
+
+                                    Vector3 playerPositionInOneSecond = infoPool.playerInfo[i].position + (1f + lastSeenThisPlayer) * infoPool.playerInfo[i].velocity;
+                                    float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
+
+                                    if(playerDistance < currentDistance || infoPool.getVisibilityMultiplier(i, flagCarrier) < 1f) // Must be closer than we are right now or have confirmedly seen the flag carrier very recently
+                                    {
+
+                                        tmp = new PossiblePlayerDecision()
+                                        {
+                                            clientNum = i,
+                                            distance = playerDistance,
+                                            visibilityMultiplier = infoPool.getVisibilityMultiplier(i, flagCarrier, 1000),
+                                        };
+                                        tmp.gradeForFlagTakenAndInvisible(flagTeam);
+                                        possiblePlayers.Add(tmp);
+                                    }
+                                    /*
+                                    if (playerDistance < closestDistance)
+                                    {
+                                        closestDistance = playerDistance;
+                                        closestPlayer = i;
+                                    }*/
+                                }
+
+
+                            }
+                            /*if (infoPool.playerInfo[i].team == flagTeam && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
                             {
 
 
@@ -754,13 +799,14 @@ namespace JKWatcher.CameraOperators
 
                                     Vector3 playerPositionInOneSecond = infoPool.playerInfo[i].position + (1f+ lastSeenThisPlayer) * infoPool.playerInfo[i].velocity;
                                     float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
-                                    if(playerDistance < closestDistance)
+                                    
+                                    if (playerDistance < closestDistance)
                                     {
                                         closestDistance = playerDistance;
                                         closestPlayer = i;
                                     }
                                 }
-                            }
+                            }*/
                         }
 
                         // If no close by potential returners are confirmed, we can probably safely do the stick around. 
@@ -769,8 +815,14 @@ namespace JKWatcher.CameraOperators
                             decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Sticking around.");
                             return;
                         }
+                        
+                        if(possiblePlayers.Count > 0) { 
+                            possiblePlayers.Sort((a, b) => {
+                                return (int)Math.Clamp(a.grade - b.grade, Int32.MinValue, Int32.MaxValue - 100); // maxvalue clamping and casting to int doesnt work well due to floating point precision or lack thereof
+                            });
+                        }
 
-                        if (closestPlayer == -1)
+                        if (possiblePlayers.Count == 0)
                         {
                             // Ok we found nobody closer. Follow carrier himself.
                             if (flagCarrier != currentlySpectatedPlayer) connection.leakyBucketRequester.requestExecution("follow " + flagCarrier, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
@@ -778,11 +830,11 @@ namespace JKWatcher.CameraOperators
                         }
                         else
                         {
-                            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Try follow {closestPlayer} as closest known player around (distance: {closestDistance}).");
+                            decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, $"Try follow {possiblePlayers[0].clientNum} as closest known player around (distance: {possiblePlayers[0].distance}).");
                             // give this guy a chance.
-                            if (closestPlayer != currentlySpectatedPlayer)
+                            if (possiblePlayers[0].clientNum != currentlySpectatedPlayer)
                             {
-                                connection.leakyBucketRequester.requestExecution("follow " + closestPlayer, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                                connection.leakyBucketRequester.requestExecution("follow " + possiblePlayers[0].clientNum, RequestCategory.FOLLOW, 5, 366, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
                             } else
                             {
                                 // Okay we already ARE watching the one we think is the closest player. But flag carrier still invisible. Ok just switch to flag carrier.
@@ -864,7 +916,8 @@ namespace JKWatcher.CameraOperators
                             isVisible = (connection.client.Entities?[i].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false),
                             isCarryingTheFlag = i == flagCarrier,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
-                            isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false
+                            isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false,
+                            visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagCarrier),
                         };
                         tmp.gradeForFlagTakenAndVisible(flagTeam, currentlyFollowingFlagCarrier);
                         possibleNextPlayers.Add(tmp);
@@ -1188,7 +1241,8 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount
+                            retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagItemNumber),
                         };
                         tmp.gradeForFlagDroppedWithKnownPosition(flagTeam,flagVisible,flagDistanceFromBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -1298,6 +1352,7 @@ namespace JKWatcher.CameraOperators
             public bool isCarryingTheOtherTeamsFlag;
             public bool isCarryingTheFlag;
             public bool isVisible;
+            public float visibilityMultiplier;
 
             public float grade { get; set; }
             public string gradeMethod { get; set; }
@@ -1448,6 +1503,7 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
+                grade *= this.visibilityMultiplier;
 #if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
@@ -1499,6 +1555,7 @@ namespace JKWatcher.CameraOperators
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.isAlive ? 1f : 9f; // Being dead makes you 9 times worse choice. Aka, a dead person is a better choice if he's more than 2000 units closer or if his info is more than 4 seconds newer.
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than cappers.
+                grade *= this.visibilityMultiplier;
 #if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team, this);
 #endif
@@ -1535,6 +1592,21 @@ namespace JKWatcher.CameraOperators
                 }
 
                 grade *= this.isCarryingTheOtherTeamsFlag ? 1.15f : 1f; // Action from flag carrier against flag carrier is cool, give it a slight bonus
+                grade *= this.visibilityMultiplier;
+#if LOGDECISIONS
+                decisionsLogger?.logDecisionGrading(team,this);
+#endif
+                return grade;
+            }
+
+            // Bigger value: worse decision
+            public float gradeForFlagTakenAndInvisible(Team team)
+            {
+                // This one is very simplistic. We just want to get the guy visible again.
+                // We were previously only looking at distance. Now take visibility or invisibility into account.
+                gradeMethod = "gradeForFlagTakenAndInvisible()";
+                grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
+                grade *= this.visibilityMultiplier;
 #if LOGDECISIONS
                 decisionsLogger?.logDecisionGrading(team,this);
 #endif
@@ -1569,7 +1641,7 @@ namespace JKWatcher.CameraOperators
             sw = new StreamWriter(new FileStream(Helpers.GetUnusedFilename(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "playerDecisionsDebugLogs\\playerDecisionsDEBUG.csv")), FileMode.Append, FileAccess.Write, FileShare.Read));
             if(sw.BaseStream.Position == 0)
             { // Empty file
-                sw.WriteLine("team,time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,isVisible,grade,gradeMethod");
+                sw.WriteLine("team,time,clientNum,informationAge,distance,isAlive,isOnSameTeamAsFlag,lastDeath,retCount,lastDeathDistance,isCarryingTheOtherTeamsFlag,isCarryingTheFlag,visibilityMultiplier,isVisible,grade,gradeMethod");
             }
         }
 
@@ -1612,7 +1684,7 @@ namespace JKWatcher.CameraOperators
         {
             if(sw != null)
             {
-                sw.WriteLine($"\"{team.ToString()}\",\"{infoPool.GameTime}\",\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
+                sw.WriteLine($"\"{team.ToString()}\",\"{infoPool.GameTime}\",\"{possiblePlayerDecision.clientNum}\",\"{possiblePlayerDecision.informationAge}\",\"{possiblePlayerDecision.distance}\",\"{possiblePlayerDecision.isAlive}\",\"{possiblePlayerDecision.isOnSameTeamAsFlag}\",\"{possiblePlayerDecision.lastDeath}\",\"{possiblePlayerDecision.retCount}\",\"{possiblePlayerDecision.lastDeathDistance}\",\"{possiblePlayerDecision.isCarryingTheOtherTeamsFlag}\",\"{possiblePlayerDecision.isCarryingTheFlag}\",\"{possiblePlayerDecision.visibilityMultiplier}\",\"{possiblePlayerDecision.isVisible}\",\"{possiblePlayerDecision.grade}\",\"{possiblePlayerDecision.gradeMethod}\"");
             }
         }
     }

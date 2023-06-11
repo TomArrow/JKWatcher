@@ -183,7 +183,7 @@ namespace JKWatcher
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
-            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26);
+            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, 32);
 
             gameTimeTxt.DataContext = infoPool;
             mapNameTxt.DataContext = infoPool;

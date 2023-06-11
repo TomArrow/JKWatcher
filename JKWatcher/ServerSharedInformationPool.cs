@@ -10,6 +10,41 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+
+    // Two dimensional array that can be accessed in any order of indizi and return the same rsuult
+    // Aka: [a][b] gives same result as [b][a]
+    // How? It just orders the indizi. Biggest first.
+    public class ArbitraryOrder2DArray<T>
+    {
+
+        T[][] theArray;
+
+        public T this[int a, int b] {
+            get {
+                return a > b ? theArray[a][b] : theArray[b][a];
+            }
+            set
+            {
+                if (a > b)
+                {
+                    theArray[a][b] = value;
+                } else
+                {
+                    theArray[b][a] = value;
+                }
+            }
+        }
+
+        public ArbitraryOrder2DArray(int maxCount)
+        {
+            theArray = new T[maxCount][];
+            for(int i=0; i < maxCount; i++)
+            {
+                theArray[i] = new T[i+1]; // We can save a bit of space here. Since the first index is always the biggest, the second array can't contain any index bigger than the first index
+            }
+        }
+    }
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
@@ -141,6 +176,46 @@ namespace JKWatcher
 
         public ConcurrentBag<string> unsupportedCommands = new ConcurrentBag<string>();
 
+        public ArbitraryOrder2DArray<DateTime?> lastConfirmedVisible;
+        public ArbitraryOrder2DArray<DateTime?> lastConfirmedInvisible;
+
+        // < 1 = confirmed visible recently
+        // 1 = nothing to report
+        // > 1 = confirmed invisible recently
+        public float getVisibilityMultiplier(int entityNumA, int entityNumB, int validTime=300)
+        {
+            DateTime lastVisibility = lastConfirmedVisible[entityNumA, entityNumB].GetValueOrDefault(DateTime.Now-new TimeSpan(0,0,0,0, validTime*2));
+            DateTime lastInvisibility = lastConfirmedInvisible[entityNumA, entityNumB].GetValueOrDefault(DateTime.Now - new TimeSpan(0, 0, 0, 0, validTime * 2));
+            if((DateTime.Now- lastVisibility).TotalMilliseconds > validTime && (DateTime.Now-lastInvisibility).TotalMilliseconds > validTime)
+            {
+                // Neither of these values is current enough to be relevant.
+                return 1f;
+            }
+
+            if (lastVisibility > lastInvisibility)
+            {
+                float timeMultiplier = (float)Math.Clamp( (DateTime.Now - lastVisibility).TotalMilliseconds / (double)validTime,0f,1f);
+                return 1f* timeMultiplier+(1f- timeMultiplier)* 0.75f; // Small bonus. The older the confirmed visibility, the lesser the bonus
+            } else if (lastVisibility < lastInvisibility)
+            {
+                float timeMultiplier = (float)Math.Clamp((DateTime.Now - lastInvisibility).TotalMilliseconds / (double)validTime, 0f, 1f);
+                return 1f * timeMultiplier + (1f - timeMultiplier) * 4f; // Big penalty. The older the confirmed invisibility, the lesser the penalty
+            }
+            else
+            {
+                return 1f;
+            }
+        }
+        public float getVisibilityMultiplier(int? entityNumA, int? entityNumB, int validTime = 300)
+        {
+            if(!entityNumA.HasValue || !entityNumB.HasValue)
+            {
+                return 1.0f;
+            }
+
+            return getVisibilityMultiplier(entityNumA.Value, entityNumB.Value, validTime);
+        }
+
         public void setGameTime(int gameTime)
         {
             this.gameTime = gameTime;
@@ -154,16 +229,23 @@ namespace JKWatcher
             GameTime = mins.ToString() +":"+ secs.ToString("D2");
         }
 
-        public PlayerInfo[] playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15,ClientVersion.JO_v1_02).MaxClients];
+        public PlayerInfo[] playerInfo;
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-
+        private int _maxClients = 0;
         private bool jkaMode = false;
-        public ServerSharedInformationPool(bool jkaModeA)
+        public ServerSharedInformationPool(bool jkaModeA, int maxClients)
         {
-            for(int i = 0; i < playerInfo.Length; i++)
+            _maxClients = maxClients;
+            playerInfo = new PlayerInfo[maxClients];
+            teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
+
+            lastConfirmedVisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);
+            lastConfirmedInvisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);
+
+            for (int i = 0; i < playerInfo.Length; i++)
             {
                 playerInfo[i] = new PlayerInfo();
             }
@@ -194,7 +276,7 @@ namespace JKWatcher
         }
         public void ResetInfo(bool isMBII)
         {
-            playerInfo = new PlayerInfo[new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02).MaxClients];
+            playerInfo = new PlayerInfo[_maxClients];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
             if (jkaMode)
             {
