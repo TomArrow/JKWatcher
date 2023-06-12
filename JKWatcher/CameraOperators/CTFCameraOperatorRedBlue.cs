@@ -297,7 +297,8 @@ namespace JKWatcher.CameraOperators
                 decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is known");
 
                 // First off, is the flag visible RIGHT now?
-                bool flagVisible = flagItemNumber==-1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false);
+                //bool flagVisible = flagItemNumber==-1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false);
+                bool flagVisible = flagItemNumber==-1 ? false: connection.entityOrPSVisible[flagItemNumber];
                 if (flagVisible)
                 {
                     decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "Flag is visible");
@@ -688,7 +689,8 @@ namespace JKWatcher.CameraOperators
             int flagCarrier = infoPool.teamInfo[(int)flagTeam].lastFlagCarrier;
 
             // TODO Make this more flexible. Check generally if he is visible SOMEWHERE (not just on this associated connection). But make sure it doesnt break any of the existing logic.
-            bool flagCarrierVisible = (connection.client.Entities?[flagCarrier].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false);
+            //bool flagCarrierVisible = (connection.client.Entities?[flagCarrier].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false);
+            bool flagCarrierVisible = connection.entityOrPSVisible[flagCarrier];
             bool currentlyFollowingFlagCarrier = flagCarrier == currentlySpectatedPlayer;
 
             if (!flagCarrierVisible)
@@ -739,7 +741,7 @@ namespace JKWatcher.CameraOperators
                         PossiblePlayerDecision tmp;
                         for (int i = 0; i < infoPool.playerInfo.Length; i++)
                         {
-                            if (i != currentlySpectatedPlayer && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
+                            if (i != flagCarrier && i != currentlySpectatedPlayer && infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].IsAlive && infoPool.playerInfo[i].team != Team.Spectator)
                             {
                                 float lastSeenThisPlayer = (float)(DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMilliseconds / 1000.0f;
 
@@ -766,6 +768,7 @@ namespace JKWatcher.CameraOperators
                                         {
                                             clientNum = i,
                                             distance = playerDistance,
+                                            isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i, flagCarrier, 1000),
                                         };
                                         tmp.gradeForFlagTakenAndInvisible(flagTeam);
@@ -913,7 +916,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            isVisible = (connection.client.Entities?[i].currentValidOrFilledFromPlayerState()).GetValueOrDefault(false),
+                            isVisible = connection.entityOrPSVisible[i],
                             isCarryingTheFlag = i == flagCarrier,
                             retCount = infoPool.playerInfo[i].score.impressiveCount,
                             isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false,
@@ -1168,7 +1171,7 @@ namespace JKWatcher.CameraOperators
                 decisionsLogger.logLine(flagTeam, System.Reflection.MethodBase.GetCurrentMethod().Name, "FlagPosition is known");
 
                 // First off, is the flag visible RIGHT now?
-                bool flagVisible = flagItemNumber == -1 ? false: (connection.client.Entities?[flagItemNumber].CurrentValid).GetValueOrDefault(false); // If we don't know its item number it can't be visible either duh!
+                bool flagVisible = flagItemNumber == -1 ? false: connection.entityOrPSVisible[flagItemNumber]; // If we don't know its item number it can't be visible either duh!
                 if (flagVisible)
                 {
                     // re. stickARound

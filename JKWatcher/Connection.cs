@@ -1206,8 +1206,9 @@ namespace JKWatcher
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
         };
 
+        public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
 
-        private unsafe void Client_SnapshotParsed(object sender, EventArgs e)
+        private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
             snapsEnforcementUpdate();
@@ -1221,11 +1222,22 @@ namespace JKWatcher
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
 
-            ClientEntity[] entities = client.Entities;
-            if (entities == null)
+            Snapshot snap = e.snap;
+            int[] snapEntityMapping = new int[Common.MaxGEntities];
+            for(int i = 0; i < Common.MaxGEntities; i++)
             {
-                return;
+                snapEntityMapping[i] = -1;
             }
+            for(int i = 0; i < e.snap.NumEntities; i++)
+            {
+                snapEntityMapping[e.snap.Entities[i].Number] = i;
+            }
+            entityOrPSVisible[snap.PlayerState.ClientNum] = true;
+            //ClientEntity[] entities = client.Entities;
+            //if (entities == null)
+            //{
+            //    return;
+            //}
 
             int EFDeadFlag = jkaMode ? (int)JKAStuff.EntityFlags.EF_DEAD : (int)JOStuff.EntityFlags.EF_DEAD;
             int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
@@ -1237,24 +1249,68 @@ namespace JKWatcher
 
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
+                int snapEntityNum = snapEntityMapping[i];
+                if(snapEntityNum == -1 && i == snap.PlayerState.ClientNum)
+                {
+                    infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    infoPool.playerInfo[i].position.X = snap.PlayerState.Origin[0];
+                    infoPool.playerInfo[i].position.Y = snap.PlayerState.Origin[1];
+                    infoPool.playerInfo[i].position.Z = snap.PlayerState.Origin[2];
+                    infoPool.playerInfo[i].velocity.X = snap.PlayerState.Velocity[0];
+                    infoPool.playerInfo[i].velocity.Y = snap.PlayerState.Velocity[1];
+                    infoPool.playerInfo[i].velocity.Z = snap.PlayerState.Velocity[2];
+                    infoPool.playerInfo[i].angles.X = snap.PlayerState.ViewAngles[0];
+                    infoPool.playerInfo[i].angles.Y = snap.PlayerState.ViewAngles[1];
+                    infoPool.playerInfo[i].angles.Z = snap.PlayerState.ViewAngles[2];
 
-                if (entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState ) {
+                    infoPool.playerInfo[i].powerUps = 0;
+                    for (int y = 0; y < Common.MaxPowerUps; y++)
+                    {
+                        if (snap.PlayerState.PowerUps[y] > 0)
+                        {
+                            infoPool.playerInfo[i].powerUps |= 1 << y;
+                        }
+                    }
+                    infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
+
+                    if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    {
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
+                    }
+                    else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    {
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
+                    }
+
+                    if (SpectatedPlayer.HasValue)
+                    {
+                        infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                        entityOrPSVisible[i] = true;
+                    }
+                }
+                else if (snapEntityNum != -1 /* entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState */) {
 
                     // TODO
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
-                    infoPool.playerInfo[i].IsAlive = (entities[i].CurrentState.EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
-                    infoPool.playerInfo[i].position.X = entities[i].CurrentState.Position.Base[0];
-                    infoPool.playerInfo[i].position.Y = entities[i].CurrentState.Position.Base[1];
-                    infoPool.playerInfo[i].position.Z = entities[i].CurrentState.Position.Base[2];
-                    infoPool.playerInfo[i].velocity.X = entities[i].CurrentState.Position.Delta[0];
-                    infoPool.playerInfo[i].velocity.Y = entities[i].CurrentState.Position.Delta[1];
-                    infoPool.playerInfo[i].velocity.Z = entities[i].CurrentState.Position.Delta[2];
-                    infoPool.playerInfo[i].angles.X = entities[i].CurrentState.AngularPosition.Base[0];
-                    infoPool.playerInfo[i].angles.Y = entities[i].CurrentState.AngularPosition.Base[1];
-                    infoPool.playerInfo[i].angles.Z = entities[i].CurrentState.AngularPosition.Base[2];
-                    infoPool.playerInfo[i].powerUps = entities[i].CurrentState.Powerups; // 1/3 places where powerups is transmitted
+                    infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    infoPool.playerInfo[i].position.X = snap.Entities[snapEntityNum].Position.Base[0];
+                    infoPool.playerInfo[i].position.Y = snap.Entities[snapEntityNum].Position.Base[1];
+                    infoPool.playerInfo[i].position.Z = snap.Entities[snapEntityNum].Position.Base[2];
+                    infoPool.playerInfo[i].velocity.X = snap.Entities[snapEntityNum].Position.Delta[0];
+                    infoPool.playerInfo[i].velocity.Y = snap.Entities[snapEntityNum].Position.Delta[1];
+                    infoPool.playerInfo[i].velocity.Z = snap.Entities[snapEntityNum].Position.Delta[2];
+                    infoPool.playerInfo[i].angles.X = snap.Entities[snapEntityNum].AngularPosition.Base[0];
+                    infoPool.playerInfo[i].angles.Y = snap.Entities[snapEntityNum].AngularPosition.Base[1];
+                    infoPool.playerInfo[i].angles.Z = snap.Entities[snapEntityNum].AngularPosition.Base[2];
+                    infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
@@ -1274,17 +1330,19 @@ namespace JKWatcher
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                        entityOrPSVisible[i] = true;
                     }
                 } else
                 {
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                        entityOrPSVisible[i] = false;
                     }
                 }
             }
 
-            PlayerState currentPs = client.PlayerState;
+            PlayerState currentPs = snap.PlayerState;
             if(currentPs.ClientNum >= 0 && currentPs.ClientNum < client.ClientHandler.MaxClients) // Dunno why it shouldnt be but i dont want any crashes.
             {
                 // Update the followed player's score in realtime.
@@ -1309,50 +1367,52 @@ namespace JKWatcher
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
             for (int i = client.ClientHandler.MaxClients; i < JKClient.Common.MaxGEntities; i++)
             {
-                if (entities[i].CurrentValid)
+                int snapEntityNum = snapEntityMapping[i];
+                if (snapEntityNum != -1/*entities[i].CurrentValid*/)
                 {
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                        entityOrPSVisible[i] = true;
                     }
 
                     // Flag bases
-                    if (entities[i].CurrentState.EntityType == ETTeam)
+                    if (snap.Entities[snapEntityNum].EntityType == ETTeam)
                     {
-                        Team team = (Team)entities[i].CurrentState.ModelIndex;
+                        Team team = (Team)snap.Entities[snapEntityNum].ModelIndex;
                         if (team == Team.Blue || team == Team.Red)
                         {
-                            infoPool.teamInfo[(int)team].flagBasePosition.X = entities[i].CurrentState.Position.Base[0];
-                            infoPool.teamInfo[(int)team].flagBasePosition.Y = entities[i].CurrentState.Position.Base[1];
-                            infoPool.teamInfo[(int)team].flagBasePosition.Z = entities[i].CurrentState.Position.Base[2];
+                            infoPool.teamInfo[(int)team].flagBasePosition.X = snap.Entities[snapEntityNum].Position.Base[0];
+                            infoPool.teamInfo[(int)team].flagBasePosition.Y = snap.Entities[snapEntityNum].Position.Base[1];
+                            infoPool.teamInfo[(int)team].flagBasePosition.Z = snap.Entities[snapEntityNum].Position.Base[2];
                             infoPool.teamInfo[(int)team].flagBaseEntityNumber = i;
                             infoPool.teamInfo[(int)team].lastFlagBasePositionUpdate = DateTime.Now;
                         }
-                    } else if (entities[i].CurrentState.EntityType == ETItem)
+                    } else if (snap.Entities[snapEntityNum].EntityType == ETItem)
                     {
-                        if(entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ||
-                            entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Blue].flagItemNumber
+                        if(snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ||
+                            snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Blue].flagItemNumber
                             )
                         {
 
-                            Team team = entities[i].CurrentState.ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ? Team.Red : Team.Blue;
+                            Team team = snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ? Team.Red : Team.Blue;
 
                             // Check if it's base flag item or dropped one
-                            if ((entities[i].CurrentState.EntityFlags & (int)JOStuff.EntityFlags.EF_BOUNCE_HALF) != 0 || (jkaMode && infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_DROPPED)) // This is DIRTY.
+                            if ((snap.Entities[snapEntityNum].EntityFlags & (int)JOStuff.EntityFlags.EF_BOUNCE_HALF) != 0 || (jkaMode && infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_DROPPED)) // This is DIRTY.
                             {
                                 // This very likely is a dropped flag, as dropped flags get the EF_BOUNCE_HALF entity flag.
-                                infoPool.teamInfo[(int)team].flagDroppedPosition.X = entities[i].CurrentState.Position.Base[0];
-                                infoPool.teamInfo[(int)team].flagDroppedPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                infoPool.teamInfo[(int)team].flagDroppedPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.X = snap.Entities[snapEntityNum].Position.Base[0];
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.Y = snap.Entities[snapEntityNum].Position.Base[1];
+                                infoPool.teamInfo[(int)team].flagDroppedPosition.Z = snap.Entities[snapEntityNum].Position.Base[2];
                                 infoPool.teamInfo[(int)team].droppedFlagEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
 
                             } else if (!jkaMode || infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_ATBASE) // This is DIRTY. I hate it. Timing could mess this up. Hmm or maybe not? Configstrings are handled first. Hmm. Well it's the best I can do for JKA.
                             {
                                 // This very likely is a base flag item, as it doesn't have an EF_BOUNCE_HALF entity flag.
-                                infoPool.teamInfo[(int)team].flagBaseItemPosition.X = entities[i].CurrentState.Position.Base[0];
-                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Y = entities[i].CurrentState.Position.Base[1];
-                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Z = entities[i].CurrentState.Position.Base[2];
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.X = snap.Entities[snapEntityNum].Position.Base[0];
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Y = snap.Entities[snapEntityNum].Position.Base[1];
+                                infoPool.teamInfo[(int)team].flagBaseItemPosition.Z = snap.Entities[snapEntityNum].Position.Base[2];
                                 infoPool.teamInfo[(int)team].flagBaseItemEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagBaseItemPositionUpdate = DateTime.Now;
                                 
@@ -1365,6 +1425,7 @@ namespace JKWatcher
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
+                        entityOrPSVisible[i] = false;
                     }
                 }
             }
