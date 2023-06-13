@@ -1938,8 +1938,25 @@ findHighestScore:
         const string privateChatSeparator = "^7]: ^6";
         const string teamChatSeparator = "^7): ^5";
         const string publicChatSeparator = "^7: ^2";
-        ParsedChatMessage? ParseChatMessage(string nameChatSegmentA)
+        ParsedChatMessage? ParseChatMessage(string nameChatSegmentA, string extraArgument = null)
         {
+            int sentNumber = -1;
+
+            if(extraArgument != null) // This is jka only i think, sending the client num as an extra
+            {
+                if (!isNumber(extraArgument))
+                {
+                    serverWindow.addToLog($"Chat message parsing, received extra argument that is not a number: {extraArgument} ({nameChatSegmentA})", true);
+                }
+                else
+                {
+                    if(!int.TryParse(extraArgument,out sentNumber))
+                    {
+                        sentNumber = -1;
+                    }
+                }
+            }
+         
             string nameChatSegment = nameChatSegmentA;
             ChatType detectedChatType = ChatType.PUBLIC;
             if (nameChatSegment.Length < privateChatBegin.Length + 1)
@@ -2001,18 +2018,53 @@ findHighestScore:
                     }
                 }
             }
+
+
+            int playerNum = -1;
+
             if (possiblePlayers.Count == 0)
             {
-                serverWindow.addToLog($"Could not identify sender of (t)chat message. Zero matches: {nameChatSegmentA}", true);
-                return null;
+                if(sentNumber == -1)
+                {
+                    serverWindow.addToLog($"Could not identify sender of (t)chat message. Zero matches: {nameChatSegmentA}", true);
+                    return null;
+                } else
+                {
+                    serverWindow.addToLog($"Could not identify sender of (t)chat message ({nameChatSegmentA}), zero matches, but extra argument number {sentNumber} helped.", true);
+                    playerNum = sentNumber;
+                }
             }
             else if (possiblePlayers.Count > 1)
             {
-                serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA}", true);
-                return null;
+                if(sentNumber == -1)
+                {
+                    serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA}", true);
+                    return null;
+                } else
+                {
+                    int confirmedNumber = -1;
+                    for(int i = 0; i < possiblePlayers.Count; i++)
+                    {
+                        if(possiblePlayers[i] == sentNumber)
+                        {
+                            confirmedNumber = sentNumber;
+                        }
+                    }
+                    if(confirmedNumber == -1)
+                    {
+                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA} and extra argument number {sentNumber} matched none.", true);
+                        return null;
+                    } else
+                    {
+                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message ({nameChatSegmentA}), but extra argument number {sentNumber} cleared it up.", true);
+                        playerNum = confirmedNumber;
+                    }
+                }
+            } else
+            {
+                playerNum = possiblePlayers[0];
             }
 
-            int playerNum = possiblePlayers[0];
             string playerName = infoPool.playerInfo[playerNum].name;
             if (playerName == null)
             {
@@ -2021,6 +2073,19 @@ findHighestScore:
             }
 
             return new ParsedChatMessage() { message = nameChatSegment.Substring(playerName.Length + separatorLength).Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType };
+        }
+
+        bool isNumber(string str)
+        {
+            if (str.Length == 0) return false;
+            foreach(char ch in str)
+            {
+                if(!(ch >= '0' && ch <= '9'))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         void EvaluateChat(CommandEventArgs commandEventArgs)
@@ -2034,7 +2099,7 @@ findHighestScore:
                     if (!myClientNum.HasValue) return;
                     string nameChatSegment = commandEventArgs.Command.Argv(1);
 
-                    ParsedChatMessage? pmMaybe = ParseChatMessage(nameChatSegment);
+                    ParsedChatMessage? pmMaybe = ParseChatMessage(nameChatSegment, commandEventArgs.Command.Argc > 2 ? commandEventArgs.Command.Argv(2) : null);
 
                     if (!pmMaybe.HasValue) return;
 
@@ -2042,9 +2107,44 @@ findHighestScore:
                     
                     if (pm.playerNum == myClientNum || pm.message == null) return; // Message from myself. Ignore.
 
-                    string[] messageBits = pm.message.ToLower().Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
 
-                    if (messageBits.Length == 0 || messageBits.Length > 3) return;
+                    List<int> numberParams = new List<int>();
+                    List<string> stringParams = new List<string>();
+
+                    string demoNoteString = null;
+                    { // Just putting this in its own scope to isolate the variables.
+                        string[] messageBits = pm.message.ToLower().Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
+                        if (messageBits.Length == 0) return;
+                        StringBuilder demoNote = new StringBuilder();
+
+                        int possibleNumbers = messageBits.Length > 0 && messageBits[0].Contains("markas") ? 2: 1;
+                        foreach (string bit in messageBits)
+                        {
+                            if (stringParams.Count ==1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
+                            {
+                                int tmp;
+                                if(int.TryParse(bit, out tmp)) // dunno why it wouldnt be true but lets be safe
+                                {
+                                    numberParams.Add(tmp);
+                                    continue;
+                                }
+                            } else if (stringParams.Count == 1)
+                            {
+                                demoNote.Append(bit);
+                                demoNote.Append(" ");
+                            } else
+                            {
+                                stringParams.Add(bit);
+                            }
+                        }
+                        if(demoNote.Length > 0)
+                        {
+                            demoNoteString = demoNote.ToString().Trim();
+                        }
+                    }
+
+                    //if (messageBits.Length == 0 || messageBits.Length > 3) return;
+                    if (stringParams.Count == 0) return;
 
                     //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
@@ -2052,10 +2152,10 @@ findHighestScore:
                     bool reframeRequested = false;
                     int markMinutes = 1;
                     int reframeClientNum = pm.playerNum;
-                    int requiredCommandParts = 1;
+                    int requiredCommandNumbers = 0;
                     int maxClientsHere = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
                     // Idea: let people define their own binds so they don't have to use markme? hm
-                    switch (messageBits[0])
+                    switch (stringParams[0])
                     {
                         default:
                             if(pm.type == ChatType.PRIVATE)
@@ -2082,23 +2182,23 @@ findHighestScore:
                         case "!markme":
                         case "!markas":
 
-                            if (messageBits[0] == "!markas")
+                            if (stringParams[0] == "!markas")
                             {
                                 reframeRequested = true;
-                                requiredCommandParts = 2;
-                                if (messageBits.Length > 1 && int.TryParse(messageBits[1], out int tmp) && tmp >= 0 && tmp < maxClientsHere)
+                                requiredCommandNumbers = 1;
+                                if (numberParams.Count > 0 && numberParams[0] >= 0 && numberParams[0] < maxClientsHere)
                                 {
-                                    reframeClientNum = tmp;
+                                    reframeClientNum = numberParams[0];
                                 }
                             }
-                            else if (messageBits[0] == "!markme")
+                            else if (stringParams[0] == "!markme")
                             {
                                 reframeRequested = true;
                             }
                             markRequested = true;
-                            if (messageBits.Length > requiredCommandParts)
+                            if (numberParams.Count > requiredCommandNumbers)
                             {
-                                markMinutes = Math.Max(1, messageBits[requiredCommandParts].Atoi());
+                                markMinutes = Math.Max(1, numberParams[requiredCommandNumbers]);
                             }
                             break;
                         case "mark":
@@ -2108,22 +2208,22 @@ findHighestScore:
                             {
                                 markRequested = true;
 
-                                if (messageBits[0] == "markas")
+                                if (stringParams[0] == "markas")
                                 {
                                     reframeRequested = true;
-                                    requiredCommandParts = 2;
-                                    if (messageBits.Length > 1 && int.TryParse(messageBits[1], out int tmp) && tmp >= 0 && tmp < maxClientsHere)
+                                    requiredCommandNumbers = 1;
+                                    if (numberParams.Count > 0 && numberParams[0] >= 0 && numberParams[0] < maxClientsHere)
                                     {
-                                        reframeClientNum = tmp;
+                                        reframeClientNum = numberParams[0];
                                     }
                                 }
-                                else if (messageBits[0] == "markme")
+                                else if (stringParams[0] == "markme")
                                 {
                                     reframeRequested = true;
                                 }
-                                if (messageBits.Length > requiredCommandParts)
+                                if (numberParams.Count > requiredCommandNumbers)
                                 {
-                                    markMinutes = Math.Max(1, messageBits[requiredCommandParts].Atoi());
+                                    markMinutes = Math.Max(1, numberParams[requiredCommandNumbers]);
                                 }
                             }
                             break;
@@ -2155,6 +2255,12 @@ findHighestScore:
                         StringBuilder demoCutCommand = new StringBuilder();
                         DateTime now = DateTime.Now;
                         demoCutCommand.Append($"rem demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+                        string demoNoteStringFilenamePart = "";
+                        if(demoNoteString != null)
+                        {
+                            demoCutCommand.Append($"rem demo note: {demoNoteString}\n");
+                            demoNoteStringFilenamePart = $"_{demoNoteString}";
+                        }
                         demoCutCommand.Append("DemoCutter ");
                         string demoPath = client?.AbsoluteDemoName;
                         if(demoPath == null)
@@ -2163,7 +2269,11 @@ findHighestScore:
                         }
                         string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts"), demoPath);
                         demoCutCommand.Append($"\"{relativeDemoPath}\" ");
-                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{myClientNum}";
+                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{myClientNum}{demoNoteStringFilenamePart}";
+                        if(filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
+                        {
+                            filename = filename.Substring(0, 150);
+                        }
                         filename = Helpers.MakeValidFileName(filename);
                         filename = Helpers.DemoCuttersanitizeFilename(filename,false);
                         demoCutCommand.Append($"\"{filename}\" ");
