@@ -171,6 +171,7 @@ namespace JKWatcher
         public bool NoActivePlayers { get; set; }
 
         public DateTime? lastBotOnlyConfirmed = null;
+        public DateTime? lastScoreboardReceived = null;
         
         public bool botOnlyGuaranteed = false;
 

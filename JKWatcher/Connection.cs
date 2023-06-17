@@ -1436,7 +1436,7 @@ namespace JKWatcher
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (AlwaysFollowSomeone && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
+            if (AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
@@ -2143,6 +2143,9 @@ findHighestScore:
                 infoPool.lastBotOnlyConfirmed = null;
             }
             snapsEnforcementUpdate();
+
+
+            infoPool.lastScoreboardReceived = DateTime.Now;
         }
 
         int lastDemoIterator = 0;
