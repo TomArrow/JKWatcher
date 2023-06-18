@@ -281,6 +281,7 @@ namespace JKWatcher
                         case "memes":
                         case "!memes":
                             MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette !who", true, true, true, true);
+                            notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
 
@@ -473,7 +474,7 @@ namespace JKWatcher
                             break;
                     }
 
-                    if (!notDemoCommand)
+                    if (notDemoCommand)
                     {
                         return;
                     }
