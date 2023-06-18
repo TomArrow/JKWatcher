@@ -280,6 +280,7 @@ namespace JKWatcher
                         // Memes
                         case "memes":
                         case "!memes":
+                            if (this.Index != 0) return;
                             MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette !who", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
@@ -288,25 +289,25 @@ namespace JKWatcher
                         // String manipulation:
                         // Private and team meme responses get their own category each so the rate limiting isn't confusing
                         case "!mock":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, MockString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!gaily":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, GailyString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!reverse":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!ruski":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, RuskiString(tmpString), true, true, false);
                             notDemoCommand = true;
@@ -314,17 +315,17 @@ namespace JKWatcher
 
                         // Whatever
                         case "!saymyname":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             MemeRequest(pm, pm.playerName,true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!agree":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             MemeRequest(pm, $"agreed, {pm.playerName}",true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!color":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             if(numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !color with a valid client number (see /clientlist)", true, true, true,true);
@@ -334,7 +335,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!flipcoin":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
                             if (stringParams.Count < 2)
                             {
                                 MemeRequest(pm, "heads or tails?", true, true, false);
@@ -355,7 +356,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!opinion":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             int opinionNum = getNiceRandom(0, 3);
                             string opinion = "maybe";
                             if(opinionNum == 1)
@@ -370,12 +371,12 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!roulette":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             MemeRequest(pm, getNiceRandom(0, 7) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!who":
-                            if (_connectionOptions.silentMode) return;
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, "who what?", true, true, true);
