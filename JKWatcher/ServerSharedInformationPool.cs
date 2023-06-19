@@ -45,6 +45,15 @@ namespace JKWatcher
         }
     }
 
+    public struct ChatCommandTrackingStuff
+    {
+        public float maxDbsSpeed;
+        public int kickDeaths;
+        public int falls;
+        public int totalKills;
+        public int totalDeaths;
+    }
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
@@ -59,6 +68,13 @@ namespace JKWatcher
 
         public Vector3 lastDeathPosition;
         public DateTime? lastDeath;
+
+        // For killtrackers/memes and such
+        public ChatCommandTrackingStuff chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+        public void ResetChatCommandTrackingStuff()
+        {
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+        }
 
         #region score
         public PlayerScore score { get; set; } = new PlayerScore();
@@ -121,6 +137,8 @@ namespace JKWatcher
     }
 
 
+
+
     public struct TeamInfo
     {
 
@@ -157,6 +175,16 @@ namespace JKWatcher
 
     }
 
+
+    public struct KillTracker
+    {
+        public int kills;
+        public DateTime? lastKillTime;
+        public bool trackingMatch;
+        public int trackedMatchKills;
+        public int trackedMatchDeaths;
+    }
+
     // Todo reset stuff on level restart and especially map change
     public class ServerSharedInformationPool : INotifyPropertyChanged
     {
@@ -167,6 +195,8 @@ namespace JKWatcher
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }
+
+        public KillTracker[,] killTrackers;
 
         public bool NoActivePlayers { get; set; }
 
@@ -233,6 +263,8 @@ namespace JKWatcher
         public PlayerInfo[] playerInfo;
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
+
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         private int _maxClients = 0;
@@ -242,6 +274,7 @@ namespace JKWatcher
             _maxClients = maxClients;
             playerInfo = new PlayerInfo[maxClients];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
+            killTrackers = new KillTracker[maxClients, maxClients];
 
             lastConfirmedVisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);
             lastConfirmedInvisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);

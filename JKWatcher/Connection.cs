@@ -82,8 +82,7 @@ namespace JKWatcher
         FOLLOW,
         INFOCOMMANDS,
         MEME,
-        MEME_TEAM,
-        MEME_PRIVATE
+        KILLTRACKER
     }
 
     struct MvHttpDownloadInfo
@@ -905,6 +904,37 @@ namespace JKWatcher
                 // Todo do more elaborate logging. Death method etc. Detect multikills maybe
                 int target = e.Entity.CurrentState.OtherEntityNum;
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
+
+                if(attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target && this.Index == 0) // Kill tracking, only do on one connection to keep things consistent.
+                {
+                    infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
+                    infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
+                    infoPool.killTrackers[attacker, target].kills++;
+                    infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
+                    bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
+                    if (infoPool.killTrackers[attacker, target].trackingMatch)
+                    {
+                        infoPool.killTrackers[attacker, target].trackedMatchKills++;
+                        if(!killTrackersSynced && !_connectionOptions.silentMode) { 
+                            leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}",RequestCategory.KILLTRACKER,0,4000,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
+                        }
+                    }
+                    if (infoPool.killTrackers[target, attacker].trackingMatch)
+                    {
+                        infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
+                        if (!killTrackersSynced && !_connectionOptions.silentMode)
+                        {
+                            leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                        }
+                    }
+                    if(killTrackersSynced && !_connectionOptions.silentMode)
+                    {
+                        int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
+                        int biggerClientNum = Math.Max(attacker, target);
+                        leakyBucketRequester.requestExecution($"say ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                    }
+                }
+
                 ClientEntity copyOfEntity = e.Entity; // This is necessary in order to read the fixed float arrays. Don't ask why, idk.
                 Vector3 locationOfDeath;
                 locationOfDeath.X = copyOfEntity.CurrentState.Position.Base[0];
@@ -1640,6 +1670,17 @@ findHighestScore:
                 }
                 infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
+
+                if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) { 
+                    // Client connected/disconnected. Reset some stats
+                    for(int p=0;p< client.ClientHandler.MaxClients; p++)
+                    {
+                        infoPool.killTrackers[i, p] = new KillTracker();
+                        infoPool.killTrackers[p, i] = new KillTracker();
+                    }
+                    infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+                }
+
                 infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                 infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
                 infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > -0.5f; // Checking for -1 basically but it's float so be safe.

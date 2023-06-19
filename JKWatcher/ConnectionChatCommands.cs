@@ -231,7 +231,7 @@ namespace JKWatcher
                         if (messageBits.Length == 0) return;
                         StringBuilder demoNote = new StringBuilder();
 
-                        int possibleNumbers = messageBits.Length > 0 && messageBits[0].ToLowerInvariant().Contains("markas") ? 2 : 1;
+                        int possibleNumbers = messageBits.Length > 0 && (messageBits[0].ToLowerInvariant().Contains("markas") || messageBits[0].ToLowerInvariant().Contains("kills")) ? 2 : 1;
                         foreach (string bit in messageBits)
                         {
                             if (stringParams.Count == 1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
@@ -280,7 +280,7 @@ namespace JKWatcher
                         // Memes
                         case "memes":
                         case "!memes":
-                            if (this.Index != 0) return;
+                            if (this.Index != 0 || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette !who", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
@@ -392,15 +392,159 @@ namespace JKWatcher
 
 
 
+                        // Memes
+                        case "tools":
+                        case "!tools":
+                            if (this.Index != 0 || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
+                            MemeRequest(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
+                            notDemoCommand = true;
+                            // TODO Send list of meme commands
+                            break;
+
+                        case "!kills":
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                if(stringParams.Count > 1 && stringParams[1] == "all")
+                                {
+                                    MemeRequest(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                                } else
+                                {
+                                    MemeRequest(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                }
+                                return;
+                            }
+                            if(numberParams.Count == 2)
+                            {
+                                if(numberParams[1] < 0 || numberParams[1] >= maxClientsHere || !infoPool.playerInfo[numberParams[1]].infoValid)
+                                {
+                                    MemeRequest(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    return;
+                                }
+                                MemeRequest(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackers[numberParams[1], numberParams[0]].kills}", true, true, true);
+                            } else
+                            {
+                                MemeRequest(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
+                            }
+                            
+                            notDemoCommand = true;
+                            break;
+                        case "!kd":
+                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                MemeRequest(pm, "Call !kd with a client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            MemeRequest(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!match":
+                            if (this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                MemeRequest(pm, "Call !match with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            if(infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
+                            {
+                                MemeRequest(pm, $"Already tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !resetmatch or !endmatch?", true, true, true,true);
+                            }
+                            else
+                            {
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = true;
+                                MemeRequest(pm, $"Now tracking match against {infoPool.playerInfo[numberParams[0]].name}", true, true, true,true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!matchstate":
+                            if (this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                MemeRequest(pm, "Call !matchstate with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
+                            {
+                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                            }
+                            else
+                            {
+                                MemeRequest(pm, $"Your match against {infoPool.playerInfo[numberParams[0]].name}: {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!resetmatch":
+                            if (this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                MemeRequest(pm, "Call !resetmatch with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
+                            {
+                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                            }
+                            else
+                            {
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} reset to 0-0", true, true, true,true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!endmatch":
+                            if (this.Index != 0) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                if (stringParams.Count > 1 && stringParams[1] == "all")
+                                {
+                                    int countEnded = 0;
+                                    for(int otherpl = 0; otherpl < maxClientsHere; otherpl++)
+                                    {
+                                        infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchKills = 0;
+                                        infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchDeaths = 0;
+                                        if (infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch) {
+                                            countEnded++;
+                                            infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch = false; 
+                                        }
+                                    }
+                                    MemeRequest(pm, $"Ended tracking of all matches. ({countEnded} affected)", true, true, true,true);
+                                }
+                                else
+                                {
+                                    MemeRequest(pm, "Call !endmatch with a valid client number (see /clientlist) or 'all'", true, true, true, true);
+                                }
+                                return;
+                            }
+                            if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
+                            {
+                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                            }
+                            else
+                            {
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = false;
+                                MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} ended at {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}.", true, true, true, true);
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                            }
+                            notDemoCommand = true;
+                            break;
+
+
                         // Demo related
                         default:
                             if (pm.type == ChatType.PRIVATE)
                             {
                                 if (!_connectionOptions.silentMode && pm.playerNum != myClientNum)
                                 {
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"!demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    /*leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                     leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);*/
                                 }
                                 return;
                             } else if(pm.type == ChatType.PUBLIC && pm.message.Trim().Length > 0)
@@ -415,6 +559,14 @@ namespace JKWatcher
                             break;
                         case "!help":
                         case "help":
+                            if (pm.type == ChatType.PRIVATE)
+                            {
+                                if (!_connectionOptions.silentMode && pm.playerNum != myClientNum)
+                                {
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"!demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                }
+                            }
+                            break;
                         case "demohelp":
                             if (pm.type == ChatType.PRIVATE)
                             {
@@ -572,6 +724,11 @@ namespace JKWatcher
         Regex multipleSlashRegex = new Regex("/{2,}", RegexOptions.Compiled);
         void MemeRequest(ParsedChatMessage pm, string message, bool pub=true, bool team=true, bool priv=true, bool forcePrivateResponse = false)
         {
+
+            if (_connectionOptions.silentMode) {
+                serverWindow.addToLog($"Silent mode: MemeRequest sending suppressed in response to {pm.type} from {pm.playerName} ({pm.playerNum}): {message}");
+                return;
+            }
             if(getNiceRandom(0,500) == 250)
             {
                 message = "STFU AND PLAY";
@@ -583,7 +740,7 @@ namespace JKWatcher
             if (pm.type == ChatType.TEAM && team)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
-                else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME_TEAM, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
             else if (pm.type == ChatType.PUBLIC && pub)
             {
@@ -592,7 +749,7 @@ namespace JKWatcher
             }
             if ((pm.type == ChatType.PRIVATE && priv) || forcingPrivateResponse)
             {
-                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME_PRIVATE, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
         }
 
