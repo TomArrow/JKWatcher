@@ -20,12 +20,17 @@ namespace JKWatcher
     // Chat command related stuff
     public partial class Connection
     {
+
         
         // For various kinda text processisng stuff / memes
         string lastPublicChat = "";
         DateTime lastPublicChatTime = DateTime.Now;
         string lastTeamChat = "";
         DateTime lastTeamChatTime = DateTime.Now;
+
+
+        public bool IsMainChatConnection { get; set; }= false;
+        public int ChatMemeCommandsDelay { get; set; } = 4000;
 
         struct ParsedChatMessage
         {
@@ -280,7 +285,7 @@ namespace JKWatcher
                         // Memes
                         case "memes":
                         case "!memes":
-                            if (this.Index != 0 || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
+                            if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette !who", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
@@ -289,25 +294,25 @@ namespace JKWatcher
                         // String manipulation:
                         // Private and team meme responses get their own category each so the rate limiting isn't confusing
                         case "!mock":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, MockString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!gaily":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, GailyString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!reverse":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!ruski":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
                             MemeRequest(pm, RuskiString(tmpString), true, true, false);
                             notDemoCommand = true;
@@ -315,17 +320,17 @@ namespace JKWatcher
 
                         // Whatever
                         case "!saymyname":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             MemeRequest(pm, pm.playerName,true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!agree":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             MemeRequest(pm, $"agreed, {pm.playerName}",true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!color":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if(numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !color with a valid client number (see /clientlist)", true, true, true,true);
@@ -335,7 +340,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!flipcoin":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             if (stringParams.Count < 2)
                             {
                                 MemeRequest(pm, "heads or tails?", true, true, false);
@@ -356,7 +361,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!opinion":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             int opinionNum = getNiceRandom(0, 3);
                             string opinion = "maybe";
                             if(opinionNum == 1)
@@ -371,12 +376,12 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!roulette":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             MemeRequest(pm, getNiceRandom(0, 7) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!who":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, "who what?", true, true, true);
@@ -395,14 +400,14 @@ namespace JKWatcher
                         // Memes
                         case "tools":
                         case "!tools":
-                            if (this.Index != 0 || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
+                            if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
 
                         case "!kills":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 if(stringParams.Count > 1 && stringParams[1] == "all")
@@ -430,7 +435,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!kd":
-                            if (_connectionOptions.silentMode || this.Index != 0) return;
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !kd with a client number (see /clientlist)", true, true, true, true);
@@ -441,7 +446,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!match":
-                            if (this.Index != 0) return;
+                            if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !match with a valid client number (see /clientlist)", true, true, true, true);
@@ -453,15 +458,18 @@ namespace JKWatcher
                             }
                             else
                             {
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = true;
+                                lock (infoPool.killTrackers)
+                                {
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = true;
+                                }
                                 MemeRequest(pm, $"Now tracking match against {infoPool.playerInfo[numberParams[0]].name}", true, true, true,true);
                             }
                             notDemoCommand = true;
                             break;
                         case "!matchstate":
-                            if (this.Index != 0) return;
+                            if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !matchstate with a valid client number (see /clientlist)", true, true, true, true);
@@ -478,7 +486,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!resetmatch":
-                            if (this.Index != 0) return;
+                            if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 MemeRequest(pm, "Call !resetmatch with a valid client number (see /clientlist)", true, true, true, true);
@@ -490,26 +498,33 @@ namespace JKWatcher
                             }
                             else
                             {
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                lock (infoPool.killTrackers)
+                                {
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                }
                                 MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} reset to 0-0", true, true, true,true);
                             }
                             notDemoCommand = true;
                             break;
                         case "!endmatch":
-                            if (this.Index != 0) return;
+                            if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
                                 if (stringParams.Count > 1 && stringParams[1] == "all")
                                 {
                                     int countEnded = 0;
-                                    for(int otherpl = 0; otherpl < maxClientsHere; otherpl++)
+                                    lock (infoPool.killTrackers)
                                     {
-                                        infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchKills = 0;
-                                        infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchDeaths = 0;
-                                        if (infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch) {
-                                            countEnded++;
-                                            infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch = false; 
+                                        for (int otherpl = 0; otherpl < maxClientsHere; otherpl++)
+                                        {
+                                            infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchKills = 0;
+                                            infoPool.killTrackers[pm.playerNum, otherpl].trackedMatchDeaths = 0;
+                                            if (infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch)
+                                            {
+                                                countEnded++;
+                                                infoPool.killTrackers[pm.playerNum, otherpl].trackingMatch = false;
+                                            }
                                         }
                                     }
                                     MemeRequest(pm, $"Ended tracking of all matches. ({countEnded} affected)", true, true, true,true);
@@ -526,10 +541,13 @@ namespace JKWatcher
                             }
                             else
                             {
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = false;
-                                MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} ended at {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}.", true, true, true, true);
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
-                                infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                lock (infoPool.killTrackers)
+                                {
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = false;
+                                    MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} ended at {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}.", true, true, true, true);
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
+                                    infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
+                                }
                             }
                             notDemoCommand = true;
                             break;
@@ -740,16 +758,16 @@ namespace JKWatcher
             if (pm.type == ChatType.TEAM && team)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
-                else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
             else if (pm.type == ChatType.PUBLIC && pub)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
-                else leakyBucketRequester.requestExecution($"say \"{message}\"", RequestCategory.MEME, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                else leakyBucketRequester.requestExecution($"say \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
             if ((pm.type == ChatType.PRIVATE && priv) || forcingPrivateResponse)
             {
-                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
         }
 

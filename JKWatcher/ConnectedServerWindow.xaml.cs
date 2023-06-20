@@ -193,6 +193,7 @@ namespace JKWatcher
             
             Connection newCon = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password, /*_connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames,attachClientNumToName,*/snapsSettings);
             newCon.ServerInfoChanged += Con_ServerInfoChanged;
+            newCon.PropertyChanged += Con_PropertyChanged;
             lock (connections)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
@@ -327,20 +328,100 @@ namespace JKWatcher
             backgroundTasks.Add(tokenSource);
         }
 
-        private void updateIndices()
+        // Determine which connection should be responsible for responding to chat commands
+        // We don't want CTF watchers to have to spam responses to chat commands when they should be 
+        // using their ratio limit in order to send appropriate follow commands
+        private void setMainChatConnection()
         {
-            lock (connections)
-            {
-                for (int i = 0; i < connections.Count; i++)
-                {
-                    connections[i].Index = i;
-                }
-            }
             lock (cameraOperators)
             {
-                for (int i = 0; i < cameraOperators.Count; i++)
+                lock (connections)
                 {
-                    cameraOperators[i].Index = i;
+                    bool mainConnectionFound = false;
+                    for (int i = 0; i < connections.Count; i++) // Prefer main connection that has no watcher
+                    {
+                        if (!mainConnectionFound && (connections[i].CameraOperator == null))
+                        {
+
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 1000;
+                            mainConnectionFound = true;
+                        }
+                        else
+                        {
+
+                            connections[i].IsMainChatConnection = false;
+                        }
+                    }
+                    if (!mainConnectionFound) // Prefer main connection that has strobe watcher (it doesn't send many commands if any at all)
+                    {
+                        for (int i = 0; i < connections.Count; i++)
+                        {
+                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.StrobeCameraOperator))
+                            {
+
+                                connections[i].IsMainChatConnection = true;
+                                connections[i].ChatMemeCommandsDelay = 1000;
+                                mainConnectionFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!mainConnectionFound) // Prefer spectator watcher over other types (it doesn't send many commands)
+                    {
+                        for (int i = 0; i < connections.Count; i++)
+                        {
+                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SpectatorCameraOperator))
+                            {
+
+                                connections[i].IsMainChatConnection = true;
+                                connections[i].ChatMemeCommandsDelay = 2000;
+                                mainConnectionFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!mainConnectionFound) // 
+                    {
+                        for (int i = 0; i < connections.Count; i++)
+                        {
+                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator))
+                            {
+
+                                connections[i].IsMainChatConnection = true;
+                                connections[i].ChatMemeCommandsDelay = 2000;
+                                mainConnectionFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!mainConnectionFound)
+                    {
+                        // We're desperate, just set 0 as main.
+                        connections[0].IsMainChatConnection = true;
+                        connections[0].ChatMemeCommandsDelay = 6000; // Prolly CTF operator. Make the delay big to not interfere.
+                        mainConnectionFound = true;
+                    }
+
+                }
+            }
+        }
+        private void updateIndices()
+        {
+
+            lock (cameraOperators)
+            {
+                lock (connections)
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        connections[i].Index = i;
+                    }
+                    for (int i = 0; i < cameraOperators.Count; i++)
+                    {
+                        cameraOperators[i].Index = i;
+                    }
+                    setMainChatConnection();
                 }
             }
         }
@@ -693,6 +774,7 @@ namespace JKWatcher
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
                 Connection newConnection = new Connection(netAddress,protocol, this,infoPool, _connectionOptions,password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
                 newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+                newConnection.PropertyChanged += Con_PropertyChanged;
                 lock (connections)
                 {
                     connections.Add(newConnection);
@@ -702,6 +784,14 @@ namespace JKWatcher
             }
 
             return retVal.ToArray();
+        }
+
+        private void Con_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "CameraOperator")
+            {
+                setMainChatConnection();
+            }
         }
 
         private void ConnectedServerWindow_Closed(object sender, EventArgs e)
@@ -1005,6 +1095,7 @@ namespace JKWatcher
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
             Connection newConnection = new Connection(netAddress,protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
             newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+            newConnection.PropertyChanged += Con_PropertyChanged;
             lock (connections)
             {
                 connections.Add(newConnection);
@@ -1042,6 +1133,7 @@ namespace JKWatcher
                         //conn.disconnect();
                         conn.CloseDown();
                         conn.ServerInfoChanged -= Con_ServerInfoChanged;
+                        conn.PropertyChanged -= Con_PropertyChanged;
                         connections.Remove(conn);
                     }
                 //}

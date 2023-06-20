@@ -555,6 +555,7 @@ namespace JKWatcher
             infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
             infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
             infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+            EvaluateFlagStatus(client.GetMappedConfigstring(ClientGame.Configstring.FlagStatus));
         }
 
         private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
@@ -673,7 +674,7 @@ namespace JKWatcher
                         afterConnect();
                     },TaskContinuationOptions.NotOnCanceled);
                     return false;
-                }
+                } 
 
             } catch(Exception e)
             {
@@ -905,33 +906,35 @@ namespace JKWatcher
                 int target = e.Entity.CurrentState.OtherEntityNum;
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
 
-                if(attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target && this.Index == 0) // Kill tracking, only do on one connection to keep things consistent.
+                if(attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target && this.IsMainChatConnection) // Kill tracking, only do on one connection to keep things consistent.
                 {
-                    infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
-                    infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
-                    infoPool.killTrackers[attacker, target].kills++;
-                    infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
-                    bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
-                    if (infoPool.killTrackers[attacker, target].trackingMatch)
-                    {
-                        infoPool.killTrackers[attacker, target].trackedMatchKills++;
-                        if(!killTrackersSynced && !_connectionOptions.silentMode) { 
-                            leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}",RequestCategory.KILLTRACKER,0,4000,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
-                        }
-                    }
-                    if (infoPool.killTrackers[target, attacker].trackingMatch)
-                    {
-                        infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
-                        if (!killTrackersSynced && !_connectionOptions.silentMode)
+                    lock (infoPool.killTrackers) { // Just in case unlucky timing and mainchatconnection changes :) 
+                        infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
+                        infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
+                        infoPool.killTrackers[attacker, target].kills++;
+                        infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
+                        bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
+                        if (infoPool.killTrackers[attacker, target].trackingMatch)
                         {
-                            leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                            infoPool.killTrackers[attacker, target].trackedMatchKills++;
+                            if(!killTrackersSynced && !_connectionOptions.silentMode) { 
+                                leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
+                            }
                         }
-                    }
-                    if(killTrackersSynced && !_connectionOptions.silentMode)
-                    {
-                        int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
-                        int biggerClientNum = Math.Max(attacker, target);
-                        leakyBucketRequester.requestExecution($"say ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, 4000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                        if (infoPool.killTrackers[target, attacker].trackingMatch)
+                        {
+                            infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
+                            if (!killTrackersSynced && !_connectionOptions.silentMode)
+                            {
+                                leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                            }
+                        }
+                        if(killTrackersSynced && !_connectionOptions.silentMode)
+                        {
+                            int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
+                            int biggerClientNum = Math.Max(attacker, target);
+                            leakyBucketRequester.requestExecution($"say ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                        }
                     }
                 }
 
@@ -1818,6 +1821,64 @@ findHighestScore:
             Debug.WriteLine(commandEventArgs.Command.Argv(0));
         }
 
+        void EvaluateFlagStatus(string str)
+        {
+            if (client.ServerInfo.GameType == GameType.CTF || client.ServerInfo.GameType == GameType.CTY)
+            {
+                // format is rb where its red/blue, 0 is at base, 1 is taken, 2 is dropped
+                if (str.Length < 2)
+                {
+                    // This happens sometimes, for example on NWH servers between 2 games
+                    // Server will send cs 23 0 and cs 23 00 in succession, dunno why.
+                    // The first one with the single zero is the obvious problem.
+                    serverWindow.addToLog("Configstring weirdness, cs 23 had parameter " + str + "(Length " + str.Length + ")");
+                    if (str.Length == 1 && str == "0")
+                    {
+                        infoPool.teamInfo[(int)Team.Red].flag = 0;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)Team.Blue].flag = 0;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                    }
+                }
+                else
+                {
+                    // If it was picked up or generally status changed, and it was at base before, remember this as the last time it was at base.
+                    foreach (int teamToCheck in Enum.GetValues(typeof(Team)))
+                    {
+                        if (infoPool.teamInfo[teamToCheck].flag == FlagStatus.FLAG_ATBASE)
+                        {
+                            infoPool.teamInfo[teamToCheck].lastTimeFlagWasSeenAtBase = DateTime.Now;
+                        }
+                    }
+                    int tmp = int.Parse(str[0].ToString());
+                    infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
+                    tmp = int.Parse(str[1].ToString());
+                    infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                }
+
+                // Reasoning: If a flag is dropped/in base, and then it is taken and our cam operator knows this, but the current flag carrier isn't updated *yet*, we will otherwise assume the wrong flag carrier.
+                // So assume the lastflagcarrier info invalid until it is actually set again anew.
+                if (infoPool.teamInfo[(int)Team.Red].flag != FlagStatus.FLAG_TAKEN)
+                {
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
+                }
+                if (infoPool.teamInfo[(int)Team.Blue].flag != FlagStatus.FLAG_TAKEN)
+                {
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = false;
+                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
+                }
+                /*infoPool.redFlag = str[0] - '0';
+                infoPool.blueFlag = str[1] - '0';
+                if (cgs.isCTFMod && cgs.CTF3ModeActive)
+                    cgs.yellowflag = str[2] - '0';
+                else
+                    cgs.yellowflag = 0;*/
+            }
+        }
+
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
             int num = commandEventArgs.Command.Argv(1).Atoi();
@@ -1825,58 +1886,7 @@ findHighestScore:
             switch (num)
             {
                 case (int)ConfigStringDefines.CS_FLAGSTATUS:
-                    if (client.ServerInfo.GameType == GameType.CTF || client.ServerInfo.GameType == GameType.CTY)
-                    {
-                        string str = commandEventArgs.Command.Argv(2);
-                        // format is rb where its red/blue, 0 is at base, 1 is taken, 2 is dropped
-                        if(str.Length < 2)
-                        {
-                            // This happens sometimes, for example on NWH servers between 2 games
-                            // Server will send cs 23 0 and cs 23 00 in succession, dunno why.
-                            // The first one with the single zero is the obvious problem.
-                            serverWindow.addToLog("Configstring weirdness, cs 23 had parameter "+str+"(Length "+str.Length+")");
-                            if(str.Length == 1 && str == "0")
-                            {
-                                infoPool.teamInfo[(int)Team.Red].flag = 0;
-                                infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
-                                infoPool.teamInfo[(int)Team.Blue].flag = 0;
-                                infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
-                            }
-                        } else {
-                            // If it was picked up or generally status changed, and it was at base before, remember this as the last time it was at base.
-                            foreach (int teamToCheck in Enum.GetValues(typeof(Team))) { 
-                                if (infoPool.teamInfo[teamToCheck].flag == FlagStatus.FLAG_ATBASE)
-                                {
-                                    infoPool.teamInfo[teamToCheck].lastTimeFlagWasSeenAtBase = DateTime.Now;
-                                }
-                            }
-                            int tmp = int.Parse(str[0].ToString());
-                            infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
-                            infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
-                            tmp = int.Parse(str[1].ToString());
-                            infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
-                            infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
-                        }
-
-                        // Reasoning: If a flag is dropped/in base, and then it is taken and our cam operator knows this, but the current flag carrier isn't updated *yet*, we will otherwise assume the wrong flag carrier.
-                        // So assume the lastflagcarrier info invalid until it is actually set again anew.
-                        if(infoPool.teamInfo[(int)Team.Red].flag != FlagStatus.FLAG_TAKEN)
-                        {
-                            infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = false;
-                            infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
-                        }
-                        if(infoPool.teamInfo[(int)Team.Blue].flag != FlagStatus.FLAG_TAKEN)
-                        {
-                            infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = false;
-                            infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
-                        }
-                        /*infoPool.redFlag = str[0] - '0';
-                        infoPool.blueFlag = str[1] - '0';
-                        if (cgs.isCTFMod && cgs.CTF3ModeActive)
-                            cgs.yellowflag = str[2] - '0';
-                        else
-                            cgs.yellowflag = 0;*/
-                    }
+                    EvaluateFlagStatus(commandEventArgs.Command.Argv(2));
                     break;
                 default:break;
             }
