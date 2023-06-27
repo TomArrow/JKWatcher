@@ -822,22 +822,40 @@ namespace JKWatcher
             return $"{replaced} )))";
         }
 
+        // This is the factor by which real players are more likely to get returned by !who command or similar commands that ask for a random player.
+        const int whoRandomPlayerRealPlayerChanceMultiplier = 10;
+
         int PickRandomPlayer(int maxClientsHere)
         {
+            int[] ourClientNums = serverWindow.getJKWatcherClientNums();
             List<int> possiblePlayers = new List<int>();
+            List<int> possiblePlayersBots = new List<int>();
             for(int i = 0; i < maxClientsHere; i++)
             {
                 if (infoPool.playerInfo[i].infoValid)
                 {
-                    possiblePlayers.Add(i);
+                    if(infoPool.playerInfo[i].confirmedBot || /*serverWindow.clientNumIsJKWatcherInstance(i)*/ourClientNums.Contains(i))
+                    {
+                        possiblePlayersBots.Add(i);
+                    } else
+                    {
+                        possiblePlayers.Add(i);
+                    }
                 }
             }
-            Random rnd = new Random();
-            if(possiblePlayers.Count == 0)
+            if(possiblePlayers.Count == 0 && possiblePlayersBots.Count == 0)
             {
                 return -1;
             }
-            return possiblePlayers[getNiceRandom(0,possiblePlayers.Count)];
+            int totalGuessCount = possiblePlayers.Count * whoRandomPlayerRealPlayerChanceMultiplier + possiblePlayersBots.Count;
+            int randomValue = getNiceRandom(0, totalGuessCount);
+            if(randomValue >= possiblePlayers.Count * whoRandomPlayerRealPlayerChanceMultiplier)
+            {
+                return possiblePlayersBots[randomValue - possiblePlayers.Count * whoRandomPlayerRealPlayerChanceMultiplier];
+            } else
+            {
+                return possiblePlayers[randomValue % possiblePlayers.Count];
+            }
         }
 
 

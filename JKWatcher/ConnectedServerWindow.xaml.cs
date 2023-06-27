@@ -426,6 +426,35 @@ namespace JKWatcher
             }
         }
 
+        public bool clientNumIsJKWatcherInstance(int clientNum)
+        {
+            lock (connections)
+            {
+                foreach(Connection conn in connections)
+                {
+                    if (conn.ClientNum == clientNum) return true;
+                }
+            }
+            return false;
+        }
+
+        public int[] getJKWatcherClientNums()
+        {
+            List<int> clientNums = new List<int>();
+            lock (connections)
+            {
+                foreach(Connection conn in connections)
+                {
+                    int value = conn.ClientNum.GetValueOrDefault(-1);
+                    if (value != -1)
+                    {
+                        clientNums.Add(value);
+                    }
+                }
+            }
+            return clientNums.ToArray();
+        }
+
         public struct LogQueueItem {
             public string logString;
             public bool forceLogToFile;
