@@ -44,6 +44,25 @@ namespace JKWatcher
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
 
+        private void SpawnArchiveScript()
+        {
+            try
+            {
+                using (new GlobalMutexHelper("JKWatcherArchiveScriptSpawn"))
+                {
+                    string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts","archive.sh");
+                    if (!File.Exists(path))
+                    {
+                        File.WriteAllBytes(path,Helpers.GetResourceData("archive.sh"));
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Helpers.logToFile(new string[] { "Failed to spawn archive script.", e.ToString() });
+            }
+        }
+
         public MainWindow()
         {
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
@@ -83,6 +102,7 @@ namespace JKWatcher
             WindowPositionManager.Activate();
 
             executingTxt.DataContext = this;
+            SpawnArchiveScript();
         }
 
         ~MainWindow()

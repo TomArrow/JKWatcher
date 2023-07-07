@@ -569,7 +569,7 @@ namespace JKWatcher
                             {
                                 lastPublicChat = pm.message;
                                 lastPublicChatTime = DateTime.Now;
-                            } else if(pm.type == ChatType.PUBLIC && pm.message.Trim().Length > 0)
+                            } else if(pm.type == ChatType.TEAM && pm.message.Trim().Length > 0)
                             {
                                 lastTeamChat = pm.message;
                                 lastTeamChatTime = DateTime.Now;

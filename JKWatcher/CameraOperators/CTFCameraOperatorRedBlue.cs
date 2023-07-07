@@ -761,11 +761,13 @@ namespace JKWatcher.CameraOperators
                                     Vector3 playerPositionInOneSecond = infoPool.playerInfo[i].position + (1f + lastSeenThisPlayer) * infoPool.playerInfo[i].velocity;
                                     float playerDistance = (playerPositionInOneSecond - flagCarrierPositionInOneSecond).Length();
 
+                                    // TODO: But make sure he hasn't died since he's seen the flag carrier?
                                     if(playerDistance < currentDistance || infoPool.getVisibilityMultiplier(i, flagCarrier) < 1f) // Must be closer than we are right now or have confirmedly seen the flag carrier very recently
                                     {
 
                                         tmp = new PossiblePlayerDecision()
                                         {
+                                            decisionsLogger = decisionsLogger,
                                             clientNum = i,
                                             distance = playerDistance,
                                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
@@ -1607,7 +1609,8 @@ namespace JKWatcher.CameraOperators
             {
                 // This one is very simplistic. We just want to get the guy visible again.
                 // We were previously only looking at distance. Now take visibility or invisibility into account.
-                gradeMethod = "gradeForFlagTakenAndInvisible()";
+                gradeMethod = "gradeForFlagTakenAndInvisible()"; 
+                grade = 1;
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.visibilityMultiplier;
 #if LOGDECISIONS
