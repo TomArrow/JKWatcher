@@ -304,6 +304,41 @@ namespace JKWatcher
             }
         }
 
+
+        // Purge all requests of specified kind.
+        public async void purgeByKind(TKind kind)
+        {
+            this.purgeByKinds(new TKind[] { kind });
+        }
+
+        // Purge all requests of specified kinds.
+        public async void purgeByKinds(TKind[] kinds)
+        {
+            if (kinds == null || kinds.Length == 0) return;
+            bool requestQueueChanged = false;
+            lock (requestQueue)
+            {
+                // Remove kinds from queue
+                foreach(TKind kind in kinds)
+                {
+                    for (int i = requestQueue.Count - 1; i >= 0; i--)
+                    {
+                        if (requestQueue[i].type.CompareTo(kind) == 0)
+                        {
+                            requestQueue.RemoveAt(i);
+                            requestQueueChanged = true;
+                        }
+                    }
+                }
+            }
+            if (requestQueueChanged)
+            {
+                OnRequestListUpdated();
+                sleepInterrupter.CancelAll(); // Actually needed here? Maybe not.
+            }
+
+        }
+        
         // The kind parameter is a user-defined request kind parameter to be able to group requests of a desired kind together and be able to specify the request behavior of that group (like ignore previous commands of the same type for choosing who to follow)
         // overriddenKinds defines kinds that the current request will override. If any requests of that kind exist, they will be deleted by adding this request.
         public async void requestExecution(TCommand command, TKind kind, int priority = 0,int minimumDelayFromSameType=0, RequestBehavior requestBehavior = RequestBehavior.ENQUEUE, TKind[] overriddenKinds = null, int? delayFromNow = null)

@@ -315,7 +315,7 @@ namespace JKWatcher
                         }
                         else
                         {
-                            if (jkaMode) // Lesss elegant but works I guess. JKA doesn't have background colors.
+                            if (jkaMode) // Lesss elegant but works I guess. JKA doesn't have background colors. TODO: Make this for 1.04 too.
                             {
                                 string clientNumAddition = "";
                                 if (_connectionOptions.attachClientNumToName) // For JKA we attach the clientnum here already so we can use it for the colors as well. Not elegant but better than filling with points more than necessary
@@ -1241,7 +1241,7 @@ namespace JKWatcher
 
 
         int lastRequestedAlwaysFollowSpecClientNum = -1;
-        DateTime[] clientsWhoDontWantToBeSpectated = new DateTime[32] { // Looool this is cringe xd
+        DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[32] { // Looool this is cringe xd
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
@@ -1291,7 +1291,7 @@ namespace JKWatcher
             int ETItem = jkaMode ? (int)JKAStuff.entityType_t.ET_ITEM : (int)JOStuff.entityType_t.ET_ITEM;
             //int EFBounceHalf = jkaMode ? 0 : (int)JOStuff.EntityFlags.EF_BOUNCE_HALF; // ?!?!
 
-            amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+            amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
 
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
@@ -1486,8 +1486,17 @@ namespace JKWatcher
                     // Depending on server settings, this might not work though, but hey, we can try.
                     leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                     leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                    leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
+                    if (!isDuelMode || jkaMode) // In jka i can actually weasel out of duels like this, but not in jk2 sadly. It puts me spec but immediately queues me back up for the next fight. Sad.
+                    {
+                        // Ironic... this does allow me to go spec in duel, but it creates an endless loop where I am always the next upcoming player. :( Even worse
+                        leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
+                    }
                 }
+            }
+            else
+            {
+                // Can't reproduce it but once ended up with a weird endless loop of going spec and following. Musts be very unlucky timing combined with some weird shit.
+                leakyBucketRequester.purgeByKinds( new RequestCategory[] { RequestCategory.SELFKILL, RequestCategory.GOINTOSPEC, RequestCategory.GOINTOSPECHACK});
             }
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
@@ -1500,7 +1509,7 @@ namespace JKWatcher
 findHighestScore:
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
-                    if ((DateTime.Now-clientsWhoDontWantToBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
+                    if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -1930,6 +1939,7 @@ findHighestScore:
         bool skipSanityCheck = false;
 
         Regex unknownCmdRegex = new Regex(@"^unknown (?:cmd|command) ([^\n]+?)\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex clientInactiveRegex = new Regex(@"Client '(\d+)' is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
@@ -1941,7 +1951,7 @@ findHighestScore:
                 {
                     if(lastRequestedAlwaysFollowSpecClientNum >= 0 && lastRequestedAlwaysFollowSpecClientNum<32)
                     {
-                        clientsWhoDontWantToBeSpectated[lastRequestedAlwaysFollowSpecClientNum] = DateTime.Now;
+                        clientsWhoDontWantTOrCannotoBeSpectated[lastRequestedAlwaysFollowSpecClientNum] = DateTime.Now;
                     }
                     lastClientDoesNotWishToBeSpectated = DateTime.Now;
                 } else if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || (commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") && commandEventArgs.Command.Argv(0) == "print"))
@@ -1980,6 +1990,18 @@ findHighestScore:
                             infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayer = spectatedPlayer;
                             infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayerLastUpdate = DateTime.Now;
                         }
+                    }
+                } if ((specMatch = clientInactiveRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (specMatch.Groups.Count < 2) return;
+
+                    int inactiveClientNum = -1;
+                    int.TryParse(specMatch.Groups[1].Value, out inactiveClientNum);
+
+                    if(inactiveClientNum >= 0 && inactiveClientNum < 32)
+                    {
+                        clientsWhoDontWantTOrCannotoBeSpectated[inactiveClientNum] = DateTime.Now;
                     }
                 } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)
                 {
