@@ -196,7 +196,7 @@ namespace JKWatcher
             Helpers.logToFile(new string[] { text });
         }
 
-        public static string requestedDemoCutLogFile = "demoCuts.bat";
+        public static string requestedDemoCutLogFile = "demoCuts.sh";
         public static void logRequestedDemoCut(string[] texts)
         {
             try {
@@ -205,14 +205,21 @@ namespace JKWatcher
                 //lock (forcedLogFileName)
                 using(new GlobalMutexHelper("JKWatcherRequestedDemoCutLogMutex"))
                 {
+                    string fullPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts", requestedDemoCutLogFile);
+                    bool headerAppended = false;
+
+                    if (!File.Exists(fullPath) && !headerAppended)
+                    {
+                        texts = (new string[] { @"#!/bin/bash" }).Concat(texts).ToArray();
+                        headerAppended = true;
+                    }
                     int retryTime = 0;
-                    bool successfullyWritten = false;
+                    bool successfullyWritten = false; 
                     while (!successfullyWritten && retryTime < logfileWriteTimeout)
                     {
                         try
                         {
-
-                            File.AppendAllLines(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","demoCuts", requestedDemoCutLogFile), texts);
+                            File.AppendAllLines(fullPath, texts);
                             successfullyWritten = true;
                         }
                         catch (IOException)

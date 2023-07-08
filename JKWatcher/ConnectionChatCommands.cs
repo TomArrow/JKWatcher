@@ -675,11 +675,11 @@ namespace JKWatcher
                         }
                         StringBuilder demoCutCommand = new StringBuilder();
                         DateTime now = DateTime.Now;
-                        demoCutCommand.Append($"rem demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+                        demoCutCommand.Append($"# demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
                         string demoNoteStringFilenamePart = "";
                         if (demoNoteString != null)
                         {
-                            demoCutCommand.Append($"rem demo note: {demoNoteString}\n");
+                            demoCutCommand.Append($"# demo note: {demoNoteString}\n");
                             demoNoteStringFilenamePart = $"_{demoNoteString}";
                         }
                         demoCutCommand.Append("DemoCutter ");
