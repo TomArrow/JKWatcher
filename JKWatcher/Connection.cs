@@ -82,7 +82,10 @@ namespace JKWatcher
         FOLLOW,
         INFOCOMMANDS,
         MEME,
-        KILLTRACKER
+        KILLTRACKER,
+        SELFKILL,
+        GOINTOSPEC,
+        GOINTOSPECHACK
     }
 
     struct MvHttpDownloadInfo
@@ -729,10 +732,16 @@ namespace JKWatcher
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand)
         {
-            if((DateTime.Now-lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
+            if (amNotInSpec)
             {
-                modifiableCommand.ForwardMove = 127;
-                lastForcedActivity = DateTime.Now;
+                DoSillyThings(ref modifiableCommand);
+            } else
+            {
+                if ((DateTime.Now - lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
+                {
+                    modifiableCommand.ForwardMove = 127;
+                    lastForcedActivity = DateTime.Now;
+                }
             }
             OnClientUserCommandGenerated(ref modifiableCommand);
         }
@@ -1282,6 +1291,7 @@ namespace JKWatcher
             int ETItem = jkaMode ? (int)JKAStuff.entityType_t.ET_ITEM : (int)JOStuff.entityType_t.ET_ITEM;
             //int EFBounceHalf = jkaMode ? 0 : (int)JOStuff.EntityFlags.EF_BOUNCE_HALF; // ?!?!
 
+            amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
 
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
@@ -1467,6 +1477,19 @@ namespace JKWatcher
             }
 
 
+            if (amNotInSpec) // Maybe in the future I will
+            {
+                bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+                if (!isSillyCameraOperator) // Silly operator means we actually don't want to be in spec. That is its only purpose.
+                {
+                    // Try to get back out of spec
+                    // Depending on server settings, this might not work though, but hey, we can try.
+                    leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
+                }
+            }
+
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
             if (AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
@@ -1527,6 +1550,8 @@ findHighestScore:
             {
                 serverWindow.ServerName = obj.HostName;
             }
+
+            isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
             // Check for referencedPaks
             InfoString systemInfo = new InfoString( client.GetMappedConfigstring(ClientGame.Configstring.SystemInfo));

@@ -426,6 +426,25 @@ namespace JKWatcher
             }
         }
 
+        internal CameraOperator getCameraOperatorOfConnection(Connection conn)
+        {
+            lock (connections)
+            {
+                lock (cameraOperators)
+                {
+                    if (conn.CameraOperator.HasValue)
+                    {
+                        // Sanity check
+                        if(conn.CameraOperator >= 0 && conn.CameraOperator < cameraOperators.Count)
+                        {
+                            return cameraOperators[conn.CameraOperator.Value];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         public bool clientNumIsJKWatcherInstance(int clientNum)
         {
             lock (connections)
@@ -1321,6 +1340,11 @@ namespace JKWatcher
                 playerListDataGrid.ItemsSource = null;
                 playerListDataGrid.ItemsSource = infoPool.playerInfo;
             }
+        }
+
+        private void addSillyWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            createCameraOperator<CameraOperators.SillyCameraOperator>();
         }
 
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)

@@ -183,6 +183,7 @@
                     <Button x:Name="addOCDWatcherBtn" Click="addOCDWatcherBtn_Click">OCD</Button>
                     <Button x:Name="addSpectatorWatcherBtn" Click="addSpectatorWatcherBtn_Click">Spec</Button>
                     <Button x:Name="addStrobeWatcherBtn" Click="addStrobeWatcherBtn_Click">Strobe</Button>
+                    <Button x:Name="addSillyWatcherBtn" Click="addSillyWatcherBtn_Click">xd</Button>
                     <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
                     <Button x:Name="watcherConfigBtn" Click="watcherConfigBtn_Click" IsEnabled="True">...</Button>
                 </WrapPanel>
