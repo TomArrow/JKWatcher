@@ -192,6 +192,10 @@ namespace JKWatcher
             }
         }
 
+        public static void logToFile(string text){
+            Helpers.logToFile(new string[] { text });
+        }
+
         public static string requestedDemoCutLogFile = "demoCuts.bat";
         public static void logRequestedDemoCut(string[] texts)
         {

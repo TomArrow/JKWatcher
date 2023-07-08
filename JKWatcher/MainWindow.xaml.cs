@@ -184,6 +184,7 @@ namespace JKWatcher
 
         List<ServerToConnect> serversToConnectDelayed = new List<ServerToConnect>();
 
+        List<NetAddress> autoConnectRecentlyClosedBlockList = new List<NetAddress>(); // When we close a window, we don't wanna reconnect to it immediately (because the auto connecter might have requested the server info before we closed the window and thus think players are still on there, meaning our own connection that we just closed)
 
         private async void ctfAutoConnecter(CancellationToken ct)
         {
@@ -192,6 +193,11 @@ namespace JKWatcher
             {
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
                 System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 *2); // every 2 min or 1 min if fast recheck requested (see code below)
+
+                lock (autoConnectRecentlyClosedBlockList)
+                {
+                    autoConnectRecentlyClosedBlockList.Clear();
+                }
 
                 if (executionInProgress) continue;
 
@@ -272,6 +278,17 @@ namespace JKWatcher
                         {
                             continue;
                         }
+                        lock (autoConnectRecentlyClosedBlockList)
+                        {
+                            if (autoConnectRecentlyClosedBlockList.Contains(serverInfo.Address))
+                            {
+                                // We were connected to this server recently, and disconnected after the current iteration of the autoconnecter started.
+                                // Thus the info we get about how many players are on the server might include ourselves, which is not intended and 
+                                // can lead to unintended reconnecting to an empty server.
+                                // Hence, skip this server in this run.
+                                continue;
+                            }
+                        }
                         bool statusReceived = serverInfo.StatusResponseReceived; // We get this value first because it seems in rare situations 1.03 servers can slip through. Maybe status just arrives a bit later and then with very unlucky timing the status received underneath passes but higher up the version was still set to JO_v1_02 because the status hadn't been received yet?
                         if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions || delayedConnectServersCount > 0)
                         {
@@ -322,7 +339,7 @@ namespace JKWatcher
                                                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
                                                 connectedServerWindows.Add(newWindow);
                                                 newWindow.Loaded += NewWindow_Loaded;
-                                                newWindow.Closed += (a, b) => { lock(connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.Closed += NewWindow_Closed;
                                                 newWindow.ShowActivated = false;
                                                 newWindow.Show();
                                                 newWindow.createCTFOperator();
@@ -366,7 +383,7 @@ namespace JKWatcher
                                                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive });
                                                 connectedServerWindows.Add(newWindow);
                                                 newWindow.Loaded += NewWindow_Loaded;
-                                                newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                                                newWindow.Closed += NewWindow_Closed;
                                                 newWindow.ShowActivated = false;
                                                 newWindow.Show();
                                                 newWindow.recordAll();
@@ -391,6 +408,29 @@ namespace JKWatcher
                     serverBrowser.Dispose();
 
                 }
+            }
+        }
+
+        private void NewWindow_Closed(object sender, EventArgs e)
+        {
+            ConnectedServerWindow newWindow = sender as ConnectedServerWindow;
+            if(newWindow != null)
+            {
+                lock (connectedServerWindows)
+                {
+                    connectedServerWindows.Remove(newWindow);
+                    newWindow.Closed -= NewWindow_Closed;
+                }
+                lock (autoConnectRecentlyClosedBlockList)
+                {
+                    // Tell our auto connecter that we only just disconnected from this server,
+                    // so if it is currently in the process of requesting server infos,
+                    // it should ignore this server because it might still include us.
+                    autoConnectRecentlyClosedBlockList.Add(newWindow.netAddress);
+                }
+            } else
+            {
+                Helpers.logToFile("Error in NewWindow_Closed handler.");
             }
         }
 
@@ -473,7 +513,7 @@ namespace JKWatcher
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw);
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
-                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Closed += NewWindow_Closed;
                     newWindow.ShowActivated = false;
                     newWindow.Show();
                 }
@@ -510,7 +550,7 @@ namespace JKWatcher
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value, null, pw);
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
-                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Closed += NewWindow_Closed;
                     newWindow.ShowActivated = false;
                     newWindow.Show();
                 }
@@ -590,7 +630,7 @@ namespace JKWatcher
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
-                    newWindow.Closed += (a, b) => { lock (connectedServerWindows) connectedServerWindows.Remove(newWindow); };
+                    newWindow.Closed += NewWindow_Closed;
                     newWindow.ShowActivated = false;
                     newWindow.Show();
                     /*if(serverToConnect.playerName != null)
