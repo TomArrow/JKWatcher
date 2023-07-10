@@ -1449,7 +1449,7 @@ Only in One Flag CTF games
 			===============
 			BG_FindItem
 
-			===============
+			===============*/
 			public static int? BG_FindItem(string classname)
 			{
 				//gitem_t* it;
@@ -1473,7 +1473,7 @@ Only in One Flag CTF games
 
 				return null;
 			}
-*/
+
 
 		}
 	}

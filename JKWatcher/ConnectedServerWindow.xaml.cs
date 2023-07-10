@@ -227,9 +227,64 @@ namespace JKWatcher
 
         }
 
+        // For duel modes we require a ghost peer because without it, we get stuck in endless loop of bot playing and going spec and
+        // the normal players never get to play.
+        private void ManageGhostPeer(bool needOne)
+        {
+            Dispatcher.Invoke(()=> {
+                ManageGhostPeerActual(needOne);
+            },System.Windows.Threading.DispatcherPriority.ContextIdle);
+        }
+
+        private void ManageGhostPeerActual(bool needOne)
+        {
+            bool haveOne = false;
+            Connection ghostPeerConn = null;
+            lock (connections)
+            {
+                foreach (Connection conn in connections)
+                {
+                    if (conn.GhostPeer)
+                    {
+                        haveOne = true;
+                        ghostPeerConn = conn;
+                        break;
+                    }
+                }
+            }
+            if (!haveOne && needOne)
+            {
+                Connection newConnection = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings,ghostPeer:true);
+                newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+                newConnection.PropertyChanged += Con_PropertyChanged;
+                lock (connections)
+                {
+                    connections.Add(newConnection);
+                }
+                updateIndices();
+            }
+            else if (haveOne && !needOne && ghostPeerConn != null)
+            {
+                if (ghostPeerConn.CameraOperator != null)
+                {
+                    addToLog("WEIRD, ManageGhostPeer(): Cannot remove connection bound to a camera operator");
+                    return;
+                }
+                ghostPeerConn.CloseDown();
+                ghostPeerConn.ServerInfoChanged -= Con_ServerInfoChanged;
+                ghostPeerConn.PropertyChanged -= Con_PropertyChanged;
+                lock (connections)
+                {
+                    connections.Remove(ghostPeerConn);
+                }
+                updateIndices();
+            }
+        }
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
-            if(_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
+            //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless
+            if (_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
             {
                 bool alreadyHaveCTFWatcher = false;
                 bool alreadyHaveStrobeWatcher = false;
@@ -807,7 +862,7 @@ namespace JKWatcher
 
             foreach(Connection connection in connections)
             {
-                if(connection.CameraOperator == null)
+                if(connection.CameraOperator == null && !connection.GhostPeer)
                 {
                     retVal.Add(connection);
                     if(retVal.Count == count)
@@ -1168,24 +1223,27 @@ namespace JKWatcher
                 return; // We won't delete all counnections. We want to keep at least one.
             }*/
 
-            foreach (Connection conn in conns)
-            {
-                //if (conn.Status == ConnectionStatus.Active) // We wanna be able to delete faulty/disconnected connections too. Even more actually! If a connection gets stuck, it shouldn't stay there forever.
-                //{
-                    if(conn.CameraOperator != null)
-                    {
-                        addToLog("Cannot remove connection bound to a camera operator");
-                    } else
-                    {
+            lock (connections) { 
+                foreach (Connection conn in conns)
+                {
+                    //if (conn.Status == ConnectionStatus.Active) // We wanna be able to delete faulty/disconnected connections too. Even more actually! If a connection gets stuck, it shouldn't stay there forever.
+                    //{
+                        if(conn.CameraOperator != null)
+                        {
+                            addToLog("Cannot remove connection bound to a camera operator");
+                        } else
+                        {
 
-                        //conn.disconnect();
-                        conn.CloseDown();
-                        conn.ServerInfoChanged -= Con_ServerInfoChanged;
-                        conn.PropertyChanged -= Con_PropertyChanged;
-                        connections.Remove(conn);
-                    }
-                //}
+                            //conn.disconnect();
+                            conn.CloseDown();
+                            conn.ServerInfoChanged -= Con_ServerInfoChanged;
+                            conn.PropertyChanged -= Con_PropertyChanged;
+                            connections.Remove(conn);
+                        }
+                    //}
+                }
             }
+            updateIndices();
         }
 
         private void reconBtn_Click(object sender, RoutedEventArgs e)
@@ -1354,24 +1412,26 @@ namespace JKWatcher
 
         public bool requestConnectionDestruction(Connection conn)
         {
-            if (conn.CameraOperator != null)
-            {
-                addToLog("Cannot remove connection bound to a camera operator");
-                return false;
-            }
-            else if (!connections.Contains(conn))
-            {
-                addToLog("WEIRD: Camera operator requesting deletion of a connection that is not part of this ConnectedServerWindow.");
-                return false;
-            }
-            else
-            {
+            lock (connections) { 
+                if (conn.CameraOperator != null)
+                {
+                    addToLog("Cannot remove connection bound to a camera operator");
+                    return false;
+                }
+                else if (!connections.Contains(conn))
+                {
+                    addToLog("WEIRD: Camera operator requesting deletion of a connection that is not part of this ConnectedServerWindow.");
+                    return false;
+                }
+                else
+                {
 
-                //conn.disconnect();
-                conn.CloseDown();
-                connections.Remove(conn);
-                updateIndices();
-                return true;
+                    //conn.disconnect();
+                    conn.CloseDown();
+                    connections.Remove(conn);
+                    updateIndices();
+                    return true;
+                }
             }
         }
     }

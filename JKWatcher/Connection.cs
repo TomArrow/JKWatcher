@@ -169,7 +169,8 @@ namespace JKWatcher
         }
 
         public JKClient.Statistics clientStatistics { get; private set; }
-        
+        public bool GhostPeer { get; private set; } = false;
+
         // To detect changes.
         private string lastKnownPakNames = "";
         private string lastKnownPakChecksums = "";
@@ -233,12 +234,13 @@ namespace JKWatcher
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null)
+        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
         {
             if(connectionOptions == null)
             {
                 throw new InvalidOperationException("Cannot create connection with null connectionOptions");
             }
+            this.GhostPeer = ghostPeer;
             _connectionOptions = connectionOptions;
             _connectionOptions.PropertyChanged += _connectionOptions_PropertyChanged;
             if (protocolA == ProtocolVersion.Protocol26)
@@ -585,7 +587,7 @@ namespace JKWatcher
                 serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);
                 return false;
             }
-            client = new Client(handler); // Todo make more flexible
+            client = new Client(handler) { GhostPeer = this.GhostPeer }; // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
             if (jkaMode) // TODO Detect mods and proceed accordingly
@@ -727,6 +729,9 @@ namespace JKWatcher
 
         DateTime lastForcedActivity = DateTime.Now;
 
+        int doClicks = 0;
+        bool lastWasClick = false;
+
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
         // It also means we don't have to have watchers subscribe directly to the client because then that would break
         // when we get disconnected/reconnected etc.
@@ -741,6 +746,20 @@ namespace JKWatcher
                 {
                     modifiableCommand.ForwardMove = 127;
                     lastForcedActivity = DateTime.Now;
+                }
+            }
+            if(this.CameraOperator == null)
+            {
+                if(doClicks > 0 && lastWasClick == false)
+                {
+                    doClicks--;
+                    lastWasClick = true;
+                    modifiableCommand.Buttons |= (int)UserCommand.Button.Attack;
+                    modifiableCommand.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+                }
+                else
+                {
+                    lastWasClick = false;
                 }
             }
             OnClientUserCommandGenerated(ref modifiableCommand);
@@ -1253,6 +1272,10 @@ namespace JKWatcher
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
 
+        private Vector3 delta_angles;
+        private float baseSpeed = 0;
+        private int saberDrawAnimLevel = -1;
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
@@ -1262,12 +1285,19 @@ namespace JKWatcher
             OnPropertyChanged(new PropertyChangedEventArgs("SnapStatus"));
 
             infoPool.setGameTime(client.gameTime);
-            infoPool.isIntermission = client.IsInterMission;
-            PlayerMoveType = client.PlayerMoveType;
+            //infoPool.isIntermission = client.IsInterMission;
+            Snapshot snap = e.snap;
+            bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission;
+            infoPool.isIntermission = isIntermission;
+            PlayerMoveType = snap.PlayerState.PlayerMoveType;
+
+            if(isDuelMode && isIntermission)
+            {
+                doClicks = Math.Min(3, doClicks + 1);
+            }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
 
-            Snapshot snap = e.snap;
             int[] snapEntityMapping = new int[Common.MaxGEntities];
             for(int i = 0; i < Common.MaxGEntities; i++)
             {
@@ -1308,6 +1338,13 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.X = snap.PlayerState.ViewAngles[0];
                     infoPool.playerInfo[i].angles.Y = snap.PlayerState.ViewAngles[1];
                     infoPool.playerInfo[i].angles.Z = snap.PlayerState.ViewAngles[2];
+                    infoPool.playerInfo[i].curWeapon = snap.PlayerState.Weapon;
+                    infoPool.playerInfo[i].speed = snap.PlayerState.Speed;
+                    this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
+                    this.baseSpeed = snap.PlayerState.Basespeed;
+                    this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
+                    this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
+                    this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
 
                     infoPool.playerInfo[i].powerUps = 0;
                     for (int y = 0; y < Common.MaxPowerUps; y++)
@@ -1356,6 +1393,8 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.X = snap.Entities[snapEntityNum].AngularPosition.Base[0];
                     infoPool.playerInfo[i].angles.Y = snap.Entities[snapEntityNum].AngularPosition.Base[1];
                     infoPool.playerInfo[i].angles.Z = snap.Entities[snapEntityNum].AngularPosition.Base[2];
+                    infoPool.playerInfo[i].curWeapon = snap.Entities[snapEntityNum].Weapon;
+                    infoPool.playerInfo[i].speed = snap.Entities[snapEntityNum].Speed;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
@@ -1476,19 +1515,24 @@ namespace JKWatcher
                 }
             }
 
-
+            bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+            bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
             if (amNotInSpec) // Maybe in the future I will
             {
-                bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+                
                 if (!isSillyCameraOperator) // Silly operator means we actually don't want to be in spec. That is its only purpose.
                 {
+                    // TODO: Special handling for selfkill when g_allowduelSuicide 1?
+                    // TODO: Why does it fuck up the order in jk2?
+
                     // Try to get back out of spec
                     // Depending on server settings, this might not work though, but hey, we can try.
-                    leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                    if (!isDuelMode || jkaMode) // In jka i can actually weasel out of duels like this, but not in jk2 sadly. It puts me spec but immediately queues me back up for the next fight. Sad.
+                    if (maySendFollow) // In jka i can actually weasel out of duels like this, but not in jk2 sadly. It puts me spec but immediately queues me back up for the next fight. Sad. Never found out why.
                     {
-                        // Ironic... this does allow me to go spec in duel, but it creates an endless loop where I am always the next upcoming player. :( Even worse
+                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    
+                        // Ironic... this does allow me to go spec in duel, but it creates an endless loop where I am always the next upcoming player, at leasts in jk2. :( Even worse
                         leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
                     }
                 }
@@ -1501,7 +1545,7 @@ namespace JKWatcher
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
+            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
@@ -1939,7 +1983,7 @@ findHighestScore:
         bool skipSanityCheck = false;
 
         Regex unknownCmdRegex = new Regex(@"^unknown (?:cmd|command) ([^\n]+?)\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-        Regex clientInactiveRegex = new Regex(@"Client '(\d+)' is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex clientInactiveRegex = new Regex(@"Client '?(\d+)'? is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {

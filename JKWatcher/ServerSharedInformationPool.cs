@@ -61,9 +61,11 @@ namespace JKWatcher
         public Vector3 position;
         public DateTime? lastPositionUpdate; // Last time the player position alone was updated (from events or such)
         public Vector3 angles;
+        //public Vector3 delta_angles;
         public Vector3 velocity;
         public bool IsAlive;
         public DateTime? lastFullPositionUpdate; // Last time all the info above was updated from entities
+        public float speed;
         #endregion
 
         public Vector3 lastDeathPosition;
@@ -267,6 +269,8 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public volatile int saberWeaponNum = -1;
+
         private int _maxClients = 0;
         private bool jkaMode = false;
         public ServerSharedInformationPool(bool jkaModeA, int maxClients)
@@ -288,11 +292,15 @@ namespace JKWatcher
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG,false).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG,false).Value;
+                //this.saberWeaponNum = JKAStuff.ItemList.bg_itemlist[JKAStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
+                this.saberWeaponNum = (int)JKAStuff.ItemList.weapon_t.WP_SABER;
 
             } else
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+                //this.saberWeaponNum = JOStuff.ItemList.bg_itemlist[ JOStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
+                this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
             }
         }
 
@@ -316,10 +324,12 @@ namespace JKWatcher
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG, isMBII).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG, isMBII).Value;
+                this.saberWeaponNum = (int)JKAStuff.ItemList.weapon_t.WP_SABER;
             } else
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+                this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
             }
         }
     }
