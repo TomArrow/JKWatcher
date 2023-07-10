@@ -29,8 +29,8 @@ namespace JKWatcher
 			// Of course normally the priority is to get back in spec
 			// But sometimes it might not be possible, OR we might not want it (for silly reasons)
 			// So as long as we aren't in spec, let's do silly things.
-
-			if (isDuelMode)
+			bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+			if (isDuelMode || isSillyCameraOperator)
 			{
 				DoSillyThingsDuel(ref userCmd);
 			}
