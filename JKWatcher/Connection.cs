@@ -120,6 +120,9 @@ namespace JKWatcher
             index = (index + 1) % averageWindow;
         }
 
+        public int ReceivedSnaps { get; private set; } = 0;
+        public int TotalSnaps { get; private set; } = 0;
+
         public override string ToString()
         {
             int timeTotal = 0;
@@ -134,9 +137,9 @@ namespace JKWatcher
                     timeTotal += snippet.duration;
                 }
             }
-            int receivedSnaps = timeTotal == 0 ? 0 : 1000 * packetCount / timeTotal;
-            int totalSnaps = timeTotal == 0 ? 0 : 1000 * packetCountIncludingSkipped / timeTotal;
-            return $"{receivedSnaps}/{totalSnaps}";
+            ReceivedSnaps = timeTotal == 0 ? 0 : 1000 * packetCount / timeTotal;
+            TotalSnaps = timeTotal == 0 ? 0 : 1000 * packetCountIncludingSkipped / timeTotal;
+            return $"{ReceivedSnaps}/{TotalSnaps}";
         }
     }
 
@@ -1276,6 +1279,8 @@ namespace JKWatcher
         private float baseSpeed = 0;
         private int saberDrawAnimLevel = -1;
 
+        private PlayerState lastPlayerState = new PlayerState();
+        private int lastSnapNum = -1;
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
@@ -1287,11 +1292,13 @@ namespace JKWatcher
             infoPool.setGameTime(client.gameTime);
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
+            lastPlayerState = snap.PlayerState;
+            lastSnapNum = e.snapNum;
             bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission;
             infoPool.isIntermission = isIntermission;
             PlayerMoveType = snap.PlayerState.PlayerMoveType;
 
-            if(isDuelMode && isIntermission)
+            if (isDuelMode && isIntermission)
             {
                 doClicks = Math.Min(3, doClicks + 1);
             }
@@ -1527,9 +1534,12 @@ namespace JKWatcher
 
                     // Try to get back out of spec
                     // Depending on server settings, this might not work though, but hey, we can try.
+
+                    // Duel could theoretically allow suicide, in which case this could be used to let next player play safely.
+                    leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+
                     if (maySendFollow) // In jka i can actually weasel out of duels like this, but not in jk2 sadly. It puts me spec but immediately queues me back up for the next fight. Sad. Never found out why.
                     {
-                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                         leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                     
                         // Ironic... this does allow me to go spec in duel, but it creates an endless loop where I am always the next upcoming player, at leasts in jk2. :( Even worse

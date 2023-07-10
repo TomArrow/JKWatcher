@@ -21,6 +21,15 @@ namespace JKWatcher
 	// Silly fighting when forced out of spec
 	public partial class Connection
 	{
+
+		enum SillyMode
+        {
+			SILLY,
+			DBS
+        }
+
+		SillyMode sillyMode = SillyMode.DBS;
+
 		private bool amNotInSpec = false; // If not in spec for whatever reason, do funny things
 		private bool isDuelMode = false; // If we are in duel mode, different behavior. Some servers don't like us attacking innocents but for duel we have to, to end it quick. But if someone attacks US, then all bets are off.
 
@@ -41,6 +50,9 @@ namespace JKWatcher
 
 		DateTime lastSaberAttackCycleSent = DateTime.Now;
 
+		int sillyMoveLastSnapNum = 0;
+		int lastUserCmdTime = 0;
+		float dbsLastRotationOffset = 0;
 		private unsafe void DoSillyThingsDuel(ref UserCommand userCmd)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -48,18 +60,29 @@ namespace JKWatcher
 
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
+			float closestDistance = float.PositiveInfinity;
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
-				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum)
+				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive)
 				{
-					closestPlayer = pi;
+					float curdistance = (pi.position - myself.position).Length();
+					if (curdistance < closestDistance)
+                    {
+						closestDistance = curdistance;
+						closestPlayer = pi;
+					}
 				}
 			}
 
 			if (closestPlayer == null) return;
 
 			int genCmdSaberAttackCycle = jkaMode ? 26 : 20;
+			int bsLSMove = jkaMode ? 12 : 12;
+			int dbsLSMove = jkaMode ? 13 : 13;
+			int parryLower = jkaMode ? 152 : 108;
+			int parryUpper = jkaMode ? 156 : 112;
+			int dbsTriggerDistance = 110; //128 is max possible but that results mostly in just jumps without hits as too far away.
 
 			float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
 			float hisSpeed = closestPlayer.velocity.Length();
@@ -76,7 +99,18 @@ namespace JKWatcher
 			Vector2 normalizedVecToPlayer2D = Vector2.Normalize(vecToClosestPlayer2D);
 			float dotProduct = Vector2.Dot(enemyVelocity2D, vecToClosestPlayer2D);
 			Vector3 moveVector = vecToClosestPlayer;
-			if(dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
+			float distance2D = (enemyPosition2D - myPosition2D).Length();
+			float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
+			bool dbsPossible = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
+
+			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
+			bool amInAttack = lastPlayerState.SaberMove > 3;
+			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
+			if (sillyMode == SillyMode.DBS && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+            {
+				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
+            }
+			else if(dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
 				// Do a simplified thing.
@@ -121,28 +155,105 @@ namespace JKWatcher
 			vectoangles(moveVector, ref angles);
 			float yawAngle = angles.Y - this.delta_angles.Y;
 			float pitchAngle = angles.X - this.delta_angles.X;
-            switch (sillyflip) {
-				case 0:
-					userCmd.ForwardMove = 127;
-					break;
-				case 1:
-					yawAngle += 90;
-					userCmd.RightMove = 127;
-					break;
-				case 2:
-					yawAngle += 180;
-					userCmd.ForwardMove = -128;
-					break;
-				case 3:
-					yawAngle += 270;
-					userCmd.RightMove = -128;
-					break;
+            if(sillyMode == SillyMode.SILLY) { 
+				switch (sillyflip) {
+					case 0:
+						userCmd.ForwardMove = 127;
+						break;
+					case 1:
+						yawAngle += 90;
+						userCmd.RightMove = 127;
+						break;
+					case 2:
+						yawAngle += 180;
+						userCmd.ForwardMove = -128;
+						break;
+					case 3:
+						yawAngle += 270;
+						userCmd.RightMove = -128;
+						break;
+				}
+
+				if (sillyAttack)
+				{
+					userCmd.Buttons |= (int)UserCommand.Button.Attack;
+					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+				}
+			} else if(sillyMode == SillyMode.DBS)
+            {
+				
+				userCmd.ForwardMove = 127;
+                if (!amInAttack /*&& !amCurrentlyDbsing*/)
+                {
+
+					if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
+					{
+						// Gotta jump
+						userCmd.Upmove = 127;
+					}
+					else if (dbsPossible)
+					{
+						// Do dbs
+						userCmd.Upmove = -128;
+						yawAngle += 180;
+						pitchAngle -= 180;
+						userCmd.ForwardMove = -128;
+						if (sillyAttack)
+						{
+							userCmd.Buttons |= (int)UserCommand.Button.Attack;
+							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+						}
+					}
+				}
+				else if(amCurrentlyDbsing) 
+				{
+					float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
+					float maxRotationPerMillisecond = 170.0f / serverFrameDuration; // -10 to be safe. must be under 180 i think to be reasonable.
+					float thisCommandDuration = userCmd.ServerTime - lastUserCmdTime;
+					float rotationBy = thisCommandDuration * maxRotationPerMillisecond + dbsLastRotationOffset;
+
+					yawAngle += rotationBy;
+
+					dbsLastRotationOffset = rotationBy;
+				} else
+                {
+					switch (sillyflip)
+					{
+						case 0:
+							userCmd.ForwardMove = 127;
+							break;
+						case 1:
+							yawAngle += 90;
+							userCmd.RightMove = 127;
+							break;
+						case 2:
+							yawAngle += 180;
+							userCmd.ForwardMove = -128;
+							break;
+						case 3:
+							yawAngle += 270;
+							userCmd.RightMove = -128;
+							break;
+					}
+					if (amInParry)
+					{
+						if (sillyAttack)
+						{
+							userCmd.Buttons |= (int)UserCommand.Button.Attack;
+							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+						}
+					}
+				}
+				
 			}
 
-            if (sillyAttack)
+			if(lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
             {
-				userCmd.Buttons |= (int)UserCommand.Button.Attack;
-				userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+				if (sillyAttack)
+				{
+					userCmd.Buttons |= (int)UserCommand.Button.Attack;
+					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+				}
 			}
 
 			userCmd.Weapon = (byte)infoPool.saberWeaponNum;
@@ -151,8 +262,11 @@ namespace JKWatcher
 			userCmd.Angles[PITCH] = Angle2Short(pitchAngle);
 
 			sillyAttack = !sillyAttack;
-			sillyflip++;
+			//sillyflip++;
+			sillyflip+= (lastSnapNum - sillyMoveLastSnapNum);
 			sillyflip = sillyflip % 4;
+			sillyMoveLastSnapNum = lastSnapNum;
+			lastUserCmdTime = userCmd.ServerTime;
 		}
 
 
