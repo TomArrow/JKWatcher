@@ -55,6 +55,7 @@ namespace JKWatcher
 		int sillyMoveLastSnapNum = 0;
 		int lastUserCmdTime = 0;
 		float dbsLastRotationOffset = 0;
+		float dbsLastVertRotationOffset = 0;
 		bool amGripping = false;
 		int personImTryingToGrip = -1;
 		private unsafe void DoSillyThingsDuel(ref UserCommand userCmd)
@@ -115,15 +116,30 @@ namespace JKWatcher
 			float dotProduct = Vector2.Dot(enemyVelocity2D, vecToClosestPlayer2D);
 			Vector3 moveVector = vecToClosestPlayer;
 			float distance2D = (enemyPosition2D - myPosition2D).Length();
-			float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
-			bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
-			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
-
+			
 			int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
 			int knockDownUpper = jkaMode ? -2 : 848;
 
-			bool enemyIsKnockedDown = (closestPlayer.legsAnim >= knockDownLower && closestPlayer.legsAnim <= knockDownUpper) || (closestPlayer.torsoAnim >= knockDownLower && closestPlayer.torsoAnim <= knockDownUpper);
+			int hisLegsAnim = closestPlayer.legsAnim & ~2048;
+			int hisTorsoAnim = closestPlayer.torsoAnim & ~2048;
+			int myLegsAnim = lastPlayerState.LegsAnimation & ~2048;
+			int myTorsoAnim = lastPlayerState.TorsoAnim & ~2048;
+			bool enemyIsKnockedDown = (hisLegsAnim >= knockDownLower && hisLegsAnim <= knockDownUpper) || (hisTorsoAnim >= knockDownLower && hisTorsoAnim <= knockDownUpper);
+			bool meIsDucked = (lastPlayerState.PlayerMoveFlags & 1) > 0; // PMF_DUCKED
+			bool heIsDucked = hisLegsAnim >= 697 && hisLegsAnim <= 699; // Bad-ish guess but hopefully ok
+			bool meIsInRoll = myLegsAnim >= 781 && myLegsAnim <= 784 && lastPlayerState.LegsTimer > 0; // TODO Make work with JKA and 1.04
+			bool heIsInRoll = hisLegsAnim >= 781 && hisLegsAnim <= 784/* && closestPlayer.legsTimer > 0*/; // TODO Make work with JKA and 1.04. Also bad guess but best I can (want to) do rn.
+			
 
+			// Bounding boxes of him and me
+			float myMax = meIsDucked || meIsInRoll ? 16 : 40;
+			float myMin = 24;
+			float hisMax = heIsDucked || heIsInRoll ? 16 : 40;
+			float hisMin = 24;
+
+			//float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
+			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
+			
 			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
@@ -133,10 +149,25 @@ namespace JKWatcher
 			bool gripForceKick = false;
 			bool releaseGrip = false;
 
-            if ((sillyMode == SillyMode.DBS || sillyMode == SillyMode.GRIPKICKDBS) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+			bool heIsStandingOnTopOfMe = vecToClosestPlayer2D.Length() < 15 && closestPlayer.position.Z <= (myself.position.Z + myMax + hisMin + 10.0f) && closestPlayer.position.Z > (myself.position.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f;
+			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z > (closestPlayer.position.Z - hisMin) && myself.position.Z < (closestPlayer.position.Z + hisMax);
+			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
+			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z < (closestPlayer.position.Z - hisMin) && (myself.position.Z + 96) > (closestPlayer.position.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
+			bool dbsPossibleWithJump = dbsPossibleWithJumpPositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
+
+			if (amCurrentlyDbsing)
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
-            }
+				moveVector.Z += hisMax - myMax;
+			} else if ((sillyMode == SillyMode.DBS || sillyMode == SillyMode.GRIPKICKDBS) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+            {
+				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
+				moveVector.Z += hisMax - myMax;
+			}
+			else if (sillyMode == SillyMode.GRIPKICKDBS && heIsStandingOnTopOfMe && meIsDucked)
+			{
+				gripForceKick = true;
+			}
 			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
 			{
 				moveVector = closestPlayer.position - myViewHeightPos;
@@ -144,15 +175,16 @@ namespace JKWatcher
 			else if (sillyMode == SillyMode.GRIPKICKDBS && grippingSomebody)
 			{
 				// This has a few stages. First we need to look up until the person is above us. Then we need to look down until he stands on our head.
-				if(vecToClosestPlayer2D.Length() >= 16 || closestPlayer.position.Z <= (myself.position.Z+10))
+				if(vecToClosestPlayer2D.Length() >= 15 || closestPlayer.position.Z < (myself.position.Z+myMax+hisMin-1.0f)) // -1.0f to give some leniency to floating point precision?
                 {
 					gripForcePitchUp = true;
-				} else if (closestPlayer.groundEntityNum != myself.clientNum)
+				//} else if (closestPlayer.groundEntityNum != myself.clientNum)
+				} else if (closestPlayer.position.Z > (myself.position.Z + myMax + hisMin + 10.0f))
                 {
 					gripForcePitchDown = true;
-				} else if (!enemyIsKnockedDown)
-                {
-					gripForceKick = true;
+				//} else if (!enemyIsKnockedDown)
+                //{
+				//	gripForceKick = true;
 				} else
                 {
 					releaseGrip = true;
@@ -233,28 +265,36 @@ namespace JKWatcher
 				userCmd.ForwardMove = 127;
                 if (!amInAttack /*&& !amCurrentlyDbsing*/)
                 {
-					if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
+					//if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
+					if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && (dbsPossible || dbsPossibleWithJump))
 					{
-						// Gotta jump
-						userCmd.Upmove = 127;
+						// Check if we are moving in the right direction
+						// Because once we are in the air, we can't change our direction anymore.
+
+						Vector2 myVelocity2D = new Vector2() { X=myself.velocity.X, Y=myself.velocity.Y};
+						Vector2 moveVector2D = new Vector2() { X = moveVector.X, Y = moveVector.Y };
+						Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
+						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
+
+						if(dot > baseSpeed * 0.75f) // Make sure we are at least 75% in the right direction.
+                        {
+							// Gotta jump
+							userCmd.Upmove = 127;
+						}
+
 					}
 					else if (dbsPossible)
 					{
 						// Do dbs
 						userCmd.Upmove = -128;
 						yawAngle += 180;
-						pitchAngle -= 180;
+						//pitchAngle -= 180; // Eh..
 						userCmd.ForwardMove = -128;
 						if (sillyAttack)
 						{
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 						}
-					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
-					{
-						personImTryingToGrip = closestPlayer.clientNum;
-						amGripping = true;
-
 					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForcePitchUp) // Look up
 					{
 						userCmd.ForwardMove = 0;
@@ -277,7 +317,7 @@ namespace JKWatcher
                         {
 							userCmd.Upmove = -128; // Crouch
 						}
-						amGripping = true;
+						amGripping = false;
 					} else if (sillyMode == SillyMode.GRIPKICKDBS && releaseGrip) // Release him and then we can dbs
 					{
 						userCmd.ForwardMove = 127;
@@ -286,8 +326,20 @@ namespace JKWatcher
 							userCmd.Upmove = 127; // Jump diretly? idk
 						}
 						amGripping = false;
+					}
+					else if (sillyMode == SillyMode.GRIPKICKDBS && heIsStandingOnTopOfMe && !meIsDucked) // Release him and then we can dbs
+					{
+						userCmd.ForwardMove = 0;
+						userCmd.Upmove = -128;
+						amGripping = false;
+					}
+					else if(sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
+					{
+						personImTryingToGrip = closestPlayer.clientNum;
+						amGripping = true;
+
 					} else
-                    {
+					{
 						amGripping = false;
 					}
 				}
@@ -295,12 +347,18 @@ namespace JKWatcher
 				{
 					float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
 					float maxRotationPerMillisecond = 160.0f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
+					float maxVertRotationPerMillisecond = 3.5f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
 					float thisCommandDuration = userCmd.ServerTime - lastUserCmdTime;
 					float rotationBy = thisCommandDuration * maxRotationPerMillisecond + dbsLastRotationOffset;
+					float vertRotationBy = thisCommandDuration * maxVertRotationPerMillisecond + dbsLastVertRotationOffset;
+
+					vertRotationBy = vertRotationBy % 20.0f; // just a +- 10 overall
 
 					yawAngle += rotationBy;
+					pitchAngle += vertRotationBy - 10.0f;
 
 					dbsLastRotationOffset = rotationBy;
+					dbsLastVertRotationOffset = vertRotationBy;
 				} else
                 {
 					switch (sillyflip)

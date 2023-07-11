@@ -69,6 +69,7 @@ namespace JKWatcher
         public int groundEntityNum;
         public int torsoAnim;
         public int legsAnim;
+        //public int legsTimer;
         #endregion
 
         public Vector3 lastDeathPosition;
