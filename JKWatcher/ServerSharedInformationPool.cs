@@ -66,6 +66,9 @@ namespace JKWatcher
         public bool IsAlive;
         public DateTime? lastFullPositionUpdate; // Last time all the info above was updated from entities
         public float speed;
+        public int groundEntityNum;
+        public int torsoAnim;
+        public int legsAnim;
         #endregion
 
         public Vector3 lastDeathPosition;

@@ -1347,6 +1347,9 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.Z = snap.PlayerState.ViewAngles[2];
                     infoPool.playerInfo[i].curWeapon = snap.PlayerState.Weapon;
                     infoPool.playerInfo[i].speed = snap.PlayerState.Speed;
+                    infoPool.playerInfo[i].groundEntityNum = snap.PlayerState.GroundEntityNum;
+                    infoPool.playerInfo[i].torsoAnim = snap.PlayerState.TorsoAnim;
+                    infoPool.playerInfo[i].legsAnim = snap.PlayerState.LegsAnimation;
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
                     this.baseSpeed = snap.PlayerState.Basespeed;
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
@@ -1402,6 +1405,9 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.Z = snap.Entities[snapEntityNum].AngularPosition.Base[2];
                     infoPool.playerInfo[i].curWeapon = snap.Entities[snapEntityNum].Weapon;
                     infoPool.playerInfo[i].speed = snap.Entities[snapEntityNum].Speed;
+                    infoPool.playerInfo[i].groundEntityNum = snap.Entities[snapEntityNum].GroundEntityNum;
+                    infoPool.playerInfo[i].torsoAnim = snap.Entities[snapEntityNum].TorsoAnimation;
+                    infoPool.playerInfo[i].legsAnim = snap.Entities[snapEntityNum].LegsAnimation;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     

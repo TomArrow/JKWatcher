@@ -25,7 +25,8 @@ namespace JKWatcher
 		enum SillyMode
         {
 			SILLY,
-			DBS
+			DBS,
+			GRIPKICKDBS
         }
 
 		SillyMode sillyMode = SillyMode.DBS;
@@ -41,6 +42,7 @@ namespace JKWatcher
 			bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
 			if (isDuelMode || isSillyCameraOperator)
 			{
+				sillyMode = isDuelMode ? SillyMode.SILLY : SillyMode.GRIPKICKDBS;
 				DoSillyThingsDuel(ref userCmd);
 			}
 		}
@@ -53,6 +55,8 @@ namespace JKWatcher
 		int sillyMoveLastSnapNum = 0;
 		int lastUserCmdTime = 0;
 		float dbsLastRotationOffset = 0;
+		bool amGripping = false;
+		int personImTryingToGrip = -1;
 		private unsafe void DoSillyThingsDuel(ref UserCommand userCmd)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -61,11 +65,15 @@ namespace JKWatcher
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
 			float closestDistance = float.PositiveInfinity;
+
+			bool grippingSomebody = lastPlayerState.PowerUps[9] != 0 && 0 < (lastPlayerState.forceData.ForcePowersActive & (1 << 6)); // TODO 1.04 and JKA
+
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
 				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive)
 				{
+					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
 					float curdistance = (pi.position - myself.position).Length();
 					if (curdistance < closestDistance)
                     {
@@ -77,12 +85,19 @@ namespace JKWatcher
 
 			if (closestPlayer == null) return;
 
+			Vector3 myViewHeightPos = myself.position;
+			myViewHeightPos.Z += lastPlayerState.ViewHeight;
+
 			int genCmdSaberAttackCycle = jkaMode ? 26 : 20;
 			int bsLSMove = jkaMode ? 12 : 12;
 			int dbsLSMove = jkaMode ? 13 : 13;
 			int parryLower = jkaMode ? 152 : 108;
 			int parryUpper = jkaMode ? 156 : 112;
 			int dbsTriggerDistance = 110; //128 is max possible but that results mostly in just jumps without hits as too far away.
+			int maxGripDistance = 256; // 256 is default in jk2
+
+			//int grippedEntity = lastPlayerState.forceData.ForceGripEntityNum != Common.MaxGEntities - 1 ? lastPlayerState.forceData.ForceGripEntityNum : -1;
+			bool gripPossible = (myViewHeightPos - closestPlayer.position).Length() < maxGripDistance && !grippingSomebody;//&& grippedEntity == -1;
 
 			float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
 			float hisSpeed = closestPlayer.velocity.Length();
@@ -101,16 +116,49 @@ namespace JKWatcher
 			Vector3 moveVector = vecToClosestPlayer;
 			float distance2D = (enemyPosition2D - myPosition2D).Length();
 			float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
-			bool dbsPossible = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
+			bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
+			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
+
+			int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
+			int knockDownUpper = jkaMode ? -2 : 848;
+
+			bool enemyIsKnockedDown = (closestPlayer.legsAnim >= knockDownLower && closestPlayer.legsAnim <= knockDownUpper) || (closestPlayer.torsoAnim >= knockDownLower && closestPlayer.torsoAnim <= knockDownUpper);
 
 			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
-			if (sillyMode == SillyMode.DBS && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+
+			bool gripForcePitchUp = false;
+			bool gripForcePitchDown = false;
+			bool gripForceKick = false;
+			bool releaseGrip = false;
+
+            if ((sillyMode == SillyMode.DBS || sillyMode == SillyMode.GRIPKICKDBS) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
             }
-			else if(dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
+			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
+			{
+				moveVector = closestPlayer.position - myViewHeightPos;
+			}
+			else if (sillyMode == SillyMode.GRIPKICKDBS && grippingSomebody)
+			{
+				// This has a few stages. First we need to look up until the person is above us. Then we need to look down until he stands on our head.
+				if(vecToClosestPlayer2D.Length() >= 16 || closestPlayer.position.Z <= (myself.position.Z+10))
+                {
+					gripForcePitchUp = true;
+				} else if (closestPlayer.groundEntityNum != myself.clientNum)
+                {
+					gripForcePitchDown = true;
+				} else if (!enemyIsKnockedDown)
+                {
+					gripForceKick = true;
+				} else
+                {
+					releaseGrip = true;
+				}
+			}
+			else if (dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
 				// Do a simplified thing.
@@ -179,13 +227,12 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			} else if(sillyMode == SillyMode.DBS)
+			} else if(sillyMode == SillyMode.DBS || sillyMode == SillyMode.GRIPKICKDBS)
             {
 				
 				userCmd.ForwardMove = 127;
                 if (!amInAttack /*&& !amCurrentlyDbsing*/)
                 {
-
 					if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
 					{
 						// Gotta jump
@@ -203,12 +250,51 @@ namespace JKWatcher
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 						}
+					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
+					{
+						personImTryingToGrip = closestPlayer.clientNum;
+						amGripping = true;
+
+					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForcePitchUp) // Look up
+					{
+						userCmd.ForwardMove = 0;
+						amGripping = true;
+						userCmd.Upmove = -128; // Crouch
+						pitchAngle = -89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
+					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForcePitchDown) // Look down
+					{
+						userCmd.ForwardMove = 0;
+						amGripping = true;
+						userCmd.Upmove = -128; // Crouch
+						pitchAngle = 89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
+					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForceKick) // Kick enemy
+					{
+						userCmd.ForwardMove = 127;
+                        if (sillyAttack) // On off quickly
+                        {
+							userCmd.Upmove = 127;
+						} else
+                        {
+							userCmd.Upmove = -128; // Crouch
+						}
+						amGripping = true;
+					} else if (sillyMode == SillyMode.GRIPKICKDBS && releaseGrip) // Release him and then we can dbs
+					{
+						userCmd.ForwardMove = 127;
+                        if (sillyAttack) // On off quickly
+                        {
+							userCmd.Upmove = 127; // Jump diretly? idk
+						}
+						amGripping = false;
+					} else
+                    {
+						amGripping = false;
 					}
 				}
 				else if(amCurrentlyDbsing) 
 				{
 					float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
-					float maxRotationPerMillisecond = 170.0f / serverFrameDuration; // -10 to be safe. must be under 180 i think to be reasonable.
+					float maxRotationPerMillisecond = 160.0f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
 					float thisCommandDuration = userCmd.ServerTime - lastUserCmdTime;
 					float rotationBy = thisCommandDuration * maxRotationPerMillisecond + dbsLastRotationOffset;
 
@@ -247,7 +333,13 @@ namespace JKWatcher
 				
 			}
 
-			if(lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
+			if (amGripping)
+			{
+				userCmd.Buttons |= (int)UserCommand.Button.ForceGripJK2;
+				userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+			}
+
+			if (lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
             {
 				if (sillyAttack)
 				{

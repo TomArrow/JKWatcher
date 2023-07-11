@@ -123,6 +123,7 @@ namespace JKWatcher
 
         public SnapsSettings snapsSettings = new SnapsSettings();
 
+        private Mutex connectionsCameraOperatorsMutex = new Mutex();
         private FullyObservableCollection<Connection> connections = new FullyObservableCollection<Connection>();
         private FullyObservableCollection<CameraOperator> cameraOperators = new FullyObservableCollection<CameraOperator>();
 
@@ -194,7 +195,7 @@ namespace JKWatcher
             Connection newCon = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password, /*_connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames,attachClientNumToName,*/snapsSettings);
             newCon.ServerInfoChanged += Con_ServerInfoChanged;
             newCon.PropertyChanged += Con_PropertyChanged;
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 //connections.Add(new Connection(serverInfo, this,  infoPool));
                 connections.Add(newCon);
@@ -240,7 +241,7 @@ namespace JKWatcher
         {
             bool haveOne = false;
             Connection ghostPeerConn = null;
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach (Connection conn in connections)
                 {
@@ -257,7 +258,7 @@ namespace JKWatcher
                 Connection newConnection = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings,ghostPeer:true);
                 newConnection.ServerInfoChanged += Con_ServerInfoChanged;
                 newConnection.PropertyChanged += Con_PropertyChanged;
-                lock (connections)
+                lock (connectionsCameraOperatorsMutex)
                 {
                     connections.Add(newConnection);
                 }
@@ -273,7 +274,7 @@ namespace JKWatcher
                 ghostPeerConn.CloseDown();
                 ghostPeerConn.ServerInfoChanged -= Con_ServerInfoChanged;
                 ghostPeerConn.PropertyChanged -= Con_PropertyChanged;
-                lock (connections)
+                lock (connectionsCameraOperatorsMutex)
                 {
                     connections.Remove(ghostPeerConn);
                 }
@@ -288,7 +289,7 @@ namespace JKWatcher
             {
                 bool alreadyHaveCTFWatcher = false;
                 bool alreadyHaveStrobeWatcher = false;
-                lock (cameraOperators)
+                lock (connectionsCameraOperatorsMutex)
                 {
                     foreach (CameraOperator op in cameraOperators)
                     {
@@ -338,7 +339,7 @@ namespace JKWatcher
 
             gameTimeTxt.DataContext = infoPool;
 
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 connections.Add(new Connection(ipA, protocolA, this,  infoPool));
             }
@@ -388,121 +389,115 @@ namespace JKWatcher
         // using their ratio limit in order to send appropriate follow commands
         private void setMainChatConnection()
         {
-            lock (cameraOperators)
+            
+            lock (connectionsCameraOperatorsMutex)
             {
-                lock (connections)
+                bool mainConnectionFound = false;
+                for (int i = 0; i < connections.Count; i++) // Prefer main connection that has no watcher
                 {
-                    bool mainConnectionFound = false;
-                    for (int i = 0; i < connections.Count; i++) // Prefer main connection that has no watcher
+                    if (!mainConnectionFound && (connections[i].CameraOperator == null))
                     {
-                        if (!mainConnectionFound && (connections[i].CameraOperator == null))
+
+                        connections[i].IsMainChatConnection = true;
+                        connections[i].ChatMemeCommandsDelay = 1000;
+                        mainConnectionFound = true;
+                    }
+                    else
+                    {
+
+                        connections[i].IsMainChatConnection = false;
+                    }
+                }
+                if (!mainConnectionFound) // Prefer main connection that has strobe watcher (it doesn't send many commands if any at all)
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.StrobeCameraOperator))
                         {
 
                             connections[i].IsMainChatConnection = true;
                             connections[i].ChatMemeCommandsDelay = 1000;
                             mainConnectionFound = true;
-                        }
-                        else
-                        {
-
-                            connections[i].IsMainChatConnection = false;
+                            break;
                         }
                     }
-                    if (!mainConnectionFound) // Prefer main connection that has strobe watcher (it doesn't send many commands if any at all)
-                    {
-                        for (int i = 0; i < connections.Count; i++)
-                        {
-                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.StrobeCameraOperator))
-                            {
-
-                                connections[i].IsMainChatConnection = true;
-                                connections[i].ChatMemeCommandsDelay = 1000;
-                                mainConnectionFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!mainConnectionFound) // Prefer spectator watcher over other types (it doesn't send many commands)
-                    {
-                        for (int i = 0; i < connections.Count; i++)
-                        {
-                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SpectatorCameraOperator))
-                            {
-
-                                connections[i].IsMainChatConnection = true;
-                                connections[i].ChatMemeCommandsDelay = 2000;
-                                mainConnectionFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!mainConnectionFound) // 
-                    {
-                        for (int i = 0; i < connections.Count; i++)
-                        {
-                            if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator))
-                            {
-
-                                connections[i].IsMainChatConnection = true;
-                                connections[i].ChatMemeCommandsDelay = 2000;
-                                mainConnectionFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!mainConnectionFound)
-                    {
-                        // We're desperate, just set 0 as main.
-                        connections[0].IsMainChatConnection = true;
-                        connections[0].ChatMemeCommandsDelay = 6000; // Prolly CTF operator. Make the delay big to not interfere.
-                        mainConnectionFound = true;
-                    }
-
                 }
+                if (!mainConnectionFound) // Prefer spectator watcher over other types (it doesn't send many commands)
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SpectatorCameraOperator))
+                        {
+
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 2000;
+                            mainConnectionFound = true;
+                            break;
+                        }
+                    }
+                }
+                if (!mainConnectionFound) // 
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator))
+                        {
+
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 2000;
+                            mainConnectionFound = true;
+                            break;
+                        }
+                    }
+                }
+                if (!mainConnectionFound)
+                {
+                    // We're desperate, just set 0 as main.
+                    connections[0].IsMainChatConnection = true;
+                    connections[0].ChatMemeCommandsDelay = 6000; // Prolly CTF operator. Make the delay big to not interfere.
+                    mainConnectionFound = true;
+                }
+
             }
+            
         }
         private void updateIndices()
         {
 
-            lock (cameraOperators)
+            lock (connectionsCameraOperatorsMutex)
             {
-                lock (connections)
+                for (int i = 0; i < connections.Count; i++)
                 {
-                    for (int i = 0; i < connections.Count; i++)
-                    {
-                        connections[i].Index = i;
-                    }
-                    for (int i = 0; i < cameraOperators.Count; i++)
-                    {
-                        cameraOperators[i].Index = i;
-                    }
-                    setMainChatConnection();
+                    connections[i].Index = i;
                 }
+                for (int i = 0; i < cameraOperators.Count; i++)
+                {
+                    cameraOperators[i].Index = i;
+                }
+                setMainChatConnection();
             }
         }
 
         internal CameraOperator getCameraOperatorOfConnection(Connection conn)
         {
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
-                lock (cameraOperators)
+                if (conn.CameraOperator.HasValue)
                 {
-                    if (conn.CameraOperator.HasValue)
+                    // Sanity check
+                    if(conn.CameraOperator >= 0 && conn.CameraOperator < cameraOperators.Count)
                     {
-                        // Sanity check
-                        if(conn.CameraOperator >= 0 && conn.CameraOperator < cameraOperators.Count)
-                        {
-                            return cameraOperators[conn.CameraOperator.Value];
-                        }
+                        return cameraOperators[conn.CameraOperator.Value];
                     }
                 }
+                
             }
             return null;
         }
 
         public bool clientNumIsJKWatcherInstance(int clientNum)
         {
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach(Connection conn in connections)
                 {
@@ -515,7 +510,7 @@ namespace JKWatcher
         public int[] getJKWatcherClientNums()
         {
             List<int> clientNums = new List<int>();
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach(Connection conn in connections)
                 {
@@ -836,7 +831,7 @@ namespace JKWatcher
         private void createCameraOperator<T>() where T:CameraOperator, new()
         {
             
-            lock (cameraOperators)
+            lock (connectionsCameraOperatorsMutex)
             {
                 T camOperator = new T();
                 camOperator.Errored += CamOperator_Errored;
@@ -878,7 +873,7 @@ namespace JKWatcher
                 Connection newConnection = new Connection(netAddress,protocol, this,infoPool, _connectionOptions,password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
                 newConnection.ServerInfoChanged += Con_ServerInfoChanged;
                 newConnection.PropertyChanged += Con_PropertyChanged;
-                lock (connections)
+                lock (connectionsCameraOperatorsMutex)
                 {
                     connections.Add(newConnection);
                 }
@@ -918,7 +913,7 @@ namespace JKWatcher
 
             foreach (CameraOperator op in cameraOperators)
             {
-                lock (connections)
+                lock (connectionsCameraOperatorsMutex)
                 {
                     op.Destroy();
                 }
@@ -927,7 +922,7 @@ namespace JKWatcher
                 op.Errored -= CamOperator_Errored;
             }
             cameraOperators.Clear();
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach (Connection connection in connections)
                 {
@@ -1082,14 +1077,14 @@ namespace JKWatcher
         private void deleteWatcherBtn_Click(object sender, RoutedEventArgs e)
         {
             List<CameraOperator> ops = cameraOperatorsDataGrid.SelectedItems.Cast<CameraOperator>().ToList();
-            lock (cameraOperators)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach (CameraOperator op in ops)
                 {
-                    lock (connections)
-                    {
+                    //lock (connectionsCameraOperatorsMutex)
+                    //{
                         op.Destroy();
-                    }
+                    //}
                     cameraOperators.Remove(op);
                     updateIndices();
                     op.Errored -= CamOperator_Errored;
@@ -1099,7 +1094,7 @@ namespace JKWatcher
         private void watcherConfigBtn_Click(object sender, RoutedEventArgs e)
         {
             List<CameraOperator> ops = cameraOperatorsDataGrid.SelectedItems.Cast<CameraOperator>().ToList();
-            lock (cameraOperators)
+            lock (connectionsCameraOperatorsMutex)
             {
                 foreach (CameraOperator op in ops)
                 {
@@ -1199,7 +1194,7 @@ namespace JKWatcher
             Connection newConnection = new Connection(netAddress,protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
             newConnection.ServerInfoChanged += Con_ServerInfoChanged;
             newConnection.PropertyChanged += Con_PropertyChanged;
-            lock (connections)
+            lock (connectionsCameraOperatorsMutex)
             {
                 connections.Add(newConnection);
             }
@@ -1223,7 +1218,7 @@ namespace JKWatcher
                 return; // We won't delete all counnections. We want to keep at least one.
             }*/
 
-            lock (connections) { 
+            lock (connectionsCameraOperatorsMutex) { 
                 foreach (Connection conn in conns)
                 {
                     //if (conn.Status == ConnectionStatus.Active) // We wanna be able to delete faulty/disconnected connections too. Even more actually! If a connection gets stuck, it shouldn't stay there forever.
@@ -1412,7 +1407,7 @@ namespace JKWatcher
 
         public bool requestConnectionDestruction(Connection conn)
         {
-            lock (connections) { 
+            lock (connectionsCameraOperatorsMutex) { 
                 if (conn.CameraOperator != null)
                 {
                     addToLog("Cannot remove connection bound to a camera operator");
