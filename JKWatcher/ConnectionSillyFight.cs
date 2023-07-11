@@ -208,7 +208,7 @@ namespace JKWatcher
 			{
 				moveVector = closestPlayer.position - myViewHeightPos;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && !gripPossibleDistanceWise && !amGripping)
+			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 25)
 			{
 				doPull = true;
 				//moveVector = closestPlayer.position - myself.position;
@@ -455,7 +455,7 @@ namespace JKWatcher
 					// Go Speed
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
 				}
-				else if (amInSpeed && lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700)
+				else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700))
 				{
 					// Disable speed unless in rage
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
