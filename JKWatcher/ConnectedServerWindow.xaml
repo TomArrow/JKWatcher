@@ -167,6 +167,7 @@
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
                     <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Speed" Binding="{Binding Speed}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Chat"  Binding="{Binding IsMainChatConnection}">
                         <DataGridTextColumn.CellStyle>
                             <Style TargetType="DataGridCell">

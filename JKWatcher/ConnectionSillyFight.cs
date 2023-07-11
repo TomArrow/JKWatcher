@@ -92,6 +92,8 @@ namespace JKWatcher
 			float closestDistance = float.PositiveInfinity;
 
 			bool grippingSomebody = lastPlayerState.PowerUps[9] != 0 && 0 < (lastPlayerState.forceData.ForcePowersActive & (1 << 6)); // TODO 1.04 and JKA
+			bool amInRage = (lastPlayerState.forceData.ForcePowersActive & (1 << 8)) > 0; // TODO 1.04 and JKA
+			bool amInSpeed = (lastPlayerState.forceData.ForcePowersActive & (1 << 2)) > 0; // TODO 1.04 and JKA
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -113,6 +115,7 @@ namespace JKWatcher
 			Vector3 myViewHeightPos = myself.position;
 			myViewHeightPos.Z += lastPlayerState.ViewHeight;
 
+
 			int genCmdSaberAttackCycle = jkaMode ? 26 : 20;
 			int bsLSMove = jkaMode ? 12 : 12;
 			int dbsLSMove = jkaMode ? 13 : 13;
@@ -120,11 +123,19 @@ namespace JKWatcher
 			int parryUpper = jkaMode ? 156 : 112;
 			int dbsTriggerDistance = 110; //128 is max possible but that results mostly in just jumps without hits as too far away.
 			int maxGripDistance = 256; // 256 is default in jk2
+			int maxPullDistance = 1024; // 256 is default in jk2
+
+
+			bool heInAttack = closestPlayer.saberMove > 3;
 
 			//int grippedEntity = lastPlayerState.forceData.ForceGripEntityNum != Common.MaxGEntities - 1 ? lastPlayerState.forceData.ForceGripEntityNum : -1;
-			bool gripPossible = (myViewHeightPos - closestPlayer.position).Length() < maxGripDistance && !grippingSomebody;//&& grippedEntity == -1;
+			bool pullPossibleDistanceWise = closestDistance < maxPullDistance;//&& grippedEntity == -1;
+			bool pullPossible = pullPossibleDistanceWise && (heInAttack || (closestPlayer.groundEntityNum == Common.MaxGEntities-1));
+			bool gripPossibleDistanceWise = (myViewHeightPos - closestPlayer.position).Length() < maxGripDistance;//&& grippedEntity == -1;
+			bool gripPossible = gripPossibleDistanceWise && !grippingSomebody;//&& grippedEntity == -1;
 
-			float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
+			//float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
+			float mySpeed = myself.speed == 0 ? (this.baseSpeed == 0 ? 250: this.baseSpeed) : myself.speed; // We only walk so walk speed is our speed.
 			float hisSpeed = closestPlayer.velocity.Length();
 			Vector3 vecToClosestPlayer = closestPlayer.position - myself.position;
 			Vector2 vecToClosestPlayer2D = new Vector2() { X=vecToClosestPlayer.X,Y=vecToClosestPlayer.Y};
@@ -172,6 +183,7 @@ namespace JKWatcher
 			bool gripForcePitchDown = false;
 			bool gripForceKick = false;
 			bool releaseGrip = false;
+			bool doPull = false;
 
 			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayer.position.Z <= (myself.position.Z + myMax + hisMin + 10.0f) && closestPlayer.position.Z > (myself.position.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
 			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z > (closestPlayer.position.Z - hisMin) && myself.position.Z < (closestPlayer.position.Z + hisMax);
@@ -195,6 +207,11 @@ namespace JKWatcher
 			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
 			{
 				moveVector = closestPlayer.position - myViewHeightPos;
+			}
+			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && !gripPossibleDistanceWise && !amGripping)
+			{
+				doPull = true;
+				//moveVector = closestPlayer.position - myself.position;
 			}
 			else if (sillyMode == SillyMode.GRIPKICKDBS && grippingSomebody)
 			{
@@ -362,6 +379,12 @@ namespace JKWatcher
 						personImTryingToGrip = closestPlayer.clientNum;
 						amGripping = true;
 
+					} else if(sillyMode == SillyMode.GRIPKICKDBS && doPull)
+					{
+						personImTryingToGrip = closestPlayer.clientNum;
+						amGripping = false;
+						userCmd.GenericCmd = (byte)GenericCommand.FORCE_PULL;
+
 					} else
 					{
 						amGripping = false;
@@ -379,7 +402,7 @@ namespace JKWatcher
 					vertRotationBy = vertRotationBy % 20.0f; // just a +- 10 overall
 
 					yawAngle += rotationBy;
-					pitchAngle += vertRotationBy - 10.0f + 30.0f; // +30 to look more down
+					pitchAngle += vertRotationBy - 10.0f + 50.0f; // +50 to look more down
 
 					dbsLastRotationOffset = rotationBy;
 					dbsLastVertRotationOffset = vertRotationBy;
@@ -413,6 +436,31 @@ namespace JKWatcher
 					}
 				}
 				
+			}
+
+			if(userCmd.GenericCmd == 0) // Other stuff has priority.
+            {
+				if (!amInRage && lastPlayerState.Stats[0] > 0 && lastPlayerState.Stats[0] < 50)
+				{
+					// Go rage
+					userCmd.GenericCmd = (byte)GenericCommand.FORCE_RAGE;
+				}
+				else if (amInRage && (closestDistance > 500 || lastPlayerState.Stats[0] > 50))
+				{
+					// Disable rage if nobody within 500 units
+					userCmd.GenericCmd = (byte)GenericCommand.FORCE_RAGE;
+				}
+				else if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100)
+				{
+					// Go Speed
+					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
+				}
+				else if (amInSpeed && lastPlayerState.forceData.ForcePower < 25 && !amInRage)
+				{
+					// Disable speed unless in rage
+					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
+  
+				}
 			}
 
 			if (amGripping)
