@@ -1338,6 +1338,17 @@ namespace JKWatcher
                 if(snapEntityNum == -1 && i == snap.PlayerState.ClientNum)
                 {
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    if (
+                        infoPool.playerInfo[i].position.X != snap.PlayerState.Origin[0] ||
+                        infoPool.playerInfo[i].position.Y != snap.PlayerState.Origin[1]||
+                        infoPool.playerInfo[i].position.Z != snap.PlayerState.Origin[2] ||
+                        infoPool.playerInfo[i].angles.X != snap.PlayerState.ViewAngles[0] ||
+                        infoPool.playerInfo[i].angles.Y != snap.PlayerState.ViewAngles[1] ||
+                        infoPool.playerInfo[i].angles.Z != snap.PlayerState.ViewAngles[2] 
+                    )
+                    {
+                        infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
+                    }
                     infoPool.playerInfo[i].position.X = snap.PlayerState.Origin[0];
                     infoPool.playerInfo[i].position.Y = snap.PlayerState.Origin[1];
                     infoPool.playerInfo[i].position.Z = snap.PlayerState.Origin[2];
@@ -1397,6 +1408,17 @@ namespace JKWatcher
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
                     infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    if (
+                        infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
+                        infoPool.playerInfo[i].position.Y != snap.Entities[snapEntityNum].Position.Base[1] ||
+                        infoPool.playerInfo[i].position.Z != snap.Entities[snapEntityNum].Position.Base[2] ||
+                        infoPool.playerInfo[i].angles.X != snap.Entities[snapEntityNum].Position.Delta[0] ||
+                        infoPool.playerInfo[i].angles.Y != snap.Entities[snapEntityNum].Position.Delta[1] ||
+                        infoPool.playerInfo[i].angles.Z != snap.Entities[snapEntityNum].Position.Delta[2]
+                    )
+                    {
+                        infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
+                    }
                     infoPool.playerInfo[i].position.X = snap.Entities[snapEntityNum].Position.Base[0];
                     infoPool.playerInfo[i].position.Y = snap.Entities[snapEntityNum].Position.Base[1];
                     infoPool.playerInfo[i].position.Z = snap.Entities[snapEntityNum].Position.Base[2];

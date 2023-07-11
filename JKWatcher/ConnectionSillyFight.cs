@@ -100,6 +100,7 @@ namespace JKWatcher
 			{
 				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive)
 				{
+					if (!pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 60) continue; // ignore mildly afk players
 					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
 					float curdistance = (pi.position - myself.position).Length();
 					if (curdistance < closestDistance)
@@ -123,12 +124,14 @@ namespace JKWatcher
 			int parryUpper = jkaMode ? 156 : 112;
 			int dbsTriggerDistance = 110; //128 is max possible but that results mostly in just jumps without hits as too far away.
 			int maxGripDistance = 256; // 256 is default in jk2
+			int maxDrainDistance = 512; // 256 is default in jk2
 			int maxPullDistance = 1024; // 256 is default in jk2
 
 
 			bool heInAttack = closestPlayer.saberMove > 3;
 
 			//int grippedEntity = lastPlayerState.forceData.ForceGripEntityNum != Common.MaxGEntities - 1 ? lastPlayerState.forceData.ForceGripEntityNum : -1;
+			bool drainPossible = closestDistance < maxDrainDistance;//&& grippedEntity == -1;
 			bool pullPossibleDistanceWise = closestDistance < maxPullDistance;//&& grippedEntity == -1;
 			bool pullPossible = pullPossibleDistanceWise && (heInAttack || (closestPlayer.groundEntityNum == Common.MaxGEntities-1));
 			bool gripPossibleDistanceWise = (myViewHeightPos - closestPlayer.position).Length() < maxGripDistance;//&& grippedEntity == -1;
@@ -208,7 +211,7 @@ namespace JKWatcher
 			{
 				moveVector = closestPlayer.position - myViewHeightPos;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 25)
+			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
 			{
 				doPull = true;
 				//moveVector = closestPlayer.position - myself.position;
@@ -463,9 +466,15 @@ namespace JKWatcher
 				}
 			}
 
+			
+
 			if (amGripping)
 			{
 				userCmd.Buttons |= (int)UserCommand.Button.ForceGripJK2;
+				userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+			} else if (lastPlayerState.Stats[0] < 100 && drainPossible && lastPlayerState.forceData.ForcePower > 0 && !amInAttack && !dbsPossible)
+			{
+				userCmd.Buttons |= (int)UserCommand.Button.ForceDrainJK2;
 				userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 			}
 

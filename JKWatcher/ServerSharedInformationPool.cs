@@ -60,6 +60,7 @@ namespace JKWatcher
         #region position
         public Vector3 position;
         public DateTime? lastPositionUpdate; // Last time the player position alone was updated (from events or such)
+        public DateTime? lastPositionOrAngleChange; // Last time the player position or angle changed
         public Vector3 angles;
         //public Vector3 delta_angles;
         public Vector3 velocity;
