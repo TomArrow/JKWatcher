@@ -317,7 +317,7 @@ namespace JKWatcher
 						Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
 						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 
-						if(dot > baseSpeed * 0.75f) // Make sure we are at least 75% in the right direction.
+						if(dot > baseSpeed * 0.75f || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f)))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
@@ -440,7 +440,7 @@ namespace JKWatcher
 
 			if(userCmd.GenericCmd == 0) // Other stuff has priority.
             {
-				if (!amInRage && lastPlayerState.Stats[0] > 1 && lastPlayerState.Stats[0] < 50)
+				if (!amInRage && lastPlayerState.Stats[0] > 1 && lastPlayerState.Stats[0] < 50 && closestDistance < 500)
 				{
 					// Go rage
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_RAGE;
@@ -450,12 +450,12 @@ namespace JKWatcher
 					// Disable rage if nobody within 500 units
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_RAGE;
 				}
-				else if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100)
+				else if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100 && closestDistance < 700)
 				{
 					// Go Speed
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
 				}
-				else if (amInSpeed && lastPlayerState.forceData.ForcePower < 25 && !amInRage)
+				else if (amInSpeed && lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700)
 				{
 					// Disable speed unless in rage
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_SPEED;
