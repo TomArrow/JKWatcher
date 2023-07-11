@@ -440,7 +440,7 @@ namespace JKWatcher
 
 			if(userCmd.GenericCmd == 0) // Other stuff has priority.
             {
-				if (!amInRage && lastPlayerState.Stats[0] > 0 && lastPlayerState.Stats[0] < 50)
+				if (!amInRage && lastPlayerState.Stats[0] > 1 && lastPlayerState.Stats[0] < 50)
 				{
 					// Go rage
 					userCmd.GenericCmd = (byte)GenericCommand.FORCE_RAGE;
