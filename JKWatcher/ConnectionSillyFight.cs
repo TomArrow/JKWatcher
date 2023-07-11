@@ -29,6 +29,30 @@ namespace JKWatcher
 			GRIPKICKDBS
         }
 
+		enum GenericCommand
+		{
+			SABERSWITCH = 1,
+			ENGAGE_DUEL,
+			FORCE_HEAL,
+			FORCE_SPEED,
+			FORCE_THROW,
+			FORCE_PULL,
+			FORCE_DISTRACT,
+			FORCE_RAGE,
+			FORCE_PROTECT,
+			FORCE_ABSORB,
+			FORCE_HEALOTHER,
+			FORCE_FORCEPOWEROTHER,
+			FORCE_SEEING,
+			USE_SEEKER,
+			USE_FIELD,
+			USE_BACTA,
+			USE_ELECTROBINOCULARS,
+			ZOOM,
+			USE_SENTRY,
+			SABERATTACKCYCLE
+		}
+
 		SillyMode sillyMode = SillyMode.DBS;
 
 		private bool amNotInSpec = false; // If not in spec for whatever reason, do funny things
@@ -125,7 +149,7 @@ namespace JKWatcher
 			int myLegsAnim = lastPlayerState.LegsAnimation & ~2048;
 			int myTorsoAnim = lastPlayerState.TorsoAnim & ~2048;
 			bool enemyIsKnockedDown = (hisLegsAnim >= knockDownLower && hisLegsAnim <= knockDownUpper) || (hisTorsoAnim >= knockDownLower && hisTorsoAnim <= knockDownUpper);
-			bool meIsDucked = (lastPlayerState.PlayerMoveFlags & 1) > 0; // PMF_DUCKED
+			bool meIsDucked = (myLegsAnim >= 697 && myLegsAnim <= 699) || (lastPlayerState.PlayerMoveFlags & 1) > 0; // PMF_DUCKED
 			bool heIsDucked = hisLegsAnim >= 697 && hisLegsAnim <= 699; // Bad-ish guess but hopefully ok
 			bool meIsInRoll = myLegsAnim >= 781 && myLegsAnim <= 784 && lastPlayerState.LegsTimer > 0; // TODO Make work with JKA and 1.04
 			bool heIsInRoll = hisLegsAnim >= 781 && hisLegsAnim <= 784/* && closestPlayer.legsTimer > 0*/; // TODO Make work with JKA and 1.04. Also bad guess but best I can (want to) do rn.
@@ -149,7 +173,7 @@ namespace JKWatcher
 			bool gripForceKick = false;
 			bool releaseGrip = false;
 
-			bool heIsStandingOnTopOfMe = vecToClosestPlayer2D.Length() < 15 && closestPlayer.position.Z <= (myself.position.Z + myMax + hisMin + 10.0f) && closestPlayer.position.Z > (myself.position.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f;
+			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayer.position.Z <= (myself.position.Z + myMax + hisMin + 10.0f) && closestPlayer.position.Z > (myself.position.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
 			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z > (closestPlayer.position.Z - hisMin) && myself.position.Z < (closestPlayer.position.Z + hisMax);
 			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
 			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z < (closestPlayer.position.Z - hisMin) && (myself.position.Z + 96) > (closestPlayer.position.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
@@ -355,7 +379,7 @@ namespace JKWatcher
 					vertRotationBy = vertRotationBy % 20.0f; // just a +- 10 overall
 
 					yawAngle += rotationBy;
-					pitchAngle += vertRotationBy - 10.0f;
+					pitchAngle += vertRotationBy - 10.0f + 30.0f; // +30 to look more down
 
 					dbsLastRotationOffset = rotationBy;
 					dbsLastVertRotationOffset = vertRotationBy;
