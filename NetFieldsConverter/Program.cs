@@ -17,15 +17,16 @@ namespace NetFieldsConverter
             Console.ReadKey();
         }
 
-        static Regex regexLine = new Regex(@"{\s*[A-Z]+\(([^\)]+)\)\s*,\s*(\d+)\s*}",RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
+        //static Regex regexLine = new Regex(@"{\s*[A-Z]+\(([^\)]+)\)\s*,\s*(\d+)\s*}",RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
         //static Regex regexLineAdvanced = new Regex(@"{\s*[A-Z]+\(([^\)^\[]+)\s*(?:\[([^,\]]+?)\])?\)\s*,\s*([-\d]+)\s*}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
-        static Regex regexLineAdvanced = new Regex(@"{\s*[A-Z]+\(([^\)^\[]+)\s*(?:\[([^,\]]+?)\])?\)\s*,\s*([^}]+)\s*}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
+        //static Regex regexLineAdvanced = new Regex(@"{\s*[A-Z]+\(([^\)^\[]+)\s*(?:\[([^,\]]+?)\])?\)\s*,\s*([^}]+)\s*}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
+        static Regex regexLineAdvanced = new Regex(@"( *\/\/ *)?{\s*[A-Z]+\(([^\)^\[]+)\s*(?:\[([^,\]]+?)\])?\)\s*,\s*([^}]+)\s*}", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.Singleline);
         
         private static void convertFile(string path)
         {
             Console.WriteLine(path);
 
-            string outputPath =  Path.ChangeExtension(path, ".converted.txt");
+            string outputPath =  Path.ChangeExtension(path, ".convertedNEW.txt");
 
             string[] linesIn = File.ReadAllLines(path);
             string[] linesOut = new string[linesIn.Length];
@@ -40,9 +41,10 @@ namespace NetFieldsConverter
                 }
                 else
                 {
-                    string mainString = match.Groups[1].Success ? match.Groups[1].Value : null;
-                    string arrayOffset = match.Groups[2].Success ? match.Groups[2].Value : null;
-                    string bits = match.Groups[3].Success ? match.Groups[3].Value : null;
+                    string commentPrefix = match.Groups[1].Success ? match.Groups[1].Value : "";
+                    string mainString = match.Groups[2].Success ? match.Groups[2].Value : null;
+                    string arrayOffset = match.Groups[3].Success ? match.Groups[3].Value : null;
+                    string bits = match.Groups[4].Success ? match.Groups[4].Value : null;
 
                     if (mainString == null || bits == null)
                     {
@@ -59,6 +61,7 @@ namespace NetFieldsConverter
 
                     StringBuilder sb = new StringBuilder();
                     StringBuilder commentSb = new StringBuilder();
+                    sb.Append(commentPrefix);
                     sb.Append("\t{ ");
                     sb.Append("nameof(");
                     sb.Append("ReplaceWithMainClass.");
@@ -75,6 +78,9 @@ namespace NetFieldsConverter
                         sb.Append(titleCaseName);
                         sb.Append("Type");
                         sb.Append("),nameof(");
+                        sb.Append(titleCaseName);
+                        sb.Append("Type");
+                        sb.Append(".");
                         sb.Append(ToTitleCase(mainStringParts[1]));
                         sb.Append(")).ToInt32()");
                         //Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() + sizeof(float)*2
@@ -138,7 +144,28 @@ namespace NetFieldsConverter
 
         private static string ToTitleCase(string input)
         {
-            return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(input.Replace('_', ' ')).Replace(" ", "");
+            //return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(input.Replace('_', ' ')).Replace(" ", "");
+            StringBuilder output = new StringBuilder();
+            bool makeNextUpper = false;
+            for(int i = 0; i < input.Length; i++)
+            {
+                if (input[i] == '_')
+                {
+                    makeNextUpper = true;
+                } else
+                {
+                    if (i == 0 || makeNextUpper)
+                    {
+                        output.Append(input[i].ToString().ToUpper());
+                        makeNextUpper = false;
+                    }
+                    else
+                    {
+                        output.Append(input[i].ToString());
+                    }
+                }
+            }
+            return output.ToString();
         }
 
 
