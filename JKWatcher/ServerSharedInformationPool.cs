@@ -52,6 +52,7 @@ namespace JKWatcher
         public int falls;
         public int totalKills;
         public int totalDeaths;
+        public bool fightBotIgnore;
     }
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
@@ -71,6 +72,7 @@ namespace JKWatcher
         public int torsoAnim;
         public int legsAnim;
         public int saberMove;
+        public int forcePowersActive;
         //public int legsTimer;
         #endregion
 
@@ -196,6 +198,29 @@ namespace JKWatcher
     // Todo reset stuff on level restart and especially map change
     public class ServerSharedInformationPool : INotifyPropertyChanged
     {
+
+        #region sillyModeStuff
+        public SillyMode sillyMode = SillyMode.DBS;
+        public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
+
+        public bool sillyModeOneOf(params SillyMode[] sillyModes)
+        {
+            if (sillyModes.Contains(sillyMode))
+            {
+                return true;
+            }
+            return false;
+        }
+        public bool gripDbsModeOneOf(params GripKickDBSMode[] gripDbsModes)
+        {
+            if (gripDbsModes.Contains(gripDbsMode))
+            {
+                return true;
+            }
+            return false;
+        }
+        #endregion
+
         public bool isIntermission { get; set; } = false;
 
         private int gameTime = 0;

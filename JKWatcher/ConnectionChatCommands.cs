@@ -377,7 +377,7 @@ namespace JKWatcher
                             break;
                         case "!roulette":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            MemeRequest(pm, getNiceRandom(0, 7) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
+                            MemeRequest(pm, getNiceRandom(0, 6) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!who":
@@ -397,13 +397,131 @@ namespace JKWatcher
 
 
 
-                        // Memes
+                        // Fightbot
+                        case "bot":
+                        case "!bot":
+                            if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
+                            MemeRequest(pm, "!imscared !imbrave !botmode", true, true, true, true);
+                            notDemoCommand = true;
+                            break;
+
+                        case "!imscared":
+                            if (!this.IsMainChatConnection) return;
+                            if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"What is it, {pm.playerName}? I am already going easy on you.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"Huh? Haven't I been soft enough on you, {pm.playerName}?", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"Pardon, {pm.playerName}? Have I hit you by accident? I apologize.", true, true, true);
+                                        break;
+                                }
+                            } else
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will spare you for this sesssion.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will go easy on you.", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"Ok, {pm.playerName}, your life shall be spared.", true, true, true);
+                                        break;
+                                }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!imbrave":
+                            if (!this.IsMainChatConnection) return;
+                            if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"You are a ballsy one, {pm.playerName}, but I cannot prioritize you more.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"You have a stout heart, {pm.playerName}. But I treat each foe equally.", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"You have true courage, {pm.playerName}. If you're really looking for a fight... come closer.", true, true, true);
+                                        break;
+                                }
+                            } else
+                            {
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = false;
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"I will come after you, {pm.playerName}.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"Putting you on my kill list, {pm.playerName}.", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"We'll see about that, {pm.playerName}.", true, true, true);
+                                        break;
+                                }
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!botmode":
+                            if (!this.IsMainChatConnection) return;
+                            if (demoNoteString == null)
+                            {
+                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs", true, true, true);
+                            } else if (!(new string[] {"silly", "grip","dbs", "speed","speedrage","speedragebs" }).Contains(demoNoteString))
+                            {
+                                MemeRequest(pm, $"Unknown mode {demoNoteString}", true, true, true);
+                            }
+                            else
+                            {
+                                switch (demoNoteString) {
+                                    case "silly":
+                                        infoPool.sillyMode = SillyMode.SILLY;
+                                        break;
+                                    case "dbs":
+                                        infoPool.sillyMode = SillyMode.DBS;
+                                        break;
+                                    case "grip":
+                                        infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                                        infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
+                                        break;
+                                    case "speed":
+                                        infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                                        infoPool.gripDbsMode = GripKickDBSMode.SPEED;
+                                        break;
+                                    case "speedrage":
+                                        infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                                        infoPool.gripDbsMode = GripKickDBSMode.SPEEDRAGE;
+                                        break;
+                                    case "speedragebs":
+                                        infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                                        infoPool.gripDbsMode = GripKickDBSMode.SPEEDRAGEBS;
+                                        break;
+                                }
+
+                                MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+
+
+
+                        // Tools
                         case "tools":
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
                             notDemoCommand = true;
-                            // TODO Send list of meme commands
                             break;
 
                         case "!kills":

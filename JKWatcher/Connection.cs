@@ -1280,6 +1280,7 @@ namespace JKWatcher
         public float Speed { get; private set; } = 0;
         private int saberDrawAnimLevel = -1;
 
+        private Snapshot lastSnapshot = new Snapshot();
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
@@ -1293,6 +1294,7 @@ namespace JKWatcher
             infoPool.setGameTime(client.gameTime);
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
+            lastSnapshot = snap;
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
             bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission;
@@ -1364,6 +1366,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].torsoAnim = snap.PlayerState.TorsoAnim;
                     infoPool.playerInfo[i].legsAnim = snap.PlayerState.LegsAnimation;
                     infoPool.playerInfo[i].saberMove = snap.PlayerState.SaberMove;
+                    infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
                     this.baseSpeed = snap.PlayerState.Basespeed;
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
@@ -1434,6 +1437,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].torsoAnim = snap.Entities[snapEntityNum].TorsoAnimation;
                     infoPool.playerInfo[i].legsAnim = snap.Entities[snapEntityNum].LegsAnimation;
                     infoPool.playerInfo[i].saberMove = snap.Entities[snapEntityNum].SaberMove;
+                    infoPool.playerInfo[i].forcePowersActive = snap.Entities[snapEntityNum].ForcePowersActive;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
