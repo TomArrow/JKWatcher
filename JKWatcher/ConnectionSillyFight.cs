@@ -122,6 +122,7 @@ namespace JKWatcher
 			sillyOurLastPosition = myself.position;
 
 			bool amGripped = lastPlayerState.PlayerMoveType == JKClient.PlayerMoveType.Float; // Not 100% reliable ig but good enough
+			bool weAreChoking = amGripped && lastPlayerState.ForceHandExtend == 5;
 			bool grippingSomebody = lastPlayerState.PowerUps[9] != 0 && 0 < (lastPlayerState.forceData.ForcePowersActive & (1 << 6)); // TODO 1.04 and JKA
 			bool amInRage = (lastPlayerState.forceData.ForcePowersActive & (1 << 8)) > 0; // TODO 1.04 and JKA
 			bool amInSpeed = (lastPlayerState.forceData.ForcePowersActive & (1 << 2)) > 0; // TODO 1.04 and JKA
@@ -131,7 +132,7 @@ namespace JKWatcher
 			bool canUseNonRageSpeedPowers = !speedRageModeActive || (amInRageCoolDown && rageCoolDownTime > fullForceRecoveryTime); // We are waiting for rage to cool down anyway, may as well use others.
 
 
-			int dbsTriggerDistance = 110; //128 is max possible but that results mostly in just jumps without hits as too far away.
+			int dbsTriggerDistance = bsModeActive ? 64 : 128; //128 is max possible but that results mostly in just jumps without hits as too far away.
 			int maxGripDistance = 256; // 256 is default in jk2
 			int maxDrainDistance = 512; // 256 is default in jk2
 			int maxPullDistance = 1024; // 256 is default in jk2
@@ -139,7 +140,7 @@ namespace JKWatcher
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
-				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive)
+				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive && !pi.duelInProgress)
 				{
 					float curdistance = (pi.position - myself.position).Length();
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
@@ -365,7 +366,7 @@ namespace JKWatcher
 					amGripping = false;
                     if (sillyAttack)
                     {
-						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_THROW;
+						userCmd.GenericCmd = weAreChoking ? (byte)GenericCommandJK2.FORCE_THROW : (byte)GenericCommandJK2.FORCE_PULL;
 					}
                 }
 				else if (!amInAttack /*&& !amCurrentlyDbsing*/)
@@ -381,11 +382,11 @@ namespace JKWatcher
 						Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
 						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 						float myVelocity2DAbs = myVelocity2D.Length();
-						if(myVelocity2DAbs > 150 && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+						if(dot > 150 && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
-						} else if ((myVelocity2DAbs < 150 && !amInRageCoolDown) || (myVelocity2DAbs < 110 && amInRageCoolDown))
+						} else if ((dot < 150 && !amInRageCoolDown) || (dot < 110 && amInRageCoolDown))
                         {
 							// We're slower than a backflip anyway.
 							// Do a backflip :). 150 is backflip speed.
@@ -583,6 +584,7 @@ namespace JKWatcher
             {
 				// TODO: Also do high jumps. 
 				userCmd.Upmove = 127; // Just do a lil jump to get over obstacles
+				userCmd.ForwardMove = 0;
 				lastNavigationJump = DateTime.Now;
 			}
 

@@ -71,6 +71,7 @@ namespace JKWatcher
         public int groundEntityNum;
         public int torsoAnim;
         public int legsAnim;
+        public bool duelInProgress;
         public int saberMove;
         public int forcePowersActive;
         //public int legsTimer;

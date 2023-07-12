@@ -1365,6 +1365,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].groundEntityNum = snap.PlayerState.GroundEntityNum;
                     infoPool.playerInfo[i].torsoAnim = snap.PlayerState.TorsoAnim;
                     infoPool.playerInfo[i].legsAnim = snap.PlayerState.LegsAnimation;
+                    infoPool.playerInfo[i].duelInProgress = snap.PlayerState.DuelInProgress;
                     infoPool.playerInfo[i].saberMove = snap.PlayerState.SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
@@ -1415,9 +1416,9 @@ namespace JKWatcher
                         infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
                         infoPool.playerInfo[i].position.Y != snap.Entities[snapEntityNum].Position.Base[1] ||
                         infoPool.playerInfo[i].position.Z != snap.Entities[snapEntityNum].Position.Base[2] ||
-                        infoPool.playerInfo[i].angles.X != snap.Entities[snapEntityNum].Position.Delta[0] ||
-                        infoPool.playerInfo[i].angles.Y != snap.Entities[snapEntityNum].Position.Delta[1] ||
-                        infoPool.playerInfo[i].angles.Z != snap.Entities[snapEntityNum].Position.Delta[2]
+                        infoPool.playerInfo[i].velocity.X != snap.Entities[snapEntityNum].Position.Delta[0] ||
+                        infoPool.playerInfo[i].velocity.Y != snap.Entities[snapEntityNum].Position.Delta[1] ||
+                        infoPool.playerInfo[i].velocity.Z != snap.Entities[snapEntityNum].Position.Delta[2]
                     )
                     {
                         infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
@@ -1436,6 +1437,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].groundEntityNum = snap.Entities[snapEntityNum].GroundEntityNum;
                     infoPool.playerInfo[i].torsoAnim = snap.Entities[snapEntityNum].TorsoAnimation;
                     infoPool.playerInfo[i].legsAnim = snap.Entities[snapEntityNum].LegsAnimation;
+                    infoPool.playerInfo[i].duelInProgress = snap.Entities[snapEntityNum].Bolt1 == 1;
                     infoPool.playerInfo[i].saberMove = snap.Entities[snapEntityNum].SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.Entities[snapEntityNum].ForcePowersActive;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
