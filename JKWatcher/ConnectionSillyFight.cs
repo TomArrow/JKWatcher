@@ -166,6 +166,8 @@ namespace JKWatcher
 		DateTime lastTimeAnyPlayerSeen = DateTime.Now;
 		DateTime lastTimeFastMove = DateTime.Now;
 		bool kissOrCustomSent = false;
+		DateTime kissOrCustomLastSent = DateTime.Now;
+		bool previousSaberHolstered = false;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -480,24 +482,32 @@ namespace JKWatcher
 				userCmd.ForwardMove = 127;
 				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
                 {
+					if ((DateTime.Now - kissOrCustomLastSent).TotalSeconds > 10) kissOrCustomSent = false;
 					userCmd.ForwardMove = 0;
 					if (!kissOrCustomSent)
 					{
 						leakyBucketRequester.requestExecution(getNiceRandom(0, 5) == 0 ? "amkiss2" : "amkiss", RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 						kissOrCustomSent = true;
+						kissOrCustomLastSent = DateTime.Now;
 					}
 				}
 			}
 			else if (sillyMode == SillyMode.CUSTOM)
 			{
+				if(lastPlayerState.SaberHolstered != previousSaberHolstered)
+                {
+					kissOrCustomSent = false;
+                }
 				userCmd.ForwardMove = 127;
 				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
 				{
+					if ((DateTime.Now - kissOrCustomLastSent).TotalSeconds > 10) kissOrCustomSent = false; // might not be enough for some moves? but it will only trigger when near players so oh well.
 					userCmd.ForwardMove = 0;
                     if (!kissOrCustomSent)
 					{
 						leakyBucketRequester.requestExecution(infoPool.sillyModeCustomCommand, RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 						kissOrCustomSent = true;
+						kissOrCustomLastSent = DateTime.Now;
 					}
 				}
 			}
@@ -806,6 +816,7 @@ namespace JKWatcher
 			//sillyflip = sillyflip % 4;
 			sillyMoveLastSnapNum = lastSnapNum;
 			lastUserCmdTime = userCmd.ServerTime;
+			previousSaberHolstered = lastPlayerState.SaberHolstered;
 		}
 
 
