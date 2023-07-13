@@ -125,8 +125,6 @@ jump2
 jump3
 jump4
 kill
-kiss
-kiss2
 kneel
 kneel2
 kneel2_fiddle
