@@ -571,7 +571,9 @@ namespace JKWatcher
             }
 			else if (sillyMode == SillyMode.LOVER)
 			{
-				if(closestDistance < 100 && userCmd.GenericCmd == 0)
+
+				amGripping = false;
+				if (closestDistance < 100 && userCmd.GenericCmd == 0)
                 {
 					userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
 				}
@@ -590,7 +592,9 @@ namespace JKWatcher
 			}
 			else if (sillyMode == SillyMode.CUSTOM)
 			{
-				if(lastPlayerState.SaberHolstered != previousSaberHolstered)
+
+				amGripping = false;
+				if (lastPlayerState.SaberHolstered != previousSaberHolstered)
                 {
 					kissOrCustomSent = false;
                 }
@@ -607,7 +611,8 @@ namespace JKWatcher
 					}
 				}
 			}
-			else if(sillyMode == SillyMode.SILLY) { 
+			else if(sillyMode == SillyMode.SILLY) {
+				amGripping = false;
 				switch (sillyflip % 4) {
 					case 0:
 						userCmd.ForwardMove = 127;
@@ -756,8 +761,10 @@ namespace JKWatcher
 
 					dbsLastRotationOffset = rotationBy;
 					dbsLastVertRotationOffset = vertRotationBy;
+					amGripping = false;
 				} else
-                {
+				{
+					amGripping = false;
 					switch (sillyflip %4)
 					{
 						case 0:
