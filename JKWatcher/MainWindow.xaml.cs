@@ -68,7 +68,7 @@ namespace JKWatcher
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
 
             // Check botroutes
-
+            BotRouteManager.Initialize();
 
             InitializeComponent();
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);

@@ -1676,6 +1676,8 @@ findHighestScore:
             this.ServerInfoChanged?.Invoke(obj);
         }
 
+        private string oldMapName = "";
+        PathFinder pathFinder = null;
 
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
@@ -1702,6 +1704,12 @@ findHighestScore:
             if (serverName != "")
             {
                 serverWindow.ServerName = obj.HostName;
+            }
+
+            if(obj.MapName != oldMapName)
+            {
+                pathFinder = BotRouteManager.GetPathFinder(obj.MapName);
+                oldMapName = obj.MapName;
             }
 
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;

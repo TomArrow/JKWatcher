@@ -163,11 +163,17 @@ namespace JKWatcher
 		int personImTryingToGrip = -1;
 		int sillyLastCommandTime = 0;
 		Vector3 sillyOurLastPosition = new Vector3();
+		Vector2 sillyOurLastPosition2D = new Vector2();
 		DateTime lastTimeAnyPlayerSeen = DateTime.Now;
 		DateTime lastTimeFastMove = DateTime.Now;
 		bool kissOrCustomSent = false;
 		DateTime kissOrCustomLastSent = DateTime.Now;
 		bool previousSaberHolstered = false;
+
+		List<WayPoint> wayPointsToWalk = new List<WayPoint>();
+
+		static readonly PlayerInfo dummyPlayerInfo = new PlayerInfo() {  position = new Vector3() { X= float.PositiveInfinity ,Y= float.PositiveInfinity ,Z= float.PositiveInfinity } };
+
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -175,31 +181,55 @@ namespace JKWatcher
 
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
+			WayPoint[] closestWayPointPath = null;
+			float closestWayPointBotPathDistance = float.PositiveInfinity;
 			float closestDistance = float.PositiveInfinity;
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
 
 			bool bsModeActive = sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEEDRAGEBS; // Use BS instead of dbs
 			bool speedRageModeActive = infoPool.gripDbsModeOneOf(GripKickDBSMode.SPEEDRAGE, GripKickDBSMode.SPEEDRAGEBS);
 
-			int timeDelta = lastPlayerState.CommandTime - lastPlayerState.CommandTime;
-			Vector3 ourMoveDelta = myself.position - sillyOurLastPosition;
-			float realDeltaSpeed = timeDelta == 0 ? float.PositiveInfinity : ourMoveDelta.Length() / ((float)timeDelta / 1000.0f); // Our speed per second
+			int timeDelta = lastPlayerState.CommandTime - sillyLastCommandTime;
+			//Vector3 ourMoveDelta = myself.position - sillyOurLastPosition;
+			Vector2 myPosition2D = new Vector2() { X = myself.position.X, Y = myself.position.Y };
+			Vector2 ourMoveDelta2D = myPosition2D - sillyOurLastPosition2D;
+			float realDeltaSpeed = timeDelta == 0 ? float.PositiveInfinity : ourMoveDelta2D.Length() / ((float)timeDelta / 1000.0f); // Our speed per second
+
 			bool movingVerySlowly = timeDelta > 0 && realDeltaSpeed < 20;
+			bool findShortestBotPathWalkDistance = false;
             if (movingVerySlowly)
             {
 				if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 30)
 				{
 					// KMS
 					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+					lastTimeFastMove = DateTime.Now;
 					return;
+				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0)
+				{
+					wayPointsToWalk.Clear(); // Remove this point for fun, see if it does us any good. 
+				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 2)
+				{
+					if(wayPointsToWalk.Count > 0)
+                    {
+						wayPointsToWalk.RemoveAt(0); // Remove this point for fun, see if it does us any good. 
+                    }
+                    else
+                    {
+						// Ok. Let's go full crazy and find closest walk distance to player and make that our waypoints.
+						// We gotta do this rarely or else it will be computationally expensive.
+						findShortestBotPathWalkDistance = true;
+
+					}
 				}
-			} else
+			} else if (timeDelta > 0)
             {
 				lastTimeFastMove = DateTime.Now;
 			}
 
 			sillyLastCommandTime = lastPlayerState.CommandTime;
 			sillyOurLastPosition = myself.position;
+			sillyOurLastPosition2D = myPosition2D;
 
 			bool amGripped = lastPlayerState.PlayerMoveType == JKClient.PlayerMoveType.Float; // Not 100% reliable ig but good enough
 			bool weAreChoking = amGripped && lastPlayerState.ForceHandExtend == 5;
@@ -221,6 +251,8 @@ namespace JKWatcher
 			bool strongIgnoreNearby = false;
 
 			bool amInAttack = lastPlayerState.SaberMove > 3;
+
+			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,null) : null;
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -262,6 +294,21 @@ namespace JKWatcher
 					}
 					if (thisPlayerNearStrongIgnore) continue;
 
+                    if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
+                    {
+						WayPoint hisClosestWayPoint = this.pathFinder.findClosestWayPoint(pi.position, null);
+						if(hisClosestWayPoint != null)
+                        {
+							float walkDistance = 0;
+							var path = this.pathFinder.getPath(myClosestWayPoint, hisClosestWayPoint,ref walkDistance);
+							if(path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathDistance)
+                            {
+								closestWayPointPath = path;
+								closestWayPointBotPathDistance = walkDistance;
+							}
+                        }
+                    }
+
 					if (curdistance < closestDistance)
                     {
 						closestDistance = curdistance;
@@ -270,14 +317,41 @@ namespace JKWatcher
 				}
 			}
 
+            if (findShortestBotPathWalkDistance)
+            {
+				if(closestWayPointPath != null)
+                {
+					wayPointsToWalk.Clear();
+					wayPointsToWalk.AddRange(closestWayPointPath);
+					closestWayPointPath = null;
+                }
+                else if(myClosestWayPoint != null)
+                {
+					// Pick random point to walk to.
+					WayPoint randomWayPoint = this.pathFinder?.getRandomWayPoint();
+					if(randomWayPoint != null)
+                    {
+						float totalWalkDistance = 0;
+						var path = this.pathFinder?.getPath(myClosestWayPoint, randomWayPoint, ref totalWalkDistance);
+						if(path != null)
+                        {
+							wayPointsToWalk.Clear();
+							wayPointsToWalk.AddRange(path);
+							closestWayPointPath = null;
+						}
+                    }
+				}
+            }
+
 			if (closestPlayer == null)
 			{
-				if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 30)
+				if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 120)
                 {
 					// KMS
 					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                }
-				return;
+					lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
+				}
+				closestPlayer = dummyPlayerInfo;
 			} else if (closestDistance < 2000)
             {
 				lastTimeAnyPlayerSeen = DateTime.Now;
@@ -319,7 +393,6 @@ namespace JKWatcher
 			float hisSpeed = closestPlayer.velocity.Length();
 			Vector3 vecToClosestPlayer = closestPlayer.position - myself.position;
 			Vector2 vecToClosestPlayer2D = new Vector2() { X=vecToClosestPlayer.X,Y=vecToClosestPlayer.Y};
-			Vector2 myPosition2D = new Vector2() { X= myself.position.X,Y= myself.position.Y};
 			Vector2 enemyPosition2D = new Vector2() { X= closestPlayer.position.X,Y= closestPlayer.position.Y};
 			Vector2 enemyVelocity2D = new Vector2() { X= closestPlayer.velocity.X,Y= closestPlayer.velocity.Y};
 			// Predict where other player is going and how I can get there.
@@ -372,7 +445,26 @@ namespace JKWatcher
 
 			bool doingGripDefense = false;
 
-            if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0)
+            if (enemyLikelyOnSamePlane)
+            {
+				wayPointsToWalk.Clear();
+            }
+			while (wayPointsToWalk.Count > 0 && (wayPointsToWalk[0].origin - myself.position).Length() < 32 && wayPointsToWalk[0].origin.Z < myself.position.Z+1.0f)
+			{
+				wayPointsToWalk.RemoveAt(0);
+			}
+
+			bool mustJumpToReachWayPoint = false;
+
+			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
+            {
+				moveVector = wayPointsToWalk[0].origin - myself.position;
+				if(wayPointsToWalk[0].origin.Z > myself.position.Z + 1.0f)
+                {
+					mustJumpToReachWayPoint = true;
+				}
+			}
+            else if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0)
             {
 				// TODO exception when gripping myself?
 				PlayerInfo guessedGrippingPlayer = grippingPlayers[(int)(sillyflip % grippingPlayers.Count)];
@@ -473,7 +565,11 @@ namespace JKWatcher
 			vectoangles(moveVector, ref angles);
 			float yawAngle = angles.Y - this.delta_angles.Y;
 			float pitchAngle = angles.X - this.delta_angles.X;
-			if (sillyMode == SillyMode.LOVER)
+            if (mustJumpToReachWayPoint)
+            {
+				userCmd.Upmove = 127;
+            }
+			else if (sillyMode == SillyMode.LOVER)
 			{
 				if(closestDistance < 100 && userCmd.GenericCmd == 0)
                 {
