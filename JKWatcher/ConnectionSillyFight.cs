@@ -161,6 +161,8 @@ namespace JKWatcher
 		int personImTryingToGrip = -1;
 		int sillyLastCommandTime = 0;
 		Vector3 sillyOurLastPosition = new Vector3();
+		DateTime lastTimeAnyPlayerSeen = DateTime.Now;
+		DateTime lastTimeFastMove = DateTime.Now;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -178,6 +180,18 @@ namespace JKWatcher
 			Vector3 ourMoveDelta = myself.position - sillyOurLastPosition;
 			float realDeltaSpeed = timeDelta == 0 ? float.PositiveInfinity : ourMoveDelta.Length() / ((float)timeDelta / 1000.0f); // Our speed per second
 			bool movingVerySlowly = timeDelta > 0 && realDeltaSpeed < 20;
+            if (movingVerySlowly)
+            {
+				if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 30)
+				{
+					// KMS
+					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+				}
+			} else
+            {
+				lastTimeFastMove = DateTime.Now;
+			}
+
 			sillyLastCommandTime = lastPlayerState.CommandTime;
 			sillyOurLastPosition = myself.position;
 
@@ -211,6 +225,7 @@ namespace JKWatcher
 					}
 					if (pi.chatCommandTrackingStuff.fightBotBlacklist && curdistance < 500) {
 						blackListedPlayerIsNearby = true;
+						continue;
 					}
 					if (pi.chatCommandTrackingStuff.fightBotIgnore) continue;
 					if (!pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10) continue; // ignore mildly afk players
@@ -223,7 +238,18 @@ namespace JKWatcher
 				}
 			}
 
-			if (closestPlayer == null) return;
+			if (closestPlayer == null)
+			{
+				if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 30)
+                {
+					// KMS
+					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                }
+				return;
+			} else if (closestDistance < 2000)
+            {
+				lastTimeAnyPlayerSeen = DateTime.Now;
+			}
 
 			bool enemyLikelyOnSamePlane = closestDistance < 300 && Math.Abs(closestPlayer.position.Z - myself.position.Z) < 10.0f && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && closestPlayer.groundEntityNum == Common.MaxGEntities - 2;
 
@@ -304,6 +330,8 @@ namespace JKWatcher
 			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody && !amGripped; // Don't dbs while gripped. Is it even possible?
 			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z < (closestPlayer.position.Z - hisMin) && (myself.position.Z + 96) > (closestPlayer.position.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
 			bool dbsPossibleWithJump = dbsPossibleWithJumpPositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
+
+			bool doingGripDefense = false;
 
             if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0)
             {
@@ -431,7 +459,8 @@ namespace JKWatcher
 					amGripping = false;
                     if (sillyAttack)
                     {
-						userCmd.GenericCmd = weAreChoking ? (byte)GenericCommandJK2.FORCE_THROW : (byte)GenericCommandJK2.FORCE_PULL;
+						doingGripDefense = true;
+						userCmd.GenericCmd = (weAreChoking || blackListedPlayerIsNearby) ? (byte)GenericCommandJK2.FORCE_THROW : (byte)GenericCommandJK2.FORCE_PULL;
 					}
                 }
 				else if (!amInAttack /*&& !amCurrentlyDbsing*/)
@@ -682,6 +711,10 @@ namespace JKWatcher
             {
 				userCmd.Buttons = 0;
 				userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
+                if (doingGripDefense) // Allow grip defense.
+                {
+					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_THROW;
+				}
 				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
 			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered)
             {

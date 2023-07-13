@@ -401,7 +401,7 @@ namespace JKWatcher
                         case "bot":
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!imscared !imbrave !botmode !cowards", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imscared !imbrave !cowards", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -413,7 +413,7 @@ namespace JKWatcher
                                 {
                                     if(pi.infoValid && pi.chatCommandTrackingStuff.fightBotIgnore)
                                     {
-                                        if(count == 0)
+                                        if(count++ == 0)
                                         {
                                             cowardsb.Append($"{pi.name}");
                                         }

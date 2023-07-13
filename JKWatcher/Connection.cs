@@ -85,7 +85,8 @@ namespace JKWatcher
         KILLTRACKER,
         SELFKILL,
         GOINTOSPEC,
-        GOINTOSPECHACK
+        GOINTOSPECHACK,
+        FIGHTBOT
     }
 
     struct MvHttpDownloadInfo
