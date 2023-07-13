@@ -39,7 +39,7 @@ namespace JKWatcher
             public ChatType type;
             public string message;
         }
-        Regex validSkinRegex = new Regex(@"^[a-zA-z0-9\^]+(?:\/[a-zA-z0-9\^]+)$", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
+        Regex validSkinRegex = new Regex(@"^[a-zA-z0-9\^]+(?:\/[a-zA-z0-9\^]+)?$", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
         enum ChatType
         {
             NONE,
