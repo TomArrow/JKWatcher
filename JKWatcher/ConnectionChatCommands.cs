@@ -39,6 +39,7 @@ namespace JKWatcher
             public ChatType type;
             public string message;
         }
+        Regex validSkinRegex = new Regex(@"^[a-zA-z0-9\^]+(?:\/[a-zA-z0-9\^]+)$", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
         enum ChatType
         {
             NONE,
@@ -204,6 +205,16 @@ namespace JKWatcher
                 }
             }
             return true;
+        }
+
+        // Maybe: taunt
+        static string[] customSillyModeCommands = new string[0];
+
+        static Connection()
+        {
+            byte[] customCommandData = Helpers.GetResourceData("customSillyModeCommands.txt");
+            string customCommandDataString = Encoding.UTF8.GetString(customCommandData);
+            customSillyModeCommands = customCommandDataString.Split(new char[] { '\n', '\r', ' ', ',' },StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
         void EvaluateChat(CommandEventArgs commandEventArgs)
@@ -401,7 +412,7 @@ namespace JKWatcher
                         case "bot":
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!botmode !imscared !imbrave !cowards", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imscared !imveryscared !imbrave !cowards !bigcowards", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -426,9 +437,48 @@ namespace JKWatcher
                                 MemeRequest(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
+                        case "!bigcowards":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            else {
+                                StringBuilder cowardsb = new StringBuilder();
+                                int count = 0;
+                                foreach (PlayerInfo pi in infoPool.playerInfo)
+                                {
+                                    if(pi.infoValid && pi.chatCommandTrackingStuff.fightBotStrongIgnore)
+                                    {
+                                        if(count++ == 0)
+                                        {
+                                            cowardsb.Append($"{pi.name}");
+                                        }
+                                        else
+                                        {
+                                            cowardsb.Append($", {pi.name}");
+                                        }
+                                    }
+                                }
+                                MemeRequest(pm, cowardsb.ToString(), true, true, true);
+                            }
+                            break;
                         case "!imscared":
                             if (!this.IsMainChatConnection) return;
-                            if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
+                            if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"Gotten a little braver, {pm.playerName}? I'm proud of you.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"Very good, {pm.playerName}. With time, you shall overcome your anxiety.", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"Do I see a hint of courage, {pm.playerName}? A good first step.", true, true, true);
+                                        break;
+                                }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
+                            }
+                            else if(infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
                                 {
@@ -442,7 +492,7 @@ namespace JKWatcher
                                         MemeRequest(pm, $"Pardon, {pm.playerName}? Have I hit you by accident? I apologize.", true, true, true);
                                         break;
                                 }
-                            } else
+                            } else 
                             {
                                 switch (getNiceRandom(0, 3))
                                 {
@@ -457,12 +507,48 @@ namespace JKWatcher
                                         break;
                                 }
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!imveryscared":
+                            if (!this.IsMainChatConnection) return;
+                            if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"Come on now, {pm.playerName}. I'm as careful as can be around you.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"You're STILL scared, {pm.playerName}? How?!", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"You ran into that one on purpose, {pm.playerName}! Don't be so sensitive.", true, true, true);
+                                        break;
+                                }
+                            } else
+                            {
+                                switch (getNiceRandom(0, 3))
+                                {
+                                    case 0:
+                                        MemeRequest(pm, $"OK, {pm.playerName}, I'll walk on eggshells around you.", true, true, true);
+                                        break;
+                                    case 1:
+                                        MemeRequest(pm, $"'Fragile, Handle With Care' - {pm.playerName}. You got it.", true, true, true);
+                                        break;
+                                    case 2:
+                                        MemeRequest(pm, $"That's what she said, {pm.playerName}. Ok I'll be gentle.", true, true, true);
+                                        break;
+                                }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = true;
                             }
                             notDemoCommand = true;
                             break;
                         case "!imbrave":
                             if (!this.IsMainChatConnection) return;
-                            if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
+                            if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
                                 {
@@ -479,6 +565,7 @@ namespace JKWatcher
                             } else
                             {
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = false;
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
@@ -498,19 +585,58 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection) return;
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs", true, true, true);
-                            } else if (!(new string[] {"silly", "grip","dbs", "speed","speedrage","speedragebs" }).Contains(demoNoteString))
+                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom", true, true, true);
+                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom" }).Contains(stringParams[1].ToLower()))
                             {
-                                MemeRequest(pm, $"Unknown mode {demoNoteString}", true, true, true);
+                                MemeRequest(pm, $"Unknown mode {stringParams[1]}", true, true, true);
+                            }
+                            else if (stringParams[1].ToLower() == "custom" && stringParams.Count < 3)
+                            {
+                                MemeRequest(pm, $"For custom botmode please choose a command to execute near players. Example: !botmode custom amhug", true, true, true, true);
+                                MemeRequest(pm, $"You can also specify a skin as an extra parameter like: !botmode custom amhug reelo/default", true, true, true, true);
+                            }
+                            else if (stringParams[1].ToLower() == "custom" && !customSillyModeCommands.Contains(stringParams[2].ToLower()))
+                            {
+                                MemeRequest(pm, $"{stringParams[2]} command is not whitelisted for custom botmode.", true, true, true);
+                            }
+                            else if (stringParams[1].ToLower() == "custom" && stringParams.Count >= 4 && !validSkinRegex.Match(stringParams[3]).Success)
+                            {
+                                MemeRequest(pm, $"{stringParams[3]} is not a valid skin name.", true, true, true);
                             }
                             else
                             {
-                                switch (demoNoteString) {
+                                string skin = "kyle/default";
+                                switch (stringParams[1].ToLower()) {
                                     case "silly":
                                         infoPool.sillyMode = SillyMode.SILLY;
+                                        this.client.Skin = "kyle/default";
                                         break;
                                     case "dbs":
                                         infoPool.sillyMode = SillyMode.DBS;
+                                        break;
+                                    case "lover":
+                                        infoPool.sillyMode = SillyMode.LOVER;
+                                        skin = "ugnaught/default";
+                                        if (getNiceRandom(0, 100) == 0) // From rarest to most common
+                                        {
+                                            skin = "jan";
+                                        } else if (getNiceRandom(0, 20) == 0)
+                                        {
+                                            skin = "lando";
+                                        } else if (getNiceRandom(0, 5) == 0)
+                                        {
+                                            skin = "morgan";
+                                        }
+                                        break;
+                                    case "custom":
+                                        if (stringParams.Count >= 3 && customSillyModeCommands.Contains(stringParams[2].ToLower())) { // I know we checked above but lets make sure. We're kinda allowing custom user input here. ALWAYS be very careful.
+                                            infoPool.sillyMode = SillyMode.CUSTOM;
+                                            infoPool.sillyModeCustomCommand = stringParams[2];
+                                            if(stringParams.Count >= 4 && validSkinRegex.Match(stringParams[3]).Success)
+                                            {
+                                                skin = stringParams[3];
+                                            }
+                                        }
                                         break;
                                     case "grip":
                                         infoPool.sillyMode = SillyMode.GRIPKICKDBS;
@@ -529,6 +655,7 @@ namespace JKWatcher
                                         infoPool.gripDbsMode = GripKickDBSMode.SPEEDRAGEBS;
                                         break;
                                 }
+                                this.client.Skin = skin;
 
                                 MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
                             }

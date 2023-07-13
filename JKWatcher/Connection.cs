@@ -269,6 +269,9 @@ namespace JKWatcher
             if(e.PropertyName == "demoTimeColorNames" || e.PropertyName == "userInfoName" || e.PropertyName == "attachClientNumToName")
             {
                 updateName();
+            } else if(e.PropertyName == "skin")
+            {
+                updateSkin();
             }
         }
 
@@ -297,6 +300,7 @@ namespace JKWatcher
             attachClientNumToName = doAttach;
             updateName();
         }*/
+
 
         private void updateName()
         {
@@ -334,47 +338,83 @@ namespace JKWatcher
                                     }
                                 }
 
-                                while ((nameToUse.Length+clientNumAddition.Length) < 12)
+                                int nameToUseLength = nameToUse.SpacelessStringLength();
+                                while ((nameToUseLength + clientNumAddition.Length) < 12)
                                 {
                                     nameToUse += ".";
+                                    nameToUseLength++;
                                 }
                                 nameToUse += clientNumAddition;
 
                                 StringBuilder tmpName = new StringBuilder();
 
-                                for (int i = 0; i < 12; i++)
+                                int indexExtra = 0;
+                                int i = 0;
+                                for (i = 0; i < 12; i++)
                                 {
-                                    tmpName.Append("^");
-                                    tmpName.Append(colorCodes[i]);
-                                    tmpName.Append(nameToUse[i]);
+                                    if (nameToUse[i + indexExtra].IsSpaceChar()) // Skip space characters
+                                    {
+                                        tmpName.Append(nameToUse[i + indexExtra]);
+                                        indexExtra++;
+                                        i--;
+                                    } else
+                                    {
+                                        tmpName.Append("^");
+                                        tmpName.Append(colorCodes[i]);
+                                        tmpName.Append(nameToUse[i + indexExtra]);
+                                    }
                                 }
-                                if (nameToUse.Length > 12)
+                                while (nameToUse.Length > (i+indexExtra))
                                 {
-                                    tmpName.Append(nameToUse.Substring(12));
+                                    tmpName.Append(nameToUse[i + indexExtra]);
+                                    i++;
                                 }
+                                //if (nameToUse.Length > 12)
+                                //{
+                                 //   tmpName.Append(nameToUse.Substring(12));
+                                //}
                                 nameToUse = tmpName.ToString();
                             } else
                             {
 
                                 StringBuilder tmpName = new StringBuilder();
-                                while (nameToUse.Length < 6)
+
+                                int nameToUseLength = nameToUse.SpacelessStringLength();
+                                while (nameToUseLength < 6)
                                 {
                                     nameToUse += ".";
+                                    nameToUseLength++;
                                 }
-                                for (int i = 0; i < 6; i++)
+                                int indexExtra = 0;
+                                int i = 0;
+                                for (i = 0; i < 6; i++)
                                 {
-                                    tmpName.Append("^");
-                                    tmpName.Append(colorCodes[i * 2]);
-                                    tmpName.Append("^");
-                                    tmpName.Append(colorCodes[i * 2 + 1]);
-                                    tmpName.Append("^");
-                                    tmpName.Append(colorCodes[i * 2]);
-                                    tmpName.Append(nameToUse[i]);
+                                    if (nameToUse[i + indexExtra].IsSpaceChar()) // Skip space characters
+                                    {
+                                        tmpName.Append(nameToUse[i + indexExtra]);
+                                        indexExtra++;
+                                        i--;
+                                    }
+                                    else
+                                    {
+                                        tmpName.Append("^");
+                                        tmpName.Append(colorCodes[i * 2]);
+                                        tmpName.Append("^");
+                                        tmpName.Append(colorCodes[i * 2 + 1]);
+                                        tmpName.Append("^");
+                                        tmpName.Append(colorCodes[i * 2]);
+                                        tmpName.Append(nameToUse[i + indexExtra]);
+                                    }
                                 }
-                                if (nameToUse.Length > 6)
+                                while (nameToUse.Length > (i + indexExtra))
                                 {
-                                    tmpName.Append(nameToUse.Substring(6));
+                                    tmpName.Append(nameToUse[i + indexExtra]);
+                                    i++;
                                 }
+                                //if (nameToUse.Length > 6)
+                                //{
+                                //    tmpName.Append(nameToUse.Substring(6));
+                                //}
                                 nameToUse = tmpName.ToString();
                             }
                         }
@@ -389,6 +429,16 @@ namespace JKWatcher
                     }
                 }
                 client.Name = nameToUse;
+            }
+        }
+        
+        private void updateSkin()
+        {
+            if (client != null)
+            {
+                string skinToUse = _connectionOptions.skin != null ? _connectionOptions.userInfoName : "kyle/default";
+                
+                client.Skin = skinToUse;
             }
         }
 

@@ -53,6 +53,7 @@ namespace JKWatcher
         public int totalKills;
         public int totalDeaths;
         public bool fightBotIgnore;
+        public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;
     }
 
@@ -204,7 +205,7 @@ namespace JKWatcher
         #region sillyModeStuff
         public SillyMode sillyMode = SillyMode.DBS;
         public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
-
+        public string sillyModeCustomCommand = null;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
             if (sillyModes.Contains(sillyMode))

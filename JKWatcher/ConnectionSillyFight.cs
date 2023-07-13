@@ -24,7 +24,9 @@ namespace JKWatcher
 		NONE,
 		SILLY,
 		DBS,
-		GRIPKICKDBS
+		GRIPKICKDBS, 
+		LOVER,
+		CUSTOM
 	}
 	public enum GripKickDBSMode
 	{
@@ -163,6 +165,7 @@ namespace JKWatcher
 		Vector3 sillyOurLastPosition = new Vector3();
 		DateTime lastTimeAnyPlayerSeen = DateTime.Now;
 		DateTime lastTimeFastMove = DateTime.Now;
+		bool kissOrCustomSent = false;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -186,6 +189,7 @@ namespace JKWatcher
 				{
 					// KMS
 					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+					return;
 				}
 			} else
             {
@@ -212,11 +216,14 @@ namespace JKWatcher
 			int maxPullDistance = 1024; // 256 is default in jk2
 
 			bool blackListedPlayerIsNearby = false;
+			bool strongIgnoreNearby = false;
+
+			bool amInAttack = lastPlayerState.SaberMove > 3;
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
-				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && pi.IsAlive && !pi.duelInProgress)
+				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 				{
 					float curdistance = (pi.position - myself.position).Length();
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
@@ -227,9 +234,32 @@ namespace JKWatcher
 						blackListedPlayerIsNearby = true;
 						continue;
 					}
+					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && curdistance < 300) {
+						strongIgnoreNearby = true;
+						continue;
+					}
+					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && curdistance < 100 && amInAttack) { // If a very scared person less than 100 units away and im attacking ... kill myself with high priority.
+						leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 300, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+						return;
+					}
 					if (pi.chatCommandTrackingStuff.fightBotIgnore) continue;
 					if (!pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10) continue; // ignore mildly afk players
 					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
+																							// Check if player is in the radius of someone with strong ignore
+					bool thisPlayerNearStrongIgnore = false;
+					foreach (PlayerInfo piSub in infoPool.playerInfo)
+					{
+						if (piSub.infoValid && piSub.IsAlive && piSub.team != Team.Spectator && piSub.clientNum != myNum && !piSub.duelInProgress)
+						{
+							if(piSub.chatCommandTrackingStuff.fightBotStrongIgnore && (pi.position - piSub.position).Length() < 300)
+                            {
+								thisPlayerNearStrongIgnore = true;
+								break;
+							}
+						}
+					}
+					if (thisPlayerNearStrongIgnore) continue;
+
 					if (curdistance < closestDistance)
                     {
 						closestDistance = curdistance;
@@ -271,7 +301,15 @@ namespace JKWatcher
 			bool drainPossible = closestDistance < maxDrainDistance;//&& grippedEntity == -1;
 			bool pullPossibleDistanceWise = closestDistance < maxPullDistance;//&& grippedEntity == -1;
 			bool pullPossible = pullPossibleDistanceWise && (heInAttack || (closestPlayer.groundEntityNum == Common.MaxGEntities-1));
-			bool gripPossibleDistanceWise = (myViewHeightPos - closestPlayer.position).Length() < maxGripDistance;//&& grippedEntity == -1;
+			Vector3 viewHeightMoveVector = closestPlayer.position- myViewHeightPos;
+			float viewHeightToEnemyDistance = viewHeightMoveVector.Length();
+			bool kissPossibleDistanceWise = viewHeightToEnemyDistance < 40.0f || closestDistance < 40.0f;//&& grippedEntity == -1;
+			bool kissPossible = kissPossibleDistanceWise && lastPlayerState.Stats[0] > 0 && myself.groundEntityNum == Common.MaxGEntities-2 && closestPlayer.groundEntityNum == Common.MaxGEntities-2;// && lastPlayerState.Stats[0] > 0; Technically, dont do if we're dead but who knows. doing it always might reveal funny game glitches due to forgotten checks
+            if (!kissPossible)
+            {
+				kissOrCustomSent = false;
+			}
+			bool gripPossibleDistanceWise = viewHeightToEnemyDistance < maxGripDistance;//&& grippedEntity == -1;
 			bool gripPossible = gripPossibleDistanceWise && !grippingSomebody;//&& grippedEntity == -1;
 
 			//float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
@@ -316,7 +354,6 @@ namespace JKWatcher
 			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
 			
 			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
-			bool amInAttack = lastPlayerState.SaberMove > 3;
 			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
 
 			bool gripForcePitchUp = false;
@@ -354,7 +391,7 @@ namespace JKWatcher
 			}
 			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
 			{
-				moveVector = closestPlayer.position - myViewHeightPos;
+				moveVector = viewHeightMoveVector;
 			}
 			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && closestDistance < 400 && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
 			{
@@ -379,6 +416,14 @@ namespace JKWatcher
 					releaseGrip = true;
 				}
 			}
+			else if (sillyMode == SillyMode.LOVER && kissPossible)
+            {
+				moveVector = viewHeightMoveVector;
+			}
+			else if (sillyMode == SillyMode.CUSTOM && kissPossible)
+            {
+				moveVector = viewHeightMoveVector;
+            }
 			else if (dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
@@ -426,7 +471,37 @@ namespace JKWatcher
 			vectoangles(moveVector, ref angles);
 			float yawAngle = angles.Y - this.delta_angles.Y;
 			float pitchAngle = angles.X - this.delta_angles.X;
-            if(sillyMode == SillyMode.SILLY) { 
+			if (sillyMode == SillyMode.LOVER)
+			{
+				if(closestDistance < 100 && userCmd.GenericCmd == 0)
+                {
+					userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
+				}
+				userCmd.ForwardMove = 127;
+				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
+                {
+					userCmd.ForwardMove = 0;
+					if (!kissOrCustomSent)
+					{
+						leakyBucketRequester.requestExecution(getNiceRandom(0, 5) == 0 ? "amkiss2" : "amkiss", RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+						kissOrCustomSent = true;
+					}
+				}
+			}
+			else if (sillyMode == SillyMode.CUSTOM)
+			{
+				userCmd.ForwardMove = 127;
+				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
+				{
+					userCmd.ForwardMove = 0;
+                    if (!kissOrCustomSent)
+					{
+						leakyBucketRequester.requestExecution(infoPool.sillyModeCustomCommand, RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+						kissOrCustomSent = true;
+					}
+				}
+			}
+			else if(sillyMode == SillyMode.SILLY) { 
 				switch (sillyflip % 4) {
 					case 0:
 						userCmd.ForwardMove = 127;
@@ -608,7 +683,7 @@ namespace JKWatcher
 			}
 
 			// Conservative speed usage.
-			if(sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEED)
+			if((sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
             {
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
@@ -705,7 +780,7 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			} else if (blackListedPlayerIsNearby) // If near blacklisted player, don't do anything that could cause damage
+			} else if (blackListedPlayerIsNearby || strongIgnoreNearby) // If near blacklisted player, don't do anything that could cause damage
             {
 				userCmd.Buttons = 0;
 				userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
@@ -714,7 +789,7 @@ namespace JKWatcher
 					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_THROW;
 				}
 				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
-			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered)
+			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && (sillyMode != SillyMode.CUSTOM || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
             {
 				userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
 

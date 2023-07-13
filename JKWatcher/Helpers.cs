@@ -54,6 +54,24 @@ namespace JKWatcher
     static class Helpers
     {
 
+
+        public static bool IsSpaceChar(this char character)
+        {
+            return character == ' ' || character == '\n' || character == '\r' || character == '\t';
+        }
+        public static int SpacelessStringLength(this string thestring)
+        {
+            int minus = 0;
+            foreach (var character in thestring)
+            {
+                if (character.IsSpaceChar())
+                {
+                    minus++;
+                }
+            }
+            return thestring.Length - minus;
+        }
+
         static public byte[] GetResourceData(string path)
         {
             path = path.Replace("\\",".");
