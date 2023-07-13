@@ -401,10 +401,31 @@ namespace JKWatcher
                         case "bot":
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!imscared !imbrave !botmode", true, true, true, true);
+                            MemeRequest(pm, "!imscared !imbrave !botmode !cowards", true, true, true, true);
                             notDemoCommand = true;
                             break;
-
+                        case "!cowards":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            else {
+                                StringBuilder cowardsb = new StringBuilder();
+                                int count = 0;
+                                foreach (PlayerInfo pi in infoPool.playerInfo)
+                                {
+                                    if(pi.infoValid && pi.chatCommandTrackingStuff.fightBotIgnore)
+                                    {
+                                        if(count == 0)
+                                        {
+                                            cowardsb.Append($"{pi.name}");
+                                        }
+                                        else
+                                        {
+                                            cowardsb.Append($", {pi.name}");
+                                        }
+                                    }
+                                }
+                                MemeRequest(pm, cowardsb.ToString(), true, true, true);
+                            }
+                            break;
                         case "!imscared":
                             if (!this.IsMainChatConnection) return;
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore)
@@ -426,7 +447,7 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will spare you for this sesssion.", true, true, true);
+                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will spare you for this session.", true, true, true);
                                         break;
                                     case 1:
                                         MemeRequest(pm, $"Ok, {pm.playerName}, I will go easy on you.", true, true, true);

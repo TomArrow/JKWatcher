@@ -38,6 +38,66 @@ namespace JKWatcher
 	public partial class Connection
 	{
 
+		static string[] fightBotNameBlacklist = null;
+		static DateTime lastBlacklistUpdate = DateTime.Now;
+		static DateTime lastBlacklistDateModified = DateTime.Now;
+		static readonly string blacklistPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "playerBlackList.txt");
+		private bool CheckPlayerBlacklist(string playerName)
+		{
+			if (fightBotNameBlacklist == null || (DateTime.Now - lastBlacklistUpdate).TotalMinutes > 1.0)
+			{
+                try { 
+					using (new GlobalMutexHelper("JKWatcherSillyFightPlayerNameBlacklist")) // Check if file was changed
+					{
+						// Read blacklist again.
+						if (!File.Exists(blacklistPath))
+						{
+							File.WriteAllText(blacklistPath, "");
+							fightBotNameBlacklist = new string[0];
+							serverWindow.addToLog($"Silly fighter player name blacklist loaded with {fightBotNameBlacklist.Length} items.");
+						} else
+						{
+							DateTime lastModified = System.IO.File.GetLastWriteTime(blacklistPath);
+                            if (!lastModified.Equals(lastBlacklistDateModified))
+                            {
+								string[] blacklistRaw = File.ReadAllLines(blacklistPath);
+								List<string> blackListNamesTmp = new List<string>();
+								foreach(string blackListItemRaw in blacklistRaw)
+                                {
+									string sanitized = blackListItemRaw.Trim();
+									if(sanitized.Length > 0)
+                                    {
+										blackListNamesTmp.Add(sanitized);
+									}
+								}
+								fightBotNameBlacklist = blackListNamesTmp.ToArray();
+								serverWindow.addToLog($"Silly fighter player name blacklist loaded with {fightBotNameBlacklist.Length} items.");
+							}
+						}
+						lastBlacklistUpdate = DateTime.Now;
+					}
+				} catch(Exception ex)
+				{
+					serverWindow.addToLog($"Error trying to load player blacklist: {ex.ToString()}",true);
+					lastBlacklistUpdate = DateTime.Now;
+				}
+			}
+			if(fightBotNameBlacklist == null)
+            {
+				return false;
+            } else
+            {
+				foreach(string blockedName in fightBotNameBlacklist)
+                {
+					if (playerName.Contains(blockedName, StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(playerName).Contains(blockedName,StringComparison.OrdinalIgnoreCase))
+					{
+						serverWindow.addToLog($"Silly fighter player name blacklist match: {playerName} matches {blockedName}.",false,5000); // 5 second time out in case of weird userinfo spam
+						return true;
+					}
+				}
+				return false;
+            }
+		}
 
 		enum GenericCommandJK2
 		{
@@ -137,6 +197,8 @@ namespace JKWatcher
 			int maxDrainDistance = 512; // 256 is default in jk2
 			int maxPullDistance = 1024; // 256 is default in jk2
 
+			bool blackListedPlayerIsNearby = false;
+
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
@@ -146,6 +208,9 @@ namespace JKWatcher
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
 					{
 						grippingPlayers.Add(pi);
+					}
+					if (pi.chatCommandTrackingStuff.fightBotBlacklist && curdistance < 500) {
+						blackListedPlayerIsNearby = true;
 					}
 					if (pi.chatCommandTrackingStuff.fightBotIgnore) continue;
 					if (!pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10) continue; // ignore mildly afk players
@@ -611,6 +676,17 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
+			}
+
+            if (blackListedPlayerIsNearby) // If near blacklisted player, don't do anything that could cause damage
+            {
+				userCmd.Buttons = 0;
+				userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
+				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
+			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered)
+            {
+				userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
+
 			}
 
 			userCmd.Weapon = (byte)infoPool.saberWeaponNum;

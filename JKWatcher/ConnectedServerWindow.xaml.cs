@@ -422,6 +422,20 @@ namespace JKWatcher
                         }
                     }
                 }
+                if (!mainConnectionFound) // Prefer main connection that has silly watcher (it doesn't send many commands if any at all)
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SillyCameraOperator))
+                        {
+
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 1000;
+                            mainConnectionFound = true;
+                            break;
+                        }
+                    }
+                }
                 if (!mainConnectionFound) // Prefer spectator watcher over other types (it doesn't send many commands)
                 {
                     for (int i = 0; i < connections.Count; i++)

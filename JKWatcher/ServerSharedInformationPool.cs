@@ -53,6 +53,7 @@ namespace JKWatcher
         public int totalKills;
         public int totalDeaths;
         public bool fightBotIgnore;
+        public bool fightBotBlacklist;
     }
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?

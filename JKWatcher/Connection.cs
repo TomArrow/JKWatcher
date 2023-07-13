@@ -1625,6 +1625,7 @@ findHighestScore:
             this.ServerInfoChanged?.Invoke(obj);
         }
 
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
@@ -1797,7 +1798,7 @@ findHighestScore:
                 {
                     noActivePlayers = false;
                 }
-                infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
+
                 infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
 
                 if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) { 
@@ -1809,6 +1810,16 @@ findHighestScore:
                     }
                     infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff();
                 }
+
+                if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
+                {
+                    if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
+                    {
+                        infoPool.playerInfo[i].chatCommandTrackingStuff.fightBotBlacklist = true;
+                    }
+                }
+
+                infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
 
                 infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                 infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
