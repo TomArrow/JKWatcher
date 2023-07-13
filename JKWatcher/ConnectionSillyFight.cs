@@ -705,9 +705,7 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			}
-
-            if (blackListedPlayerIsNearby) // If near blacklisted player, don't do anything that could cause damage
+			} else if (blackListedPlayerIsNearby) // If near blacklisted player, don't do anything that could cause damage
             {
 				userCmd.Buttons = 0;
 				userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
