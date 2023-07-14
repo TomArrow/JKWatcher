@@ -140,7 +140,7 @@ namespace JKWatcher
             }
         }
         
-        public WayPoint[] getPath(WayPoint wp1, WayPoint wp2, ref float totalDistance)
+        public WayPoint[] getPath(WayPoint wp1, WayPoint wp2, ref float totalDistance,bool includeFirstLast= true)
         {
             lock (stateMutex)
             {
@@ -160,9 +160,17 @@ namespace JKWatcher
                     if (pathsSize > wp1.number && pathsSize > wp2.number && pathsSize == paths.GetLength(1) && pathsSize == wayPoints.Length)
                     {
                         List<WayPoint> wayPointsOfPath = new List<WayPoint>();
+                        if (includeFirstLast)
+                        {
+                            wayPointsOfPath.Add(wp1);
+                        }
                         foreach (ushort pathElementNum in paths[wp1.number,wp2.number].pathElements)
                         {
                             wayPointsOfPath.Add(wayPoints[pathElementNum]);
+                        }
+                        if (includeFirstLast)
+                        {
+                            wayPointsOfPath.Add(wp2);
                         }
                         totalDistance = paths[wp1.number, wp2.number].totalDistance;
                         return wayPointsOfPath.ToArray();

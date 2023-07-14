@@ -412,7 +412,8 @@ namespace JKWatcher
                         case "bot":
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!botmode !imscared !imveryscared !imbrave !cowards !bigcowards", true, true, true, true);
+                            MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -582,7 +583,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!botmode":
-                            if (!this.IsMainChatConnection) return;
+                            if (!this.IsMainChatConnection || pm.type == ChatType.PRIVATE) return;
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom", true, true, true);

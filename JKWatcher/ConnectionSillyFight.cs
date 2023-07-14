@@ -171,6 +171,7 @@ namespace JKWatcher
 		bool previousSaberHolstered = false;
 
 		List<WayPoint> wayPointsToWalk = new List<WayPoint>();
+		DateTime wayPointsToWalkLastUpdate = DateTime.Now;
 
 		static readonly PlayerInfo dummyPlayerInfo = new PlayerInfo() {  position = new Vector3() { X= float.PositiveInfinity ,Y= float.PositiveInfinity ,Z= float.PositiveInfinity } };
 
@@ -208,7 +209,7 @@ namespace JKWatcher
 				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0)
 				{
 					wayPointsToWalk.Clear(); // Remove this point for fun, see if it does us any good. 
-				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 2)
+				} else if (((DateTime.Now - lastTimeFastMove).TotalSeconds > 2 && wayPointsToWalk.Count == 0)|| (DateTime.Now - lastTimeFastMove).TotalSeconds > 4)
 				{
 					if(wayPointsToWalk.Count > 0)
                     {
@@ -226,6 +227,12 @@ namespace JKWatcher
             {
 				lastTimeFastMove = DateTime.Now;
 			}
+
+            if ((DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
+            {
+				findShortestBotPathWalkDistance = true;
+			}
+			
 
 			sillyLastCommandTime = lastPlayerState.CommandTime;
 			sillyOurLastPosition = myself.position;
@@ -252,7 +259,7 @@ namespace JKWatcher
 
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 
-			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,null) : null;
+			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,(movingVerySlowly && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(3, wayPointsToWalk.Count)) : null) : null;
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -323,6 +330,7 @@ namespace JKWatcher
                 {
 					wayPointsToWalk.Clear();
 					wayPointsToWalk.AddRange(closestWayPointPath);
+					wayPointsToWalkLastUpdate = DateTime.Now;
 					closestWayPointPath = null;
                 }
                 else if(myClosestWayPoint != null)
@@ -337,6 +345,7 @@ namespace JKWatcher
                         {
 							wayPointsToWalk.Clear();
 							wayPointsToWalk.AddRange(path);
+							wayPointsToWalkLastUpdate = DateTime.Now;
 							closestWayPointPath = null;
 						}
                     }
@@ -445,13 +454,41 @@ namespace JKWatcher
 
 			bool doingGripDefense = false;
 
-            if (enemyLikelyOnSamePlane)
+			if(wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
-				wayPointsToWalk.Clear();
-            }
-			while (wayPointsToWalk.Count > 0 && (wayPointsToWalk[0].origin - myself.position).Length() < 32 && wayPointsToWalk[0].origin.Z < myself.position.Z+1.0f)
-			{
-				wayPointsToWalk.RemoveAt(0);
+				if (enemyLikelyOnSamePlane || dbsPossible)
+				{
+					wayPointsToWalk.Clear();
+				}
+				while (wayPointsToWalk.Count > 0 && ((wayPointsToWalk[0].origin - myself.position).Length() > 500.0f || ((wayPointsToWalk[0].origin - myself.position).Length() < 32 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
+				{
+					wayPointsToWalk.RemoveAt(0);
+				}
+				while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length())
+				{
+					// Check if we walked past the next point and are on our way to the following point.
+					wayPointsToWalk.RemoveAt(0);
+				}
+				if (wayPointsToWalk.Count > 1)
+				{
+					// Check if a following waypoint among future 3 is closer than current
+					int closestIndex = 0;
+					float closestWayPointDistance = (wayPointsToWalk[0].origin - myself.position).Length();
+					int maxCount = Math.Min(3, wayPointsToWalk.Count);
+					for (int i = 1; i < maxCount; i++)
+					{
+						float distanceHere = (wayPointsToWalk[i].origin - myself.position).Length();
+						if (distanceHere < closestWayPointDistance)
+						{
+							closestWayPointDistance = distanceHere;
+							closestIndex = i;
+						}
+					}
+					if (closestIndex > 0)
+					{
+						wayPointsToWalk.RemoveRange(0, closestIndex);
+					}
+				}
 			}
 
 			bool mustJumpToReachWayPoint = false;
@@ -459,7 +496,7 @@ namespace JKWatcher
 			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
             {
 				moveVector = wayPointsToWalk[0].origin - myself.position;
-				if(wayPointsToWalk[0].origin.Z > myself.position.Z + 1.0f)
+				if(wayPointsToWalk[0].origin.Z > (myself.position.Z+myMin+16) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
                 {
 					mustJumpToReachWayPoint = true;
 				}
