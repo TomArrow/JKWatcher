@@ -28,6 +28,7 @@ namespace JKWatcher
         string lastTeamChat = "";
         DateTime lastTeamChatTime = DateTime.Now;
 
+        Queue<string> calmSayQueue = new Queue<string>();
 
         public bool IsMainChatConnection { get; set; }= false;
         public int ChatMemeCommandsDelay { get; set; } = 4000;
@@ -413,7 +414,7 @@ namespace JKWatcher
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
-                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -460,8 +461,9 @@ namespace JKWatcher
                                 MemeRequest(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
+                        case "!iamscared":
                         case "!imscared":
-                            if (!this.IsMainChatConnection) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
@@ -512,8 +514,9 @@ namespace JKWatcher
                             }
                             notDemoCommand = true;
                             break;
+                        case "!iamveryscared":
                         case "!imveryscared":
-                            if (!this.IsMainChatConnection) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
@@ -547,8 +550,9 @@ namespace JKWatcher
                             }
                             notDemoCommand = true;
                             break;
+                        case "!iambrave":
                         case "!imbrave":
-                            if (!this.IsMainChatConnection) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
                             if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
@@ -659,6 +663,41 @@ namespace JKWatcher
                                 this.client.Skin = skin;
 
                                 MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!botsay":
+                        case "!botsaycalm":
+                            if (!this.IsMainChatConnection) return;
+                            if (demoNoteString == null)
+                            {
+                                MemeRequest(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
+                            } 
+                            else
+                            {
+                                if(stringParams0Lower == "!botsaycalm")
+                                {
+                                    if(pm.type == ChatType.PUBLIC)
+                                    {
+                                        calmSayQueue.Enqueue($"say {demoNoteString}");
+                                    } else if(pm.type == ChatType.TEAM)
+                                    {
+                                        calmSayQueue.Enqueue($"say_team {demoNoteString}");
+                                    } else if(pm.type == ChatType.PRIVATE)
+                                    {
+                                        calmSayQueue.Enqueue($"say {pm.playerName} wants me to say: {demoNoteString}");
+                                    }
+                                }
+                                else
+                                {
+                                    if(pm.type == ChatType.PRIVATE)
+                                    {
+                                        MemeRequest(pm, $"{pm.playerName} wants me to say: {demoNoteString}", true, true, true,false,ChatType.PUBLIC);
+                                    } else
+                                    {
+                                        MemeRequest(pm, demoNoteString, true, true, true);
+                                    }
+                                }
                             }
                             notDemoCommand = true;
                             break;
@@ -1007,9 +1046,9 @@ namespace JKWatcher
 
 
         Regex multipleSlashRegex = new Regex("/{2,}", RegexOptions.Compiled);
-        void MemeRequest(ParsedChatMessage pm, string message, bool pub=true, bool team=true, bool priv=true, bool forcePrivateResponse = false)
+        void MemeRequest(ParsedChatMessage pm, string message, bool pub=true, bool team=true, bool priv=true, bool forcePrivateResponse = false, ChatType? chatTypeOverride = null)
         {
-
+            ChatType chatType = chatTypeOverride.HasValue ? chatTypeOverride.Value : pm.type;
             if (_connectionOptions.silentMode) {
                 serverWindow.addToLog($"Silent mode: MemeRequest sending suppressed in response to {pm.type} from {pm.playerName} ({pm.playerNum}): {message}");
                 return;
@@ -1022,17 +1061,17 @@ namespace JKWatcher
                 message = multipleSlashRegex.Replace(message, "/"); // Idk why this is needed. double // seems to cut off messages.
             }
             bool forcingPrivateResponse = false;
-            if (pm.type == ChatType.TEAM && team)
+            if (chatType == ChatType.TEAM && team)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
                 else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
-            else if (pm.type == ChatType.PUBLIC && pub)
+            else if (chatType == ChatType.PUBLIC && pub)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
                 else leakyBucketRequester.requestExecution($"say \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
-            if ((pm.type == ChatType.PRIVATE && priv) || forcingPrivateResponse)
+            if ((chatType == ChatType.PRIVATE && priv) || forcingPrivateResponse)
             {
                 leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }

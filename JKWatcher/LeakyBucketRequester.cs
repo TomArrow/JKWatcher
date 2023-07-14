@@ -68,9 +68,11 @@ namespace JKWatcher
             public int minimumDelayFromSameType { get; init; }
             public int priority { get; init; }
             public DateTime? earliestExecution { get; init; }
+            public TaskCompletionSource<bool> tcs { get; init; }
 
             public Request(Request source, DateTime? earliestExecutionA = null)
             {
+                tcs = source.tcs;
                 command = source.command;
                 type = source.type;
                 minimumDelayFromSameType = source.minimumDelayFromSameType;
@@ -276,6 +278,7 @@ namespace JKWatcher
                                     } else if (args.Discard) { // Allow the event receivers to discard the execution for whatever reason (for example invalid/unsupported command)
 
                                         LogCommand(requestQueue[i],true);
+                                        requestQueue[i].tcs.TrySetResult(false);
                                         requestQueue.RemoveAt(i--); // -- because otherwise the removal messes with the for loop?
                                         requestQueueChanged = true;
                                         thisBucketBurst--; // Since it's discarded, it shouldn't affect our burst
@@ -283,6 +286,7 @@ namespace JKWatcher
                                     {
                                         lastRequestTimesOfType[requestQueue[i].type] = DateTime.Now;
                                         LogCommand(requestQueue[i],false);
+                                        requestQueue[i].tcs.TrySetResult(true);
                                         requestQueue.RemoveAt(i--); // -- because otherwise the removal messes with the for loop?
                                         requestQueueChanged = true;
                                     }
@@ -325,6 +329,7 @@ namespace JKWatcher
                     {
                         if (requestQueue[i].type.CompareTo(kind) == 0)
                         {
+                            requestQueue[i].tcs.TrySetResult(false);
                             requestQueue.RemoveAt(i);
                             requestQueueChanged = true;
                         }
@@ -341,16 +346,18 @@ namespace JKWatcher
         
         // The kind parameter is a user-defined request kind parameter to be able to group requests of a desired kind together and be able to specify the request behavior of that group (like ignore previous commands of the same type for choosing who to follow)
         // overriddenKinds defines kinds that the current request will override. If any requests of that kind exist, they will be deleted by adding this request.
-        public async void requestExecution(TCommand command, TKind kind, int priority = 0,int minimumDelayFromSameType=0, RequestBehavior requestBehavior = RequestBehavior.ENQUEUE, TKind[] overriddenKinds = null, int? delayFromNow = null)
+        public Task<bool> requestExecution(TCommand command, TKind kind, int priority = 0,int minimumDelayFromSameType=0, RequestBehavior requestBehavior = RequestBehavior.ENQUEUE, TKind[] overriddenKinds = null, int? delayFromNow = null)
         {
             Request request = new Request() {
                 command = command,
                 type = kind,
                 minimumDelayFromSameType = minimumDelayFromSameType,
                 priority = priority,
-                earliestExecution = delayFromNow.HasValue ? (DateTime.Now + new TimeSpan(0,0,0,0,delayFromNow.Value)) : null
+                earliestExecution = delayFromNow.HasValue ? (DateTime.Now + new TimeSpan(0, 0, 0, 0, delayFromNow.Value)) : null,
+                tcs = new TaskCompletionSource<bool>()
             };
             bool requestQueueChanged = false;
+            bool discarded = false;
             lock (requestQueue)
             {
                 // Remove overridden kinds from queue
@@ -362,6 +369,7 @@ namespace JKWatcher
                         {
                             if (requestQueue[i].type.CompareTo(overriddenKind) == 0)
                             {
+                                requestQueue[i].tcs.TrySetResult(false);
                                 requestQueue.RemoveAt(i);
                                 requestQueueChanged = true;
                             }
@@ -386,6 +394,9 @@ namespace JKWatcher
                         {
                             requestQueue.Add(request);
                             requestQueueChanged = true;
+                        } else
+                        {
+                            discarded = true;
                         }
                         break;
                     case RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE:
@@ -394,6 +405,7 @@ namespace JKWatcher
                         {
                             if (requestQueue[i].type.CompareTo(kind) == 0)
                             {
+                                requestQueue[i].tcs.TrySetResult(false);
                                 requestQueue.RemoveAt(i);
                                 requestQueueChanged = true;
                             }
@@ -411,6 +423,7 @@ namespace JKWatcher
             if (requestQueueChanged) OnRequestListUpdated();
             //sleepInterruptor.Cancel(); /// TODO Fix error where this is already disposed and crashes the program.
             sleepInterrupter.CancelAll();
+            return discarded ? null : request.tcs.Task;
         }
 
 

@@ -173,19 +173,50 @@ namespace JKWatcher
 		List<WayPoint> wayPointsToWalk = new List<WayPoint>();
 		DateTime wayPointsToWalkLastUpdate = DateTime.Now;
 
+		DateTime lastSaberSwitchCommand = DateTime.Now;
+
 		static readonly PlayerInfo dummyPlayerInfo = new PlayerInfo() {  position = new Vector3() { X= float.PositiveInfinity ,Y= float.PositiveInfinity ,Z= float.PositiveInfinity } };
+
+		private long pendingCalmSays = 0;
 
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
+
 			int myNum = ClientNum.GetValueOrDefault(-1);
 			if (myNum < 0 || myNum > infoPool.playerInfo.Length) return;
 
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
+			float closestDistance = float.PositiveInfinity;
+			PlayerInfo closestPlayerAfk = null;
+			float closestDistanceAfk = float.PositiveInfinity;
 			WayPoint[] closestWayPointPath = null;
 			float closestWayPointBotPathDistance = float.PositiveInfinity;
-			float closestDistance = float.PositiveInfinity;
+			WayPoint[] closestWayPointPathAfk = null;
+			float closestWayPointBotPathAfkDistance = float.PositiveInfinity;
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
+
+			if (calmSayQueue.Count > 0 || Interlocked.Read(ref pendingCalmSays) > 0)
+			{
+				if (calmSayQueue.Count > 0 && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && myself.velocity.Length() == 0 && lastPlayerState.SaberHolstered && lastPlayerState.Stats[0] > 0)
+				{
+					string sayCommand = null;
+					if(calmSayQueue.TryDequeue(out sayCommand))
+                    {
+						Task sayRequest = leakyBucketRequester.requestExecution(sayCommand, RequestCategory.BOTSAY, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+						if (sayRequest != null)
+						{
+							Interlocked.Increment(ref pendingCalmSays);
+							sayRequest.ContinueWith((a) => { Interlocked.Decrement(ref pendingCalmSays); });
+						}
+					}
+				}
+				if (!lastPlayerState.SaberHolstered && (DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
+				{
+					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // Switch saber off.
+				}
+				return;
+			}
 
 			bool bsModeActive = sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEEDRAGEBS; // Use BS instead of dbs
 			bool speedRageModeActive = infoPool.gripDbsModeOneOf(GripKickDBSMode.SPEEDRAGE, GripKickDBSMode.SPEEDRAGEBS);
@@ -206,16 +237,17 @@ namespace JKWatcher
 					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
 					lastTimeFastMove = DateTime.Now;
 					return;
-				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0)
+				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2)
 				{
-					wayPointsToWalk.Clear(); // Remove this point for fun, see if it does us any good. 
+					findShortestBotPathWalkDistance = true; // Dont clear here, just recalculate. Reason: It can use the current points as exclusion.
+					//wayPointsToWalk.Clear();
 				} else if (((DateTime.Now - lastTimeFastMove).TotalSeconds > 2 && wayPointsToWalk.Count == 0)|| (DateTime.Now - lastTimeFastMove).TotalSeconds > 4)
 				{
 					if(wayPointsToWalk.Count > 0)
                     {
 						wayPointsToWalk.RemoveAt(0); // Remove this point for fun, see if it does us any good. 
                     }
-                    else
+                    else if(myself.groundEntityNum == Common.MaxGEntities - 2)
                     {
 						// Ok. Let's go full crazy and find closest walk distance to player and make that our waypoints.
 						// We gotta do this rarely or else it will be computationally expensive.
@@ -228,7 +260,7 @@ namespace JKWatcher
 				lastTimeFastMove = DateTime.Now;
 			}
 
-            if ((DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
+            if ((DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities -2) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
             {
 				findShortestBotPathWalkDistance = true;
 			}
@@ -259,7 +291,7 @@ namespace JKWatcher
 
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 
-			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,(movingVerySlowly && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(3, wayPointsToWalk.Count)) : null) : null;
+			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,(movingVerySlowly && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(3, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null;
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -284,7 +316,6 @@ namespace JKWatcher
 						return;
 					}
 					if (pi.chatCommandTrackingStuff.fightBotIgnore) continue;
-					if (!pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10) continue; // ignore mildly afk players
 					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
 																							// Check if player is in the radius of someone with strong ignore
 					bool thisPlayerNearStrongIgnore = false;
@@ -301,25 +332,51 @@ namespace JKWatcher
 					}
 					if (thisPlayerNearStrongIgnore) continue;
 
-                    if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
+
+					bool playerIsAfk = !pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10;
+
+					if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
                     {
-						WayPoint hisClosestWayPoint = this.pathFinder.findClosestWayPoint(pi.position, null);
+						WayPoint hisClosestWayPoint = this.pathFinder.findClosestWayPoint(pi.position, null,pi.groundEntityNum == Common.MaxGEntities-2);
 						if(hisClosestWayPoint != null)
                         {
 							float walkDistance = 0;
 							var path = this.pathFinder.getPath(myClosestWayPoint, hisClosestWayPoint,ref walkDistance);
-							if(path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathDistance)
+                            if (playerIsAfk)
                             {
-								closestWayPointPath = path;
-								closestWayPointBotPathDistance = walkDistance;
+								if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathAfkDistance)
+								{
+									closestWayPointPathAfk = path;
+									closestWayPointBotPathAfkDistance = walkDistance;
+								}
+							} else
+                            {
+								if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathDistance)
+								{
+									closestWayPointPath = path;
+									closestWayPointBotPathDistance = walkDistance;
+								}
 							}
                         }
-                    }
+					}
 
-					if (curdistance < closestDistance)
+					// We just deprioritize them
+					//if (playerIsAfk) continue; // ignore mildly afk players
+
+                    if (playerIsAfk)
                     {
-						closestDistance = curdistance;
-						closestPlayer = pi;
+						if (curdistance < closestDistanceAfk)
+						{
+							closestDistanceAfk = curdistance;
+							closestPlayerAfk = pi;
+						}
+					} else
+                    {
+						if (curdistance < closestDistance)
+						{
+							closestDistance = curdistance;
+							closestPlayer = pi;
+						}
 					}
 				}
 			}
@@ -332,6 +389,13 @@ namespace JKWatcher
 					wayPointsToWalk.AddRange(closestWayPointPath);
 					wayPointsToWalkLastUpdate = DateTime.Now;
 					closestWayPointPath = null;
+                }
+                else if(closestWayPointPathAfk != null) // Afk players are only a secondary option
+                {
+					wayPointsToWalk.Clear();
+					wayPointsToWalk.AddRange(closestWayPointPathAfk);
+					wayPointsToWalkLastUpdate = DateTime.Now;
+					closestWayPointPathAfk = null;
                 }
                 else if(myClosestWayPoint != null)
                 {
@@ -354,13 +418,19 @@ namespace JKWatcher
 
 			if (closestPlayer == null)
 			{
-				if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 120)
+				if(closestPlayerAfk != null)
                 {
-					// KMS
-					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-					lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
+					closestPlayer = closestPlayerAfk;
+					closestDistance = closestDistanceAfk;
+				} else { 
+					if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 120)
+					{
+						// KMS
+						leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+						lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
+					}
+					closestPlayer = dummyPlayerInfo;
 				}
-				closestPlayer = dummyPlayerInfo;
 			} else if (closestDistance < 2000)
             {
 				lastTimeAnyPlayerSeen = DateTime.Now;
@@ -612,7 +682,14 @@ namespace JKWatcher
 				amGripping = false;
 				if (closestDistance < 100 && userCmd.GenericCmd == 0)
                 {
-					userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
+					if(!lastPlayerState.SaberHolstered && (DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
+					{
+						userCmd.GenericCmd =  (byte)GenericCommandJK2.SABERSWITCH; // Switch saber off.
+						lastSaberSwitchCommand = DateTime.Now;
+					} else
+                    {
+						userCmd.GenericCmd = (byte)0;
+					}
 				}
 				userCmd.ForwardMove = 127;
 				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
@@ -933,15 +1010,26 @@ namespace JKWatcher
 			} else if (blackListedPlayerIsNearby || strongIgnoreNearby) // If near blacklisted player, don't do anything that could cause damage
             {
 				userCmd.Buttons = 0;
-				userCmd.GenericCmd = !lastPlayerState.SaberHolstered ? (byte)GenericCommandJK2.SABERSWITCH : (byte)0; // Switch saber off.
+				if(!lastPlayerState.SaberHolstered && (DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
+				{
+					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // Switch saber off.
+					lastSaberSwitchCommand = DateTime.Now;
+				} else
+				{
+					userCmd.GenericCmd = (byte)0; // Switch saber off.
+				}
                 if (doingGripDefense) // Allow grip defense.
                 {
 					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_THROW;
 				}
 				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
-			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && (sillyMode != SillyMode.CUSTOM || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
+			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && ((sillyMode != SillyMode.CUSTOM && sillyMode != SillyMode.LOVER) || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
             {
-				userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
+				if((DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
+                {
+					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
+					lastSaberSwitchCommand = DateTime.Now;
+				} 
 
 			}
 
