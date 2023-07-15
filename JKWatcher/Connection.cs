@@ -87,6 +87,7 @@ namespace JKWatcher
         GOINTOSPEC,
         GOINTOSPECHACK,
         FIGHTBOT,
+        FIGHTBOT_QUEUED,
         BOTSAY
     }
 
@@ -1275,6 +1276,14 @@ namespace JKWatcher
                     serverWindow.addToLog(pi.name + " returned the " + teamAsString + " flag.");
                 }
 
+            }
+            else if (e.EventType == ClientGame.EntityEvent.ForceDrained)
+            {
+                int targetNum = e.Entity.CurrentState.Owner;
+                if(targetNum >= 0 && targetNum < client.ClientHandler.MaxClients)
+                {
+                    infoPool.playerInfo[targetNum].lastDrainedEvent = DateTime.Now;
+                }
             }
             // Todo: look into various sound events that are broarcast to everyone, also global item pickup,
             // then we immediately know who's carrying the flag

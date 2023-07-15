@@ -590,8 +590,8 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection || pm.type == ChatType.PRIVATE) return;
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom", true, true, true);
-                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom" }).Contains(stringParams[1].ToLower()))
+                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,speedabsorb", true, true, true);
+                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin" }).Contains(stringParams[1].ToLower()))
                             {
                                 MemeRequest(pm, $"Unknown mode {stringParams[1]}", true, true, true);
                             }
@@ -611,6 +611,7 @@ namespace JKWatcher
                             else
                             {
                                 string skin = "kyle/default";
+                                string forcePowers = Client.forcePowersAllDark;
                                 switch (stringParams[1].ToLower()) {
                                     case "silly":
                                         infoPool.sillyMode = SillyMode.SILLY;
@@ -659,8 +660,29 @@ namespace JKWatcher
                                         infoPool.sillyMode = SillyMode.GRIPKICKDBS;
                                         infoPool.gripDbsMode = GripKickDBSMode.SPEEDRAGEBS;
                                         break;
+                                    case "speedabsorb":
+                                        infoPool.sillyMode = SillyMode.ABSORBSPEED;
+                                        infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
+                                        forcePowers = Client.forcePowersAllLight;
+                                        break;
+                                    case "assassin":
+                                        infoPool.sillyMode = SillyMode.MINDTRICKSPEED;
+                                        infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
+                                        forcePowers = Client.forcePowersAllLight;
+                                        break;
                                 }
+                                this.client.SkipUserInfoUpdatesAfterNextNChanges(1);
+                                bool doKill = false;
+                                if (this.client.GetUserInfoKeyValue("forcepowers") != forcePowers)
+                                {
+                                    doKill = true;
+                                }
+                                this.client.SetUserInfoKeyValue("forcepowers", forcePowers);
                                 this.client.Skin = skin;
+                                if (doKill)
+                                {
+                                    leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT_QUEUED, 5, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                                }
 
                                 MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
                             }

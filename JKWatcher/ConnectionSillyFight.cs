@@ -24,9 +24,11 @@ namespace JKWatcher
 		NONE,
 		SILLY,
 		DBS,
-		GRIPKICKDBS, 
+		GRIPKICKDBS,
 		LOVER,
-		CUSTOM
+		CUSTOM,
+		ABSORBSPEED,
+		MINDTRICKSPEED
 	}
 	public enum GripKickDBSMode
 	{
@@ -270,11 +272,16 @@ namespace JKWatcher
 			sillyOurLastPosition = myself.position;
 			sillyOurLastPosition2D = myPosition2D;
 
+			bool isLightsideMode = infoPool.sillyModeOneOf(SillyMode.ABSORBSPEED,SillyMode.MINDTRICKSPEED);
 			bool amGripped = lastPlayerState.PlayerMoveType == JKClient.PlayerMoveType.Float; // Not 100% reliable ig but good enough
+			bool amBeingDrained = myself.lastDrainedEvent.HasValue ? (DateTime.Now - myself.lastDrainedEvent.Value).TotalMilliseconds < 400 : false; // Not 100% reliable ig but good enough
 			bool weAreChoking = amGripped && lastPlayerState.ForceHandExtend == 5;
 			bool grippingSomebody = lastPlayerState.PowerUps[9] != 0 && 0 < (lastPlayerState.forceData.ForcePowersActive & (1 << 6)); // TODO 1.04 and JKA
 			bool amInRage = (lastPlayerState.forceData.ForcePowersActive & (1 << 8)) > 0; // TODO 1.04 and JKA
 			bool amInSpeed = (lastPlayerState.forceData.ForcePowersActive & (1 << 2)) > 0; // TODO 1.04 and JKA
+			bool amInAbsorb = (lastPlayerState.forceData.ForcePowersActive & (1 << 10)) > 0; // TODO 1.04 and JKA
+			bool amInMindTrick = (lastPlayerState.forceData.ForcePowersActive & (1 << 5)) > 0; // TODO 1.04 and JKA
+			bool amInHeal = (lastPlayerState.forceData.ForcePowersActive & (1 << 0)) > 0; // TODO 1.04 and JKA
 			int rageCoolDownTime = lastPlayerState.forceData.ForceRageRecoveryTime - lastSnapshot.ServerTime;
 			bool amInRageCoolDown = lastPlayerState.forceData.ForceRageRecoveryTime > lastSnapshot.ServerTime;
 			int fullForceRecoveryTime = 5000; // TODO Measure this on the server in particular
@@ -512,7 +519,7 @@ namespace JKWatcher
 
 			bool gripForcePitchUp = false;
 			bool gripForcePitchDown = false;
-			bool gripForceKick = false;
+			bool forceKick = false;
 			bool releaseGrip = false;
 			bool doPull = false;
 
@@ -530,16 +537,19 @@ namespace JKWatcher
 				{
 					wayPointsToWalk.Clear();
 				}
+				// Remove points that we have already hit
 				while (wayPointsToWalk.Count > 0 && ((wayPointsToWalk[0].origin - myself.position).Length() > 500.0f || ((wayPointsToWalk[0].origin - myself.position).Length() < 32 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
 				{
 					wayPointsToWalk.RemoveAt(0);
 				}
-				while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length())
+				while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myself.position.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
 				{
 					// Check if we walked past the next point and are on our way to the following point.
+					// To make sure, check that on the line from this to next one, we are no more than 32 units removed from the line
 					wayPointsToWalk.RemoveAt(0);
 				}
-				if (wayPointsToWalk.Count > 1)
+				// This is bad: what if we need to walk around a corner and the points on the other side are closer?
+				/*if (wayPointsToWalk.Count > 1)
 				{
 					// Check if a following waypoint among future 3 is closer than current
 					int closestIndex = 0;
@@ -558,7 +568,7 @@ namespace JKWatcher
 					{
 						wayPointsToWalk.RemoveRange(0, closestIndex);
 					}
-				}
+				}*/
 			}
 
 			bool mustJumpToReachWayPoint = false;
@@ -571,7 +581,7 @@ namespace JKWatcher
 					mustJumpToReachWayPoint = true;
 				}
 			}
-            else if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0)
+            else if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0 && !isLightsideMode)
             {
 				// TODO exception when gripping myself?
 				PlayerInfo guessedGrippingPlayer = grippingPlayers[(int)(sillyflip % grippingPlayers.Count)];
@@ -581,14 +591,14 @@ namespace JKWatcher
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
-			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && heIsStandingOnTopOfMe && meIsDucked)
+			else if (!infoPool.sillyModeOneOf(SillyMode.SILLY, SillyMode.LOVER, SillyMode.CUSTOM) && heIsStandingOnTopOfMe && meIsDucked)
 			{
-				gripForceKick = true;
+				forceKick = true;
 			}
 			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
 			{
@@ -750,11 +760,21 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS))
+			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS,SillyMode.ABSORBSPEED))
             {
 				
 				userCmd.ForwardMove = 127;
-                if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0)
+				
+				// For lightside, this doesn't need to be part of the general if-else statements because we can still do other stuff while activating absorb
+				if((amGripped || amBeingDrained || closestDistance < 128+50) && !amInAbsorb && isLightsideMode && lastPlayerState.forceData.ForcePower > 10) // If gripped, drained or within 128 of pulling range... absorb
+				{
+                    if (sillyAttack)
+					{
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_ABSORB;
+					}
+				}
+
+				if (amGripped && !isLightsideMode && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 20)
                 {
 					amGripping = false;
                     if (sillyAttack)
@@ -762,7 +782,7 @@ namespace JKWatcher
 						doingGripDefense = true;
 						userCmd.GenericCmd = (weAreChoking || blackListedPlayerIsNearby) ? (byte)GenericCommandJK2.FORCE_THROW : (byte)GenericCommandJK2.FORCE_PULL;
 					}
-                }
+                } 
 				else if (!amInAttack /*&& !amCurrentlyDbsing*/)
                 {
 					//if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
@@ -817,7 +837,7 @@ namespace JKWatcher
 						amGripping = true;
 						userCmd.Upmove = -128; // Crouch
 						pitchAngle = 89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
-					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForceKick) // Kick enemy
+					} else if (!infoPool.sillyModeOneOf(SillyMode.SILLY, SillyMode.LOVER, SillyMode.CUSTOM) && forceKick) // Kick enemy
 					{
 						userCmd.ForwardMove = 127;
                         if (sillyAttack) // On off quickly
@@ -837,7 +857,7 @@ namespace JKWatcher
 						}
 						amGripping = false;
 					}
-					else if (sillyMode == SillyMode.GRIPKICKDBS && heIsStandingOnTopOfMe && !meIsDucked) // Release him and then we can dbs
+					else if (!infoPool.sillyModeOneOf(SillyMode.SILLY,SillyMode.LOVER,SillyMode.CUSTOM) && heIsStandingOnTopOfMe && !meIsDucked) // Release him and then we can dbs
 					{
 						userCmd.ForwardMove = 0;
 						userCmd.Upmove = -128;
@@ -908,9 +928,30 @@ namespace JKWatcher
 				}
 				
 			}
-
+			
 			// Conservative speed usage.
-			if((sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
+			if (sillyMode == SillyMode.ABSORBSPEED  || sillyMode == SillyMode.MINDTRICKSPEED)
+			{
+				if (userCmd.GenericCmd == 0) // Other stuff has priority.
+				{
+					if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100 && closestDistance < 700)
+					{
+						// Go Speed
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+					}
+					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700))
+					{
+						// Disable speed unless in rage
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+					} else if (!amInSpeed && closestDistance > 500 && amInAbsorb)
+                    {
+						// Disable absorb
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_ABSORB;
+					}
+				}
+			}
+			// Conservative speed usage.
+			else if ((sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
             {
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
@@ -993,11 +1034,14 @@ namespace JKWatcher
 				}
 			} else if (lastPlayerState.Stats[0] < 100 && drainPossible && lastPlayerState.forceData.ForcePower > 0 && !amInAttack && !dbsPossible && !movingVerySlowly)
 			{
-                if (canUseNonRageSpeedPowers)
+                if (canUseNonRageSpeedPowers && !isLightsideMode)
                 {
 					userCmd.Buttons |= (int)UserCommand.Button.ForceDrainJK2;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
-				}
+				} else if (isLightsideMode && userCmd.GenericCmd == 0)
+                {
+					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_HEAL;
+                }
 			}
 
 			if (lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.

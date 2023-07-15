@@ -76,6 +76,7 @@ namespace JKWatcher
         public bool duelInProgress;
         public int saberMove;
         public int forcePowersActive;
+        public DateTime? lastDrainedEvent;
         //public int legsTimer;
         #endregion
 

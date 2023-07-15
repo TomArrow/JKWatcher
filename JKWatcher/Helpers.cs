@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
@@ -53,7 +54,21 @@ namespace JKWatcher
 
     static class Helpers
     {
+        public static float DistanceToLineSlow(this Vector3 point, Vector3 linePoint1, Vector3 linePoint2)
+        {
+            Vector3 P1toPoint = linePoint2 - point;
+            Vector3 P1ToP2 = linePoint2 - linePoint1;
 
+            return Math.Abs(Vector3.Dot(Vector3.Normalize(Vector3.Cross(Vector3.Cross(P1toPoint, P1ToP2), P1ToP2)), P1toPoint));
+        }
+        public static float DistanceToLine(this Vector3 point, Vector3 linePoint1, Vector3 linePoint2)
+        {
+
+            Vector3 P1toPoint = linePoint2 - point;
+            Vector3 P1ToP2 = linePoint2 - linePoint1;
+
+            return Vector3.Cross(P1toPoint, P1ToP2).Length() / P1ToP2.Length();
+        }
 
         public static bool IsSpaceChar(this char character)
         {
