@@ -181,6 +181,7 @@ namespace JKWatcher
 
 		private long pendingCalmSays = 0;
 
+		float moveSpeedMultiplier = 1.0f;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 
@@ -197,6 +198,8 @@ namespace JKWatcher
 			WayPoint[] closestWayPointPathAfk = null;
 			float closestWayPointBotPathAfkDistance = float.PositiveInfinity;
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
+
+			
 
 			if (calmSayQueue.Count > 0 || Interlocked.Read(ref pendingCalmSays) > 0)
 			{
@@ -229,7 +232,7 @@ namespace JKWatcher
 			Vector2 ourMoveDelta2D = myPosition2D - sillyOurLastPosition2D;
 			float realDeltaSpeed = timeDelta == 0 ? float.PositiveInfinity : ourMoveDelta2D.Length() / ((float)timeDelta / 1000.0f); // Our speed per second
 
-			bool movingVerySlowly = timeDelta > 0 && realDeltaSpeed < 20;
+			bool movingVerySlowly = timeDelta > 0 && realDeltaSpeed < (20.0f*moveSpeedMultiplier);
 			bool findShortestBotPathWalkDistance = false;
             if (movingVerySlowly)
             {
@@ -288,7 +291,8 @@ namespace JKWatcher
 			bool canUseNonRageSpeedPowers = !speedRageModeActive || (amInRageCoolDown && rageCoolDownTime > fullForceRecoveryTime); // We are waiting for rage to cool down anyway, may as well use others.
 
 
-			int dbsTriggerDistance = bsModeActive ? 64 : 128; //128 is max possible but that results mostly in just jumps without hits as too far away.
+			//int dbsTriggerDistance = bsModeActive ? 64 : 128; //128 is max possible but that results mostly in just jumps without hits as too far away.
+			float dbsTriggerDistance = bsModeActive ? infoPool.bsTriggerDistance : infoPool.dbsTriggerDistance; //128 is max possible but that results mostly in just jumps without hits as too far away.
 			int maxGripDistance = 256; // 256 is default in jk2
 			int maxDrainDistance = 512; // 256 is default in jk2
 			int maxPullDistance = 1024; // 256 is default in jk2
@@ -573,6 +577,8 @@ namespace JKWatcher
 
 			bool mustJumpToReachWayPoint = false;
 
+			moveSpeedMultiplier = 1.0f;
+
 			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
             {
 				moveVector = wayPointsToWalk[0].origin - myself.position;
@@ -654,13 +660,14 @@ namespace JKWatcher
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
 					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ pingInSeconds);
-					Vector2 interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 100.0f; // Give it 100 units extra in that direction for ideal intercept.
+					Vector2 interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
 					moveVector2d = (interceptPos - myPosition2D);
-					if (moveVector2d.Length() <= mySpeed*interceptTime)
-                    {
+					if (moveVector2d.Length() <= mySpeed * interceptTime)
+					{
 						foundSolution = true;
+						moveSpeedMultiplier = moveVector2d.Length() / (mySpeed * interceptTime);
 						break;
-                    }
+					}
 				}
                 if (!foundSolution)
                 {
@@ -701,7 +708,7 @@ namespace JKWatcher
 						userCmd.GenericCmd = (byte)0;
 					}
 				}
-				userCmd.ForwardMove = 127;
+				userCmd.ForwardMove = (sbyte)(127* moveSpeedMultiplier);
 				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
                 {
 					if ((DateTime.Now - kissOrCustomLastSent).TotalSeconds > 10) kissOrCustomSent = false;
@@ -722,7 +729,7 @@ namespace JKWatcher
                 {
 					kissOrCustomSent = false;
                 }
-				userCmd.ForwardMove = 127;
+				userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
 				if (kissPossible && !(blackListedPlayerIsNearby || strongIgnoreNearby))
 				{
 					if ((DateTime.Now - kissOrCustomLastSent).TotalSeconds > 10) kissOrCustomSent = false; // might not be enough for some moves? but it will only trigger when near players so oh well.
@@ -739,19 +746,19 @@ namespace JKWatcher
 				amGripping = false;
 				switch (sillyflip % 4) {
 					case 0:
-						userCmd.ForwardMove = 127;
+						userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
 						break;
 					case 1:
 						yawAngle += 90;
-						userCmd.RightMove = 127;
+						userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
 						break;
 					case 2:
 						yawAngle += 180;
-						userCmd.ForwardMove = -128;
+						userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
 						break;
 					case 3:
 						yawAngle += 270;
-						userCmd.RightMove = -128;
+						userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
 						break;
 				}
 
@@ -763,7 +770,7 @@ namespace JKWatcher
 			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS,SillyMode.ABSORBSPEED))
             {
 				
-				userCmd.ForwardMove = 127;
+				userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
 				
 				// For lightside, this doesn't need to be part of the general if-else statements because we can still do other stuff while activating absorb
 				if((amGripped || amBeingDrained || closestDistance < 128+50) && !amInAbsorb && isLightsideMode && lastPlayerState.forceData.ForcePower > 10) // If gripped, drained or within 128 of pulling range... absorb
@@ -796,11 +803,12 @@ namespace JKWatcher
 						Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
 						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 						float myVelocity2DAbs = myVelocity2D.Length();
-						if(dot > 150 && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+						float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
+						if (dot < maxSpeed && dot > (150*moveSpeedMultiplier) && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
-						} else if ((dot < 150 && !amInRageCoolDown) || (dot < 110 && amInRageCoolDown))
+						} else if ((dot < 150 && !amInRageCoolDown && 150 < maxSpeed) || (dot < 110 && amInRageCoolDown && 110 < maxSpeed))
                         {
 							// We're slower than a backflip anyway.
 							// Do a backflip :). 150 is backflip speed.
@@ -902,19 +910,19 @@ namespace JKWatcher
 					switch (sillyflip %4)
 					{
 						case 0:
-							userCmd.ForwardMove = 127;
+							userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
 							break;
 						case 1:
 							yawAngle += 90;
-							userCmd.RightMove = 127;
+							userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
 							break;
 						case 2:
 							yawAngle += 180;
-							userCmd.ForwardMove = -128;
+							userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
 							break;
 						case 3:
 							yawAngle += 270;
-							userCmd.RightMove = -128;
+							userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
 							break;
 					}
 					if (amInParry)

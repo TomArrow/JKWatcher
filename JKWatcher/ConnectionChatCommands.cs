@@ -414,7 +414,7 @@ namespace JKWatcher
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
-                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -723,7 +723,41 @@ namespace JKWatcher
                             }
                             notDemoCommand = true;
                             break;
+                        case "!bsdist":
+                        case "!dbsdist":
+                            if (!this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                bool isBs = stringParams0Lower == "!bsdist";
+                                if (stringParams.Count > 0)
+                                {
+                                    int dbsDist = numberParams[0];
+                                    if(dbsDist < 32 || dbsDist > (128+16))
+                                    {
+                                        MemeRequest(pm, (isBs? "" : "D")+"BS trigger distance can't be below 32 or above 144", true, true, true);
+                                    }
+                                    else
+                                    {
+                                        if(isBs)
+                                        {
+                                            infoPool.bsTriggerDistance = dbsDist;
+                                        }
+                                        else
+                                        {
+                                            infoPool.dbsTriggerDistance = dbsDist;
+                                        }
+                                        MemeRequest(pm, "Gotcha, triggering " + (isBs ? "" : "d") + $"bs at {dbsDist} now.", true, true, true);
+                                    }
+                                }
+                                else
+                                {
+                                    MemeRequest(pm, "What distance should "+ (isBs ? "" : "d") + "bs get triggered at?", true, true, true);
+                                }
+                                return;
+                            }
 
+                            notDemoCommand = true;
+                            break;
 
 
                         // Tools

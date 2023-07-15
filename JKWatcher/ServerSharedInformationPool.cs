@@ -206,6 +206,8 @@ namespace JKWatcher
         #region sillyModeStuff
         public SillyMode sillyMode = SillyMode.DBS;
         public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
+        public float dbsTriggerDistance = 128;
+        public float bsTriggerDistance = 64;
         public string sillyModeCustomCommand = null;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
