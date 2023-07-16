@@ -130,6 +130,7 @@ namespace JKWatcher
 
 		private bool amNotInSpec = false; // If not in spec for whatever reason, do funny things
 		private bool isDuelMode = false; // If we are in duel mode, different behavior. Some servers don't like us attacking innocents but for duel we have to, to end it quick. But if someone attacks US, then all bets are off.
+		private GameType currentGameType = GameType.FFA;
 
 		private bool oldIsDuelMode = false;
 
@@ -312,24 +313,25 @@ namespace JKWatcher
 			{
 				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 				{
+					if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
 					float curdistance = (pi.position - myself.position).Length();
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
 					{
 						grippingPlayers.Add(pi);
 					}
-					if (pi.chatCommandTrackingStuff.fightBotBlacklist && curdistance < 500) {
+					if (pi.chatCommandTrackingStuff.fightBotBlacklist && !_connectionOptions.noBotIgnore && curdistance < 500) {
 						blackListedPlayerIsNearby = true;
 						continue;
 					}
-					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && curdistance < 300) {
+					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 300) {
 						strongIgnoreNearby = true;
 						continue;
 					}
-					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && curdistance < 100 && amInAttack) { // If a very scared person less than 100 units away and im attacking ... kill myself with high priority.
+					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 100 && amInAttack) { // If a very scared person less than 100 units away and im attacking ... kill myself with high priority.
 						leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 300, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 						return;
 					}
-					if (pi.chatCommandTrackingStuff.fightBotIgnore) continue;
+					if (pi.chatCommandTrackingStuff.fightBotIgnore && !_connectionOptions.noBotIgnore) continue;
 					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
 																							// Check if player is in the radius of someone with strong ignore
 					bool thisPlayerNearStrongIgnore = false;
@@ -765,7 +767,7 @@ namespace JKWatcher
 			float pitchAngle = angles.X - this.delta_angles.X;
             if (amStrafing)
 			{
-				yawAngle -= strafeAngleYawDelta;
+				yawAngle += strafeAngleYawDelta;
             }
 
             if (mustJumpToReachWayPoint)
@@ -1373,15 +1375,16 @@ namespace JKWatcher
 		unsafe (float,float) calculateStrafeAngleDelta(in UserCommand cmd)
 		{ // Handles entitystate and playerstate
 
-			int movementDir;
+			//int movementDir;
 			int groundEntityNum;
 			float baseSpeed;
-			movementDir = lastPlayerState.MovementDirection;
+			//movementDir = lastPlayerState.MovementDirection;
 			groundEntityNum = lastPlayerState.GroundEntityNum;
-			baseSpeed = lastPlayerState.Speed;
+			baseSpeed = lastPlayerState.Speed == 0 ? (lastPlayerState.Basespeed == 0 ? 250 : lastPlayerState.Basespeed) : lastPlayerState.Speed;
 
-			Vector3 viewAngles = new Vector3() { X=lastPlayerState.ViewAngles[0] ,Y= lastPlayerState.ViewAngles[1] ,Z= lastPlayerState.ViewAngles[2] };
+			//Vector3 viewAngles = new Vector3() { X=lastPlayerState.ViewAngles[0] ,Y= lastPlayerState.ViewAngles[1] ,Z= lastPlayerState.ViewAngles[2] };
 			Vector3 velocity = new Vector3() { X = lastPlayerState.Velocity[0], Y = lastPlayerState.Velocity[1], Z = lastPlayerState.Velocity[2] };
+			//Vector3 viewAngles = velocity;
 			/*else if constexpr(std::is_same < T, entityState_t >::value) {
 				movementDir = ((entityState_t*)state)->angles2.Y;
 				groundEntityNum = ((entityState_t*)state)->groundEntityNum;
@@ -1418,14 +1421,17 @@ namespace JKWatcher
 					break;
 			}*/
 
-			bool onGround = groundEntityNum == Common.MaxGEntities-2; //sadly predictedPlayerState makes it jerky so need to use cg.snap groundentityNum, and check for cg.snap earlier
+			//bool onGround = groundEntityNum == Common.MaxGEntities-2; //sadly predictedPlayerState makes it jerky so need to use cg.snap groundentityNum, and check for cg.snap earlier
+			bool onGround = groundEntityNum != Common.MaxGEntities-1; //sadly predictedPlayerState makes it jerky so need to use cg.snap groundentityNum, and check for cg.snap earlier
 
 			if (currentSpeed < (baseSpeed - 1))
 			{ // Dunno why
 				return (float.PositiveInfinity, float.PositiveInfinity);
 			}
 
-			frametime = 0.001f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			//frametime = 0.001f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			//frametime = 0.007f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			frametime = 0.07f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
 			/*if (cg_strafeHelper_FPS.value < 1)
 				frametime = ((float)cg.frametime * 0.001f);
 			else if (cg_strafeHelper_FPS.value > 1000) // invalid
@@ -1445,9 +1451,9 @@ namespace JKWatcher
 			if (optimalDeltaAngle < 0 || optimalDeltaAngle > 360)
 				optimalDeltaAngle = 0;
 
-			Vector3 velocityAngle = new Vector3();
+			//Vector3 velocityAngle = new Vector3();
 			velocity.Z = 0;
-			vectoangles(velocity, ref velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
+			//vectoangles(velocity, ref velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
 
 			//float cg_strafeHelperOffset = 75; // dunno why or what huh
 			float cg_strafeHelperOffset = 0; // dunno why or what huh
@@ -1535,14 +1541,17 @@ namespace JKWatcher
 			return a;
 		}
 
+		bool lastStrafeAngleWasRightward = false;
+
 		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
 		{
 			Vector3 targetDirection = targetPoint - myself.position;
 			float targetAngle = vectoyaw(targetDirection);
 			float velocityAngle = vectoyaw(myself.velocity);
 			float angleDiff = AngleSubtract(targetAngle, velocityAngle);
-			bool rightWards = angleDiff >= 0;
-			bool bigAngleChange = Math.Abs(angleDiff) > 10;
+			bool rightWards = angleDiff > 0;
+            bool directionChangeThresholdReached = Math.Abs(angleDiff) > 20;
+            bool bigAngleChange = Math.Abs(angleDiff) > 40;
 			if (bigAngleChange)
 			{
 				amStrafing = false;
@@ -1558,15 +1567,17 @@ namespace JKWatcher
 			{
 				// In air
 				// Use WD/A scheme
-				if (!rightWards)
+				if (!rightWards && directionChangeThresholdReached || lastStrafeAngleWasRightward && !directionChangeThresholdReached)
 				{
 					userCmd.ForwardMove = 127;
 					userCmd.RightMove = 127;
+					lastStrafeAngleWasRightward = true;
 				}
-				else
+				else //if(rightWards && directionChangeThresholdReached || !lastStrafeAngleWasRightward)
 				{
 					userCmd.ForwardMove = 0;
 					userCmd.RightMove = -128;
+					lastStrafeAngleWasRightward = false;
 				}
 				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
 				return secondaryStrafeOption ? delta2 : delta1;
@@ -1576,15 +1587,17 @@ namespace JKWatcher
 			{
 				// On ground
 				// Use WD/WA
-				if (!rightWards)
+				if (!rightWards && directionChangeThresholdReached || lastStrafeAngleWasRightward && !directionChangeThresholdReached)
 				{
 					userCmd.ForwardMove = 127;
 					userCmd.RightMove = 127;
+					lastStrafeAngleWasRightward = true;
 				}
 				else
 				{
 					userCmd.ForwardMove = 127;
 					userCmd.RightMove = -128;
+					lastStrafeAngleWasRightward = false;
 				}
 				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
 				return secondaryStrafeOption ? delta2 : delta1;

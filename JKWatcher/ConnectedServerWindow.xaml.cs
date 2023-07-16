@@ -151,6 +151,7 @@ namespace JKWatcher
             public bool attachClientNumToName { get; set; } = true;
             public bool demoTimeColorNames { get; set; } = true;
             public bool silentMode { get; set; } = false;
+            public bool noBotIgnore { get; set; } = false;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
 

@@ -1742,6 +1742,7 @@ findHighestScore:
                 oldMapName = obj.MapName;
             }
 
+            currentGameType = obj.GameType;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
             // Check for referencedPaks

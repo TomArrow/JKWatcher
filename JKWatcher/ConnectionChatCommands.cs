@@ -464,6 +464,11 @@ namespace JKWatcher
                         case "!iamscared":
                         case "!imscared":
                             if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (_connectionOptions.noBotIgnore)
+                            {
+                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                return;
+                            }
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
@@ -517,6 +522,11 @@ namespace JKWatcher
                         case "!iamveryscared":
                         case "!imveryscared":
                             if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (_connectionOptions.noBotIgnore)
+                            {
+                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                return;
+                            }
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
@@ -553,6 +563,11 @@ namespace JKWatcher
                         case "!iambrave":
                         case "!imbrave":
                             if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (_connectionOptions.noBotIgnore)
+                            {
+                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                return;
+                            }
                             if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
                             {
                                 switch (getNiceRandom(0, 3))
