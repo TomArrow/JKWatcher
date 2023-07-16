@@ -1285,6 +1285,13 @@ namespace JKWatcher
                     infoPool.playerInfo[targetNum].lastDrainedEvent = DateTime.Now;
                 }
             }
+            else if (e.EventType == ClientGame.EntityEvent.Jump)
+            {
+                if(e.Entity.CurrentState.Number == ClientNum)
+                {
+                    jumpReleasedThisJump = false;
+                }
+            }
             // Todo: look into various sound events that are broarcast to everyone, also global item pickup,
             // then we immediately know who's carrying the flag
         }
@@ -1344,6 +1351,8 @@ namespace JKWatcher
         private Snapshot lastSnapshot = new Snapshot();
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
+
+        public DateTime? lastAnyPositionOrAngleChange; // Last time the player position or angle changed
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
@@ -1411,6 +1420,7 @@ namespace JKWatcher
                     )
                     {
                         infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
+                        lastAnyPositionOrAngleChange = DateTime.Now;
                     }
                     infoPool.playerInfo[i].position.X = snap.PlayerState.Origin[0];
                     infoPool.playerInfo[i].position.Y = snap.PlayerState.Origin[1];
@@ -1483,6 +1493,7 @@ namespace JKWatcher
                     )
                     {
                         infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
+                        lastAnyPositionOrAngleChange = DateTime.Now;
                     }
                     infoPool.playerInfo[i].position.X = snap.Entities[snapEntityNum].Position.Base[0];
                     infoPool.playerInfo[i].position.Y = snap.Entities[snapEntityNum].Position.Base[1];
@@ -1653,8 +1664,9 @@ namespace JKWatcher
             }
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
+            bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && spectatedPlayerIsBot && !onlyBotsActive))) // Not following anyone. Let's follow someone.
+            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && ((spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk)))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
@@ -1662,7 +1674,7 @@ namespace JKWatcher
 findHighestScore:
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
-                    if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)))
+                    if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) && (!playerIsVeryAfk(player.clientNum,false)|| (spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
                     {
                         highestScore = player.score.score;
                         highestScorePlayer = player.clientNum;
@@ -1679,6 +1691,14 @@ findHighestScore:
         private bool playerIsLikelyBot(int clientNumber)
         {
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (infoPool.playerInfo[clientNumber].confirmedBot || !infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
+        }
+        private bool playerIsVeryAfk(int clientNumber, bool followed = false)
+        {
+            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
+                (
+                (infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.HasValue && (DateTime.Now-infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.Value).TotalMinutes > 60)
+                || (followed && lastAnyPositionOrAngleChange.HasValue && (DateTime.Now-lastAnyPositionOrAngleChange.Value).TotalMinutes > 5)
+                );
         }
 
         private void OnServerInfoChanged(ServerInfo obj)

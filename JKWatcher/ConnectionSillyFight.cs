@@ -182,6 +182,9 @@ namespace JKWatcher
 		private long pendingCalmSays = 0;
 
 		float moveSpeedMultiplier = 1.0f;
+		bool jumpReleasedThisJump = false;
+		bool lastFrameWasAir = false;
+		DateTime lastTimeInAir = DateTime.Now;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
 		{
 
@@ -579,11 +582,62 @@ namespace JKWatcher
 
 			moveSpeedMultiplier = 1.0f;
 
+			bool strafe = true;
+			bool amStrafing = false;
+			float strafeAngleYawDelta = 0.0f;
+
 			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
             {
-				moveVector = wayPointsToWalk[0].origin - myself.position;
-				if(wayPointsToWalk[0].origin.Z > (myself.position.Z+myMin+16) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
+                if (false && strafe && sillyMode != SillyMode.SILLY)
                 {
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, ref amStrafing);
+					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myself.position;
+					float targetAngle = vectoyaw(targetDirection);
+					float velocityAngle = vectoyaw(myself.velocity);
+					float angleDiff = AngleSubtract(targetAngle, velocityAngle);
+					bool rightWards = angleDiff >= 0;
+					bool bigAngleChange = Math.Abs(angleDiff) > 5;
+					moveVector = myself.velocity;
+					// Choose strafe method first. 
+					if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+                    {
+                        // In air
+                        // Use WD/A scheme
+                        if (!rightWards)
+                        {
+							userCmd.ForwardMove = 127;
+							userCmd.RightMove = 127;
+                        }
+                        else
+                        {
+							userCmd.ForwardMove = 0;
+							userCmd.RightMove = -128;
+						}
+						(strafeAngleYawDelta,_) = calculateStrafeAngleDelta(in userCmd);
+
+                    } else
+                    {
+						// On ground
+						// Use WD/WA
+						if (!rightWards)
+						{
+							userCmd.ForwardMove = 127;
+							userCmd.RightMove = 127;
+						}
+						else
+						{
+							userCmd.ForwardMove = 127;
+							userCmd.RightMove = -128;
+						}
+						(strafeAngleYawDelta, _) = calculateStrafeAngleDelta(in userCmd);
+					}*/
+				}
+                else
+                {
+					moveVector = wayPointsToWalk[0].origin - myself.position;
+				}
+				if (wayPointsToWalk[0].origin.Z > (myself.position.Z + myMin + 16) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
+				{
 					mustJumpToReachWayPoint = true;
 				}
 			}
@@ -597,7 +651,7 @@ namespace JKWatcher
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
-			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
@@ -646,7 +700,13 @@ namespace JKWatcher
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
 				// Do a simplified thing.
 				// Just predict his position in 1 second and move there.
-				moveVector = (closestPlayer.position + closestPlayer.velocity) - myself.position;
+				if(strafe && !dbsPossible)
+                {
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayer.position + closestPlayer.velocity, myself, ref moveVector, ref userCmd, ref amStrafing);
+				} else
+                {
+					moveVector = (closestPlayer.position + closestPlayer.velocity) - myself.position;
+				}
 			} else
             {
 				Vector2 moveVector2d = new Vector2();
@@ -655,12 +715,13 @@ namespace JKWatcher
 				// Remember that the dotProduct is the minimum speed we must have in his direction.
 				bool foundSolution = false;
 				float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
+				Vector2 interceptPos = new Vector2();
 				for(float interceptTime=0.1f; interceptTime < 10.0f; interceptTime+= 0.1f)
                 {
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
 					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ pingInSeconds);
-					Vector2 interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
+					interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
 					moveVector2d = (interceptPos - myPosition2D);
 					if (moveVector2d.Length() <= mySpeed * interceptTime)
 					{
@@ -671,12 +732,25 @@ namespace JKWatcher
 				}
                 if (!foundSolution)
                 {
-					// Sad. ok just fall back to the usual.
-					moveVector = (closestPlayer.position + closestPlayer.velocity) - myself.position;
+					Vector3 targetPos = closestPlayer.position + closestPlayer.velocity;
+                    // Sad. ok just fall back to the usual.
+                    if (strafe && !dbsPossible)
+                    {
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, ref amStrafing);
+					} else
+                    {
+						moveVector = targetPos - myself.position;
+                    }
                 }
                 else
                 {
-					moveVector = new Vector3() { X= moveVector2d.X, Y= moveVector2d.Y, Z=moveVector.Z};
+					if(strafe && !dbsPossible)
+					{
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayer.position.Z }, myself, ref moveVector, ref userCmd, ref amStrafing);
+					} else
+                    {
+						moveVector = new Vector3() { X = moveVector2d.X, Y = moveVector2d.Y, Z = moveVector.Z };
+					}
                 }
             }
 
@@ -689,6 +763,11 @@ namespace JKWatcher
 			vectoangles(moveVector, ref angles);
 			float yawAngle = angles.Y - this.delta_angles.Y;
 			float pitchAngle = angles.X - this.delta_angles.X;
+            if (amStrafing)
+			{
+				yawAngle -= strafeAngleYawDelta;
+            }
+
             if (mustJumpToReachWayPoint)
             {
 				userCmd.Upmove = 127;
@@ -767,10 +846,13 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS,SillyMode.ABSORBSPEED))
+			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS,SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED))
             {
-				
-				userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+
+                if (!amStrafing)
+                {
+					userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+				}
 				
 				// For lightside, this doesn't need to be part of the general if-else statements because we can still do other stuff while activating absorb
 				if((amGripped || amBeingDrained || closestDistance < 128+50) && !amInAbsorb && isLightsideMode && lastPlayerState.forceData.ForcePower > 10) // If gripped, drained or within 128 of pulling range... absorb
@@ -937,8 +1019,33 @@ namespace JKWatcher
 				
 			}
 			
+			// Light side stuff
+			if (sillyMode == SillyMode.MINDTRICKSPEED)
+			{
+				if (userCmd.GenericCmd == 0) // Other stuff has priority.
+				{
+					if (!amInSpeed && lastPlayerState.forceData.ForcePower >= 50 && closestDistance < 700)
+					{
+						// Go Speed
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+					}
+					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInMindTrick || closestDistance > 700))
+					{
+						// Disable speed unless in rage
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+					} else if (!amInMindTrick && lastPlayerState.forceData.ForcePower > 0 && closestDistance < 700)
+                    {
+						// Enable mindtrick
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_DISTRACT;
+					}  else if (amInMindTrick && !amInSpeed && closestDistance > 700)
+                    {
+						// Enable mindtrick
+						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_DISTRACT;
+					} 
+				}
+			}
 			// Conservative speed usage.
-			if (sillyMode == SillyMode.ABSORBSPEED  || sillyMode == SillyMode.MINDTRICKSPEED)
+			else if (sillyMode == SillyMode.ABSORBSPEED)
 			{
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
@@ -947,15 +1054,15 @@ namespace JKWatcher
 						// Go Speed
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
 					}
-					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700))
+					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInAbsorb || closestDistance > 700))
 					{
-						// Disable speed unless in rage
+						// Disable speed unless in absorb
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
 					} else if (!amInSpeed && closestDistance > 500 && amInAbsorb)
                     {
 						// Disable absorb
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_ABSORB;
-					}
+					} 
 				}
 			}
 			// Conservative speed usage.
@@ -1033,6 +1140,8 @@ namespace JKWatcher
 				lastNavigationJump = DateTime.Now;
 			}
 
+
+
 			if (amGripping)
 			{
 				if (canUseNonRageSpeedPowers)
@@ -1085,6 +1194,39 @@ namespace JKWatcher
 
 			}
 
+            if (amStrafing)
+            {
+				if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+				{
+					// In air
+					if (!lastFrameWasAir) jumpReleasedThisJump = false;
+
+					if (userCmd.Upmove == 0)
+                    {
+						if (!jumpReleasedThisJump) // Gotta interrupt the initial sstage of the jump, but then hit jump again so it hits when we land
+						{
+							userCmd.Upmove = 0;
+							jumpReleasedThisJump = true;
+						}
+						else
+						{
+							userCmd.Upmove = 127;
+						}
+					} else if(userCmd.Upmove < 0)
+                    {
+						jumpReleasedThisJump = true;
+					}
+					lastTimeInAir = DateTime.Now;
+				}
+				else
+				{
+					if(userCmd.Upmove == 0 && (DateTime.Now - lastTimeInAir).TotalMilliseconds > (lastSnapshot.ping+100)) // Stuff can fuck up sometimes with detecting that we jumped
+                    {
+						userCmd.Upmove = 127;
+					}
+				}
+			}
+
 			userCmd.Weapon = (byte)infoPool.saberWeaponNum;
 
 			userCmd.Angles[YAW] = Angle2Short(yawAngle);
@@ -1097,6 +1239,7 @@ namespace JKWatcher
 			sillyMoveLastSnapNum = lastSnapNum;
 			lastUserCmdTime = userCmd.ServerTime;
 			previousSaberHolstered = lastPlayerState.SaberHolstered;
+			lastFrameWasAir = lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1;
 		}
 
 
@@ -1222,6 +1365,230 @@ namespace JKWatcher
 			angles.X = -pitch;
 			angles.Y = yaw;
 			angles.Z = 0;
+		}
+
+
+		// UserCommand input is for the movement dirs.
+		// 2 float values are angle diff values. for WA/WD both are same. for A/D its backwards or forwards. for W its 2 variations (left/ right?)
+		unsafe (float,float) calculateStrafeAngleDelta(in UserCommand cmd)
+		{ // Handles entitystate and playerstate
+
+			int movementDir;
+			int groundEntityNum;
+			float baseSpeed;
+			movementDir = lastPlayerState.MovementDirection;
+			groundEntityNum = lastPlayerState.GroundEntityNum;
+			baseSpeed = lastPlayerState.Speed;
+
+			Vector3 viewAngles = new Vector3() { X=lastPlayerState.ViewAngles[0] ,Y= lastPlayerState.ViewAngles[1] ,Z= lastPlayerState.ViewAngles[2] };
+			Vector3 velocity = new Vector3() { X = lastPlayerState.Velocity[0], Y = lastPlayerState.Velocity[1], Z = lastPlayerState.Velocity[2] };
+			/*else if constexpr(std::is_same < T, entityState_t >::value) {
+				movementDir = ((entityState_t*)state)->angles2.Y;
+				groundEntityNum = ((entityState_t*)state)->groundEntityNum;
+				baseSpeed = ((entityState_t*)state)->speed;
+				VectorCopy(((entityState_t*)state)->apos.trBase, viewAngles);
+				VectorCopy(((entityState_t*)state)->pos.trDelta, velocity);
+			}*/
+
+			float pmAccel = 10.0f, pmAirAccel = 1.0f, pmFriction = 6.0f, frametime, optimalDeltaAngle;
+
+			float currentSpeed = (float)Math.Sqrt(velocity.X * velocity.X + velocity.Y * velocity.Y);
+
+			/*UserCommand cmd = new UserCommand();
+
+			switch (movementDir)
+			{
+				case 0: // W
+					cmd.ForwardMove = 1; break;
+				case 1: // WA
+					cmd.ForwardMove = 1; cmd.RightMove = -1; break;
+				case 2: // A
+					cmd.RightMove = -1; break;
+				case 3: // AS
+					cmd.RightMove = -1; cmd.ForwardMove = -1; break;
+				case 4: // S
+					cmd.ForwardMove = -1; break;
+				case 5: // SD
+					cmd.ForwardMove = -1; cmd.RightMove = 1; break;
+				case 6: // D
+					cmd.RightMove = 1; break;
+				case 7: // DW
+					cmd.RightMove = 1; cmd.ForwardMove = 1; break;
+				default:
+					break;
+			}*/
+
+			bool onGround = groundEntityNum == Common.MaxGEntities-2; //sadly predictedPlayerState makes it jerky so need to use cg.snap groundentityNum, and check for cg.snap earlier
+
+			if (currentSpeed < (baseSpeed - 1))
+			{ // Dunno why
+				return (float.PositiveInfinity, float.PositiveInfinity);
+			}
+
+			frametime = 0.001f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			/*if (cg_strafeHelper_FPS.value < 1)
+				frametime = ((float)cg.frametime * 0.001f);
+			else if (cg_strafeHelper_FPS.value > 1000) // invalid
+				frametime = 1;
+			else frametime = 1 / cg_strafeHelper_FPS.value;*/
+
+			if (onGround)//On ground
+				optimalDeltaAngle = (float)Math.Acos(((baseSpeed - (pmAccel * baseSpeed * frametime)) / (currentSpeed * (1 - pmFriction * (frametime))))) * (180.0f / (float)Math.PI) - 45.0f;
+			else
+				optimalDeltaAngle = (float)Math.Acos(((baseSpeed - (pmAirAccel * baseSpeed * frametime)) / currentSpeed)) * (180.0f / (float) Math.PI) - 45.0f;
+
+			if (float.IsNaN(optimalDeltaAngle))
+			{ // It happens sometimes I guess...
+				return (float.PositiveInfinity, float.PositiveInfinity);
+			}
+
+			if (optimalDeltaAngle < 0 || optimalDeltaAngle > 360)
+				optimalDeltaAngle = 0;
+
+			Vector3 velocityAngle = new Vector3();
+			velocity.Z = 0;
+			vectoangles(velocity, ref velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
+
+			//float cg_strafeHelperOffset = 75; // dunno why or what huh
+			float cg_strafeHelperOffset = 0; // dunno why or what huh
+
+			float diff = float.PositiveInfinity;
+			float diff2 = float.PositiveInfinity;
+			bool anyActive = false;
+			//float smallestAngleDiff = float.PositiveInfinity;
+			if (cmd.ForwardMove > 0 && cmd.RightMove < 0)
+			{
+				diff = diff2 = (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f)); // WA
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+				anyActive = true;
+			}
+			if (cmd.ForwardMove > 0 && cmd.RightMove > 0)
+			{
+				diff = diff2 = (-optimalDeltaAngle - (cg_strafeHelperOffset * 0.01f)); // WD
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+				anyActive = true;
+			}
+			if (cmd.ForwardMove == 0 && cmd.RightMove < 0)
+			{
+				anyActive = true;
+				// Forwards
+				diff = -(45.0f - (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // A
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+				// Backwards
+				diff2 = (225.0f - (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // A
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+			}
+			if (cmd.ForwardMove == 0 && cmd.RightMove > 0)
+			{
+				anyActive = true;
+				// Forwards
+				diff = (45.0f - (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // D
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+				// Backwards
+				diff2 = (135.0f + (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // D
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+			}
+
+			if (cmd.ForwardMove > 0 && cmd.RightMove == 0)
+			{
+				anyActive = true;
+				// Variation 1
+				diff = (45.0f + (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // W
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+				// Variation 2
+				diff2 = (-45.0f - (optimalDeltaAngle + (cg_strafeHelperOffset * 0.01f))); // W
+				//smallestAngleDiff = Math.Min(smallestAngleDiff, Math.Abs(AngleSubtract(viewAngles.Y, velocityAngle.Y + diff)));
+			}
+
+
+			if (!anyActive)
+			{
+				return (float.PositiveInfinity, float.PositiveInfinity); ;
+			}
+			else
+			{
+				return (diff,diff2);
+			}
+
+
+
+		}
+		float AngleSubtract(float a1, float a2)
+		{
+			float a;
+
+			a = a1 - a2;
+
+			// Improved variant. Same results for most values but it's more correct for extremely high values (and more performant as well I guess)
+			// The reason I do this: Some demos end up having (or being read as having) nonsensically high  float values.
+			// This results in the old code entering an endless loop because subtracting 360 no longer does  anything  to float  values that are that  high.
+			//a = fmodf(a, 360.0f);
+			a = a % 360.0f;
+			if (a > 180)
+			{
+				a -= 360;
+			}
+			if (a < -180)
+			{
+				a += 360;
+			}
+			return a;
+		}
+
+		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
+		{
+			Vector3 targetDirection = targetPoint - myself.position;
+			float targetAngle = vectoyaw(targetDirection);
+			float velocityAngle = vectoyaw(myself.velocity);
+			float angleDiff = AngleSubtract(targetAngle, velocityAngle);
+			bool rightWards = angleDiff >= 0;
+			bool bigAngleChange = Math.Abs(angleDiff) > 10;
+			if (bigAngleChange)
+			{
+				amStrafing = false;
+				moveVector = targetPoint - myself.position;
+				return 0;
+			}
+
+			amStrafing = true;
+
+			moveVector = myself.velocity;
+			// Choose strafe method first. 
+			if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+			{
+				// In air
+				// Use WD/A scheme
+				if (!rightWards)
+				{
+					userCmd.ForwardMove = 127;
+					userCmd.RightMove = 127;
+				}
+				else
+				{
+					userCmd.ForwardMove = 0;
+					userCmd.RightMove = -128;
+				}
+				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
+				return secondaryStrafeOption ? delta2 : delta1;
+
+			}
+			else
+			{
+				// On ground
+				// Use WD/WA
+				if (!rightWards)
+				{
+					userCmd.ForwardMove = 127;
+					userCmd.RightMove = 127;
+				}
+				else
+				{
+					userCmd.ForwardMove = 127;
+					userCmd.RightMove = -128;
+				}
+				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
+				return secondaryStrafeOption ? delta2 : delta1;
+			}
 		}
 	}
 }

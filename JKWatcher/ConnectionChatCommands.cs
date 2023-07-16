@@ -590,7 +590,8 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection || pm.type == ChatType.PRIVATE) return;
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,speedabsorb", true, true, true);
+                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
+                                MemeRequest(pm, "speedabsorb, assassin", true, true, true);
                             } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin" }).Contains(stringParams[1].ToLower()))
                             {
                                 MemeRequest(pm, $"Unknown mode {stringParams[1]}", true, true, true);
