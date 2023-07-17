@@ -144,7 +144,8 @@ namespace JKWatcher
                     || (*input >= 59 && *input < 60)
                     || (*input == 61)
                     || (*input >= 64 && *input < 92)
-                    || (*input >= 93 && *input < 124)
+                    || (*input >= 93 && *input < 96) // Don't allow `. Linux doesn't like that either, at least not in shell scripts.
+                    || (*input >= 97 && *input < 124)
                     || (*input >= 125 && *input < 127)
                     )
                 {
