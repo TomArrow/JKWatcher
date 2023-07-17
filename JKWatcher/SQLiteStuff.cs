@@ -47,7 +47,7 @@ namespace JKWatcher
 			MapperConfiguration configuration = new MapperConfiguration(cfg =>
 			{
 				//cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=>string.Join(',',src.Players)));
-				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=> JsonSerializer.Serialize(src.Players,null)));
+				cfg.CreateMap<JKClient.ServerInfo, ServerInfoPublic>().ForMember(a=>a.Players,m=>m.MapFrom(src=> JsonSerializer.Serialize(src.Players,(JsonSerializerOptions?) null)));
 			});
 #if DEBUG
 			configuration.AssertConfigurationIsValid();

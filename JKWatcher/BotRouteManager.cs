@@ -269,7 +269,8 @@ namespace JKWatcher
                     Directory.CreateDirectory(botroutesFolder);
                     Directory.CreateDirectory(convertedBotroutesFolder);
                     string[] botrouteFiles = Directory.GetFiles(botroutesFolder, "*.wnt");
-                    foreach(string botrouteFile in botrouteFiles)
+                    ParallelOptions po = new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount/2};
+                    Parallel.ForEach(botrouteFiles, po, (string botrouteFile) =>
                     {
                         string basename = Path.GetFileNameWithoutExtension(botrouteFile);
                         string convertedPath = Path.Combine(convertedBotroutesFolder, basename + ".sddi"); // sddi = shortest dijkstra distance info
@@ -277,7 +278,16 @@ namespace JKWatcher
                         {
                             GenerateSDDI(botrouteFile, convertedPath);
                         }
-                    }
+                    });
+                    /*foreach(string botrouteFile in botrouteFiles)
+                    {
+                        string basename = Path.GetFileNameWithoutExtension(botrouteFile);
+                        string convertedPath = Path.Combine(convertedBotroutesFolder, basename + ".sddi"); // sddi = shortest dijkstra distance info
+                        if (!File.Exists(convertedPath))
+                        {
+                            GenerateSDDI(botrouteFile, convertedPath);
+                        }
+                    }*/
                     Console.WriteLine($"{botrouteFiles.Length} botroutes initialized.");
                 }
 
