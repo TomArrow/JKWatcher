@@ -169,9 +169,9 @@ namespace JKWatcher
 
         public event UserCommandGeneratedEventHandler ClientUserCommandGenerated;
         public event Action<ServerInfo> ServerInfoChanged; // forward to the outside if desired
-        internal void OnClientUserCommandGenerated(ref UserCommand cmd)
+        internal void OnClientUserCommandGenerated(ref UserCommand cmd, in UserCommand previousCommand)
         {
-            this.ClientUserCommandGenerated?.Invoke(this, ref cmd);
+            this.ClientUserCommandGenerated?.Invoke(this, ref cmd, in previousCommand);
         }
 
         public JKClient.Statistics clientStatistics { get; private set; }
@@ -791,11 +791,11 @@ namespace JKWatcher
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
         // It also means we don't have to have watchers subscribe directly to the client because then that would break
         // when we get disconnected/reconnected etc.
-        private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand)
+        private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand)
         {
             if (amNotInSpec)
             {
-                DoSillyThings(ref modifiableCommand);
+                DoSillyThings(ref modifiableCommand, in previousCommand);
             } else
             {
                 if ((DateTime.Now - lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
@@ -818,7 +818,7 @@ namespace JKWatcher
                     lastWasClick = false;
                 }
             }
-            OnClientUserCommandGenerated(ref modifiableCommand);
+            OnClientUserCommandGenerated(ref modifiableCommand, in previousCommand);
         }
 
         int reconnectTriesCount = 0;
@@ -1289,7 +1289,8 @@ namespace JKWatcher
             {
                 if(e.Entity.CurrentState.Number == ClientNum)
                 {
-                    jumpReleasedThisJump = false;
+                    //jumpReleasedThisJump = false;
+                    countFramesJumpReleasedThisJump = 0;
                 }
             }
             // Todo: look into various sound events that are broarcast to everyone, also global item pickup,

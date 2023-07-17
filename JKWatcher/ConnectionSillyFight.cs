@@ -134,7 +134,7 @@ namespace JKWatcher
 
 		private bool oldIsDuelMode = false;
 
-		private void DoSillyThings(ref UserCommand userCmd)
+		private void DoSillyThings(ref UserCommand userCmd, in UserCommand previousCommand)
 		{
 			// Of course normally the priority is to get back in spec
 			// But sometimes it might not be possible, OR we might not want it (for silly reasons)
@@ -147,7 +147,7 @@ namespace JKWatcher
 					infoPool.sillyMode = isDuelMode ? SillyMode.SILLY : SillyMode.GRIPKICKDBS;
 					oldIsDuelMode = isDuelMode;
 				}
-				DoSillyThingsReal(ref userCmd, infoPool.sillyMode);
+				DoSillyThingsReal(ref userCmd, in previousCommand, infoPool.sillyMode);
 			}
 		}
 
@@ -183,10 +183,12 @@ namespace JKWatcher
 		private long pendingCalmSays = 0;
 
 		float moveSpeedMultiplier = 1.0f;
-		bool jumpReleasedThisJump = false;
+		//bool jumpReleasedThisJump = false;
 		bool lastFrameWasAir = false;
 		DateTime lastTimeInAir = DateTime.Now;
-		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, SillyMode sillyMode)
+		Vector3 lastFrameMyVelocity = new Vector3();
+		int countFramesJumpReleasedThisJump = 0;
+		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
 		{
 
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -592,7 +594,7 @@ namespace JKWatcher
             {
                 if (false && strafe && sillyMode != SillyMode.SILLY)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, in prevCmd, ref amStrafing);
 					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myself.position;
 					float targetAngle = vectoyaw(targetDirection);
 					float velocityAngle = vectoyaw(myself.velocity);
@@ -704,7 +706,7 @@ namespace JKWatcher
 				// Just predict his position in 1 second and move there.
 				if(strafe && !dbsPossible)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayer.position + closestPlayer.velocity, myself, ref moveVector, ref userCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayer.position + closestPlayer.velocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 				} else
                 {
 					moveVector = (closestPlayer.position + closestPlayer.velocity) - myself.position;
@@ -738,7 +740,7 @@ namespace JKWatcher
                     // Sad. ok just fall back to the usual.
                     if (strafe && !dbsPossible)
                     {
-						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, ref amStrafing);
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 					} else
                     {
 						moveVector = targetPos - myself.position;
@@ -748,7 +750,7 @@ namespace JKWatcher
                 {
 					if(strafe && !dbsPossible)
 					{
-						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayer.position.Z }, myself, ref moveVector, ref userCmd, ref amStrafing);
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayer.position.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 					} else
                     {
 						moveVector = new Vector3() { X = moveVector2d.X, Y = moveVector2d.Y, Z = moveVector.Z };
@@ -767,6 +769,7 @@ namespace JKWatcher
 			float pitchAngle = angles.X - this.delta_angles.X;
             if (amStrafing)
 			{
+				pitchAngle = 0 - this.delta_angles.X;
 				yawAngle += strafeAngleYawDelta;
             }
 
@@ -1198,34 +1201,38 @@ namespace JKWatcher
 
             if (amStrafing)
             {
+				bool canShouldJump = CheckStrafeJumpDirection(myself.velocity, /*strafeTarget*/moveVector, mySpeed);
 				if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
 				{
 					// In air
-					if (!lastFrameWasAir) jumpReleasedThisJump = false;
+					if (!lastFrameWasAir) countFramesJumpReleasedThisJump = 0;
+					if (myself.velocity.Z > 0 && lastFrameMyVelocity.Z <= 0) countFramesJumpReleasedThisJump = 0;
 
 					if (userCmd.Upmove == 0)
                     {
-						if (!jumpReleasedThisJump) // Gotta interrupt the initial sstage of the jump, but then hit jump again so it hits when we land
+						if (countFramesJumpReleasedThisJump < 2) // Gotta interrupt the initial sstage of the jump, but then hit jump again so it hits when we land
 						{
 							userCmd.Upmove = 0;
-							jumpReleasedThisJump = true;
+							countFramesJumpReleasedThisJump++;
 						}
-						else
+						else if(canShouldJump)
 						{
 							userCmd.Upmove = 127;
 						}
 					} else if(userCmd.Upmove < 0)
                     {
-						jumpReleasedThisJump = true;
+						//jumpReleasedThisJump = true;
+						countFramesJumpReleasedThisJump++;
 					}
 					lastTimeInAir = DateTime.Now;
 				}
 				else
 				{
-					if(userCmd.Upmove == 0 && (DateTime.Now - lastTimeInAir).TotalMilliseconds > (lastSnapshot.ping+100)) // Stuff can fuck up sometimes with detecting that we jumped
+					if(canShouldJump && userCmd.Upmove == 0 /*&& (DateTime.Now - lastTimeInAir).TotalMilliseconds > (lastSnapshot.ping+100)*/) // Stuff can fuck up sometimes with detecting that we jumped
                     {
 						userCmd.Upmove = 127;
 					}
+					countFramesJumpReleasedThisJump = 0;
 				}
 			}
 
@@ -1242,6 +1249,7 @@ namespace JKWatcher
 			lastUserCmdTime = userCmd.ServerTime;
 			previousSaberHolstered = lastPlayerState.SaberHolstered;
 			lastFrameWasAir = lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1;
+			lastFrameMyVelocity = myself.velocity;
 		}
 
 
@@ -1372,7 +1380,7 @@ namespace JKWatcher
 
 		// UserCommand input is for the movement dirs.
 		// 2 float values are angle diff values. for WA/WD both are same. for A/D its backwards or forwards. for W its 2 variations (left/ right?)
-		unsafe (float,float) calculateStrafeAngleDelta(in UserCommand cmd)
+		unsafe (float,float) calculateStrafeAngleDelta(in UserCommand cmd,int frametimeMs)
 		{ // Handles entitystate and playerstate
 
 			//int movementDir;
@@ -1431,7 +1439,8 @@ namespace JKWatcher
 
 			//frametime = 0.001f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
 			//frametime = 0.007f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
-			frametime = 0.07f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			//frametime = 0.07f;// / 142.0f; // Not sure what else I can do with a demo... TODO? 0.001 prevents invalid nan(ind) coming from acos when onground sometimes?
+			frametime = (float)frametimeMs/1000.0f;
 			/*if (cg_strafeHelper_FPS.value < 1)
 				frametime = ((float)cg.frametime * 0.001f);
 			else if (cg_strafeHelper_FPS.value > 1000) // invalid
@@ -1456,7 +1465,7 @@ namespace JKWatcher
 			//vectoangles(velocity, ref velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
 
 			//float cg_strafeHelperOffset = 75; // dunno why or what huh
-			float cg_strafeHelperOffset = 0; // dunno why or what huh
+			float cg_strafeHelperOffset = 150; // dunno why or what huh
 
 			float diff = float.PositiveInfinity;
 			float diff2 = float.PositiveInfinity;
@@ -1543,14 +1552,17 @@ namespace JKWatcher
 
 		bool lastStrafeAngleWasRightward = false;
 
-		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
+		Vector3 strafeTarget = new Vector3();
+
+		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, in UserCommand prevCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
 		{
+			strafeTarget = targetPoint;
 			Vector3 targetDirection = targetPoint - myself.position;
 			float targetAngle = vectoyaw(targetDirection);
 			float velocityAngle = vectoyaw(myself.velocity);
 			float angleDiff = AngleSubtract(targetAngle, velocityAngle);
 			bool rightWards = angleDiff > 0;
-            bool directionChangeThresholdReached = Math.Abs(angleDiff) > 20;
+            bool directionChangeThresholdReached = Math.Abs(angleDiff) > 5;
             bool bigAngleChange = Math.Abs(angleDiff) > 40;
 			if (bigAngleChange)
 			{
@@ -1579,7 +1591,11 @@ namespace JKWatcher
 					userCmd.RightMove = -128;
 					lastStrafeAngleWasRightward = false;
 				}
-				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
+				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd,userCmd.ServerTime-prevCmd.ServerTime);
+                if (float.IsInfinity(delta1) || float.IsInfinity(delta2)){
+					amStrafing = false;
+					return 0;
+                }
 				return secondaryStrafeOption ? delta2 : delta1;
 
 			}
@@ -1599,9 +1615,40 @@ namespace JKWatcher
 					userCmd.RightMove = -128;
 					lastStrafeAngleWasRightward = false;
 				}
-				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd);
+				(float delta1, float delta2) = calculateStrafeAngleDelta(in userCmd, userCmd.ServerTime - prevCmd.ServerTime);
+				if (float.IsInfinity(delta1) || float.IsInfinity(delta2))
+				{
+					amStrafing = false;
+					return 0;
+				}
 				return secondaryStrafeOption ? delta2 : delta1;
 			}
+		}
+
+		// MySpeed: means the ps.speed
+		// Comments are outdated as this is kinda copypasted from somewhere else
+		bool CheckStrafeJumpDirection(Vector3 myVelocity, Vector3 targetVector, float mySpeed/*, bool amInRageCoolDown, ref bool backflip*/)
+        {
+			Vector2 myVelocity2D = new Vector2() { X = myVelocity.X, Y = myVelocity.Y };
+			Vector2 moveVector2D = new Vector2() { X = targetVector.X, Y = targetVector.Y };
+			Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
+			float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
+			float myVelocity2DAbs = myVelocity2D.Length();
+			//float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
+			if (/*dot < maxSpeed &&*/ ((dot > mySpeed * 0.95f && dot > myVelocity2DAbs * 0.85f) )) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+			{
+				// Can jump
+				//backflip = false;
+				return true;
+			}
+			/*else if ((dot < 150 && !amInRageCoolDown && 150 < maxSpeed) || (dot < 110 && amInRageCoolDown && 110 < maxSpeed))
+			{
+				// We're slower than a backflip anyway.
+				// Do a backflip :). 150 is backflip speed.
+				backflip = true;
+				return true;
+			}*/
+			return false;
 		}
 	}
 }
