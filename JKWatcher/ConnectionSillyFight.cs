@@ -188,6 +188,7 @@ namespace JKWatcher
 		DateTime lastTimeInAir = DateTime.Now;
 		Vector3 lastFrameMyVelocity = new Vector3();
 		int countFramesJumpReleasedThisJump = 0;
+		bool findShortestBotPathWalkDistanceNext = false;
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
 		{
 
@@ -254,11 +255,12 @@ namespace JKWatcher
 					//wayPointsToWalk.Clear();
 				} else if (((DateTime.Now - lastTimeFastMove).TotalSeconds > 2 && wayPointsToWalk.Count == 0)|| (DateTime.Now - lastTimeFastMove).TotalSeconds > 4)
 				{
-					if(wayPointsToWalk.Count > 0)
-                    {
-						wayPointsToWalk.RemoveAt(0); // Remove this point for fun, see if it does us any good. 
-                    }
-                    else if(myself.groundEntityNum == Common.MaxGEntities - 2)
+					//if(wayPointsToWalk.Count > 0)
+                    //{
+					//	wayPointsToWalk.RemoveAt(0); // Remove this point for fun, see if it does us any good. 
+                   // }
+                    //else
+					if(myself.groundEntityNum == Common.MaxGEntities - 2)
                     {
 						// Ok. Let's go full crazy and find closest walk distance to player and make that our waypoints.
 						// We gotta do this rarely or else it will be computationally expensive.
@@ -271,9 +273,10 @@ namespace JKWatcher
 				lastTimeFastMove = DateTime.Now;
 			}
 
-            if ((DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities -2) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
+            if (findShortestBotPathWalkDistanceNext)
             {
 				findShortestBotPathWalkDistance = true;
+				findShortestBotPathWalkDistanceNext = false;
 			}
 			
 
@@ -416,7 +419,17 @@ namespace JKWatcher
 					closestWayPointPathAfk = null;
                 }
                 else if(myClosestWayPoint != null)
-                {
+				{
+					float totalWalkDistance = 0;
+					var path = this.pathFinder?.getLongestPathFrom(myClosestWayPoint, ref totalWalkDistance);
+					if (path != null)
+					{
+						wayPointsToWalk.Clear();
+						wayPointsToWalk.AddRange(path);
+						wayPointsToWalkLastUpdate = DateTime.Now;
+						closestWayPointPath = null;
+					}
+					/*
 					// Pick random point to walk to.
 					WayPoint randomWayPoint = this.pathFinder?.getRandomWayPoint();
 					if(randomWayPoint != null)
@@ -430,9 +443,14 @@ namespace JKWatcher
 							wayPointsToWalkLastUpdate = DateTime.Now;
 							closestWayPointPath = null;
 						}
-                    }
+                    }*/
 				}
             }
+
+			if (closestPlayer != null && (DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
+			{
+				findShortestBotPathWalkDistanceNext = true;
+			}
 
 			if (closestPlayer == null)
 			{
@@ -448,11 +466,13 @@ namespace JKWatcher
 						lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
 					}
 					closestPlayer = dummyPlayerInfo;
+					closestDistance = (dummyPlayerInfo.position - myself.position).Length();
 				}
 			} else if (closestDistance < 2000)
             {
 				lastTimeAnyPlayerSeen = DateTime.Now;
 			}
+
 
 			bool enemyLikelyOnSamePlane = closestDistance < 300 && Math.Abs(closestPlayer.position.Z - myself.position.Z) < 10.0f && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && closestPlayer.groundEntityNum == Common.MaxGEntities - 2;
 
@@ -542,23 +562,69 @@ namespace JKWatcher
 
 			bool doingGripDefense = false;
 
-			if(wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
+			bool hadWayPoints = wayPointsToWalk.Count > 0;
+			if (wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
 				if (enemyLikelyOnSamePlane || dbsPossible)
 				{
 					wayPointsToWalk.Clear();
 				}
 				// Remove points that we have already hit
-				while (wayPointsToWalk.Count > 0 && ((wayPointsToWalk[0].origin - myself.position).Length() > 500.0f || ((wayPointsToWalk[0].origin - myself.position).Length() < 32 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
+				while (wayPointsToWalk.Count > 0 && (/*(wayPointsToWalk[0].origin - myself.position).Length() > 500.0f ||*/ ((wayPointsToWalk[0].origin - myself.position).LengthXY() < 32 && (wayPointsToWalk[0].origin - myself.position).Length() < 96 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
 				{
 					wayPointsToWalk.RemoveAt(0);
 				}
-				while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myself.position.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
+				/*while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myself.position.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
 				{
 					// Check if we walked past the next point and are on our way to the following point.
 					// To make sure, check that on the line from this to next one, we are no more than 32 units removed from the line
 					wayPointsToWalk.RemoveAt(0);
+				}*/
+
+				// generalization of the above one, and for the future 5 points.
+				if (wayPointsToWalk.Count > 1)
+				{
+					// Check if we are on the line between some future points
+					int highestMatchIndex = 0;
+					int maxCount = Math.Min(5, wayPointsToWalk.Count);
+					for (int i = 1; i < maxCount; i++)
+					{
+						Debug.WriteLine($"{wayPointsToWalk.Count},{i}\n");
+						float distanceToLastWayPoint = (wayPointsToWalk[i].origin - wayPointsToWalk[i - 1].origin).Length();
+						if (myself.position.DistanceToLineXY(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 32 && // Horizontal distance to line < 32
+							myself.position.DistanceToLine(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 96 && // Total distance to line < 96 (max level 1 force jump height)
+							(wayPointsToWalk[i-1].origin.Z < (myself.position.Z + 1.0f) || wayPointsToWalk[i].origin.Z < (myself.position.Z + 1.0f)) && // previous or current waypoint is below us.
+							(wayPointsToWalk[i].origin-myself.position).Length() < distanceToLastWayPoint &&  // These two conditions combined mean we are somewhere between the two points
+							(wayPointsToWalk[i-1].origin-myself.position).Length() < distanceToLastWayPoint)
+                        {
+							highestMatchIndex = i;
+
+						}
+					}
+					if (highestMatchIndex > 0)
+					{
+						wayPointsToWalk.RemoveRange(0, highestMatchIndex);
+					}
 				}
+
+				if (wayPointsToWalk.Count > 1 && !movingVerySlowly)
+				{
+					// If some future point is on the same line and we're heading that direction, remove intermediate points
+					// Basically: Optimize straight lines for better strafing
+                    if (wayPointsToWalk[0].origin.Z < (myself.position.Z + 30.0f) &&
+						wayPointsToWalk[0].origin.DistanceToLineXY(myself.position, myself.position + myself.velocity) < 32 && wayPointsToWalk[0].origin.DistanceToLine(myself.position, myself.position + myself.velocity) < 96.0f && // I'm heading towards the next waypoint
+						myself.position.DistanceToLineXY(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 32 && myself.position.DistanceToLine(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 96 // Next path segment is pointing at me
+						)
+                    {
+						int index = 2;
+                        while (wayPointsToWalk.Count > index && wayPointsToWalk[index].origin.DistanceToLine(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 32)
+                        {
+							index++;
+                        }
+						wayPointsToWalk.RemoveRange(0, index-1);
+					}
+				}
+
 				// This is bad: what if we need to walk around a corner and the points on the other side are closer?
 				/*if (wayPointsToWalk.Count > 1)
 				{
@@ -581,6 +647,10 @@ namespace JKWatcher
 					}
 				}*/
 			}
+			if(hadWayPoints && wayPointsToWalk.Count == 0 && closestDistance > 500)
+            {
+				findShortestBotPathWalkDistanceNext = true; // continue walking around
+            }
 
 			bool mustJumpToReachWayPoint = false;
 
@@ -592,7 +662,7 @@ namespace JKWatcher
 
 			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
             {
-                if (false && strafe && sillyMode != SillyMode.SILLY)
+                if (strafe && sillyMode != SillyMode.SILLY)
                 {
 					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, in prevCmd, ref amStrafing);
 					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myself.position;
@@ -1562,9 +1632,10 @@ namespace JKWatcher
 			float velocityAngle = vectoyaw(myself.velocity);
 			float angleDiff = AngleSubtract(targetAngle, velocityAngle);
 			bool rightWards = angleDiff > 0;
-            bool directionChangeThresholdReached = Math.Abs(angleDiff) > 5;
-            bool bigAngleChange = Math.Abs(angleDiff) > 40;
-			if (bigAngleChange)
+			float maxAllowedAngleDiff = Math.Min(70f, (float)Math.Pow(targetDirection.Length(),0.6f)*0.5f);
+			bool directionChangeThresholdReached = Math.Abs(angleDiff) > Math.Min(maxAllowedAngleDiff*0.5f,5);
+			bool bigAngleChange = Math.Abs(angleDiff) > maxAllowedAngleDiff;//> 40;
+			if (bigAngleChange || myself.velocity.LengthXY() < 50)
 			{
 				amStrafing = false;
 				moveVector = targetPoint - myself.position;

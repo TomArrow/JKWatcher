@@ -54,20 +54,38 @@ namespace JKWatcher
 
     static class Helpers
     {
-        public static float DistanceToLineSlow(this Vector3 point, Vector3 linePoint1, Vector3 linePoint2)
+        public static float DistanceToLineSlow(this in Vector3 point, in Vector3 linePoint1, in Vector3 linePoint2)
         {
             Vector3 P1toPoint = linePoint2 - point;
             Vector3 P1ToP2 = linePoint2 - linePoint1;
 
             return Math.Abs(Vector3.Dot(Vector3.Normalize(Vector3.Cross(Vector3.Cross(P1toPoint, P1ToP2), P1ToP2)), P1toPoint));
         }
-        public static float DistanceToLine(this Vector3 point, Vector3 linePoint1, Vector3 linePoint2)
+        public static float DistanceToLine(this in Vector3 point, in Vector3 linePoint1, in Vector3 linePoint2)
         {
 
             Vector3 P1toPoint = linePoint2 - point;
             Vector3 P1ToP2 = linePoint2 - linePoint1;
 
             return Vector3.Cross(P1toPoint, P1ToP2).Length() / P1ToP2.Length();
+        }
+
+        // Z-coordinate is nulled. For horizontal distance to a line only in q3/jk2 coordinates
+        public static float DistanceToLineXY(this in Vector3 point, in Vector3 linePoint1, in Vector3 linePoint2)
+        {
+            Vector3 P1toPoint = linePoint2 - point;
+            Vector3 P1ToP2 = linePoint2 - linePoint1;
+
+            P1toPoint.Z = 0;
+            P1ToP2.Z = 0;
+
+            return Vector3.Cross(P1toPoint, P1ToP2).Length() / P1ToP2.Length();
+        }
+
+        public static float LengthXY( this in Vector3 vector){
+            Vector3 copy = vector;
+            copy.Z = 0;
+            return copy.Length();
         }
 
         public static bool IsSpaceChar(this char character)

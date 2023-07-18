@@ -185,6 +185,73 @@ namespace JKWatcher
                 }
             }
         }
+        
+        public WayPoint[] getLongestPathFrom(WayPoint wp1, ref float totalDistance,bool includeFirstLast= true)
+        {
+            lock (stateMutex)
+            {
+                lastAccess = DateTime.Now;
+                if (loading || !loadable)
+                {
+                    return null;
+                }
+                else if (!loaded && !loading && loadable)
+                {
+                    loading = true;
+                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    return null;
+                } else if(loaded && paths != null && wayPoints != null)
+                {
+                    int pathsSize = paths.GetLength(0);
+
+                    if (pathsSize > wp1.number && pathsSize == paths.GetLength(1) && pathsSize == wayPoints.Length)
+                    {
+                        float longestPathDist = 0;
+                        WayPointPath longestPath = null;
+                        int longestPathEndPoint = -1;
+                        for(int to=0;to<pathsSize;to++)
+                        {
+                            if (paths[wp1.number,to].totalDistance > longestPathDist)
+                            {
+                                longestPathDist = paths[wp1.number, to].totalDistance;
+                                longestPath = paths[wp1.number, to];
+                                longestPathEndPoint = to;
+                            }
+                        }
+                        if (longestPath != null)
+                        {
+                            List<WayPoint> wayPointsOfPath = new List<WayPoint>();
+                            if (includeFirstLast)
+                            {
+                                wayPointsOfPath.Add(wp1);
+                            }
+                            foreach (ushort pathElementNum in longestPath.pathElements)
+                            {
+                                wayPointsOfPath.Add(wayPoints[pathElementNum]);
+                            }
+                            if (includeFirstLast)
+                            {
+                                wayPointsOfPath.Add(wayPoints[longestPathEndPoint]);
+                            }
+                            totalDistance = longestPath.totalDistance;
+                            return wayPointsOfPath.ToArray();
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;// idk
+                }
+            }
+        }
 
         public void ForceLoad()
         {
