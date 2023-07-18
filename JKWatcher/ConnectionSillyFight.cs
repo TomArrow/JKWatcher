@@ -190,7 +190,58 @@ namespace JKWatcher
 		int countFramesJumpReleasedThisJump = 0;
 		bool findShortestBotPathWalkDistanceNext = false;
 		float approximateStrafeJumpAirtimeInSeconds = 225f * 2f / 800f; // 225 is JUMP_VELOCITY, 800 is g_gravity
-		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
+
+		int ourLastAttacker = -1;
+		int ourLastHitCount = -1;
+
+		#region stuckdetection
+		Vector3 stuckDetectReferencePos = new Vector3();
+		int stuckDetectCounter = 0;
+		const float stuckDetectAntiStuckCooldownTime = 3000; // time before waypoints can be interrupted again after stuck detected
+		const float stuckDetectTimeIncrement = 500;
+		const float stuckDetectDistanceThreshold = 100;
+		DateTime lastStuckDetectCheck = DateTime.Now;
+		DateTime lastStuckDetected = DateTime.Now;
+		private void stuckDetectReset(Vector3 currentPos)
+        {
+			stuckDetectCounter = 0;
+			lastStuckDetectCheck = DateTime.Now;
+			stuckDetectReferencePos = currentPos;
+		}
+		private bool areWeInAntiStuckCooldown()
+        {
+			return (DateTime.Now - lastStuckDetected).TotalMilliseconds < stuckDetectAntiStuckCooldownTime;
+		}
+		private bool areWeStuck(Vector3 ourPos)
+        {
+			if((DateTime.Now- lastStuckDetectCheck).TotalMilliseconds > stuckDetectTimeIncrement)
+            {
+                if ((ourPos - stuckDetectReferencePos).Length() > stuckDetectDistanceThreshold)
+                {
+					stuckDetectReset(ourPos);
+					return false;
+				}
+                else
+                {
+					stuckDetectCounter++;
+					if(stuckDetectCounter > 10) // basically 5 seconds
+                    {
+						lastStuckDetected = DateTime.Now;
+						return true;
+                    }
+                    else
+                    {
+						return false;
+                    }
+				}
+            } else
+            {
+				return false;
+            }
+        }
+        #endregion
+
+        private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
 		{
 
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -207,7 +258,11 @@ namespace JKWatcher
 			float closestWayPointBotPathAfkDistance = float.PositiveInfinity;
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
 
-			
+			if (ourLastAttacker != lastPlayerState.Persistant[6] || ourLastHitCount != lastPlayerState.Persistant[1])
+			{
+				// Disable stuck detection during fights
+				stuckDetectReset(myself.position);
+			}
 
 			if (calmSayQueue.Count > 0 || Interlocked.Read(ref pendingCalmSays) > 0)
 			{
@@ -274,6 +329,7 @@ namespace JKWatcher
 				lastTimeFastMove = DateTime.Now;
 			}
 
+
             if (findShortestBotPathWalkDistanceNext)
             {
 				findShortestBotPathWalkDistance = true;
@@ -313,6 +369,14 @@ namespace JKWatcher
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 
 			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,(movingVerySlowly && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(3, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null;
+
+			if (!findShortestBotPathWalkDistance && !amInAttack)
+			{
+				if (areWeStuck(myself.position))
+				{
+					findShortestBotPathWalkDistance = true;
+				}
+			}
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -567,7 +631,7 @@ namespace JKWatcher
 			float nextSharpTurnOrEnd = float.PositiveInfinity;
 			if (wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
-				if (enemyLikelyOnSamePlane || dbsPossible)
+				if ((enemyLikelyOnSamePlane || dbsPossible) && !areWeInAntiStuckCooldown())
 				{
 					wayPointsToWalk.Clear();
 				}
@@ -1383,6 +1447,8 @@ namespace JKWatcher
 			previousSaberHolstered = lastPlayerState.SaberHolstered;
 			lastFrameWasAir = lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1;
 			lastFrameMyVelocity = myself.velocity;
+			ourLastAttacker = lastPlayerState.Persistant[6];
+			ourLastHitCount = lastPlayerState.Persistant[1];
 		}
 
 
