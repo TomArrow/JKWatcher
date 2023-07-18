@@ -92,7 +92,7 @@ namespace JKWatcher
             }
         }
 
-        public WayPoint findClosestWayPoint(Vector3 position, IEnumerable<WayPoint> wayPointsToSkip, bool allowSearchUp, float maxDistance = 300)
+        public WayPoint findClosestWayPoint(Vector3 position, IEnumerable<WayPoint> wayPointsToSkip, bool allowSearchUp, float maxDistance = 600)
         {
             lock (stateMutex)
             {
@@ -109,7 +109,7 @@ namespace JKWatcher
                 } else if(loaded && wayPoints != null)
                 {
                     float verticalSearchScopeDown = 30.0f;
-                    float verticalSearchScopeUp = 5.0f;
+                    float verticalSearchScopeUp = 15.0f;
                     WayPoint closestWayPoint = null;
                     float closestDistance = float.PositiveInfinity;
                     while (closestWayPoint == null && verticalSearchScopeDown < 70.0f)

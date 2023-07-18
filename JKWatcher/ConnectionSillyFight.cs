@@ -599,6 +599,9 @@ namespace JKWatcher
 							{
 								weAreOverjumping = true; // TODO: Blue uppercut? hm
 								break; // We will overjump, so don't remove this point.
+							} else
+                            {
+								wayPointsToWalk.RemoveAt(0);
 							}
 						}
                     }
