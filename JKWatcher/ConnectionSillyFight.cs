@@ -189,6 +189,7 @@ namespace JKWatcher
 		Vector3 lastFrameMyVelocity = new Vector3();
 		int countFramesJumpReleasedThisJump = 0;
 		bool findShortestBotPathWalkDistanceNext = false;
+		float approximateStrafeJumpAirtimeInSeconds = 225f * 2f / 800f; // 225 is JUMP_VELOCITY, 800 is g_gravity
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
 		{
 
@@ -562,17 +563,50 @@ namespace JKWatcher
 
 			bool doingGripDefense = false;
 
-			bool hadWayPoints = wayPointsToWalk.Count > 0;
+			bool hadWayPoints = false;
+			float nextSharpTurnOrEnd = float.PositiveInfinity;
 			if (wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
 				if (enemyLikelyOnSamePlane || dbsPossible)
 				{
 					wayPointsToWalk.Clear();
 				}
+
+				hadWayPoints = wayPointsToWalk.Count > 0;
+				if (wayPointsToWalk.Count > 0 && (wayPointsToWalk[0].origin - myself.position).LengthXY() < 32 && wayPointsToWalk[0].origin.Z<myself.position.Z-64 && lastPlayerState.GroundEntityNum == Common.MaxGEntities-2)
+                {
+					// Special case: We have reached the waypoint horizontally but we are way above it and we are standing on ground. We likely got lost/stuck.
+					wayPointsToWalk.Clear();
+				}
+
+				bool weAreOverjumping = false;
 				// Remove points that we have already hit
 				while (wayPointsToWalk.Count > 0 && (/*(wayPointsToWalk[0].origin - myself.position).Length() > 500.0f ||*/ ((wayPointsToWalk[0].origin - myself.position).LengthXY() < 32 && (wayPointsToWalk[0].origin - myself.position).Length() < 96 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
 				{
-					wayPointsToWalk.RemoveAt(0);
+					// Check if we are going the right angle or overjumping
+					if(lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+                    {
+						// We are in air. Will we overjump?
+						if(wayPointsToWalk.Count == 1)
+                        {
+							// Don't care then, whatever.
+							wayPointsToWalk.RemoveAt(0);
+                        }
+                        else
+                        {
+							Vector3 nextWpToNextAfterWpVector = wayPointsToWalk[1].origin - wayPointsToWalk[0].origin;
+							if (Math.Abs(AngleSubtract(vectoyaw(myself.velocity), vectoyaw(nextWpToNextAfterWpVector))) > 25)
+							{
+								weAreOverjumping = true; // TODO: Blue uppercut? hm
+								break; // We will overjump, so don't remove this point.
+							}
+						}
+                    }
+                    else
+                    {
+						// We are standing, no worries then
+						wayPointsToWalk.RemoveAt(0);
+					}
 				}
 				/*while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myself.position.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
 				{
@@ -582,7 +616,7 @@ namespace JKWatcher
 				}*/
 
 				// generalization of the above one, and for the future 5 points.
-				if (wayPointsToWalk.Count > 1)
+				if (!weAreOverjumping && wayPointsToWalk.Count > 1)
 				{
 					// Check if we are on the line between some future points
 					int highestMatchIndex = 0;
@@ -607,7 +641,7 @@ namespace JKWatcher
 					}
 				}
 
-				if (wayPointsToWalk.Count > 1 && !movingVerySlowly)
+				if (!weAreOverjumping && wayPointsToWalk.Count > 1 && !movingVerySlowly)
 				{
 					// If some future point is on the same line and we're heading that direction, remove intermediate points
 					// Basically: Optimize straight lines for better strafing
@@ -623,6 +657,20 @@ namespace JKWatcher
                         }
 						wayPointsToWalk.RemoveRange(0, index-1);
 					}
+				}
+
+				// Check if next segment is a sharp turn.
+				if (wayPointsToWalk.Count > 1)
+				{
+					Vector3 meToNextWPVector = wayPointsToWalk[0].origin - myself.position;
+					Vector3 nextWpToNextAfterWpVector = wayPointsToWalk[1].origin - wayPointsToWalk[0].origin;
+                    if (Math.Abs(AngleSubtract(vectoyaw(meToNextWPVector), vectoyaw(nextWpToNextAfterWpVector))) > 25){
+						nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).Length();
+					}
+
+				} else if (wayPointsToWalk.Count == 1)
+                {
+					nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).Length();
 				}
 
 				// This is bad: what if we need to walk around a corner and the points on the other side are closer?
@@ -1212,6 +1260,7 @@ namespace JKWatcher
 				// TODO: Also do high jumps. 
 				userCmd.Upmove = 127; // Just do a lil jump to get over obstacles
 				userCmd.ForwardMove = 0;
+				userCmd.RightMove = 0;
 				lastNavigationJump = DateTime.Now;
 			}
 
@@ -1238,6 +1287,7 @@ namespace JKWatcher
 
 			if (lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
             {
+				wayPointsToWalk.Clear(); // When dead, always clear waypoints.
 				if (sillyAttack)
 				{
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
@@ -1271,7 +1321,17 @@ namespace JKWatcher
 
             if (amStrafing)
             {
-				bool canShouldJump = CheckStrafeJumpDirection(myself.velocity, /*strafeTarget*/moveVector, mySpeed);
+				bool wouldOverjump = false;
+				if(Vector3.Dot(Vector3.Normalize(strafeTarget-myself.position), approximateStrafeJumpAirtimeInSeconds * myself.velocity) > nextSharpTurnOrEnd + 32)
+                {
+					wouldOverjump = true;
+				} 
+				//if((approximateStrafeJumpAirtimeInSeconds*myself.velocity).Length() > nextSharpTurnOrEnd + 32)
+                //{
+					// Would overjump
+					//wouldOverjump = true;
+				//}
+				bool canShouldJump = !wouldOverjump && CheckStrafeJumpDirection(myself.velocity, /*strafeTarget*/moveVector, mySpeed);
 				if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
 				{
 					// In air
