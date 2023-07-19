@@ -223,6 +223,7 @@ namespace JKWatcher
 				}
                 else
                 {
+					lastStuckDetectCheck = DateTime.Now;
 					stuckDetectCounter++;
 					if(stuckDetectCounter > 10) // basically 5 seconds
                     {
