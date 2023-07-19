@@ -199,7 +199,7 @@ namespace JKWatcher
 		int stuckDetectCounter = 0;
 		const float stuckDetectAntiStuckCooldownTime = 3000; // time before waypoints can be interrupted again after stuck detected
 		const float stuckDetectTimeIncrement = 500;
-		const float stuckDetectDistanceThreshold = 100;
+		const float stuckDetectDistanceThreshold = 200;
 		DateTime lastStuckDetectCheck = DateTime.Now;
 		DateTime lastStuckDetected = DateTime.Now;
 		private void stuckDetectReset(Vector3 currentPos)
@@ -237,7 +237,7 @@ namespace JKWatcher
 				}
             } else
             {
-				return false;
+				return stuckDetectCounter > 10;
             }
         }
         #endregion
@@ -369,15 +369,19 @@ namespace JKWatcher
 
 			bool amInAttack = lastPlayerState.SaberMove > 3;
 
-			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,(movingVerySlowly && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(3, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null;
 
+			bool weAreStuck = false;
 			if (!findShortestBotPathWalkDistance && !amInAttack)
 			{
-				if (areWeStuck(myself.position))
+				if (weAreStuck = areWeStuck(myself.position))
 				{
 					findShortestBotPathWalkDistance = true;
 				}
 			}
+
+			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,((movingVerySlowly|| weAreStuck) && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(10, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null;
+
+
 
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
