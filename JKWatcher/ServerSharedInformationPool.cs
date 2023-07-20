@@ -50,11 +50,13 @@ namespace JKWatcher
         public float maxDbsSpeed;
         public int kickDeaths;
         public int falls;
+        public int doomkills;
         public int totalKills;
         public int totalDeaths;
         public bool fightBotIgnore;
         public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;
+        public DateTime onlineSince;
     }
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
@@ -72,6 +74,7 @@ namespace JKWatcher
         public float speed;
         public int groundEntityNum;
         public int torsoAnim;
+        public bool knockedDown;
         public int legsAnim;
         public bool duelInProgress;
         public int saberMove;

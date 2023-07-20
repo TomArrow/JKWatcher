@@ -307,7 +307,8 @@ namespace JKWatcher
                         case "memes":
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette !who", true, true, true, true);
+                            MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
+                            MemeRequest(pm, "!who !weaklegs !doomer", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -411,6 +412,51 @@ namespace JKWatcher
                                 int randomPlayer = PickRandomPlayer(maxClientsHere);
                                 if (randomPlayer == -1) return;
                                 MemeRequest(pm, $"{infoPool.playerInfo[randomPlayer].name} {demoNoteString}", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!weaklegs":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            double highestFallsPerMinute = 0;
+                            PlayerInfo highestFallsPlayer = null;
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                double fallsPerMinute = (double)pi.chatCommandTrackingStuff.falls / (DateTime.Now - pi.chatCommandTrackingStuff.onlineSince).TotalMinutes;
+                                if (fallsPerMinute > highestFallsPerMinute)
+                                {
+                                    highestFallsPerMinute = fallsPerMinute;
+                                    highestFallsPlayer = pi;
+                                }
+                            }
+                            if(highestFallsPlayer == null)
+                            {
+                                MemeRequest(pm, $"Haven't seen anyone fall today.", true, true, true);
+                            }
+                            else
+                            {
+                                MemeRequest(pm, $"{highestFallsPlayer.name} has the weakest legs with {highestFallsPerMinute.ToString("0.##")} falls per minute.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!doomer":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            int mostDooms = 0;
+                            PlayerInfo mostDoomsPlayer = null;
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                if (pi.chatCommandTrackingStuff.doomkills > mostDooms)
+                                {
+                                    mostDooms = pi.chatCommandTrackingStuff.doomkills;
+                                    mostDoomsPlayer = pi;
+                                }
+                            }
+                            if(mostDoomsPlayer == null)
+                            {
+                                MemeRequest(pm, $"Haven't seen any dooms yet.", true, true, true);
+                            }
+                            else
+                            {
+                                MemeRequest(pm, $"{mostDoomsPlayer.name} is the biggest doomer with {mostDooms} dooms.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;

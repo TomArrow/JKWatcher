@@ -212,9 +212,10 @@ namespace JKWatcher
         {
 			return (DateTime.Now - lastStuckDetected).TotalMilliseconds < stuckDetectAntiStuckCooldownTime;
 		}
-		private bool areWeStuck(Vector3 ourPos)
+		private bool areWeStuck(Vector3 ourPos, ref bool veryStuck)
         {
-			if((DateTime.Now- lastStuckDetectCheck).TotalMilliseconds > stuckDetectTimeIncrement)
+			veryStuck = stuckDetectCounter > 35;
+			if ((DateTime.Now- lastStuckDetectCheck).TotalMilliseconds > stuckDetectTimeIncrement)
             {
                 if ((ourPos - stuckDetectReferencePos).Length() > stuckDetectDistanceThreshold)
                 {
@@ -240,6 +241,9 @@ namespace JKWatcher
 				return stuckDetectCounter > 10;
             }
         }
+		DateTime lastStuckDetectReset = DateTime.Now;
+		bool stuckDetectRandomDirectionSet = false;
+		Vector3 veryStuckRandomDirection = new Vector3();
         #endregion
 
         private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
@@ -371,15 +375,29 @@ namespace JKWatcher
 
 
 			bool weAreStuck = false;
+			bool weAreVeryStuck = false;
 			if (!findShortestBotPathWalkDistance && !amInAttack)
 			{
-				if (weAreStuck = areWeStuck(myself.position))
+				if (weAreStuck = areWeStuck(myself.position, ref weAreVeryStuck) && (DateTime.Now- lastStuckDetectReset).TotalMilliseconds > 4000) // give it 4 seconds before resetting again or we will end up resetting every frame which makes the waypoint discarding concept useless...
 				{
-					findShortestBotPathWalkDistance = true;
+                    if (weAreVeryStuck)
+                    {
+						veryStuckRandomDirection.X = getNiceRandom(0, 1000);
+						veryStuckRandomDirection.Y = getNiceRandom(0, 1000);
+						veryStuckRandomDirection = Vector3.Normalize(veryStuckRandomDirection) * 1000.0f;
+						stuckDetectRandomDirectionSet = true;
+						wayPointsToWalk.Clear();
+					}
+                    else
+                    {
+						findShortestBotPathWalkDistance = true;
+						stuckDetectRandomDirectionSet = false;
+					}
+					lastStuckDetectReset = DateTime.Now;
 				}
 			}
 
-			WayPoint myClosestWayPoint = this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,((movingVerySlowly|| weAreStuck) && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(10, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null;
+			WayPoint myClosestWayPoint = findShortestBotPathWalkDistance ? ( this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,((movingVerySlowly|| weAreStuck) && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(10, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null) : null;
 
 
 
@@ -737,12 +755,12 @@ namespace JKWatcher
 					Vector3 meToNextWPVector = wayPointsToWalk[0].origin - myself.position;
 					Vector3 nextWpToNextAfterWpVector = wayPointsToWalk[1].origin - wayPointsToWalk[0].origin;
                     if (Math.Abs(AngleSubtract(vectoyaw(meToNextWPVector), vectoyaw(nextWpToNextAfterWpVector))) > 25){
-						nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).Length();
+						nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).LengthXY();
 					}
 
 				} else if (wayPointsToWalk.Count == 1)
                 {
-					nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).Length();
+					nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).LengthXY();
 				}
 
 				// This is bad: what if we need to walk around a corner and the points on the other side are closer?
@@ -780,7 +798,18 @@ namespace JKWatcher
 			bool amStrafing = false;
 			float strafeAngleYawDelta = 0.0f;
 
-			if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
+			if (stuckDetectRandomDirectionSet && (DateTime.Now - lastStuckDetectReset).TotalMilliseconds < 4000)
+			{
+                if (strafe && sillyMode != SillyMode.SILLY)
+                {
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(veryStuckRandomDirection+myself.position, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+				}
+                else
+                {
+					moveVector = veryStuckRandomDirection;
+				}
+			}
+			else if (!enemyLikelyOnSamePlane && wayPointsToWalk.Count > 0)
             {
                 if (strafe && sillyMode != SillyMode.SILLY)
                 {
