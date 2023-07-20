@@ -10,13 +10,13 @@ using System.Windows.Threading;
 
 namespace JKWatcher
 {
-    interface ConnectionProvider
+    public interface ConnectionProvider
     {
         public Connection[] getUnboundConnections(int count);
         public bool requestConnectionDestruction(Connection conn);
     }
 
-    abstract class CameraOperator : INotifyPropertyChanged
+    public abstract class CameraOperator : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -50,7 +50,8 @@ namespace JKWatcher
                     {
                         foreach(Connection conn in connections)
                         {
-                            conn.CameraOperator = index;
+                            //conn.CameraOperator = index;
+                            conn.CameraOperator = this;
                         }
                     }
                 }
@@ -77,7 +78,8 @@ namespace JKWatcher
             connections.AddRange(connectionsA);
             foreach (Connection conn in connections) // Todo what if it gets updated?
             {
-                conn.CameraOperator = index;
+                //conn.CameraOperator = index;
+                conn.CameraOperator = this;
             }
         }
 
@@ -109,7 +111,8 @@ namespace JKWatcher
                 connections.AddRange(newConns);
                 foreach (Connection conn in connections) // Todo what if it gets updated?
                 {
-                    conn.CameraOperator = index;
+                    //conn.CameraOperator = index;
+                    conn.CameraOperator = this;
                     conn.startDemoRecord(); // TODO Make this more elegant. Optional or sth. To be checked in the server connection window. But this is safe at least.
                 }
                 return true;

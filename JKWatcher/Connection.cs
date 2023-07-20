@@ -185,7 +185,8 @@ namespace JKWatcher
         public int? SpectatedPlayer { get; set; } = null;
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
         public int? Index { get; set; } = null;
-        public int? CameraOperator { get; set; } = null;
+        //public int? CameraOperator { get; set; } = null;
+        public CameraOperator CameraOperator { get; set; } = null;
 
         private bool trulyDisconnected = true; // If we disconnected manually we want to stay disconnected.
 
@@ -1654,7 +1655,7 @@ namespace JKWatcher
                 }
             }
 
-            bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+            bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
             if (amNotInSpec) // Maybe in the future I will
             {
@@ -1688,7 +1689,7 @@ namespace JKWatcher
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (!this.CameraOperator.HasValue && ((spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk)))) // Not following anyone. Let's follow someone.
+            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (this.CameraOperator == null && ((spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk)))) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;

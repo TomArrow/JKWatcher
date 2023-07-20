@@ -164,7 +164,7 @@
                     <DataGridTextColumn Header="Rec" Binding="{Binding isRecordingADemo}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Status" Binding="{Binding Status}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Snaps" Binding="{Binding SnapStatus}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator}" Width="50"></DataGridTextColumn>
+                    <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator.Index}" Width="50"></DataGridTextColumn>
                     <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Speed" Binding="{Binding Speed}"></DataGridTextColumn>

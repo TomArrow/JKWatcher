@@ -139,7 +139,7 @@ namespace JKWatcher
 			// Of course normally the priority is to get back in spec
 			// But sometimes it might not be possible, OR we might not want it (for silly reasons)
 			// So as long as we aren't in spec, let's do silly things.
-			bool isSillyCameraOperator = this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+			bool isSillyCameraOperator = /*this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator*/ this.CameraOperator is CameraOperators.SillyCameraOperator;
 			if (isDuelMode || isSillyCameraOperator)
 			{
 				if(isDuelMode != oldIsDuelMode || infoPool.sillyMode == SillyMode.NONE) // If gametype changes or if not set yet.

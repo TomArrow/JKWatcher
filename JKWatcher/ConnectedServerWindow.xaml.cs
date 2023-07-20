@@ -414,7 +414,7 @@ namespace JKWatcher
                 {
                     for (int i = 0; i < connections.Count; i++)
                     {
-                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.StrobeCameraOperator))
+                        if (!mainConnectionFound /* && connections[i].CameraOperator != null&& connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.StrobeCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.StrobeCameraOperator)
                         {
 
                             connections[i].IsMainChatConnection = true;
@@ -428,7 +428,7 @@ namespace JKWatcher
                 {
                     for (int i = 0; i < connections.Count; i++)
                     {
-                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SillyCameraOperator))
+                        if (!mainConnectionFound/* && connections[i].CameraOperator != null  && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SillyCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.SillyCameraOperator)
                         {
 
                             connections[i].IsMainChatConnection = true;
@@ -442,7 +442,7 @@ namespace JKWatcher
                 {
                     for (int i = 0; i < connections.Count; i++)
                     {
-                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SpectatorCameraOperator))
+                        if (!mainConnectionFound /*&& connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.SpectatorCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.SpectatorCameraOperator)
                         {
 
                             connections[i].IsMainChatConnection = true;
@@ -456,7 +456,7 @@ namespace JKWatcher
                 {
                     for (int i = 0; i < connections.Count; i++)
                     {
-                        if (!mainConnectionFound && connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator))
+                        if (!mainConnectionFound /*&& connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.OCDCameraOperator)
                         {
 
                             connections[i].IsMainChatConnection = true;
@@ -496,7 +496,8 @@ namespace JKWatcher
 
         internal CameraOperator getCameraOperatorOfConnection(Connection conn)
         {
-            lock (connectionsCameraOperatorsMutex)
+            return conn.CameraOperator;
+            /*lock (connectionsCameraOperatorsMutex)
             {
                 if (conn.CameraOperator.HasValue)
                 {
@@ -508,7 +509,7 @@ namespace JKWatcher
                 }
                 
             }
-            return null;
+            return null;*/
         }
 
         public bool clientNumIsJKWatcherInstance(int clientNum)
