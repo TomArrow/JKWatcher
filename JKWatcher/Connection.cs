@@ -1067,6 +1067,12 @@ namespace JKWatcher
                 infoPool.playerInfo[target].lastPositionUpdate = DateTime.Now;
                 string targetName = infoPool.playerInfo[target].name;
 
+
+                if (this.IsMainChatConnection && MeansOfDeath.MOD_FALLING == mod && attacker!=target && attacker>=0 && attacker< client.ClientHandler.MaxClients)
+                {
+                    infoPool.playerInfo[attacker].chatCommandTrackingStuff.doomkills++;
+                }
+
                 string killString = null;
                 bool generic = false;
                 switch (mod)
@@ -1403,10 +1409,16 @@ namespace JKWatcher
             int ETItem = jkaMode ? (int)JKAStuff.entityType_t.ET_ITEM : (int)JOStuff.entityType_t.ET_ITEM;
             //int EFBounceHalf = jkaMode ? 0 : (int)JOStuff.EntityFlags.EF_BOUNCE_HALF; // ?!?!
 
+            int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
+            int knockDownUpper = jkaMode ? -2 : 848;
+
             amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
 
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
+
+                bool oldKnockedDown = infoPool.playerInfo[i].knockedDown;
+                
                 int snapEntityNum = snapEntityMapping[i];
                 if(snapEntityNum == -1 && i == snap.PlayerState.ClientNum)
                 {
@@ -1542,6 +1554,15 @@ namespace JKWatcher
                         infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = false;
                     }
+                }
+
+                int currentLegsAnim = infoPool.playerInfo[i].legsAnim & ~2048;
+                int currentTorsoAnim = infoPool.playerInfo[i].torsoAnim & ~2048;
+                infoPool.playerInfo[i].knockedDown = (currentLegsAnim >= knockDownLower && currentLegsAnim <= knockDownUpper) || (currentTorsoAnim >= knockDownLower && currentTorsoAnim <= knockDownUpper);
+
+                if (infoPool.playerInfo[i].knockedDown && !oldKnockedDown)
+                {
+                    infoPool.playerInfo[i].chatCommandTrackingStuff.falls++;
                 }
             }
 
@@ -1901,7 +1922,7 @@ findHighestScore:
                             infoPool.killTrackers[i, p] = new KillTracker();
                             infoPool.killTrackers[p, i] = new KillTracker();
                         }
-                        infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+                        infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince=DateTime.Now};
                     }
 
                     // Connection based
