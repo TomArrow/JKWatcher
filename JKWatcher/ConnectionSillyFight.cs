@@ -195,7 +195,68 @@ namespace JKWatcher
 		int ourLastHitCount = -1;
 
 		#region stuckdetection
-		Vector3 stuckDetectReferencePos = new Vector3();
+		class StuckDetector
+        {
+
+			Vector3 stuckDetectReferencePos = new Vector3();
+			int stuckDetectCounter = 0;
+			//float stuckDetectAntiStuckCooldownTime = 3000; // time before waypoints can be interrupted again after stuck detected
+			float stuckDetectTimeIncrement = 500;
+			float stuckDetectDistanceThreshold = 100;
+			int stuckDetectSmallThreshold = 10;
+			int stuckDetectBigThreshold = 10;
+			DateTime lastStuckDetectCheck = DateTime.Now;
+			DateTime lastStuckDetected = DateTime.Now;
+			public StuckDetector(/*float stuckDetectAntiStuckCooldownTimeA = 3000,*/ float stuckDetectTimeIncrementA = 500, float stuckDetectDistanceThresholdA = 100, int stuckDetectSmallThresholdA=10, int stuckDetectBigThresholdA=35)
+            {
+				//stuckDetectAntiStuckCooldownTime = stuckDetectAntiStuckCooldownTimeA;
+				stuckDetectTimeIncrement = stuckDetectTimeIncrementA;
+				stuckDetectDistanceThreshold = stuckDetectDistanceThresholdA;
+				stuckDetectSmallThreshold = stuckDetectSmallThresholdA;
+				stuckDetectBigThreshold = stuckDetectBigThresholdA;
+			}
+			public void stuckDetectReset(Vector3 currentPos)
+			{
+				stuckDetectCounter = 0;
+				lastStuckDetectCheck = DateTime.Now;
+				stuckDetectReferencePos = currentPos;
+			}
+			/*public bool areWeInAntiStuckCooldown()
+			{
+				return (DateTime.Now - lastStuckDetected).TotalMilliseconds < stuckDetectAntiStuckCooldownTime;
+			}*/
+			public bool areWeStuck(Vector3 ourPos, ref bool veryStuck)
+			{
+				veryStuck = stuckDetectCounter > stuckDetectBigThreshold;
+				if ((DateTime.Now - lastStuckDetectCheck).TotalMilliseconds > stuckDetectTimeIncrement)
+				{
+					if ((ourPos - stuckDetectReferencePos).Length() > stuckDetectDistanceThreshold)
+					{
+						stuckDetectReset(ourPos);
+						return false;
+					}
+					else
+					{
+						lastStuckDetectCheck = DateTime.Now;
+						stuckDetectCounter++;
+						if (stuckDetectCounter > stuckDetectSmallThreshold) // basically 5 seconds
+						{
+							lastStuckDetected = DateTime.Now;
+							return true;
+						}
+						else
+						{
+							return false;
+						}
+					}
+				}
+				else
+				{
+					return stuckDetectCounter > stuckDetectSmallThreshold;
+				}
+			}
+		}
+		/*Vector3 stuckDetectReferencePos = new Vector3();
 		int stuckDetectCounter = 0;
 		const float stuckDetectAntiStuckCooldownTime = 3000; // time before waypoints can be interrupted again after stuck detected
 		const float stuckDetectTimeIncrement = 500;
@@ -240,7 +301,9 @@ namespace JKWatcher
             {
 				return stuckDetectCounter > 10;
             }
-        }
+        }*/
+		readonly StuckDetector smallRangeStuckDetector = new StuckDetector();
+		readonly StuckDetector bigRangeStuckDetector = new StuckDetector(500,500,120,240); // Sometimes we get stuck in weird ways where we walk back and forth longer distances. We can't detect this short term because we would get lots of false positives. So instead we must be staying within same 500 unit radius for more than ~1 minute to trigger this one. Not a nice solution, but it will do.
 		DateTime lastStuckDetectReset = DateTime.Now;
 		bool stuckDetectRandomDirectionSet = false;
 		Vector3 veryStuckRandomDirection = new Vector3();
@@ -266,7 +329,9 @@ namespace JKWatcher
 			if (ourLastAttacker != lastPlayerState.Persistant[6] || ourLastHitCount != lastPlayerState.Persistant[1])
 			{
 				// Disable stuck detection during fights
-				stuckDetectReset(myself.position);
+				//stuckDetectReset(myself.position);
+				smallRangeStuckDetector.stuckDetectReset(myself.position);
+				bigRangeStuckDetector.stuckDetectReset(myself.position);
 			}
 
 			if (calmSayQueue.Count > 0 || Interlocked.Read(ref pendingCalmSays) > 0)
@@ -378,14 +443,18 @@ namespace JKWatcher
 			bool weAreVeryStuck = false;
 			if (!findShortestBotPathWalkDistance && !amInAttack)
 			{
-				if (weAreStuck = areWeStuck(myself.position, ref weAreVeryStuck) && (DateTime.Now- lastStuckDetectReset).TotalMilliseconds > 4000) // give it 4 seconds before resetting again or we will end up resetting every frame which makes the waypoint discarding concept useless...
+				bool tmp = false;
+				weAreStuck = smallRangeStuckDetector.areWeStuck(myself.position, ref weAreVeryStuck) || bigRangeStuckDetector.areWeStuck(myself.position, ref tmp);
+				weAreVeryStuck = weAreVeryStuck || tmp;
+				if (weAreStuck && (DateTime.Now- lastStuckDetectReset).TotalMilliseconds > 4000) // give it 4 seconds before resetting again or we will end up resetting every frame which makes the waypoint discarding concept useless...
 				{
                     if (weAreVeryStuck)
                     {
-						veryStuckRandomDirection.X = getNiceRandom(0, 1000);
-						veryStuckRandomDirection.Y = getNiceRandom(0, 1000);
+						veryStuckRandomDirection.X = getNiceRandom(-1000, 1000);
+						veryStuckRandomDirection.Y = getNiceRandom(-1000, 1000);
 						veryStuckRandomDirection = Vector3.Normalize(veryStuckRandomDirection) * 1000.0f;
 						stuckDetectRandomDirectionSet = true;
+						findShortestBotPathWalkDistance = false;
 						wayPointsToWalk.Clear();
 					}
                     else
@@ -535,7 +604,7 @@ namespace JKWatcher
 				}
             }
 
-			if (closestPlayer != null && (DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 5 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
+			if (closestPlayer != null && (DateTime.Now - wayPointsToWalkLastUpdate).TotalSeconds > 2.5 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2) // It's a bit time limited to prevent too much computational power being wasted 100s of times per second.
 			{
 				findShortestBotPathWalkDistanceNext = true;
 			}
@@ -654,7 +723,8 @@ namespace JKWatcher
 			float nextSharpTurnOrEnd = float.PositiveInfinity;
 			if (wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
-				if ((enemyLikelyOnSamePlane || dbsPossible) && !areWeInAntiStuckCooldown())
+				bool inAntiStuckCooldown = (DateTime.Now-lastStuckDetectReset).TotalMilliseconds < 3000 && !stuckDetectRandomDirectionSet;
+				if ((enemyLikelyOnSamePlane || dbsPossible) && !inAntiStuckCooldown)
 				{
 					wayPointsToWalk.Clear();
 				}
