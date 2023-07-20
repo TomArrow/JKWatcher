@@ -199,7 +199,7 @@ namespace JKWatcher
 		int stuckDetectCounter = 0;
 		const float stuckDetectAntiStuckCooldownTime = 3000; // time before waypoints can be interrupted again after stuck detected
 		const float stuckDetectTimeIncrement = 500;
-		const float stuckDetectDistanceThreshold = 200;
+		const float stuckDetectDistanceThreshold = 100;
 		DateTime lastStuckDetectCheck = DateTime.Now;
 		DateTime lastStuckDetected = DateTime.Now;
 		private void stuckDetectReset(Vector3 currentPos)
@@ -699,7 +699,7 @@ namespace JKWatcher
 						float distanceToLastWayPoint = (wayPointsToWalk[i].origin - wayPointsToWalk[i - 1].origin).Length();
 						if (myself.position.DistanceToLineXY(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 32 && // Horizontal distance to line < 32
 							myself.position.DistanceToLine(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 96 && // Total distance to line < 96 (max level 1 force jump height)
-							(wayPointsToWalk[i-1].origin.Z < (myself.position.Z + 1.0f) || wayPointsToWalk[i].origin.Z < (myself.position.Z + 1.0f)) && // previous or current waypoint is below us.
+							(/*wayPointsToWalk[i-1].origin.Z < (myself.position.Z + 1.0f) ||*/ wayPointsToWalk[i].origin.Z < (myself.position.Z + 1.0f)) && // previous or current waypoint is below us.
 							(wayPointsToWalk[i].origin-myself.position).Length() < distanceToLastWayPoint &&  // These two conditions combined mean we are somewhere between the two points
 							(wayPointsToWalk[i-1].origin-myself.position).Length() < distanceToLastWayPoint)
                         {
@@ -830,8 +830,15 @@ namespace JKWatcher
                 {
 					moveVector = wayPointsToWalk[0].origin - myself.position;
 				}
-				if (wayPointsToWalk[0].origin.Z > (myself.position.Z + myMin + 16) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
+				if (lastPlayerState.GroundEntityNum!=Common.MaxGEntities-1 && (wayPointsToWalk[0].origin.Z > (myself.position.Z + myMin + 16)) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
 				{
+					if (CheckWaypointJumpDirection(myself.velocity, /*strafeTarget*/moveVector, mySpeed))
+                    {
+						mustJumpToReachWayPoint = true;
+					}
+				} else if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1 && myself.velocity.Z > 0 && (wayPointsToWalk[0].origin.Z > (myself.position.Z-20.0f)))
+				{
+					// Already in air. Jump a bit higher than needed to get over potential obstacles.
 					mustJumpToReachWayPoint = true;
 				}
 			}
@@ -1840,12 +1847,39 @@ namespace JKWatcher
 			float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 			float myVelocity2DAbs = myVelocity2D.Length();
 			//float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
-			if (/*dot < maxSpeed &&*/ ((dot > mySpeed * 0.95f && dot > myVelocity2DAbs * 0.85f) )) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+			if (/*dot < maxSpeed &&*/ ((dot > mySpeed * 0.95f && dot > myVelocity2DAbs * 0.85f) )) // Make sure we are at least 85% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
 			{
 				// Can jump
 				//backflip = false;
 				return true;
 			}
+			/*else if ((dot < 150 && !amInRageCoolDown && 150 < maxSpeed) || (dot < 110 && amInRageCoolDown && 110 < maxSpeed))
+			{
+				// We're slower than a backflip anyway.
+				// Do a backflip :). 150 is backflip speed.
+				backflip = true;
+				return true;
+			}*/
+			return false;
+		}
+		
+		bool CheckWaypointJumpDirection(Vector3 myVelocity, Vector3 targetVector, float mySpeed/*, bool amInRageCoolDown, ref bool backflip*/)
+        {
+			Vector2 myVelocity2D = new Vector2() { X = myVelocity.X, Y = myVelocity.Y };
+			Vector2 moveVector2D = new Vector2() { X = targetVector.X, Y = targetVector.Y };
+			Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
+			float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
+			float myVelocity2DAbs = myVelocity2D.Length();
+			//float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
+			if (/*dot < maxSpeed &&*/ ((dot > mySpeed * 0.95f && dot > myVelocity2DAbs * 0.85f) )) // Make sure we are at least 85% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+			{
+				// Can jump
+				//backflip = false;
+				return true;
+			} else if (myVelocity2D.Length() < 0.001f)
+            {
+				return true; // We can try a jump standing still. If we're already close to a wall and can't get speed for example
+            }
 			/*else if ((dot < 150 && !amInRageCoolDown && 150 < maxSpeed) || (dot < 110 && amInRageCoolDown && 110 < maxSpeed))
 			{
 				// We're slower than a backflip anyway.
