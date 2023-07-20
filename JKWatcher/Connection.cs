@@ -1883,45 +1883,54 @@ findHighestScore:
             }
             bool noActivePlayers = true;
             bool anyNonBotActivePlayers = false;
-            for(int i = 0; i < client.ClientHandler.MaxClients; i++)
-            {
-                if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
+            lock (infoPoolResetStuffMutex) { // Try to make sure various connections don't get in conflict here since we are doing some resetting by comparing previouss and new values.
+                for(int i = 0; i < client.ClientHandler.MaxClients; i++)
                 {
-                    noActivePlayers = false;
-                }
-
-                infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
-
-                if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) { 
-                    // Client connected/disconnected. Reset some stats
-                    for(int p=0;p< client.ClientHandler.MaxClients; p++)
+                    if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                     {
-                        infoPool.killTrackers[i, p] = new KillTracker();
-                        infoPool.killTrackers[p, i] = new KillTracker();
+                        noActivePlayers = false;
                     }
-                    infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff();
-                }
 
-                if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
-                {
-                    if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
+                    infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
+
+                    // Whole JkWatcher instance based
+                    if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) { 
+                        // Client connected/disconnected. Reset some stats
+                        for(int p=0;p< client.ClientHandler.MaxClients; p++)
+                        {
+                            infoPool.killTrackers[i, p] = new KillTracker();
+                            infoPool.killTrackers[p, i] = new KillTracker();
+                        }
+                        infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+                    }
+
+                    // Connection based
+                    if (clientInfoValid[i] != client.ClientInfo[i].InfoValid) { 
+                        this.demoRateLimiters[i] = new DemoRequestRateLimiter(); // Not part of infopool because its unique to each connection.
+                    }
+
+                    if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
                     {
-                        infoPool.playerInfo[i].chatCommandTrackingStuff.fightBotBlacklist = true;
+                        if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.fightBotBlacklist = true;
+                        }
                     }
+
+                    infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
+
+                    clientInfoValid[i] = client.ClientInfo[i].InfoValid;
+                    infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
+                    infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
+                    infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > -0.5f; // Checking for -1 basically but it's float so be safe.
+
+                    if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
+                    {
+                        anyNonBotActivePlayers = true;
+                    }
+
+                    infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
                 }
-
-                infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
-
-                infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
-                infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
-                infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > -0.5f; // Checking for -1 basically but it's float so be safe.
-
-                if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
-                {
-                    anyNonBotActivePlayers = true;
-                }
-
-                infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
             }
             infoPool.botOnlyGuaranteed = !anyNonBotActivePlayers;
             infoPool.NoActivePlayers = noActivePlayers;

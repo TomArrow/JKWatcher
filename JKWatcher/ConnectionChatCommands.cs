@@ -21,7 +21,16 @@ namespace JKWatcher
     public partial class Connection
     {
 
-        
+        struct DemoRequestRateLimiter
+        {
+            public DateTime? lastRequest;
+            public int overlapCount;
+        }
+
+        DemoRequestRateLimiter[] demoRateLimiters = new DemoRequestRateLimiter[64];
+        bool[] clientInfoValid = new bool[64];
+        Mutex infoPoolResetStuffMutex = new Mutex();
+
         // For various kinda text processisng stuff / memes
         string lastPublicChat = "";
         DateTime lastPublicChatTime = DateTime.Now;
@@ -1042,6 +1051,7 @@ namespace JKWatcher
 
                     int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
 
+                    string rateLimited = "";
                     string asClientNum = reframeClientNum != pm.playerNum ? $"(as {reframeClientNum})" : "";
                     string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
                     if (markRequested)
@@ -1053,7 +1063,37 @@ namespace JKWatcher
                         }
                         StringBuilder demoCutCommand = new StringBuilder();
                         DateTime now = DateTime.Now;
-                        demoCutCommand.Append($"# demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+
+                        // Rate limit multiple overlapping demos. It might not help against an informed griefer who understands the system
+                        // but it will cut down the amount of space used for demos when people accidentally write nonsensical commmands or write long
+                        // mark times because they don't know any better or they want to just capture everything and make sure they didn't miss anything
+                        // This way they will end up with their session split into multiple demos but it will all be there and 
+                        // not a lot of duplicate demo waste.
+                        if (demoRateLimiters[pm.playerNum].lastRequest.HasValue)
+                        {
+                            double minutesSinceLast = (DateTime.Now - demoRateLimiters[pm.playerNum].lastRequest.Value).TotalMinutes;
+                            if (minutesSinceLast < (double)markMinutes)
+                            {
+                                demoRateLimiters[pm.playerNum].overlapCount++;
+                                if(demoRateLimiters[pm.playerNum].overlapCount > 1) 
+                                {
+                                    // We will allow ONE correction/overlap. After that we just cut it down minutes since last rounded up.
+                                    // Just to prevent ppl who spam ridiculous times.
+                                    int oldMarkMinutes = markMinutes;
+                                    markMinutes = (int)Math.Ceiling(minutesSinceLast);
+                                    rateLimited = $"(ratelimited from {oldMarkMinutes} minutes, last request {minutesSinceLast} minutes ago)";
+                                } else
+                                {
+                                    rateLimited = $"(ratelimit overlap #{demoRateLimiters[pm.playerNum].overlapCount} allowed, last request {minutesSinceLast} minutes ago)";
+                                }
+                            } else
+                            {
+                                demoRateLimiters[pm.playerNum].overlapCount = 0;
+                            }
+                        }
+                        demoRateLimiters[pm.playerNum].lastRequest = DateTime.Now;
+
+                        demoCutCommand.Append($"# demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past {rateLimited}\n");
                         string demoNoteStringFilenamePart = "";
                         if (demoNoteString != null)
                         {
@@ -1100,7 +1140,7 @@ namespace JKWatcher
                     {
                         leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {demoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                     }
-                    serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past\n");
+                    serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past {rateLimited}\n");
                     return;
                 }
             }
