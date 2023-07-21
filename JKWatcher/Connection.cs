@@ -1709,10 +1709,8 @@ findHighestScore:
                     {
                         if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) 
                             && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
-                            //&& (!playerIsVeryAfk(player.clientNum,false)|| (spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
-                            && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk)
+                            && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
                             && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
-                            //&& ((!playerIsVeryAfk(player.clientNum,false) && player.clientNum != SpectatedPlayer) || (allowAFK && spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
                         ){
                             highestScore = player.score.score;
                             highestScorePlayer = player.clientNum;
