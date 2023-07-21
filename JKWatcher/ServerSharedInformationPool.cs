@@ -56,7 +56,12 @@ namespace JKWatcher
         public bool fightBotIgnore;
         public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;
+        public bool wantsBotFight;
+        public bool berserkerVote;
+        public DateTime lastBodyguardStart;
         public DateTime onlineSince;
+        //public int totalTimeVisible;
+        //public int lastKnownServerTime;
     }
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
@@ -212,6 +217,9 @@ namespace JKWatcher
         public float dbsTriggerDistance = 128;
         public float bsTriggerDistance = 64;
         public string sillyModeCustomCommand = null;
+        public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);
+        public DateTime lastBodyguardStarted = DateTime.Now - new TimeSpan(10, 0, 0);
+        public int sillyBodyguardPlayer = -1;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
             if (sillyModes.Contains(sillyMode))
