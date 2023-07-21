@@ -1689,18 +1689,34 @@ namespace JKWatcher
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null && (ClientNum == SpectatedPlayer || (this.CameraOperator == null && ((spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk)))) // Not following anyone. Let's follow someone.
+            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
+                && (ClientNum == SpectatedPlayer || (
+                this.CameraOperator == null && (
+                (spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk))
+                )
+                ) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
                 // Pick player with highest score.
 findHighestScore:
-                foreach (PlayerInfo player in infoPool.playerInfo)
+                bool allowAFK = true;
+                for(int i = 0; i < 2; i++)
                 {
-                    if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) && (!playerIsVeryAfk(player.clientNum,false)|| (spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
+                    if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
+                    allowAFK = !allowAFK;
+                    foreach (PlayerInfo player in infoPool.playerInfo)
                     {
-                        highestScore = player.score.score;
-                        highestScorePlayer = player.clientNum;
+                        if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) 
+                            && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
+                            //&& (!playerIsVeryAfk(player.clientNum,false)|| (spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
+                            && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk)
+                            && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
+                            //&& ((!playerIsVeryAfk(player.clientNum,false) && player.clientNum != SpectatedPlayer) || (allowAFK && spectatedPlayerIsVeryAfk && player.clientNum != SpectatedPlayer)))
+                        ){
+                            highestScore = player.score.score;
+                            highestScorePlayer = player.clientNum;
+                        }
                     }
                 }
                 if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
