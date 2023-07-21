@@ -23,7 +23,7 @@ echo $filename
 7za a $filename -sse -sdel *.dm_*
 
 # upload the .zip file to archive.org
-curl --location --header 'x-amz-auto-make-bucket:0' \
+curl --fail --location --header 'x-amz-auto-make-bucket:0' \
 --header 'x-archive-meta-language:eng' \
 --header "authorization: LOW $accesskey:$secret" \
 --upload-file "$filename" \

@@ -13,20 +13,24 @@ path="C:\path\to\demos"
 
 # collect all the demos and zip them up.
 echo $filename
-#7za a $filename -sse -r "$path/$date-*_ctf_*.dm_*" # I'm not using this because the wildcards aren't as good as regex and most of all 7za creates relative paths like in your original folder structure. This isn't desired here.
-RecursiveFlatZipper -o $filename -p "$path" -r "^$datesearch-[\d]+_[\d]+-[\d]+-[\d]+-.*?(ctf|nwh).*?\.dm_\d+$" # RecursiveFlatZipper is on my github too.
-
-retValZip=$?
-if [ $retValZip -eq 0 ]; then
-	echo "Compression successful. Uploading."
+if test -f "$filename"; then
+	echo "$filename already exists. Going straight to upload."
 else
-	echo "Compression errored with code $retValZip. Exiting."
-	read -r -n1
-	exit 1;
+	#7za a $filename -sse -r "$path/$date-*_ctf_*.dm_*" # I'm not using this because the wildcards aren't as good as regex and most of all 7za creates relative paths like in your original folder structure. This isn't desired here.
+	RecursiveFlatZipper -o $filename -p "$path" -r "^$datesearch-[\d]+_[\d]+-[\d]+-[\d]+-.*?(ctf|nwh).*?\.dm_\d+$" # RecursiveFlatZipper is on my github too.
+	
+	retValZip=$?
+	if [ $retValZip -eq 0 ]; then
+		echo "Compression successful. Uploading."
+	else
+		echo "Compression errored with code $retValZip. Exiting."
+		read -r -n1
+		exit 1;
+	fi
 fi
 
 # upload the .zip file to archive.org
-curl --location --header 'x-amz-auto-make-bucket:0' \
+curl --fail --location --header 'x-amz-auto-make-bucket:0' \
 --header 'x-archive-meta-language:eng' \
 --header "authorization: LOW $accesskey:$secret" \
 --upload-file "$filename" \
