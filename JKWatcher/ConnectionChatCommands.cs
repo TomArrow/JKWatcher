@@ -384,13 +384,13 @@ namespace JKWatcher
                             break;
                         case "!opinion":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            int opinionNum = getNiceRandom(0, 21);
+                            int opinionNum = getNiceRandom(0, 11);
                             string opinion = "maybe";
-                            if(opinionNum <= 9)
+                            if(opinionNum <= 4)
                             {
                                 opinion = "yes";
                             }
-                            else if(opinionNum <= 19)
+                            else if(opinionNum <= 9)
                             {
                                 opinion = "no";
                             }
