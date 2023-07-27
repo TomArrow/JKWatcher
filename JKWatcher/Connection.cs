@@ -182,6 +182,8 @@ namespace JKWatcher
         private string lastKnownPakChecksums = "";
 
         public int? ClientNum { get; set; } = null;
+        private DateTime lastSpectatedPlayerChange = DateTime.Now;
+        private int? oldSpectatedPlayer = null;
         public int? SpectatedPlayer { get; set; } = null;
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
         public int? Index { get; set; } = null;
@@ -1360,7 +1362,7 @@ namespace JKWatcher
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
 
-        public DateTime? lastAnyPositionOrAngleChange; // Last time the player position or angle changed
+        public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
@@ -1386,6 +1388,10 @@ namespace JKWatcher
             }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
+            if (oldSpectatedPlayer != SpectatedPlayer)
+            {
+                lastSpectatedPlayerChange = DateTime.Now;
+            }
 
             int[] snapEntityMapping = new int[Common.MaxGEntities];
             for(int i = 0; i < Common.MaxGEntities; i++)
@@ -1425,16 +1431,17 @@ namespace JKWatcher
                 {
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     if (
-                        infoPool.playerInfo[i].position.X != snap.PlayerState.Origin[0] ||
+                        infoPool.playerInfo[i].movementDir != snap.PlayerState.MovementDirection
+                        /*infoPool.playerInfo[i].position.X != snap.PlayerState.Origin[0] ||
                         infoPool.playerInfo[i].position.Y != snap.PlayerState.Origin[1]||
                         infoPool.playerInfo[i].position.Z != snap.PlayerState.Origin[2] ||
                         infoPool.playerInfo[i].angles.X != snap.PlayerState.ViewAngles[0] ||
                         infoPool.playerInfo[i].angles.Y != snap.PlayerState.ViewAngles[1] ||
-                        infoPool.playerInfo[i].angles.Z != snap.PlayerState.ViewAngles[2] 
+                        infoPool.playerInfo[i].angles.Z != snap.PlayerState.ViewAngles[2] */
                     )
                     {
-                        infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
-                        lastAnyPositionOrAngleChange = DateTime.Now;
+                        infoPool.playerInfo[i].lastMovementDirChange = DateTime.Now;
+                        lastAnyMovementDirChange = DateTime.Now;
                     }
                     infoPool.playerInfo[i].position.X = snap.PlayerState.Origin[0];
                     infoPool.playerInfo[i].position.Y = snap.PlayerState.Origin[1];
@@ -1453,6 +1460,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].duelInProgress = snap.PlayerState.DuelInProgress;
                     infoPool.playerInfo[i].saberMove = snap.PlayerState.SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
+                    infoPool.playerInfo[i].movementDir = snap.PlayerState.MovementDirection;
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
                     this.baseSpeed = snap.PlayerState.Basespeed;
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
@@ -1498,16 +1506,17 @@ namespace JKWatcher
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
                     infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     if (
-                        infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
+                        infoPool.playerInfo[i].movementDir != snap.Entities[snapEntityNum].Angles2[YAW]
+                        /*infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
                         infoPool.playerInfo[i].position.Y != snap.Entities[snapEntityNum].Position.Base[1] ||
                         infoPool.playerInfo[i].position.Z != snap.Entities[snapEntityNum].Position.Base[2] ||
                         infoPool.playerInfo[i].velocity.X != snap.Entities[snapEntityNum].Position.Delta[0] ||
                         infoPool.playerInfo[i].velocity.Y != snap.Entities[snapEntityNum].Position.Delta[1] ||
-                        infoPool.playerInfo[i].velocity.Z != snap.Entities[snapEntityNum].Position.Delta[2]
+                        infoPool.playerInfo[i].velocity.Z != snap.Entities[snapEntityNum].Position.Delta[2]*/
                     )
                     {
-                        infoPool.playerInfo[i].lastPositionOrAngleChange = DateTime.Now;
-                        lastAnyPositionOrAngleChange = DateTime.Now;
+                        infoPool.playerInfo[i].lastMovementDirChange = DateTime.Now;
+                        lastAnyMovementDirChange = DateTime.Now;
                     }
                     infoPool.playerInfo[i].position.X = snap.Entities[snapEntityNum].Position.Base[0];
                     infoPool.playerInfo[i].position.Y = snap.Entities[snapEntityNum].Position.Base[1];
@@ -1527,6 +1536,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].saberMove = snap.Entities[snapEntityNum].SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.Entities[snapEntityNum].ForcePowersActive;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
+                    infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
@@ -1723,6 +1733,8 @@ findHighestScore:
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
+
+            oldSpectatedPlayer = SpectatedPlayer;
         }
 
         private bool playerIsLikelyBot(int clientNumber)
@@ -1731,10 +1743,11 @@ findHighestScore:
         }
         private bool playerIsVeryAfk(int clientNumber, bool followed = false)
         {
-            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
-                (
-                (infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.HasValue && (DateTime.Now-infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.Value).TotalMinutes > 60)
-                || (followed && lastAnyPositionOrAngleChange.HasValue && (DateTime.Now-lastAnyPositionOrAngleChange.Value).TotalMinutes > 5)
+            return (clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients) && (
+                (DateTime.Now-infoPool.playerInfo[clientNumber].lastMovementDirChange).TotalMinutes > 30 
+                || (infoPool.playerInfo[clientNumber].lastFullPositionUpdate.HasValue && (DateTime.Now - infoPool.playerInfo[clientNumber].lastFullPositionUpdate.Value).TotalMinutes < 5 && (DateTime.Now - infoPool.playerInfo[clientNumber].lastMovementDirChange).TotalMinutes > 15)
+                || (followed && /*infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.HasValue &&*/ (DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && (DateTime.Now- infoPool.playerInfo[clientNumber].lastMovementDirChange).TotalMinutes > 15)
+                || (followed && /*infoPool.playerInfo[clientNumber].lastPositionOrAngleChange.HasValue &&*/ (DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && (DateTime.Now- infoPool.playerInfo[clientNumber].lastMovementDirChange).TotalMinutes > 5 && (DateTime.Now - lastAnyMovementDirChange).TotalMinutes > 5)
                 );
         }
 

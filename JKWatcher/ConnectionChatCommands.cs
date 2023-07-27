@@ -1095,7 +1095,8 @@ namespace JKWatcher
                         return;
                     }
 
-                    int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
+                    //int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
+                    int demoTime = (client?.DemoCurrentTimeApproximate).GetValueOrDefault(0);
 
                     string rateLimited = "";
                     string asClientNum = reframeClientNum != pm.playerNum ? $"(as {reframeClientNum})" : "";

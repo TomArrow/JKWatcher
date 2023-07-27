@@ -511,7 +511,7 @@ namespace JKWatcher
 					if (thisPlayerNearStrongIgnore) continue;
 
 
-					bool playerIsAfk = !pi.lastPositionOrAngleChange.HasValue || (DateTime.Now - pi.lastPositionOrAngleChange.Value).TotalSeconds > 10;
+					bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
 
 					if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
                     {

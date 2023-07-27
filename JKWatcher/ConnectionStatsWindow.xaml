@@ -118,6 +118,14 @@
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Demo current time:</Label>
                 <TextBox Text="{Binding demoCurrentTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
             </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Demo current time based on actual writing into the demo. The other value is more up to date, but less precise.">Demo current time (wr.):</Label>
+                <TextBox Text="{Binding demoCurrentTimeWritten,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Demo current time sync fix. Shows how much the old demo current time calculation method would have drifted by now.">Demo current time (sync):</Label>
+                <TextBox Text="{Binding demoCurrentTimeSyncFix,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+            </WrapPanel>
             
         </StackPanel>
     </Grid>
