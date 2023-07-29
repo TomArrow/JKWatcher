@@ -182,6 +182,7 @@ namespace JKWatcher
         private string lastKnownPakChecksums = "";
 
         public int? ClientNum { get; set; } = null;
+        private DateTime lastServerInfoChange = DateTime.Now;
         private DateTime lastSpectatedPlayerChange = DateTime.Now;
         private int? oldSpectatedPlayer = null;
         public int? SpectatedPlayer { get; set; } = null;
@@ -242,6 +243,7 @@ namespace JKWatcher
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
+        private bool SaberModDetected = false;
 
         public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
         {
@@ -1667,7 +1669,8 @@ namespace JKWatcher
 
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
-            if (amNotInSpec) // Maybe in the future I will
+            // Actually don't do this: Our normal follow command accomplishes the same thing and at least follows someone worth following instead of random person
+            /*if (amNotInSpec) // Maybe in the future I will
             {
                 
                 if (!isSillyCameraOperator) // Silly operator means we actually don't want to be in spec. That is its only purpose.
@@ -1694,12 +1697,13 @@ namespace JKWatcher
             {
                 // Can't reproduce it but once ended up with a weird endless loop of going spec and following. Musts be very unlucky timing combined with some weird shit.
                 leakyBucketRequester.purgeByKinds( new RequestCategory[] { RequestCategory.SELFKILL, RequestCategory.GOINTOSPEC, RequestCategory.GOINTOSPECHACK});
-            }
+            }*/
 
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
+            if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
+                maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
                 && (ClientNum == SpectatedPlayer || (
                 this.CameraOperator == null && (
                 (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
@@ -1787,6 +1791,7 @@ findHighestScore:
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj)
         {
+            lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
             //obj.GameName
             if (/*obj.GameName.Contains("JA+ Mod", StringComparison.OrdinalIgnoreCase) || */obj.GameName.Contains("JA+", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^5X^2Jedi ^5Academy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^4U^3A^5Galaxy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("AbyssMod", StringComparison.OrdinalIgnoreCase))
@@ -1796,6 +1801,10 @@ findHighestScore:
             else if(obj.GameName.Contains("japro", StringComparison.OrdinalIgnoreCase))
             {
                 this.JAProDetected = true;
+            } 
+            else if(obj.GameName.Contains("SaberMod", StringComparison.OrdinalIgnoreCase))
+            {
+                this.SaberModDetected = true;
             } else if(obj.GameName.Contains("Movie Battles II", StringComparison.OrdinalIgnoreCase))
             {
                 if (!this.MBIIDetected)
@@ -1996,7 +2005,7 @@ findHighestScore:
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
                     infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                     infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
-                    infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > -0.5f; // Checking for -1 basically but it's float so be safe.
+                    infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
 
                     if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
                     {
@@ -2121,6 +2130,10 @@ findHighestScore:
                 (serverWindow.verboseOutput ==0 && serverCommandsVerbosityLevel0WhiteList.Contains(commandEventArgs.Command.Argv(0)))
                 ) { 
                 StringBuilder allArgs = new StringBuilder();
+                if (serverWindow.showCmdMsgNum)
+                {
+                    allArgs.Append($"{commandEventArgs.MessageNum}: ");
+                }
                 for (int i = 0; i < commandEventArgs.Command.Argc; i++)
                 {
                     allArgs.Append(commandEventArgs.Command.Argv(i));

@@ -137,6 +137,8 @@ namespace JKWatcher
         //public bool verboseOutput { get; private set; } = false;
         public int verboseOutput { get; private set; } = 4;
 
+        public bool showCmdMsgNum { get; private set; } = false;
+
         private string password = null;
         //private string userInfoName = null;
         //private bool demoTimeColorNames = true;
@@ -1415,6 +1417,11 @@ namespace JKWatcher
         private void addSillyWatcherBtn_Click(object sender, RoutedEventArgs e)
         {
             createCameraOperator<CameraOperators.SillyCameraOperator>();
+        }
+
+        private void showCmdMsgNumCheck_Checked(object sender, RoutedEventArgs e)
+        {
+            showCmdMsgNum = showCmdMsgNumCheck.IsChecked == true;
         }
 
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)

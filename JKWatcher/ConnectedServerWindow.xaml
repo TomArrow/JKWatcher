@@ -98,15 +98,17 @@
                 <Button x:Name="msgSendBtn" Click="msgSendBtn_Click" IsEnabled="False">S</Button>
                 <Button x:Name="msgSendTeamBtn" Click="msgSendTeamBtn_Click" IsEnabled="False">T</Button>
                 <Button x:Name="msgSendPlayerBtn" Click="msgSendPlayerBtn_Click" IsEnabled="False">P</Button>
-                <Label>Verb.:</Label>
+                <Label ToolTip="Verbosity level">V.:</Label>
                 <ComboBox x:Name="verbosityComboBox" SelectionChanged="verbosityComboBox_SelectionChanged">
-                    <ComboBoxItem Content="zero" Tag="0"></ComboBoxItem>
-                    <ComboBoxItem Content="one" Tag="1"></ComboBoxItem>
-                    <ComboBoxItem Content="two" Tag="2"></ComboBoxItem>
-                    <ComboBoxItem Content="three" Tag="3"></ComboBoxItem>
-                    <ComboBoxItem Content="four" Tag="4" IsSelected="True"></ComboBoxItem>
-                    <ComboBoxItem Content="five" Tag="5"></ComboBoxItem>
+                    <ComboBoxItem Content="0" Tag="0"></ComboBoxItem>
+                    <ComboBoxItem Content="1" Tag="1"></ComboBoxItem>
+                    <ComboBoxItem Content="2" Tag="2"></ComboBoxItem>
+                    <ComboBoxItem Content="3" Tag="3"></ComboBoxItem>
+                    <ComboBoxItem Content="4" Tag="4" IsSelected="True"></ComboBoxItem>
+                    <ComboBoxItem Content="5" Tag="5"></ComboBoxItem>
                 </ComboBox>
+                <CheckBox x:Name="showCmdMsgNumCheck" Checked="showCmdMsgNumCheck_Checked" Unchecked="showCmdMsgNumCheck_Checked"></CheckBox>
+                <Label Padding="0" ToolTip="Show message num for cmds">N</Label>
                 <!--<CheckBox x:Name="verboseOutputCheck" Checked="verboseOutputCheck_Checked" Unchecked="verboseOutputCheck_Unchecked">Verbose output</CheckBox>-->
             </WrapPanel>
             <TabControl>
