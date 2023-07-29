@@ -1702,12 +1702,14 @@ namespace JKWatcher
             if (maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
                 && (ClientNum == SpectatedPlayer || (
                 this.CameraOperator == null && (
-                (spectatedPlayerIsBot && !onlyBotsActive)|| spectatedPlayerIsVeryAfk))
+                (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
                 )
                 ) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
                 int highestScorePlayer = -1;
+                float highestScoreRatio = float.NegativeInfinity;
+                int highestScoreRatioPlayer = -1;
                 // Pick player with highest score.
 findHighestScore:
                 bool allowAFK = true;
@@ -1717,17 +1719,40 @@ findHighestScore:
                     allowAFK = !allowAFK;
                     foreach (PlayerInfo player in infoPool.playerInfo)
                     {
-                        if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator && (player.score.score > highestScore || highestScorePlayer == -1) 
+                        if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
                             && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
                             && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
                             && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
                         ){
-                            highestScore = player.score.score;
-                            highestScorePlayer = player.clientNum;
+                            if (player.score.score > highestScore || highestScorePlayer == -1)
+                            {
+                                highestScore = player.score.score;
+                                highestScorePlayer = player.clientNum;
+                            }
+                            int thisPlayerScoreTime = player.score.time;
+                            if (thisPlayerScoreTime > 5) // we try to find the player with highest score ratio (score per time in game) if we can. but don't count people under 5 minutes, their values might not be statistically representative? Also avoid division by 0 that way
+                            {
+                                // Would be even cooler if we could remove afk time from the equation since that distorts the score/time ratio. 
+                                // Sadly there is no 100% reliable way of observing afk time and we might very well get the number very wrong.
+                                // For example we might act like someone is afk because we aren't seeing him but he's actually there.
+                                // Alternatively, we could just track confirmed afk time - player visible and afk. And subtract that?
+                                // Similarly to tracking total time visible for some other stats.
+                                float thisPlayerScoreRatio = (float)player.score.score / (float)thisPlayerScoreTime;
+                                if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer == -1)
+                                {
+                                    highestScoreRatio = thisPlayerScoreRatio;
+                                    highestScoreRatioPlayer = player.clientNum;
+                                }
+                            }
                         }
                     }
                 }
-                if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                if(highestScoreRatioPlayer != -1)
+                {
+                    lastRequestedAlwaysFollowSpecClientNum = highestScoreRatioPlayer;
+                    leakyBucketRequester.requestExecution("follow " + highestScoreRatioPlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                }
+                else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                 {
                     lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);

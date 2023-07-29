@@ -131,7 +131,14 @@ namespace JKWatcher
         public volatile int client;
         public int score { get; set; }
         public int ping { get; set; }
-        public volatile int time;
+        public int time { get; set; }
+        public float scorePerMinute { 
+            get
+            {
+                int tmpTime = time;// Due to multithreading. It might change from one line to the next.
+                return tmpTime == 0 ? 0 : (float)score / (float)tmpTime;
+            }
+        }
         public volatile int scoreFlags;
         public volatile int powerUps;
         public volatile int accuracy;
