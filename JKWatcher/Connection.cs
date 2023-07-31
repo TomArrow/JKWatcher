@@ -1727,15 +1727,18 @@ namespace JKWatcher
                 ) // Not following anyone. Let's follow someone.
             {
                 int highestScore = int.MinValue;
-                int highestScorePlayer = -1;
+                List<int> highestScorePlayer = new List<int>();
+                //int highestScorePlayer = -1;
                 float highestScoreRatio = float.NegativeInfinity;
-                int highestScoreRatioPlayer = -1;
+                //int highestScoreRatioPlayer = -1;
+                List<int> highestScoreRatioPlayer = new List<int>();
                 // Pick player with highest score.
 findHighestScore:
                 bool allowAFK = true;
                 for(int i = 0; i < 2; i++)
                 {
-                    if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
+                    //if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
+                    if (highestScorePlayer.Count > 0) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
                     allowAFK = !allowAFK;
                     foreach (PlayerInfo player in infoPool.playerInfo)
                     {
@@ -1744,10 +1747,15 @@ findHighestScore:
                             && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
                             && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
                         ){
-                            if (player.score.score > highestScore || highestScorePlayer == -1)
+                            if (player.score.score > highestScore || highestScorePlayer.Count == 0)
                             {
                                 highestScore = player.score.score;
-                                highestScorePlayer = player.clientNum;
+                                //highestScorePlayer = player.clientNum;
+                                highestScorePlayer.Clear();
+                                highestScorePlayer.Add(player.clientNum);
+                            } else if (player.score.score == highestScore)
+                            {
+                                highestScorePlayer.Add(player.clientNum);
                             }
                             int thisPlayerScoreTime = player.score.time;
                             if (thisPlayerScoreTime > 5) // we try to find the player with highest score ratio (score per time in game) if we can. but don't count people under 5 minutes, their values might not be statistically representative? Also avoid division by 0 that way
@@ -1758,24 +1766,33 @@ findHighestScore:
                                 // Alternatively, we could just track confirmed afk time - player visible and afk. And subtract that?
                                 // Similarly to tracking total time visible for some other stats.
                                 float thisPlayerScoreRatio = (float)player.score.score / (float)thisPlayerScoreTime;
-                                if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer == -1)
+                                if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer.Count == 0)
                                 {
                                     highestScoreRatio = thisPlayerScoreRatio;
-                                    highestScoreRatioPlayer = player.clientNum;
+                                    //highestScoreRatioPlayer = player.clientNum;
+                                    highestScoreRatioPlayer.Clear();
+                                    highestScoreRatioPlayer.Add(player.clientNum);
+                                } else if (thisPlayerScoreRatio == highestScoreRatio)
+                                {
+                                    highestScoreRatioPlayer.Add(player.clientNum);
                                 }
                             }
                         }
                     }
                 }
-                if(highestScoreRatioPlayer != -1)
+                //if(highestScoreRatioPlayer != -1)
+                if(highestScoreRatioPlayer.Count > 0)
                 {
-                    lastRequestedAlwaysFollowSpecClientNum = highestScoreRatioPlayer;
-                    leakyBucketRequester.requestExecution("follow " + highestScoreRatioPlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
+                    lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                    leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
-                else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                else if (highestScorePlayer.Count > 0) // Assuming any players at all exist that are playing atm.
                 {
-                    lastRequestedAlwaysFollowSpecClientNum = highestScorePlayer;
-                    leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
+                    lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                    leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }
 
