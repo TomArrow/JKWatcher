@@ -551,10 +551,10 @@ namespace JKWatcher
                                         if(pi.team != Team.Spectator)
                                         {
                                             countVotesNeeded++;
-                                        }
-                                        if (pi.chatCommandTrackingStuff.berserkerVote)
-                                        {
-                                            countVotes++;
+                                            if (pi.chatCommandTrackingStuff.berserkerVote)
+                                            {
+                                                countVotes++;
+                                            }
                                         }
                                     }
                                 }
