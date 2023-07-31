@@ -19,6 +19,13 @@ using Client = JKClient.JKClient;
 namespace JKWatcher
 {
 
+	public enum FightBotTargetingMode
+	{
+		NONE,
+		OPTIN,
+		BERSERK,
+		BODYGUARD // Not done yet
+	}
 	public enum SillyMode
 	{
 		NONE,
@@ -41,6 +48,7 @@ namespace JKWatcher
 	// Silly fighting when forced out of spec
 	public partial class Connection
 	{
+
 
 		static string[] fightBotNameBlacklist = null;
 		static DateTime lastBlacklistUpdate = DateTime.Now;
@@ -134,13 +142,14 @@ namespace JKWatcher
 
 		private bool oldIsDuelMode = false;
 
+		public bool AllowBotFight = false;
 		private void DoSillyThings(ref UserCommand userCmd, in UserCommand previousCommand)
 		{
 			// Of course normally the priority is to get back in spec
 			// But sometimes it might not be possible, OR we might not want it (for silly reasons)
 			// So as long as we aren't in spec, let's do silly things.
-			bool isSillyCameraOperator = /*this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator*/ this.CameraOperator is CameraOperators.SillyCameraOperator;
-			if (isDuelMode || isSillyCameraOperator)
+			bool isFightyCameraOperator = /*this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator*/ this.CameraOperator is CameraOperators.SillyCameraOperator;
+			if (isDuelMode || isFightyCameraOperator || AllowBotFight)
 			{
 				if(isDuelMode != oldIsDuelMode || infoPool.sillyMode == SillyMode.NONE) // If gametype changes or if not set yet.
                 {
@@ -473,8 +482,10 @@ namespace JKWatcher
 			// Find nearest player
 			foreach (PlayerInfo pi in infoPool.playerInfo)
 			{
+				//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
 				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 				{
+					if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
 					if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
 					float curdistance = (pi.position - myself.position).Length();
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
@@ -699,9 +710,17 @@ namespace JKWatcher
 			float hisMax = heIsDucked || heIsInRoll ? 16 : 40;
 			float hisMin = 24;
 
+
+			float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
+			float halfPingInSeconds = pingInSeconds / 2.0f;
+			Vector3 myPredictedPosition = myself.position + myself.velocity * halfPingInSeconds;
+			Vector2 myPredictedPosition2D = new Vector2() { X= myPredictedPosition.X, Y= myPredictedPosition.Y};
+			Vector3 myPositionMaybePredicted = infoPool.selfPredict ? myPredictedPosition : myself.position;
+			Vector2 myPosition2DMaybePredicted = infoPool.selfPredict ? myPredictedPosition2D : myPosition2D;
+
 			//float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
 			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
-			
+
 			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
 			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
 
@@ -1005,7 +1024,7 @@ namespace JKWatcher
 					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayer.position + closestPlayer.velocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 				} else
                 {
-					moveVector = (closestPlayer.position + closestPlayer.velocity) - myself.position;
+					moveVector = (closestPlayer.position + closestPlayer.velocity) - myPositionMaybePredicted;
 				}
 			} else
             {
@@ -1014,15 +1033,14 @@ namespace JKWatcher
 				// Do a shitty iterative approach for now. Improve in future if possible.
 				// Remember that the dotProduct is the minimum speed we must have in his direction.
 				bool foundSolution = false;
-				float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
 				Vector2 interceptPos = new Vector2();
 				for(float interceptTime=0.1f; interceptTime < 10.0f; interceptTime+= 0.1f)
                 {
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
-					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ pingInSeconds);
+					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ halfPingInSeconds);
 					interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
-					moveVector2d = (interceptPos - myPosition2D);
+					moveVector2d = (interceptPos - myPosition2DMaybePredicted);
 					if (moveVector2d.Length() <= mySpeed * interceptTime)
 					{
 						foundSolution = true;
@@ -1039,7 +1057,7 @@ namespace JKWatcher
 						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 					} else
                     {
-						moveVector = targetPos - myself.position;
+						moveVector = targetPos - myPositionMaybePredicted;
                     }
                 }
                 else
@@ -1283,6 +1301,8 @@ namespace JKWatcher
 
 					yawAngle += rotationBy;
 					pitchAngle += vertRotationBy - 10.0f + 50.0f; // +50 to look more down
+
+					//pitchAngle = Math.Clamp(pitchAngle, -89 -this.delta_angles.X, 89 - this.delta_angles.X);
 
 					dbsLastRotationOffset = rotationBy;
 					dbsLastVertRotationOffset = vertRotationBy;
@@ -1866,8 +1886,13 @@ namespace JKWatcher
 
 		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, in UserCommand prevCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
 		{
+			float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
+			float halfPingInSeconds = pingInSeconds/2.0f;
+			Vector3 myPredictedPosition = myself.position + myself.velocity * halfPingInSeconds;
+			Vector3 myPositionMaybePredicted = infoPool.selfPredict ? myPredictedPosition : myself.position;
+
 			strafeTarget = targetPoint;
-			Vector3 targetDirection = targetPoint - myself.position;
+			Vector3 targetDirection = targetPoint - myPositionMaybePredicted;
 			float targetAngle = vectoyaw(targetDirection);
 			float velocityAngle = vectoyaw(myself.velocity);
 			float angleDiff = AngleSubtract(targetAngle, velocityAngle);
@@ -1878,7 +1903,7 @@ namespace JKWatcher
 			if (bigAngleChange || myself.velocity.LengthXY() < 50)
 			{
 				amStrafing = false;
-				moveVector = targetPoint - myself.position;
+				moveVector = targetPoint - myPositionMaybePredicted;
 				return 0;
 			}
 

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using static JKWatcher.ConnectedServerWindow;
 
 namespace JKWatcher
 {
@@ -220,10 +221,12 @@ namespace JKWatcher
     {
 
         #region sillyModeStuff
+        public FightBotTargetingMode fightBotTargetingMode = FightBotTargetingMode.NONE;
         public SillyMode sillyMode = SillyMode.DBS;
         public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
         public float dbsTriggerDistance = 128;
         public float bsTriggerDistance = 64;
+        public bool selfPredict = true; // Predict the bots own position with ping value
         public string sillyModeCustomCommand = null;
         public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);
         public DateTime lastBodyguardStarted = DateTime.Now - new TimeSpan(10, 0, 0);
@@ -246,9 +249,13 @@ namespace JKWatcher
         }
         #endregion
 
+        public ConnectionOptions connectionOptions { get; init; }
+
+        public volatile int ServerSlotsTaken = 0;
+        public volatile int MaxServerClients = 32;
         public bool isIntermission { get; set; } = false;
 
-        private int gameTime = 0;
+        private volatile int gameTime = 0;
         public string GameTime { get; private set; }
         public string MapName { get; set; }
         public int ScoreRed { get; set; }

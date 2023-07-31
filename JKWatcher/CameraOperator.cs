@@ -23,6 +23,7 @@ namespace JKWatcher
         //protected Connection[] connections = null;
         protected List<Connection> connections = new List<Connection>();
         protected ServerSharedInformationPool infoPool = null;
+        protected ConnectedServerWindow serverWindow = null;
         protected ConnectionProvider connectionProvider = null;
 
         public bool HasErrored {get;protected set;} = false;
@@ -152,6 +153,15 @@ namespace JKWatcher
             infoPool = pool;
         }
 
+        public void provideServerWindow(ConnectedServerWindow serverWindowA)
+        {
+            if (serverWindowA == null)
+            {
+                throw new Exception("Need to provide a valid ConnectedServerWindow, not a null.");
+            }
+            serverWindow = serverWindowA;
+        }
+
         public void provideConnectionProvider(ConnectionProvider connProviderA)
         {
             if (connProviderA == null)
@@ -172,6 +182,10 @@ namespace JKWatcher
             if (infoPool == null)
             {
                 throw new Exception("Cannot initialize CameraOperator before providing ServerSharedInformationPool.");
+            }
+            if (serverWindow == null)
+            {
+                throw new Exception("Cannot initialize CameraOperator before providing ConnectedServerWindow.");
             }
             if (connectionProvider == null)
             {

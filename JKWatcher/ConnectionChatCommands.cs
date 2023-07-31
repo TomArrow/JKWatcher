@@ -231,7 +231,8 @@ namespace JKWatcher
         {
             try
             {
-                if (client?.Demorecording != true) return; // Why mark demo times if we're not recording...
+                bool weAreRecordingDemo = client?.Demorecording == true;
+                //if (client?.Demorecording != true) return; // Why mark demo times if we're not recording...
                 if (commandEventArgs.Command.Argc >= 2)
                 {
 
@@ -288,6 +289,11 @@ namespace JKWatcher
 
                     //if (messageBits.Length == 0 || messageBits.Length > 3) return;
                     if (stringParams.Count == 0) return;
+
+
+                    int[] ourClientNums = serverWindow.getJKWatcherClientNums();
+
+                    bool commandComesFromJKWatcher = ourClientNums.Contains(pm.playerNum);
 
                     //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
@@ -470,6 +476,7 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
                             MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !bsdist !dbsdist", true, true, true, true);
+                            MemeRequest(pm, "!berserker !selfpredict", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -516,9 +523,64 @@ namespace JKWatcher
                                 MemeRequest(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
+                        case "!berserker":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection || pm.type == ChatType.PRIVATE || commandComesFromJKWatcher) return;
+                            else {
+                                if(infoPool.playerInfo[pm.playerNum].team == Team.Spectator)
+                                {
+                                    MemeRequest(pm, "Wtf, I'm not going berserk for a spectator.", true, true, true);
+                                    return;
+                                }
+                                else if((DateTime.Now-infoPool.lastBerserkerStarted).TotalMinutes < 10)
+                                {
+                                    MemeRequest(pm, "Already going berserk.", true, true, true);
+                                    return;
+                                }
+                                else if((DateTime.Now-infoPool.lastBerserkerStarted).TotalMinutes < 60)
+                                {
+                                    MemeRequest(pm, "Can't go berserk this soon after the last time. Try again later.", true, true, true);
+                                    return;
+                                }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.berserkerVote = true;
+                                int countVotes = 0;
+                                int countVotesNeeded = 0;
+                                foreach (PlayerInfo pi in infoPool.playerInfo)
+                                {
+                                    if(pi.infoValid)
+                                    {
+                                        if(pi.team != Team.Spectator)
+                                        {
+                                            countVotesNeeded++;
+                                        }
+                                        if (pi.chatCommandTrackingStuff.berserkerVote)
+                                        {
+                                            countVotes++;
+                                        }
+                                    }
+                                }
+                                countVotesNeeded = Math.Clamp(countVotesNeeded, 1,4);
+                                bool berserkStarted = false;
+                                if(countVotes < countVotesNeeded)
+                                {
+                                    MemeRequest(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk.", true, true, true);
+                                } else
+                                {
+                                    MemeRequest(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk, going berserk now for 10 minutes!", true, true, true);
+                                    berserkStarted = true;
+                                    infoPool.lastBerserkerStarted = DateTime.Now;
+                                }
+                                if (berserkStarted)
+                                {
+                                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                                    {
+                                        pi.chatCommandTrackingStuff.berserkerVote = false;
+                                    }
+                                }
+                            }
+                            break;
                         case "!iamscared":
                         case "!imscared":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
@@ -538,6 +600,7 @@ namespace JKWatcher
                                         MemeRequest(pm, $"Do I see a hint of courage, {pm.playerName}? A good first step.", true, true, true);
                                         break;
                                 }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
                             }
@@ -569,6 +632,7 @@ namespace JKWatcher
                                         MemeRequest(pm, $"Ok, {pm.playerName}, your life shall be spared.", true, true, true);
                                         break;
                                 }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
                             }
@@ -576,7 +640,7 @@ namespace JKWatcher
                             break;
                         case "!iamveryscared":
                         case "!imveryscared":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
@@ -610,6 +674,7 @@ namespace JKWatcher
                                         MemeRequest(pm, $"That's what she said, {pm.playerName}. Ok I'll be gentle.", true, true, true);
                                         break;
                                 }
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = true;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = true;
                             }
@@ -617,13 +682,13 @@ namespace JKWatcher
                             break;
                         case "!iambrave":
                         case "!imbrave":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum) return;
+                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
                                 return;
                             }
-                            if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
+                            if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore && infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight)
                             {
                                 switch (getNiceRandom(0, 3))
                                 {
@@ -639,6 +704,7 @@ namespace JKWatcher
                                 }
                             } else
                             {
+                                infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = true;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore = false;
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore = false;
                                 switch (getNiceRandom(0, 3))
@@ -797,36 +863,44 @@ namespace JKWatcher
                         case "!bsdist":
                         case "!dbsdist":
                             if (!this.IsMainChatConnection) return;
-                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            bool isBs = stringParams0Lower == "!bsdist";
+                            if (numberParams.Count > 0)
                             {
-                                bool isBs = stringParams0Lower == "!bsdist";
-                                if (stringParams.Count > 0)
+                                int dbsDist = numberParams[0];
+                                if(dbsDist < 32 || dbsDist > (128+16))
                                 {
-                                    int dbsDist = numberParams[0];
-                                    if(dbsDist < 32 || dbsDist > (128+16))
-                                    {
-                                        MemeRequest(pm, (isBs? "" : "D")+"BS trigger distance can't be below 32 or above 144", true, true, true);
-                                    }
-                                    else
-                                    {
-                                        if(isBs)
-                                        {
-                                            infoPool.bsTriggerDistance = dbsDist;
-                                        }
-                                        else
-                                        {
-                                            infoPool.dbsTriggerDistance = dbsDist;
-                                        }
-                                        MemeRequest(pm, "Gotcha, triggering " + (isBs ? "" : "d") + $"bs at {dbsDist} now.", true, true, true);
-                                    }
+                                    MemeRequest(pm, (isBs? "" : "D")+"BS trigger distance can't be below 32 or above 144", true, true, true);
                                 }
                                 else
                                 {
-                                    MemeRequest(pm, "What distance should "+ (isBs ? "" : "d") + "bs get triggered at?", true, true, true);
+                                    if(isBs)
+                                    {
+                                        infoPool.bsTriggerDistance = dbsDist;
+                                    }
+                                    else
+                                    {
+                                        infoPool.dbsTriggerDistance = dbsDist;
+                                    }
+                                    MemeRequest(pm, "Gotcha, triggering " + (isBs ? "" : "d") + $"bs at {dbsDist} now.", true, true, true);
                                 }
-                                return;
                             }
-
+                            else
+                            {
+                                MemeRequest(pm, "What distance should "+ (isBs ? "" : "d") + "bs get triggered at?", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!selfpredict":
+                            if (!this.IsMainChatConnection) return;
+                            if (numberParams.Count > 0)
+                            {
+                                infoPool.selfPredict = numberParams[0] > 0;
+                                MemeRequest(pm, $"Self-predict set to {infoPool.selfPredict}.", true, true, true);
+                            }
+                            else
+                            {
+                                MemeRequest(pm, $"Self-predict is currently {infoPool.selfPredict}. Use 1/0 to enable/disable.", true, true, true);
+                            }
                             notDemoCommand = true;
                             break;
 
@@ -1031,6 +1105,7 @@ namespace JKWatcher
                         case "!markme":
                         case "!markas":
 
+                            if (!weAreRecordingDemo) return;
                             if (stringParams0Lower == "!markas")
                             {
                                 reframeRequested = true;
@@ -1053,6 +1128,8 @@ namespace JKWatcher
                         case "mark":
                         case "markme":
                         case "markas":
+
+                            if (!weAreRecordingDemo) return;
                             if (pm.type == ChatType.PRIVATE)
                             {
                                 markRequested = true;

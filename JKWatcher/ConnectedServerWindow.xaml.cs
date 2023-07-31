@@ -188,7 +188,7 @@ namespace JKWatcher
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
-            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, 32);
+            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, 32) {connectionOptions = connectionOptions };
 
             gameTimeTxt.DataContext = infoPool;
             mapNameTxt.DataContext = infoPool;
@@ -858,6 +858,7 @@ namespace JKWatcher
                 Connection[] connectionsForCamOperator = getUnboundConnections(requiredConnectionCount);
                 camOperator.provideConnections(connectionsForCamOperator);
                 camOperator.provideServerSharedInformationPool(infoPool);
+                camOperator.provideServerWindow(this);
                 camOperator.provideConnectionProvider(this);
                 camOperator.Initialize();
                 cameraOperators.Add(camOperator);
@@ -1422,6 +1423,11 @@ namespace JKWatcher
         private void showCmdMsgNumCheck_Checked(object sender, RoutedEventArgs e)
         {
             showCmdMsgNum = showCmdMsgNumCheck.IsChecked == true;
+        }
+
+        private void addFFAWatcherBtn_Click(object sender, RoutedEventArgs e)
+        {
+            createCameraOperator<CameraOperators.FFACameraOperator>();
         }
 
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)

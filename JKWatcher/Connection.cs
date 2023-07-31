@@ -88,7 +88,8 @@ namespace JKWatcher
         GOINTOSPECHACK,
         FIGHTBOT,
         FIGHTBOT_QUEUED,
-        BOTSAY
+        BOTSAY,
+        FIGHTBOTSPAWNRELATED // Going to spec, going into free team etc.
     }
 
     struct MvHttpDownloadInfo
@@ -160,7 +161,7 @@ namespace JKWatcher
     {
         // Setting it a bit higher than in the jk2 code itself, just to be safe. Internet delays etc. could cause issues.
         // Still not absolutely foolproof I guess but about as good as I can do.
-        const int floodProtectPeriod = 1100; 
+        const int floodProtectPeriod = 1100;
 
         public Client client;
         private ConnectedServerWindow serverWindow;
@@ -180,6 +181,20 @@ namespace JKWatcher
         // To detect changes.
         private string lastKnownPakNames = "";
         private string lastKnownPakChecksums = "";
+
+        public string NameOverride { 
+            get {
+                return nameOverride;
+            }
+            set { 
+                if(value != nameOverride)
+                {
+                    nameOverride = value;
+                    updateName();
+                }
+            } 
+        } 
+        private string nameOverride = null; 
 
         public int? ClientNum { get; set; } = null;
         private DateTime lastServerInfoChange = DateTime.Now;
@@ -313,7 +328,7 @@ namespace JKWatcher
         {
             if (client != null)
             {
-                string nameToUse = _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan";
+                string nameToUse = nameOverride == null ? ( _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan" ) : nameOverride;
                 bool clientNumAlreadyAdded = false;
                 if (_connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
                 {
@@ -1668,6 +1683,7 @@ namespace JKWatcher
             }
 
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+            bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
             // Actually don't do this: Our normal follow command accomplishes the same thing and at least follows someone worth following instead of random person
             /*if (amNotInSpec) // Maybe in the future I will
@@ -1705,7 +1721,7 @@ namespace JKWatcher
             if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
                 maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
                 && (ClientNum == SpectatedPlayer || (
-                this.CameraOperator == null && (
+                (isFFACameraOperator || this.CameraOperator == null) && (
                 (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
                 )
                 ) // Not following anyone. Let's follow someone.
@@ -1814,6 +1830,8 @@ findHighestScore:
                 this.MBIIDetected = true;
             }
             infoPool.lastBotOnlyConfirmed = null; // Because if a new player just entered, we have no idea if it's only a bot or  not until we get his ping via score command.
+            infoPool.ServerSlotsTaken = obj.ClientsIncludingBots;
+            infoPool.MaxServerClients = obj.MaxClients > 0 ? obj.MaxClients : (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
             string serverName = client.ServerInfo.HostName;
             if (serverName != "")
             {
@@ -1822,7 +1840,13 @@ findHighestScore:
 
             if(obj.MapName != oldMapName)
             {
-                pathFinder = BotRouteManager.GetPathFinder(obj.MapName);
+                string mapNameRaw = obj.MapName;
+                int lastSlashIndex = mapNameRaw.LastIndexOf('/');
+                if (lastSlashIndex != -1 &&( mapNameRaw.Length > lastSlashIndex+1)) // JKA mapnames sometimes look like "mp/ctf3". We get rid of the "mp/" part.
+                {
+                    mapNameRaw = mapNameRaw.Substring(lastSlashIndex + 1);
+                }
+                pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
             }
 
@@ -2244,7 +2268,7 @@ findHighestScore:
                         clientsWhoDontWantTOrCannotoBeSpectated[lastRequestedAlwaysFollowSpecClientNum] = DateTime.Now;
                     }
                     lastClientDoesNotWishToBeSpectated = DateTime.Now;
-                } else if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || (commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") && commandEventArgs.Command.Argv(0) == "print"))
+                } else if(commandEventArgs.Command.Argv(1) == "Connection limit reached.\n" || ((commandEventArgs.Command.Argv(1).Contains("Too many connections from the same IP.") || commandEventArgs.Command.Argv(1).Contains("Too many connections from your IP.")) && commandEventArgs.Command.Argv(0) == "print"))
                 {
                     ConnectionLimitReached = true;
                 } else if ((specMatch = specsRegex.Match(commandEventArgs.Command.Argv(1))).Success)

@@ -193,13 +193,14 @@
         <DockPanel Grid.Column="2">
             <DockPanel DockPanel.Dock="Bottom">
                 <WrapPanel DockPanel.Dock="Top">
-                    <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click">CTF</Button>
-                    <Button x:Name="addOCDWatcherBtn" Click="addOCDWatcherBtn_Click">OCD</Button>
-                    <Button x:Name="addSpectatorWatcherBtn" Click="addSpectatorWatcherBtn_Click">Spec</Button>
-                    <Button x:Name="addStrobeWatcherBtn" Click="addStrobeWatcherBtn_Click">Strobe</Button>
-                    <Button x:Name="addSillyWatcherBtn" Click="addSillyWatcherBtn_Click">xd</Button>
-                    <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True">Delete</Button>
-                    <Button x:Name="watcherConfigBtn" Click="watcherConfigBtn_Click" IsEnabled="True">...</Button>
+                    <Button x:Name="addCtfWatcherBtn" Click="addCtfWatcherBtn_Click" FontSize="10">CTF</Button>
+                    <Button x:Name="addOCDWatcherBtn" Click="addOCDWatcherBtn_Click" FontSize="10">OCD</Button>
+                    <Button x:Name="addSpectatorWatcherBtn" Click="addSpectatorWatcherBtn_Click" FontSize="10">Spec</Button>
+                    <Button x:Name="addStrobeWatcherBtn" Click="addStrobeWatcherBtn_Click" FontSize="10">Strobe</Button>
+                    <Button x:Name="addSillyWatcherBtn" Click="addSillyWatcherBtn_Click" FontSize="10">xd</Button>
+                    <Button x:Name="addFFAWatcherBtn" Click="addFFAWatcherBtn_Click" FontSize="10">FFA</Button>
+                    <Button x:Name="deleteWatcherBtn" Click="deleteWatcherBtn_Click" IsEnabled="True" FontSize="10">Del</Button>
+                    <Button x:Name="watcherConfigBtn" Click="watcherConfigBtn_Click" IsEnabled="True" FontSize="10">...</Button>
                 </WrapPanel>
                 <DataGrid  IsReadOnly="True" DockPanel.Dock="Bottom" x:Name="cameraOperatorsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="cameraOperatorsDataGrid_SelectionChanged" CanUserAddRows="False">
                     <DataGrid.Columns>
