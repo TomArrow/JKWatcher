@@ -747,6 +747,13 @@ namespace JKWatcher
                         }
                         foreach (ServerToConnect elementToRemove in elementsToRemove)
                         {
+                            lock (serversToConnectDelayed)
+                            {
+                                if (!serversToConnectDelayed.Contains(elementToRemove)) // Try to connect to it over time?
+                                {
+                                    serversToConnectDelayed.Add(elementToRemove);
+                                }
+                            }
                             serversToConnect.Remove(elementToRemove);
                         }
                         elementsToRemove.Clear();

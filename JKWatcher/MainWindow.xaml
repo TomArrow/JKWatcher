@@ -87,10 +87,11 @@
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Label ToolTip="Password">PW</Label>
                 <TextBox x:Name="pwListTxt" Width="100"></TextBox>
-                <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect to selected</Button>
+                <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect</Button>
 
                 
                 <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
+                <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
             </WrapPanel>
             <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                 <DataGrid.Columns>
