@@ -846,6 +846,10 @@ namespace JKWatcher
         {
             createCameraOperator<CameraOperators.StrobeCameraOperator>();
         }
+        public void createFFAOperator()
+        {
+            createCameraOperator<CameraOperators.FFACameraOperator>();
+        }
 
         private void createCameraOperator<T>() where T:CameraOperator, new()
         {

@@ -660,6 +660,9 @@ namespace JKWatcher
                                 case "strobe":
                                     newWindow.createStrobeOperator();
                                     break;
+                                case "ffa":
+                                    newWindow.createFFAOperator();
+                                    break;
                                 default:
                                     break;
                             }
