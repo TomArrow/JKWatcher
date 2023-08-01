@@ -163,11 +163,11 @@ namespace JKWatcher.CameraOperators
                     {
                         if (connectionsToDestroy == 0) break;
 
-                        if (neededConnectionsCount == 0)
-                        {
+                        //if (neededConnectionsCount == 0)
+                        //{
                             destroyConnection(connections[i]);
                             connectionsToDestroy--;
-                        }
+                        //}
                     }
                 }
             }
