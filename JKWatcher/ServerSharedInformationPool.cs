@@ -57,6 +57,7 @@ namespace JKWatcher
         public bool fightBotIgnore;
         public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;
+        public bool fightBotBlacklistAllowBrave;
         public bool wantsBotFight;
         public bool berserkerVote;
         public DateTime lastBodyguardStart;
@@ -226,6 +227,7 @@ namespace JKWatcher
         public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
         public float dbsTriggerDistance = 128;
         public float bsTriggerDistance = 64;
+        public bool fastDbs = true; // Assume we are in the air if the last user command had jump in it.
         public bool selfPredict = true; // Predict the bots own position with ping value
         public string sillyModeCustomCommand = null;
         public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);

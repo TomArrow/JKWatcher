@@ -22,6 +22,31 @@ namespace JKWatcher
         public CalendarWindow()
         {
             InitializeComponent();
+            UpdateEvents();
+        }
+
+        private void UpdateEvents()
+        {
+
+            calendarEventsGrid.ItemsSource = CalendarManager.GetCalendarEvents();
+        }
+
+        private void newEventBtn_Click(object sender, RoutedEventArgs e)
+        {
+            CalendarManager.CreateNewCalendarEvent();
+            UpdateEvents();
+
+        }
+
+        private void deleteEventsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (calendarEventsGrid.SelectedItems.Count == 0) return;
+
+            List<CalendarEvent> eventsToDelete = calendarEventsGrid.SelectedItems.Cast<CalendarEvent>().ToList();
+            foreach(CalendarEvent eventToDelete in eventsToDelete){
+                eventToDelete.deleted = true;
+            }
+            UpdateEvents();
         }
     }
 }

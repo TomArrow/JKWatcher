@@ -76,6 +76,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ext\WPF-Clock-Based-Date-Time-Picker\DateTimePicker\DateTimePicker.csproj" />
     <ProjectReference Include="..\JKClient\JKClient\JKClient.csproj" />
   </ItemGroup>
 

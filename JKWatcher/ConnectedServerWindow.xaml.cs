@@ -19,6 +19,7 @@ using System.Threading;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Globalization;
 
 namespace JKWatcher
 {
@@ -226,6 +227,7 @@ namespace JKWatcher
             backgroundTasks.Add(tokenSource);
 
             startLogStringUpdater();
+            startEventNotifierUpdater();
 
             snapsSettingsControls.DataContext = snapsSettings;
             connectionSettingsControls.DataContext = _connectionOptions;
@@ -388,6 +390,17 @@ namespace JKWatcher
             backgroundTasks.Add(tokenSource);
         }
 
+        private void startEventNotifierUpdater()
+        {
+            var tokenSource = new CancellationTokenSource();
+            CancellationToken ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { eventNotifier(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(), true);
+                //startEventNotifierUpdater();
+            }, TaskContinuationOptions.OnlyOnFaulted);
+            backgroundTasks.Add(tokenSource);
+        }
+
         // Determine which connection should be responsible for responding to chat commands
         // We don't want CTF watchers to have to spam responses to chat commands when they should be 
         // using their ratio limit in order to send appropriate follow commands
@@ -468,6 +481,19 @@ namespace JKWatcher
                         }
                     }
                 }
+                if (!mainConnectionFound) // 
+                {
+                    for (int i = 0; i < connections.Count; i++)
+                    {
+                        if (!mainConnectionFound /*&& connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.FFACameraOperator)
+                        {
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 1000;
+                            mainConnectionFound = true;
+                            break;
+                        }
+                    }
+                }
                 if (!mainConnectionFound)
                 {
                     // We're desperate, just set 0 as main.
@@ -543,6 +569,78 @@ namespace JKWatcher
             return clientNums.ToArray();
         }
 
+        public int[] getJKWatcherFollowedNums()
+        {
+            List<int> clientNums = new List<int>();
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach(Connection conn in connections)
+                {
+                    int value = conn.SpectatedPlayer.GetValueOrDefault(-1);
+                    if (value != -1)
+                    {
+                        clientNums.Add(value);
+                    }
+                }
+            }
+            return clientNums.ToArray();
+        }
+
+        public Int64 getJKWatcherFollowedNumsBitMask()
+        {
+            Int64 followedNums = 0;
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach(Connection conn in connections)
+                {
+                    int value = conn.SpectatedPlayer.GetValueOrDefault(-1);
+                    if (value != -1)
+                    {
+                        followedNums |= (Int64)1 << value;
+                    }
+                }
+            }
+            return followedNums;
+        }
+        public Int64 getJKWatcherClientNumsBitMask()
+        {
+            Int64 clientNums = 0;
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach(Connection conn in connections)
+                {
+                    int value = conn.ClientNum.GetValueOrDefault(-1);
+                    if (value != -1)
+                    {
+                        clientNums |= (Int64)1 << value;
+                    }
+                }
+            }
+            return clientNums;
+        }
+
+        public Int64 getJKWatcherClientOrFollowedNumsBitMask()
+        {
+            Int64 clientOrFollowedNums = 0;
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach(Connection conn in connections)
+                {
+                    int value1 = conn.SpectatedPlayer.GetValueOrDefault(-1);
+                    int value2 = conn.ClientNum.GetValueOrDefault(-1);
+                    if (value1 != -1)
+                    {
+                        clientOrFollowedNums |= 1L << value1;
+                    }
+                    if (value2 != -1)
+                    {
+                        clientOrFollowedNums |= 1L << value2;
+                    }
+                }
+            }
+            return clientOrFollowedNums;
+        }
+
         public struct LogQueueItem {
             public string logString;
             public bool forceLogToFile;
@@ -557,6 +655,185 @@ namespace JKWatcher
         List<string> stringsToForceWriteToLogFile = new List<string>();
 
         string timeString = "", lastTimeString = "", lastTimeStringForced = "";
+        Dictionary<Int64,DateTime> calendarEventsLastAnnounced = new Dictionary<Int64, DateTime>();
+        private async void eventNotifier(CancellationToken ct)
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(10000); // Once a minute
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested) return;
+                if (_connectionOptions.silentMode) continue;
+
+                CalendarEvent[] ces = CalendarManager.GetCalendarEvents(true);
+
+                foreach (CalendarEvent ce in ces)
+                {
+                    double minRemindInterval = 1000 * 60 * 10; // 10 minutes (min interval)
+                    double maxRemindInterval = 1000 * 60 * 60 * 3; // 3 hours (maximum interval)
+                    double remindInterval = maxRemindInterval; // 3 hours (maximum interval)
+                    DateTime now = DateTime.Now;
+                    bool eventAlreadyRunning = false;
+                    bool eventInLessThan5Hours = false;
+                    bool eventInLessThan1Hour = false;
+
+                    DateTime eventTime = ce.eventTime;
+                    if (eventTime.Kind == DateTimeKind.Unspecified)
+                    {
+                        eventTime = DateTime.SpecifyKind(eventTime, DateTimeKind.Local);
+                    }
+
+                    //if((eventTime-now).TotalDays > 14 || )
+                    if(!ce.active )
+                    {
+                        continue;
+                    }
+
+                    if (eventTime > now) // upcoming
+                    {
+                        double timeDeltaInHours = (eventTime - now).TotalHours;
+                        eventInLessThan5Hours = timeDeltaInHours < 5;
+                        eventInLessThan1Hour = timeDeltaInHours < 1;
+                        remindInterval = Math.Clamp((timeDeltaInHours / 10.0)* 1000 * 60 * 60, minRemindInterval, maxRemindInterval);
+                    } else 
+                    {
+                        remindInterval = minRemindInterval;
+                        eventAlreadyRunning = true;
+                    }
+
+                    if(calendarEventsLastAnnounced.ContainsKey(ce.id) && (DateTime.Now-calendarEventsLastAnnounced[ce.id]).TotalMilliseconds < remindInterval)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        Connection mainChatConnection = null;
+                        lock (connectionsCameraOperatorsMutex)
+                        {
+                            foreach(Connection conn in connections)
+                            {
+                                if (conn.IsMainChatConnection)
+                                {
+                                    mainChatConnection = conn;
+                                    break;
+                                }
+                            }
+                        }
+                        if(mainChatConnection != null)
+                        {
+                            string announcement = ce.announcementTemplate;
+                            string timeString = "";
+                            if (eventAlreadyRunning)
+                            {
+                                timeString  = "active now";
+                                if(ce.serverIP != null && ce.serverIP.Trim() != "")
+                                {
+                                    try
+                                    {
+                                        NetAddress netAddress = NetAddress.FromString(ce.serverIP.Trim());
+                                        if (netAddress != null)
+                                        {
+                                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
+                                            {
+                                                browser.Start(async (JKClientException ex) => {
+                                                    this.addToLog("Exception trying to get ServerInfo for calendar event: " + ex.ToString());
+                                                });
+
+                                                ServerInfo serverInfo = null;
+                                                try
+                                                {
+                                                    serverInfo = await browser.GetFullServerInfo(netAddress,true,false);
+                                                }
+                                                catch (Exception e)
+                                                {
+                                                    this.addToLog("Exception trying to get ServerInfo for calendar event (during await): " + e.ToString());
+                                                    return;
+                                                }
+
+                                                if (serverInfo.StatusResponseReceived)
+                                                {
+                                                    if(serverInfo.RealClients > 0)
+                                                    {
+                                                        timeString += $" with {serverInfo.RealClients} players";
+                                                    }
+                                                }
+
+                                                browser.Stop();
+                                            }
+                                        }
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        addToLog($"Calendar: Error checking server for activity: {e.ToString()}", true);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (eventInLessThan1Hour)
+                                {
+                                    timeString = "starting in " +((int)((eventTime - now).TotalMinutes))+" minutes";
+                                }
+                                else if (eventInLessThan5Hours)
+                                {
+                                    timeString = "starting in " +(eventTime - now).TotalHours.ToString("0.#")+" hours";
+                                } else
+                                {
+                                    DateTime utcTime = eventTime.ToUniversalTime();
+                                    DateTime? cestTime = utcTime.ToCEST();
+                                    DateTime? estTime = utcTime.ToEST();
+                                    DateTime? cestTimeNow = now.ToUniversalTime().ToCEST();
+                                    DateTime? estTimeNow = now.ToUniversalTime().ToEST();
+                                    if(!cestTime.HasValue || !estTime.HasValue || !cestTimeNow.HasValue || !estTimeNow.HasValue)
+                                    {
+                                        string string1, string2;
+                                        (string1,string2) = humanReadableFutureDateTime(now.ToUniversalTime(), utcTime);
+                                        timeString = $"{string1} {string2} UTC";
+                                    } else
+                                    {
+                                        string string1, string2, string3, string4;
+                                        (string1, string2) = humanReadableFutureDateTime(cestTimeNow.Value, cestTime.Value);
+                                        (string3, string4) = humanReadableFutureDateTime(estTimeNow.Value, estTime.Value);
+                                        timeString = $"{string1} {string2} (CEST) /"+ ((string1==string3) ? "" : $" {string3}") + $" {string4} (EST)";
+                                    }
+                                }
+                            }
+                            announcement = announcement.Replace("###TIME###", timeString);
+                            mainChatConnection.leakyBucketRequester.requestExecution($"say {announcement}", RequestCategory.CALENDAREVENT_ANNOUNCE,0,60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                            calendarEventsLastAnnounced[ce.id] = DateTime.Now;
+                            break; // Only 1 event announced at a time.
+                        }
+                    }
+
+                }
+            }
+            
+        }
+
+
+        private (string,string) humanReadableFutureDateTime(DateTime now, DateTime then)
+        {
+            string dayString = "";
+            if (then.Day == now.Day)
+            {
+                dayString = "today";
+            }
+            else if (now.AddDays(1).Day == then.Day)
+            {
+                dayString = "tomorrow";
+            }
+            else if ((then-now).TotalDays < 6.0)
+            {
+                dayString = then.ToString("dddd");
+            }
+            else
+            {
+                //dayString = then.ToString("dddd, MMMM dd", CultureInfo.CreateSpecificCulture("en-US"));
+                dayString = then.ToString("MMMM dd", CultureInfo.CreateSpecificCulture("en-US"));
+            }
+            return (dayString,then.ToString("HH:mm"));
+        }
+        
         private void logStringUpdater(CancellationToken ct)
         {
             while (true)

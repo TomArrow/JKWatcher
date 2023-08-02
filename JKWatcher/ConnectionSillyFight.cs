@@ -203,6 +203,8 @@ namespace JKWatcher
 		int ourLastAttacker = -1;
 		int ourLastHitCount = -1;
 
+		bool lastFrameWasJumpCommand = false;
+
 		#region stuckdetection
 		class StuckDetector
         {
@@ -492,9 +494,15 @@ namespace JKWatcher
 					{
 						grippingPlayers.Add(pi);
 					}
-					if (pi.chatCommandTrackingStuff.fightBotBlacklist && !_connectionOptions.noBotIgnore && curdistance < 500) {
-						blackListedPlayerIsNearby = true;
-						continue;
+
+                    if (pi.chatCommandTrackingStuff.fightBotBlacklist)
+                    {
+						bool blacklistOverridden = pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight;
+						if (!blacklistOverridden && !_connectionOptions.noBotIgnore && curdistance < 500)
+						{
+							blackListedPlayerIsNearby = true;
+							continue;
+						}
 					}
 					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 300) {
 						strongIgnoreNearby = true;
@@ -512,7 +520,8 @@ namespace JKWatcher
 					{
 						if (piSub.infoValid && piSub.IsAlive && piSub.team != Team.Spectator && piSub.clientNum != myNum && !piSub.duelInProgress)
 						{
-							if(piSub.chatCommandTrackingStuff.fightBotStrongIgnore && (pi.position - piSub.position).Length() < 300)
+							bool blacklistOverridden = piSub.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && piSub.chatCommandTrackingStuff.wantsBotFight;
+							if ((piSub.chatCommandTrackingStuff.fightBotStrongIgnore || (piSub.chatCommandTrackingStuff.fightBotBlacklist && !blacklistOverridden)) && (pi.position - piSub.position).Length() < 300)
                             {
 								thisPlayerNearStrongIgnore = true;
 								break;
@@ -1194,7 +1203,12 @@ namespace JKWatcher
 				else if (!amInAttack /*&& !amCurrentlyDbsing*/)
                 {
 					//if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && dbsPossible)
-					if (lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1 && (dbsPossible || dbsPossibleWithJump) && !bsModeActive)
+					bool amOnGround = lastPlayerState.GroundEntityNum != Common.MaxGEntities - 1;
+					if(infoPool.fastDbs && lastFrameWasJumpCommand && !lastFrameWasAir)
+                    {
+						amOnGround = false;
+					}
+					if (amOnGround && (dbsPossible || dbsPossibleWithJump) && !bsModeActive)
 					{
 						// Check if we are moving in the right direction
 						// Because once we are in the air, we can't change our direction anymore.
@@ -1275,7 +1289,28 @@ namespace JKWatcher
 					else if(sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
 					{
 						personImTryingToGrip = closestPlayer.clientNum;
-						amGripping = true;
+
+						bool someoneIsInTheWay = false;
+						// Check if someone is in the way.
+						// Just a safety mechanism to make sure we don't grab innocents
+						foreach (PlayerInfo pi in infoPool.playerInfo)
+                        {
+                            if (pi.infoValid && pi.team != Team.Spectator)
+                            {
+								float myDistanceToTargetedPlayer = (myViewHeightPos - closestPlayer.position).Length();
+								if (pi.position.DistanceToLine(myViewHeightPos,closestPlayer.position) < 64
+									&& (pi.position- myViewHeightPos).Length() < myDistanceToTargetedPlayer
+									&& (pi.position- closestPlayer.position).Length() < myDistanceToTargetedPlayer
+									)
+                                {
+									someoneIsInTheWay = true;
+								}
+                            }
+                        }
+                        if (!someoneIsInTheWay) 
+                        {
+							amGripping = true;
+						}
 
 					} else if(sillyMode == SillyMode.GRIPKICKDBS && doPull)
 					{
@@ -1569,6 +1604,7 @@ namespace JKWatcher
 			userCmd.Angles[YAW] = Angle2Short(yawAngle);
 			userCmd.Angles[PITCH] = Angle2Short(pitchAngle);
 
+			lastFrameWasJumpCommand = userCmd.Upmove > 0;
 			sillyAttack = !sillyAttack;
 			//sillyflip++;
 			sillyflip+= (lastSnapNum - sillyMoveLastSnapNum);

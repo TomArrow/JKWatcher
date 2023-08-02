@@ -54,6 +54,31 @@ namespace JKWatcher
 
     static class Helpers
     {
+
+        public static DateTime? ToEST(this DateTime dateTime)
+        {
+            try
+            {
+                TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(dateTime, easternZone);
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+        }
+        public static DateTime? ToCEST(this DateTime dateTime)
+        {
+            try
+            {
+                TimeZoneInfo easternZone = TimeZoneInfo.FindSystemTimeZoneById("Central European Standard Time");
+                return TimeZoneInfo.ConvertTimeFromUtc(dateTime, easternZone);
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
+        }
         public static float DistanceToLineSlow(this in Vector3 point, in Vector3 linePoint1, in Vector3 linePoint2)
         {
             Vector3 P1toPoint = linePoint2 - point;

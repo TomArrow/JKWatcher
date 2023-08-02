@@ -89,7 +89,8 @@ namespace JKWatcher
         FIGHTBOT,
         FIGHTBOT_QUEUED,
         BOTSAY,
-        FIGHTBOTSPAWNRELATED // Going to spec, going into free team etc.
+        FIGHTBOTSPAWNRELATED, // Going to spec, going into free team etc.
+        CALENDAREVENT_ANNOUNCE
     }
 
     struct MvHttpDownloadInfo
@@ -1718,6 +1719,7 @@ namespace JKWatcher
             bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
             bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
             bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
+            Int64 myClientNums = serverWindow.getJKWatcherClientOrFollowedNumsBitMask();
             if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
                 maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
                 && (ClientNum == SpectatedPlayer || (
@@ -1742,7 +1744,8 @@ findHighestScore:
                     allowAFK = !allowAFK;
                     foreach (PlayerInfo player in infoPool.playerInfo)
                     {
-                        if ((DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
+                        if ((myClientNums & (1L << player.clientNum)) == 0 // Don't follow ourselves or someone another connection of ours is already following
+                            && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
                             && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
                             && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
                             && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)

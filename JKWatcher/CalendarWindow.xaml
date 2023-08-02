@@ -3,10 +3,73 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:JKWatcher"
+        xmlns:local="clr-namespace:JKWatcher" xmlns:pickers="clr-namespace:PeteEvans.Pickers;assembly=DateTimePicker"
         mc:Ignorable="d"
-        Title="CalendarWindow" Height="450" Width="800">
+        Title="Calendar" Height="450" Width="800">
     <Grid>
-        
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="200"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="1">
+            <Button x:Name="newEventBtn" Click="newEventBtn_Click">Create new event</Button>
+            <Button x:Name="deleteEventsBtn" Click="deleteEventsBtn_Click">Delete selected events</Button>
+            <GroupBox Header="Editing" DataContext="{Binding ElementName=calendarEventsGrid,Path=SelectedItem}">
+                <StackPanel>
+                    <pickers:DateTimePicker SelectedValue="{Binding eventTime, Mode=TwoWay}"></pickers:DateTimePicker>
+                    <Label>Name</Label>
+                    <TextBox Text="{Binding name, Mode=TwoWay}"></TextBox>
+                    <Label ToolTip="###TIME### is placeholder for dynamic time string">Announcement template</Label>
+                    <TextBox Text="{Binding announcementTemplate, Mode=TwoWay}"></TextBox>
+                    <Label ToolTip="###CASUALTIME### is placeholder for casual dynamic time string (not yet done)">Announcement template (silent)</Label>
+                    <TextBox Text="{Binding announcementTemplateSilent, Mode=TwoWay}"></TextBox>
+                    <Label>Server IP</Label>
+                    <TextBox Text="{Binding serverIP, Mode=TwoWay}"></TextBox>
+                    <CheckBox IsChecked="{Binding active, Mode=TwoWay}">Active</CheckBox>
+                </StackPanel>
+            </GroupBox>
+        </StackPanel>
+        <DataGrid  IsReadOnly="True" CanUserAddRows="False" x:Name="calendarEventsGrid" AutoGenerateColumns="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <!--<DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding team}">
+                            <DataTrigger.Value>
+                                <jkclient:Team>Free</jkclient:Team>
+                            </DataTrigger.Value>
+                            <Setter Property="Background" Value="LightGreen"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding team}">
+                            <DataTrigger.Value>
+                                <jkclient:Team>Red</jkclient:Team>
+                            </DataTrigger.Value>
+                            <Setter Property="Background" Value="PaleVioletRed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding team}">
+                            <DataTrigger.Value>
+                                <jkclient:Team>Blue</jkclient:Team>
+                            </DataTrigger.Value>
+                            <Setter Property="Background" Value="LightBlue"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding team}">
+                            <DataTrigger.Value>
+                                <jkclient:Team>Spectator</jkclient:Team>
+                            </DataTrigger.Value>
+                            <Setter Property="Background" Value="LightYellow"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding infoValid}" Value="False">
+                            <Setter Property="Background" Value="White"/>
+                            <Setter Property="IsEnabled" Value="False"/>
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding infoValid}" Value="True">
+                            <Setter Property="IsEnabled" Value="True"/>
+                            <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>-->
+
+        </DataGrid>
     </Grid>
 </Window>

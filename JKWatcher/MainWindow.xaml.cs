@@ -875,7 +875,8 @@ namespace JKWatcher
 
         private void calendarBtn_Click(object sender, RoutedEventArgs e)
         {
-
+            var calendarWindow = new CalendarWindow();
+            calendarWindow.Show();
         }
     }
 }

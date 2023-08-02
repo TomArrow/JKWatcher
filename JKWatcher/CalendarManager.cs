@@ -19,13 +19,27 @@ namespace JKWatcher
         public string announcementTemplateSilent { get; set; }
         public string serverIP { get; set; }
         public bool active { get; set; } = false;
+        public bool deleted { get; set; } = false;
+
+        public void ActivateAutoUpdate()
+        {
+            this.PropertyChanged += CalendarEvent_PropertyChanged;
+        }
+        ~CalendarEvent()
+        {
+            this.PropertyChanged -= CalendarEvent_PropertyChanged;
+        }
+        private void CalendarEvent_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            CalendarManager.UpdateCalendarEvent(this);
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
 
     static class CalendarManager
     {
-
+        static readonly string calendarDatabaseFilename = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "calendar.db");
         static readonly string mutexName = "JKWatcherCalendarSQLiteMutex";
         static CalendarManager()
         {
@@ -33,7 +47,7 @@ namespace JKWatcher
             {
                 using (new GlobalMutexHelper(mutexName))
                 {
-                    var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "calendar.db"), false);
+                    var db = new SQLiteConnection(calendarDatabaseFilename, false);
 
                     db.CreateTable<CalendarEvent>();
                     //db.BeginTransaction();
@@ -48,27 +62,38 @@ namespace JKWatcher
             }
         }
 
-        static CalendarEvent[] GetCalendarEvents(bool onlyUpcoming = true)
+        public static CalendarEvent[] GetCalendarEvents(bool onlyUpcoming = true)
         {
             try
             {
                 using (new GlobalMutexHelper(mutexName))
                 {
-                    using (var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "calendar.db"), false))
+                    using (var db = new SQLiteConnection(calendarDatabaseFilename, false))
                     {
                         db.CreateTable<CalendarEvent>();
-                        DateTime twoHoursFromNow = DateTime.Now + new TimeSpan(2, 0, 0);
+                        DateTime twoHoursBeforeNow = DateTime.Now - new TimeSpan(6, 0, 0);
                         List<CalendarEvent> res = null;
                         if (onlyUpcoming)
                         {
-                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent WHERE eventTime > ?", twoHoursFromNow) as List<CalendarEvent>;
+                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent WHERE deleted=0 AND eventTime > ?", twoHoursBeforeNow) as List<CalendarEvent>;
                         }
                         else
                         {
-                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent") as List<CalendarEvent>;
+                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent WHERE deleted=0") as List<CalendarEvent>;
                         }
                         db.Close();
-                        return res == null ? null: res.ToArray();
+                        if (res == null)
+                        {
+                            return null;
+                        }
+                        else
+                        {
+                            foreach(var item in res)
+                            {
+                                item.ActivateAutoUpdate();
+                            }
+                            return res.ToArray();
+                        }
                     }
                 }
             }
@@ -78,13 +103,13 @@ namespace JKWatcher
                 return null;
             }
         }
-        static void CreateNewCalendarEvent()
+        public static void CreateNewCalendarEvent()
         {
             try
             {
                 using (new GlobalMutexHelper(mutexName))
                 {
-                    using (var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "calendar.db"), false))
+                    using (var db = new SQLiteConnection(calendarDatabaseFilename, false))
                     {
                         db.CreateTable<CalendarEvent>();
                         db.Insert(new CalendarEvent() { eventTime=DateTime.Now, active = false});
@@ -97,13 +122,13 @@ namespace JKWatcher
                 Helpers.logToFile(new string[] { "Failed to create new calendar event.", e.ToString() });
             }
         }
-        static void UpdateCalendarEvent(CalendarEvent ce)
+        public static void UpdateCalendarEvent(CalendarEvent ce)
         {
             try
             {
                 using (new GlobalMutexHelper(mutexName))
                 {
-                    using (var db = new SQLiteConnection(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "calendar.db"), false))
+                    using (var db = new SQLiteConnection(calendarDatabaseFilename, false))
                     {
                         db.CreateTable<CalendarEvent>();
                         db.Update(ce);

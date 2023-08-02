@@ -1,3 +1,6 @@
 [submodule "JKClient"]
 	path = JKClient
 	url = git@github.com:TomArrow/JKClient.git
+[submodule "ext/WPF-Clock-Based-Date-Time-Picker"]
+	path = ext/WPF-Clock-Based-Date-Time-Picker
+	url = git@github.com:TomArrow/WPF-Clock-Based-Date-Time-Picker.git

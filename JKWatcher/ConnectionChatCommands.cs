@@ -475,8 +475,8 @@ namespace JKWatcher
                         case "!bot":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
-                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !bsdist !dbsdist", true, true, true, true);
-                            MemeRequest(pm, "!berserker !selfpredict", true, true, true, true);
+                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
+                            MemeRequest(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -523,6 +523,9 @@ namespace JKWatcher
                                 MemeRequest(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
+                        case "!berserk":
+                        case "!berserka":
+                        case "!berserkah":
                         case "!berserker":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection || pm.type == ChatType.PRIVATE || commandComesFromJKWatcher) return;
                             else {
@@ -900,6 +903,19 @@ namespace JKWatcher
                             else
                             {
                                 MemeRequest(pm, $"Self-predict is currently {infoPool.selfPredict}. Use 1/0 to enable/disable.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!fastdbs":
+                            if (!this.IsMainChatConnection) return;
+                            if (numberParams.Count > 0)
+                            {
+                                infoPool.fastDbs = numberParams[0] > 0;
+                                MemeRequest(pm, $"Fast DBS set to {infoPool.fastDbs}.", true, true, true);
+                            }
+                            else
+                            {
+                                MemeRequest(pm, $"Fast DBS is currently {infoPool.fastDbs}. Use 1/0 to enable/disable.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;

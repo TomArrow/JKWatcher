@@ -110,6 +110,8 @@ namespace JKWatcher.CameraOperators
         private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 60.0; // 60 minutes
         private DateTime destructionDelayStartTime = DateTime.Now;
 
+        private bool lastFrameNeededFightBot = false;
+
         private void MainLoopFunction()
         {
             int neededConnectionsCount = 1;
@@ -128,7 +130,10 @@ namespace JKWatcher.CameraOperators
                         freeSlotsOnServer--;
                         if (pi.chatCommandTrackingStuff.wantsBotFight && pi.team != Team.Spectator)
                         {
-                            needFightBot = true;
+                            if(!pi.chatCommandTrackingStuff.fightBotBlacklist || pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave)
+                            {
+                                needFightBot = true;
+                            }
                         }
                     }
                 }
@@ -152,7 +157,17 @@ namespace JKWatcher.CameraOperators
             }
 
 
-            if (neededConnectionsCount > connections.Count && connections.Count < MaxAllowedServerConnections) getMoreConnections(Math.Min(neededConnectionsCount - connections.Count, MaxAllowedServerConnections - connections.Count)); // If more than 1 player here, get another connection
+            if (neededConnectionsCount > connections.Count && connections.Count < MaxAllowedServerConnections)
+            {
+                if(!lastFrameNeededFightBot && needFightBot)
+                {
+                    // We are likely spawning a fightbot.
+                    // Reset its botmode
+                    infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                    infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
+                }
+                getMoreConnections(Math.Min(neededConnectionsCount - connections.Count, MaxAllowedServerConnections - connections.Count));
+            }
             //if(activePlayers.Count() <= 1 && connections.Count() > 1) // If only 1 player here, get rid of extra connections.
             if (neededConnectionsCount < connections.Count && connections.Count > 1) // Get rid of extra connections if too many
             {
@@ -225,6 +240,8 @@ namespace JKWatcher.CameraOperators
                 }
 
             }
+
+            lastFrameNeededFightBot = needFightBot;
 
         }
 
