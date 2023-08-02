@@ -979,7 +979,7 @@ namespace JKWatcher
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
-			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
+			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && ((lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1) || (infoPool.fastDbs && lastFrameWasJumpCommand)) )
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
