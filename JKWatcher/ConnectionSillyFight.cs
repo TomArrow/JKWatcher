@@ -1290,12 +1290,18 @@ namespace JKWatcher
 					{
 						personImTryingToGrip = closestPlayer.clientNum;
 
+						Int64 myClientNums = serverWindow.getJKWatcherClientNumsBitMask();
 						bool someoneIsInTheWay = false;
 						// Check if someone is in the way.
 						// Just a safety mechanism to make sure we don't grab innocents
 						foreach (PlayerInfo pi in infoPool.playerInfo)
                         {
-                            if (pi.infoValid && pi.team != Team.Spectator)
+                            if (pi.infoValid && pi.team != Team.Spectator && pi.clientNum != closestPlayer.clientNum && (0==(myClientNums & (1L<<pi.clientNum)))
+								&& (
+								(infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight)
+								|| pi.chatCommandTrackingStuff.fightBotIgnore // TODO make generalized "mayIAttackPerson" function
+								|| (pi.chatCommandTrackingStuff.fightBotBlacklist && !(pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight)))
+								)
                             {
 								float myDistanceToTargetedPlayer = (myViewHeightPos - closestPlayer.position).Length();
 								if (pi.position.DistanceToLine(myViewHeightPos,closestPlayer.position) < 64
