@@ -752,7 +752,7 @@ namespace JKWatcher
 
                                                 if (serverInfo.StatusResponseReceived)
                                                 {
-                                                    if(serverInfo.RealClients > 0)
+                                                    if(serverInfo.RealClients > 4) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
                                                     {
                                                         timeString += $" with {serverInfo.RealClients} players";
                                                     }
