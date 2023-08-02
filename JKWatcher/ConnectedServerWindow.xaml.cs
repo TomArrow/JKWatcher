@@ -425,6 +425,19 @@ namespace JKWatcher
                         connections[i].IsMainChatConnection = false;
                     }
                 }
+                if (!mainConnectionFound) // 
+                {
+                    for (int i = connections.Count - 1; i >= 0; i--) // Reverse because we want the fightbot to be the main chat connection so he can say stuff. we should solve this better somehow...
+                    {
+                        if (!mainConnectionFound /*&& connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.FFACameraOperator)
+                        {
+                            connections[i].IsMainChatConnection = true;
+                            connections[i].ChatMemeCommandsDelay = 1000;
+                            mainConnectionFound = true;
+                            break;
+                        }
+                    }
+                }
                 if (!mainConnectionFound) // Prefer main connection that has strobe watcher (it doesn't send many commands if any at all)
                 {
                     for (int i = 0; i < connections.Count; i++)
@@ -476,19 +489,6 @@ namespace JKWatcher
 
                             connections[i].IsMainChatConnection = true;
                             connections[i].ChatMemeCommandsDelay = 2000;
-                            mainConnectionFound = true;
-                            break;
-                        }
-                    }
-                }
-                if (!mainConnectionFound) // 
-                {
-                    for (int i = 0; i < connections.Count; i++)
-                    {
-                        if (!mainConnectionFound /*&& connections[i].CameraOperator.HasValue && connections[i].CameraOperator.Value != -1 && cameraOperators.Count > connections[i].CameraOperator.Value && (cameraOperators[connections[i].CameraOperator.Value] is CameraOperators.OCDCameraOperator)*/&& connections[i].CameraOperator is CameraOperators.FFACameraOperator)
-                        {
-                            connections[i].IsMainChatConnection = true;
-                            connections[i].ChatMemeCommandsDelay = 1000;
                             mainConnectionFound = true;
                             break;
                         }

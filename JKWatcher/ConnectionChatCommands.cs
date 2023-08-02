@@ -830,7 +830,7 @@ namespace JKWatcher
                             break;
                         case "!botsay":
                         case "!botsaycalm":
-                            if (!this.IsMainChatConnection) return;
+                            if (!this.IsMainChatConnection && !amNotInSpec) return; // Bots that are ingame should always respond.
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
