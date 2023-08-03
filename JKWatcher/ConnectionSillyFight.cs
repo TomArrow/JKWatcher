@@ -143,6 +143,7 @@ namespace JKWatcher
 		private bool oldIsDuelMode = false;
 
 		public bool AllowBotFight = false;
+		public bool HandlesFightBotChatCommands = false;
 		private void DoSillyThings(ref UserCommand userCmd, in UserCommand previousCommand)
 		{
 			// Of course normally the priority is to get back in spec

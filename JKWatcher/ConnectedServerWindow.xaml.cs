@@ -569,6 +569,21 @@ namespace JKWatcher
             return clientNums.ToArray();
         }
 
+        public bool dedicatedFightBotChatHandlersExist()
+        {
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach(Connection conn in connections)
+                {
+                    if (conn.HandlesFightBotChatCommands)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         public int[] getJKWatcherFollowedNums()
         {
             List<int> clientNums = new List<int>();

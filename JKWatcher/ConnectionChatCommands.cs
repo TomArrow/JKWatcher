@@ -292,6 +292,8 @@ namespace JKWatcher
 
 
                     int[] ourClientNums = serverWindow.getJKWatcherClientNums();
+                    bool fightBotChatHandlersExist = serverWindow.dedicatedFightBotChatHandlersExist();
+                    bool weHandleFightBotCommands = (fightBotChatHandlersExist && this.HandlesFightBotChatCommands) || (!fightBotChatHandlersExist && this.IsMainChatConnection);
 
                     bool commandComesFromJKWatcher = ourClientNums.Contains(pm.playerNum);
 
@@ -473,14 +475,14 @@ namespace JKWatcher
                         // Fightbot
                         case "bot":
                         case "!bot":
-                            if (!this.IsMainChatConnection || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
+                            if (!weHandleFightBotCommands || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
                             MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
                             MemeRequest(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
-                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (_connectionOptions.silentMode || !weHandleFightBotCommands) return;
                             else {
                                 StringBuilder cowardsb = new StringBuilder();
                                 int count = 0;
@@ -502,7 +504,7 @@ namespace JKWatcher
                             }
                             break;
                         case "!bigcowards":
-                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (_connectionOptions.silentMode || !weHandleFightBotCommands) return;
                             else {
                                 StringBuilder cowardsb = new StringBuilder();
                                 int count = 0;
@@ -527,7 +529,7 @@ namespace JKWatcher
                         case "!berserka":
                         case "!berserkah":
                         case "!berserker":
-                            if (_connectionOptions.silentMode || !this.IsMainChatConnection || pm.type == ChatType.PRIVATE || commandComesFromJKWatcher) return;
+                            if (_connectionOptions.silentMode || !weHandleFightBotCommands || pm.type == ChatType.PRIVATE || commandComesFromJKWatcher) return;
                             else {
                                 if(infoPool.playerInfo[pm.playerNum].team == Team.Spectator)
                                 {
@@ -583,7 +585,7 @@ namespace JKWatcher
                             break;
                         case "!iamscared":
                         case "!imscared":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
+                            if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
@@ -643,7 +645,7 @@ namespace JKWatcher
                             break;
                         case "!iamveryscared":
                         case "!imveryscared":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
+                            if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
@@ -685,7 +687,7 @@ namespace JKWatcher
                             break;
                         case "!iambrave":
                         case "!imbrave":
-                            if (!this.IsMainChatConnection || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
+                            if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
                                 MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
@@ -726,7 +728,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!botmode":
-                            if (!this.IsMainChatConnection || pm.type == ChatType.PRIVATE) return;
+                            if (!weHandleFightBotCommands && !amNotInSpec || pm.type == ChatType.PRIVATE) return;
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
@@ -830,7 +832,7 @@ namespace JKWatcher
                             break;
                         case "!botsay":
                         case "!botsaycalm":
-                            if (!this.IsMainChatConnection && !amNotInSpec) return; // Bots that are ingame should always respond.
+                            if (!weHandleFightBotCommands && !amNotInSpec) return; // Bots that are ingame should always respond.
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
@@ -865,7 +867,7 @@ namespace JKWatcher
                             break;
                         case "!bsdist":
                         case "!dbsdist":
-                            if (!this.IsMainChatConnection) return;
+                            if (!weHandleFightBotCommands) return;
                             bool isBs = stringParams0Lower == "!bsdist";
                             if (numberParams.Count > 0)
                             {
@@ -894,7 +896,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!selfpredict":
-                            if (!this.IsMainChatConnection) return;
+                            if (!weHandleFightBotCommands) return;
                             if (numberParams.Count > 0)
                             {
                                 infoPool.selfPredict = numberParams[0] > 0;
@@ -907,7 +909,7 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
                         case "!fastdbs":
-                            if (!this.IsMainChatConnection) return;
+                            if (!weHandleFightBotCommands) return;
                             if (numberParams.Count > 0)
                             {
                                 infoPool.fastDbs = numberParams[0] > 0;
