@@ -77,6 +77,11 @@ namespace JKWatcher
         //public Vector3 delta_angles;
         public Vector3 velocity;
         public bool IsAlive;
+        public long consecutiveAfkMillisecondsCounter = 0; // Amount of consecutive milliseconds this player was SEEN and no change in pos.
+        public bool confirmedAfk = false; // If consecutiveAfkMillisecondsCounter reaches a certain threshold we confirm the player as AFK
+        //public DateTime? timeConfirmedAfk; // How long ago did we confirm afk?
+        //public DateTime? lastNotVisible; // Last time we confirmed this player to not be visible on any connecttion
+        //public DateTime? lastConfirmedAfk; // Last time we kinda confirmed this player to be afk
         public DateTime? lastFullPositionUpdate; // Last time all the info above was updated from entities
         public float speed;
         public int groundEntityNum;

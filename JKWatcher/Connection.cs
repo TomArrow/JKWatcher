@@ -1392,6 +1392,7 @@ namespace JKWatcher
             infoPool.setGameTime(client.gameTime);
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
+            int oldServerTime = lastSnapshot.ServerTime;
             lastSnapshot = snap;
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
@@ -1442,6 +1443,8 @@ namespace JKWatcher
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
+                bool wasVisibleLastFrame = entityOrPSVisible[i];
+
                 bool oldKnockedDown = infoPool.playerInfo[i].knockedDown;
                 
                 int snapEntityNum = snapEntityMapping[i];
@@ -1459,7 +1462,11 @@ namespace JKWatcher
                     )
                     {
                         infoPool.playerInfo[i].lastMovementDirChange = DateTime.Now;
+                        infoPool.playerInfo[i].consecutiveAfkMillisecondsCounter = 0;
                         lastAnyMovementDirChange = DateTime.Now;
+                    } else if(wasVisibleLastFrame)
+                    {
+                        infoPool.playerInfo[i].consecutiveAfkMillisecondsCounter += (snap.ServerTime-oldServerTime);
                     }
                     infoPool.playerInfo[i].position.X = snap.PlayerState.Origin[0];
                     infoPool.playerInfo[i].position.Y = snap.PlayerState.Origin[1];
@@ -1534,7 +1541,11 @@ namespace JKWatcher
                     )
                     {
                         infoPool.playerInfo[i].lastMovementDirChange = DateTime.Now;
+                        infoPool.playerInfo[i].consecutiveAfkMillisecondsCounter = 0;
                         lastAnyMovementDirChange = DateTime.Now;
+                    } else if (wasVisibleLastFrame)
+                    {
+                        infoPool.playerInfo[i].consecutiveAfkMillisecondsCounter += (snap.ServerTime - oldServerTime);
                     }
                     infoPool.playerInfo[i].position.X = snap.Entities[snapEntityNum].Position.Base[0];
                     infoPool.playerInfo[i].position.Y = snap.Entities[snapEntityNum].Position.Base[1];
@@ -1578,11 +1589,30 @@ namespace JKWatcher
                     }
                 } else
                 {
+                    //if(((DateTime.Now-infoPool.playerInfo[i].lastFullPositionUpdate)?.TotalMilliseconds).GetValueOrDefault(5000) > 200)
+                    //{
+                        // We have not gotten a position update on this player for at least 200 milliseconds anywhere. Confirm him as not visible.
+                        // This is used as a helper value for afk detection. We cannot detect that someone is afk unless we know he's visible.
+                        // WAIT. I have a better idea.
+                        //infoPool.playerInfo[i].lastNotVisible = DateTime.Now;
+                    //}
+                    
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = false;
                     }
+                }
+
+                if (infoPool.playerInfo[i].consecutiveAfkMillisecondsCounter > 20000 && infoPool.playerInfo[i].lastFullPositionUpdate.HasValue && (DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalMinutes < 10) // After 10 minutes afk confirmation expires
+                {
+                    // If we have 10 seconds worth of unchanged frames, we confirm this player as afk. TODO: This value will inevitably get distorted by multiple connections incrementing the value at the same time. Don't treat it as a perfect science..
+                    // Originally I tried to do this with amount of frames without change, but it's foolish because frames don't have a fixed duration, especially with my packet ditching techs
+                    infoPool.playerInfo[i].confirmedAfk = true;
+                    //infoPool.playerInfo[i].timeConfirmedAfk = DateTime.Now;
+                } else
+                {
+                    infoPool.playerInfo[i].confirmedAfk = false;
                 }
 
                 int currentLegsAnim = infoPool.playerInfo[i].legsAnim & ~2048;
@@ -1736,20 +1766,24 @@ namespace JKWatcher
                 List<int> highestScoreRatioPlayer = new List<int>();
                 // Pick player with highest score.
 findHighestScore:
-                bool allowAFK = true;
-                for(int i = 0; i < 2; i++)
+                //bool allowAFK = true;
+                for(int allowAfkLevel = 0; allowAfkLevel < 3; allowAfkLevel++)
                 {
                     //if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
                     if (highestScorePlayer.Count > 0) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
-                    allowAFK = !allowAFK;
+                    //allowAFK = !allowAFK;
                     foreach (PlayerInfo player in infoPool.playerInfo)
                     {
+                        bool afkCriteriaSatisfied = !playerIsVeryAfk(player.clientNum, false) || (player.confirmedAfk ? (allowAfkLevel >= 2) : (allowAfkLevel >= 1)); // Only allow confirmed afk ppl in the last stage.
+
                         if ((myClientNums & (1L << player.clientNum)) == 0 // Don't follow ourselves or someone another connection of ours is already following
                             && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
                             && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
                             && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
-                            && (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
-                        ){
+                            && afkCriteriaSatisfied
+                            //&& (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
+                        )
+                        {
                             if (player.score.score > highestScore || highestScorePlayer.Count == 0)
                             {
                                 highestScore = player.score.score;
