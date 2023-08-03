@@ -20,7 +20,7 @@ source "$filenameScript"
 
 # collect all the demos and zip them up.
 echo $filename
-7za a $filename -sse -sdel *.dm_*
+7za a $filename -sse -sdel "*.dm_*"
 
 # upload the .zip file to archive.org
 curl --fail --location --header 'x-amz-auto-make-bucket:0' \
