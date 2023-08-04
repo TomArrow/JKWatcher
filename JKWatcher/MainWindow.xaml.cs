@@ -590,6 +590,7 @@ namespace JKWatcher
             public string[] watchers = null;
             public string mapChangeCommands = null;
             public string quickCommands = null;
+            public string conditionalCommands = null;
 
             public ServerToConnect(ConfigSection config)
             {
@@ -599,6 +600,7 @@ namespace JKWatcher
                 password = config["password"]?.Trim();
                 mapChangeCommands = config["mapChangeCommands"]?.Trim();
                 quickCommands = config["quickCommands"]?.Trim();
+                conditionalCommands = config["conditionalCommands"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
@@ -634,7 +636,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;

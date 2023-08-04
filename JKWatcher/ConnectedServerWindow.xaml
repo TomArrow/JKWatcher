@@ -162,6 +162,36 @@
                         <TextBox Text="{Binding mapChangeCommands,Mode=TwoWay}"></TextBox>
                         <Label>Quick commands (show above log), separate with ";":</Label>
                         <TextBox Text="{Binding quickCommands,Mode=TwoWay}"></TextBox>
+                        <Label>
+                            <Label.ToolTip>
+                                <StackPanel MaxWidth="600">
+                                    <TextBlock>
+                                        Example: print_contains:randomstring:randomcommand;randomcommand2,chat_contains:randomstring2:randomcommand3 $name;randomcommand4,playeractive_matchname:thomas:wait 5000;follow $clientnum;randomcommand4
+                                        <LineBreak></LineBreak>This can contain multiple conditional command blocks, separated by a comma.
+                                        <LineBreak></LineBreak>Each command block contains 3 values separated by a ":"
+                                        <LineBreak></LineBreak>The first value is the type of condition: print_contains, chat_contains or playeractive_matchname
+                                        <LineBreak></LineBreak>The second value is a regular expression that works in combination with the condition type. For print_contains, it must match a print output. For chat_contains, it must match a chat message. For playeractive_matchname it must match a player who has become active (joined as non-spectator).
+                                        <LineBreak></LineBreak>The third value is commands to execute, separated by semicolon. You can use "wait" as a special command with a number that says how many milliseconds should be waited until this command is executed. This is non-blocking and just adds a delay to the execution. The actual execution time can be even longer to avoid getting rate-limited by the server.
+                                        <LineBreak></LineBreak>
+                                        <LineBreak></LineBreak>For chat_contains and playeractive_matchname, you can use placeholders in the commands: $name and $clientnum. They correspond to the matched message/player.
+                                    </TextBlock>
+                                </StackPanel>
+                            </Label.ToolTip>
+                            <Label.Content>
+                                Conditional commands (hover for details):
+                            </Label.Content>
+                        </Label>
+                        <TextBox Text="{Binding conditionalCommands,Mode=TwoWay}">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding conditionalCommandsContainErrors,Mode=OneWay}" Value="True">
+                                            <Setter Property="Background" Value="PaleVioletRed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
                     </StackPanel>
                 </TabItem>
             </TabControl>

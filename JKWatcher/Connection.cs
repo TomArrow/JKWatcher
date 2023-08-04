@@ -14,6 +14,7 @@ using System.Windows;
 using System.Windows.Threading;
 using JKClient;
 using Client = JKClient.JKClient;
+using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
 
 namespace JKWatcher
 {
@@ -91,7 +92,8 @@ namespace JKWatcher
         BOTSAY,
         FIGHTBOTSPAWNRELATED, // Going to spec, going into free team etc.
         CALENDAREVENT_ANNOUNCE,
-        MAPCHANGECOMMAND
+        MAPCHANGECOMMAND,
+        CONDITIONALCOMMAND,
     }
 
     struct MvHttpDownloadInfo
@@ -1861,9 +1863,9 @@ findHighestScore:
 
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private void ExecuteMapChangeCommands()
+        private void ExecuteCommandList(string commandList, RequestCategory requestCategory)
         {
-            string[] mapChangeCommands = _connectionOptions.mapChangeCommands?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string[] mapChangeCommands = commandList?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if(mapChangeCommands != null)
             {
                 int waitTime = 0;
@@ -1876,7 +1878,7 @@ findHighestScore:
                     }
                     else
                     {
-                        leakyBucketRequester.requestExecution(cmd,RequestCategory.MAPCHANGECOMMAND,0,3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,waitTime > 0 ? waitTime : null);
+                        leakyBucketRequester.requestExecution(cmd, requestCategory, 0,3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,waitTime > 0 ? waitTime : null);
                     }
                 }
 
@@ -1932,7 +1934,7 @@ findHighestScore:
             }
             if (executeMapChangeCommands)
             {
-                ExecuteMapChangeCommands();
+                ExecuteCommandList(_connectionOptions.mapChangeCommands,RequestCategory.MAPCHANGECOMMAND);
             }
 
             currentGameType = obj.GameType;
@@ -2083,10 +2085,22 @@ findHighestScore:
                         noActivePlayers = false;
                     }
 
+                    bool playerBecameActive = false;
+
+                    if(infoPool.playerInfo[i].team != client.ClientInfo[i].Team && client.ClientInfo[i].Team != Team.Spectator)
+                    {
+                        playerBecameActive = true;
+                    }
+
                     infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
 
                     // Whole JkWatcher instance based
-                    if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) { 
+                    if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
+                        if (client.ClientInfo[i].InfoValid)
+                        {
+                            playerBecameActive = true;
+                        }
+
                         // Client connected/disconnected. Reset some stats
                         for(int p=0;p< client.ClientHandler.MaxClients; p++)
                         {
@@ -2094,6 +2108,19 @@ findHighestScore:
                             infoPool.killTrackers[p, i] = new KillTracker();
                         }
                         infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince=DateTime.Now};
+                    }
+
+                    if (playerBecameActive) // Check conditional commands
+                    {
+                        ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                        foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                        {
+                            if (cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                            {
+                                string commands = cmd.commands.Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase);
+                                ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                            }
+                        }
                     }
 
                     // Connection based
@@ -2230,7 +2257,7 @@ findHighestScore:
                     EvaluateChat(commandEventArgs);
                     break;
                 case "map_restart":
-                    ExecuteMapChangeCommands();
+                    ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
                     break;
                 default:
                     break;
@@ -2349,6 +2376,20 @@ findHighestScore:
             Match unknownCmdMatch;
             if (commandEventArgs.Command.Argc >= 2)
             {
+                string printText = commandEventArgs.Command.Argv(1);
+
+                if(printText != null)
+                {
+                    ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                    foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                    {
+                        if (cmd.type == ConditionalCommand.ConditionType.PRINT_CONTAINS && (cmd.conditionVariable1.Match(printText).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(printText)).Success))
+                        {
+                            ExecuteCommandList(cmd.commands, RequestCategory.CONDITIONALCOMMAND);
+                        }
+                    }
+                }
+
                 if((commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client is currently on another map^1.^7") || commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7")) && commandEventArgs.Command.Argv(0) == "print")
                 {
                     if(lastRequestedAlwaysFollowSpecClientNum >= 0 && lastRequestedAlwaysFollowSpecClientNum<32)

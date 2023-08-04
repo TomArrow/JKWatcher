@@ -14,6 +14,7 @@ using System.Windows;
 using System.Windows.Threading;
 using JKClient;
 using Client = JKClient.JKClient;
+using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
 
 namespace JKWatcher
 {   
@@ -248,6 +249,16 @@ namespace JKWatcher
 
                     if (pm.message == null) return; // Message from myself. Ignore.
 
+
+                    ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                    foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                    {
+                        if (cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
+                        {
+                            string commands = cmd.commands.Replace("$name",pm.playerName, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", pm.playerNum.ToString(),StringComparison.OrdinalIgnoreCase);
+                            ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                        }
+                    }
 
                     List<int> numberParams = new List<int>();
                     List<string> stringParams = new List<string>();

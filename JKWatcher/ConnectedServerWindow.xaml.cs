@@ -20,6 +20,7 @@ using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace JKWatcher
 {
@@ -162,6 +163,22 @@ namespace JKWatcher
         // TODO: Send "score" command to server every second or 2 so we always have up to date scoreboards. will eat a bit more space maybe but should be cool. make it possible to disable this via some option, or to set interval
 
         public class ConnectionOptions : INotifyPropertyChanged {
+
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public class ConditionalCommand
+            {
+                public enum ConditionType
+                {
+                    PRINT_CONTAINS, // conditionVariable is print output
+                    CHAT_CONTAINS, // conditionVariable is chat output
+                    PLAYERACTIVE_MATCHNAME // conditionVariable is player name
+                }
+                public ConditionType type;
+                public Regex conditionVariable1;
+                public string commands;
+            }
+
             public bool autoUpgradeToCTF { get; set; } = false;
             public bool autoUpgradeToCTFWithStrobe { get; set; } = false;
 
@@ -173,8 +190,81 @@ namespace JKWatcher
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;
             public string quickCommands { get; set; } = null;
+            private string _conditionalCommands = null;
+            public string conditionalCommands { 
+                get {
+                    return _conditionalCommands;
+                }
+                set { 
+                    if(value != _conditionalCommands)
+                    {
+                        _conditionalCommands = value;
+                        parseConditionalCommmands();
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("conditionalCommands"));
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("conditionalCommandsParsed"));
+                    }
+                } 
+            }
+            public bool conditionalCommandsContainErrors { get; set; } = false;
+            private void parseConditionalCommmands()
+            {
+                bool anyErrors = false;
+                // Format is:
+                // All conditional commands separated by comma
+                // multiple commands can be sent via semicolon
+                // condition is prepended with :
+                // example: print_contains:randomstring:randomcommand;randomcommand2,chat_contains:randomstring2:randomcommand3 $name;randomcommand4,playeractive_matchname:thomas:wait 5000;follow $clientnum;randomcommand4
+                lock (_conditionalCommandsParsed)
+                {
+                    _conditionalCommandsParsed.Clear();
+                    string[] conditionalCommandsSplit = _conditionalCommands?.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                    if(conditionalCommandsSplit != null)
+                    {
+                        foreach(string ccRaw in conditionalCommandsSplit)
+                        {
+                            string[] parts = ccRaw.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            if(parts.Length < 3)
+                            {
+                                // Invalid
+                                anyErrors = true;
+                            }
+                            else
+                            {
+                                ConditionalCommand newCmd = new ConditionalCommand();
+                                string conditionTypeString = parts[0].ToLower();
+                                switch (conditionTypeString)
+                                {
+                                    case "print_contains":
+                                        newCmd.type = ConditionalCommand.ConditionType.PRINT_CONTAINS;
+                                        break;
+                                    case "chat_contains":
+                                        newCmd.type = ConditionalCommand.ConditionType.CHAT_CONTAINS;
+                                        break;
+                                    case "playeractive_matchname":
+                                        newCmd.type = ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME;
+                                        break;
+                                    default:
+                                        anyErrors = true;
+                                        continue;
+                                }
+                                newCmd.conditionVariable1 = new Regex(parts[1], RegexOptions.IgnoreCase|RegexOptions.Compiled);
+                                newCmd.commands = parts[2];
+                                _conditionalCommandsParsed.Add(newCmd);
+                            }
+                        }
+                    }
+                }
+                conditionalCommandsContainErrors = anyErrors;
+            }
+            private List<ConditionalCommand> _conditionalCommandsParsed = new List<ConditionalCommand>();
+            public ConditionalCommand[] conditionalCommandsParsed
+            {
+                get
+                {
+                    lock (_conditionalCommandsParsed) return _conditionalCommandsParsed.ToArray();
+                }
+            }
 
-            public event PropertyChangedEventHandler PropertyChanged;
         }
 
         ConnectionOptions _connectionOptions = null;
