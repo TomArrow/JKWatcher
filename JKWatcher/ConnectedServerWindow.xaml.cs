@@ -89,6 +89,20 @@ namespace JKWatcher
     }
 
 
+    // Because WPF removes _ sometimes.... annoying.
+    public class UnderScoreConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            return (value as string)?.Replace("_", "__");
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            return (value as string)?.Replace("__", "_");
+        }
+    }
+
     /// <summary>
     /// Interaction logic for ConnectedServerWindow.xaml
     /// </summary>
@@ -157,6 +171,8 @@ namespace JKWatcher
             public bool noBotIgnore { get; set; } = false;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
+            public string mapChangeCommands { get; set; } = null;
+            public string quickCommands { get; set; } = null;
 
             public event PropertyChangedEventHandler PropertyChanged;
         }
@@ -170,6 +186,8 @@ namespace JKWatcher
                 connectionOptions = new ConnectionOptions();
             }
             _connectionOptions = connectionOptions;
+
+            _connectionOptions.PropertyChanged += _connectionOptions_PropertyChanged;
 
             //this.DataContext = this;
 
@@ -231,7 +249,21 @@ namespace JKWatcher
 
             snapsSettingsControls.DataContext = snapsSettings;
             connectionSettingsControls.DataContext = _connectionOptions;
+            advancedSettingsControls.DataContext = _connectionOptions;
+            quickCommandsControl.ItemsSource = new string[] { "say_team !top", "logout"};
+            updateQuickCommands();
+        }
 
+        private void updateQuickCommands()
+        {
+            quickCommandsControl.ItemsSource = _connectionOptions.quickCommands?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+        private void _connectionOptions_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == "quickCommands")
+            {
+                updateQuickCommands();
+            }
         }
 
         // For duel modes we require a ghost peer because without it, we get stuck in endless loop of bot playing and going spec and
@@ -1220,7 +1252,8 @@ namespace JKWatcher
 
         private void CloseDown()
         {
-            foreach(CancellationTokenSource backgroundTask in backgroundTasks)
+            _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
+            foreach (CancellationTokenSource backgroundTask in backgroundTasks)
             {
                 backgroundTask.Cancel();
             }
@@ -1724,6 +1757,22 @@ namespace JKWatcher
         private void addFFAWatcherBtn_Click(object sender, RoutedEventArgs e)
         {
             createCameraOperator<CameraOperators.FFACameraOperator>();
+        }
+
+        private void quickCmdBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string command = (e.OriginalSource as Button)?.DataContext as string;
+            if (command != null)
+            {
+                this.addToLog($"Sending quick command '{command}'", true);
+                List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+                DoExecuteCommand(command, conns.ToArray());
+            }
+            else
+            {
+                this.addToLog("Quick command value was null, wtf.", true);
+            }
         }
 
         private void addStrobeWatcherBtn_Click(object sender, RoutedEventArgs e)

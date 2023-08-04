@@ -6,10 +6,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JKWatcher"
         xmlns:jkclient="clr-namespace:JKClient;assembly=JKClient"
+        xmlns:local1="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="ConnectedServerWindow" Height="450" Width="800">
     <Window.Resources>
         <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
+        <local:UnderScoreConverter x:Key="underScoreConverter"></local:UnderScoreConverter>
+        <local1:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></local1:BooleanToVisibilityConverter>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -119,12 +122,26 @@
                             <CheckBox Padding="0" x:Name="coloredLogCheck" IsChecked="{Binding LogColoredEnabled}"></CheckBox>
                         </WrapPanel>
                     </TabItem.Header>
-                    <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
-                        <TextBlock x:Name="logTxt" Foreground="White" Background="Black" TextWrapping="Wrap" FontFamily="Courier New">
+                    <Grid>
+                        <ScrollViewer DockPanel.Dock="Top" local:AutoScrollBehavior.AutoScroll="True">
+                            <TextBlock x:Name="logTxt" Foreground="White" Background="Black" TextWrapping="Wrap" FontFamily="Courier New">
                     
-                    <Run Foreground="Blue" Background="Yellow">ipsum</Run> dolor sit amet, 
-                    consectetur adipiscing elit. Donec a velit id turpis <Run Foreground="White" Background="White">maximus tincidunt</Run> vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
-                    </ScrollViewer>
+                        <Run Foreground="Blue" Background="Yellow">ipsum</Run> dolor sit amet, 
+                        consectetur adipiscing elit. Donec a velit id turpis <Run Foreground="White" Background="White">maximus tincidunt</Run> vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.</TextBlock>
+                        </ScrollViewer>
+                        <StackPanel>
+                            <StackPanel HorizontalAlignment="Right" Margin="0 0 20 0" Background="LightGray">
+                                <CheckBox IsChecked="True" Background="Gray" x:Name="quickCommandsShowCheck">Show QuickCommands</CheckBox>
+                                <ItemsControl x:Name="quickCommandsControl" Visibility="{Binding ElementName=quickCommandsShowCheck,Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Content="{Binding Converter={StaticResource underScoreConverter}}" IsEnabled="{Binding Source={x:Reference commandSendBtn},Path=IsEnabled}" FontSize="11" Click="quickCmdBtn_Click"></Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
                 </TabItem>
                 <TabItem>
                     <TabItem.Header>
@@ -138,6 +155,14 @@
                             ipsum dolor sit amet, consectetur adipiscing elit. Donec a velit id turpis maximus tincidunt vitae in dolor. Suspendisse ullamcorper fermentum rutrum. In metus orci, scelerisque dapibus venenatis gravida, euismod et odio. Cras eget imperdiet velit. Quisque id dolor elit. Nunc at lectus id leo mollis condimentum sed id turpis. Sed lacinia felis eu nisi condimentum, a efficitur nisl auctor. Phasellus mattis molestie finibus. Maecenas lacinia, urna sed dignissim semper, justo felis mattis sapien, ut tempus dolor tellus in urna. Cras posuere turpis eu dui cursus, vitae ultrices neque rhoncus. Proin vel dignissim dolor. Suspendisse non fringilla justo. Aliquam id sollicitudin magna, vel laoreet ante. Aliquam mollis congue orci eget ullamcorper.
                         </TextBlock>
                     </ScrollViewer>
+                </TabItem>
+                <TabItem Header="Advanced Settings">
+                    <StackPanel x:Name="advancedSettingsControls">
+                        <Label ToolTip="'wait' command is in milliseconds, not frames, and does not block, just sets the delay for a command.">Commands on map change, separate with ";", "wait" command is in milliseconds:</Label>
+                        <TextBox Text="{Binding mapChangeCommands,Mode=TwoWay}"></TextBox>
+                        <Label>Quick commands (show above log), separate with ";":</Label>
+                        <TextBox Text="{Binding quickCommands,Mode=TwoWay}"></TextBox>
+                    </StackPanel>
                 </TabItem>
             </TabControl>
                     

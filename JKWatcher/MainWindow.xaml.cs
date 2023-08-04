@@ -588,6 +588,8 @@ namespace JKWatcher
             public int minRealPlayers = 1;
             public int? botSnaps = 5;
             public string[] watchers = null;
+            public string mapChangeCommands = null;
+            public string quickCommands = null;
 
             public ServerToConnect(ConfigSection config)
             {
@@ -595,6 +597,8 @@ namespace JKWatcher
                 if (hostName == null || hostName.Length == 0) throw new Exception("ServerConnectConfig: hostName must be provided");
                 playerName = config["playerName"]?.Trim();
                 password = config["password"]?.Trim();
+                mapChangeCommands = config["mapChangeCommands"]?.Trim();
+                quickCommands = config["quickCommands"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
@@ -630,7 +634,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;

@@ -90,7 +90,8 @@ namespace JKWatcher
         FIGHTBOT_QUEUED,
         BOTSAY,
         FIGHTBOTSPAWNRELATED, // Going to spec, going into free team etc.
-        CALENDAREVENT_ANNOUNCE
+        CALENDAREVENT_ANNOUNCE,
+        MAPCHANGECOMMAND
     }
 
     struct MvHttpDownloadInfo
@@ -1858,8 +1859,32 @@ findHighestScore:
         private string oldMapName = "";
         PathFinder pathFinder = null;
 
+        Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private void ExecuteMapChangeCommands()
+        {
+            string[] mapChangeCommands = _connectionOptions.mapChangeCommands?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if(mapChangeCommands != null)
+            {
+                int waitTime = 0;
+                foreach(string cmd in mapChangeCommands)
+                {
+                    Match match;
+                    if ((match = waitCmdRegex.Match(cmd)).Success && match.Groups.Count > 1)
+                    {
+                        waitTime += (match.Groups[1].Value?.Atoi()).GetValueOrDefault(0); // This might be a bit overly careful lol.
+                    }
+                    else
+                    {
+                        leakyBucketRequester.requestExecution(cmd,RequestCategory.MAPCHANGECOMMAND,0,3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,waitTime > 0 ? waitTime : null);
+                    }
+                }
+
+            }
+        }
+
         // Update player list
-        private void Connection_ServerInfoChanged(ServerInfo obj)
+        private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
@@ -1892,8 +1917,10 @@ findHighestScore:
                 serverWindow.ServerName = obj.HostName;
             }
 
+            bool executeMapChangeCommands = newGameState;
             if(obj.MapName != oldMapName)
             {
+                executeMapChangeCommands = true;
                 string mapNameRaw = obj.MapName;
                 int lastSlashIndex = mapNameRaw.LastIndexOf('/');
                 if (lastSlashIndex != -1 &&( mapNameRaw.Length > lastSlashIndex+1)) // JKA mapnames sometimes look like "mp/ctf3". We get rid of the "mp/" part.
@@ -1902,6 +1929,10 @@ findHighestScore:
                 }
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
+            }
+            if (executeMapChangeCommands)
+            {
+                ExecuteMapChangeCommands();
             }
 
             currentGameType = obj.GameType;
@@ -2197,6 +2228,9 @@ findHighestScore:
                 case "chat":
                 case "tchat":
                     EvaluateChat(commandEventArgs);
+                    break;
+                case "map_restart":
+                    ExecuteMapChangeCommands();
                     break;
                 default:
                     break;
