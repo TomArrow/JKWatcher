@@ -2087,9 +2087,12 @@ findHighestScore:
 
                     bool playerBecameActive = false;
 
-                    if(infoPool.playerInfo[i].team != client.ClientInfo[i].Team && client.ClientInfo[i].Team != Team.Spectator)
+                    if (client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                     {
-                        playerBecameActive = true;
+                        if (infoPool.playerInfo[i].team != client.ClientInfo[i].Team || infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
+                        {
+                            playerBecameActive = true;
+                        }
                     }
 
                     infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
