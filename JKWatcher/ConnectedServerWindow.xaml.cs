@@ -247,7 +247,14 @@ namespace JKWatcher
                                         anyErrors = true;
                                         continue;
                                 }
-                                newCmd.conditionVariable1 = new Regex(parts[1], RegexOptions.IgnoreCase|RegexOptions.Compiled);
+                                try
+                                {
+                                    newCmd.conditionVariable1 = new Regex(parts[1], RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                                }
+                                catch (Exception e)
+                                {
+                                    anyErrors = true;
+                                }
                                 newCmd.commands = parts[2];
                                 _conditionalCommandsParsed.Add(newCmd);
                             }
@@ -826,6 +833,7 @@ namespace JKWatcher
                         continue;
                     }
 
+
                     if (eventTime > now) // upcoming
                     {
                         double timeDeltaInHours = (eventTime - now).TotalHours;
@@ -844,6 +852,26 @@ namespace JKWatcher
                     }
                     else
                     {
+
+                        NetAddress eventNetAddress = null;
+
+                        if (ce.serverIP != null && ce.serverIP.Trim() != "")
+                        {
+                            try
+                            {
+                                eventNetAddress = NetAddress.FromString(ce.serverIP.Trim());
+                            }
+                            catch (Exception e)
+                            {
+                                addToLog($"Calendar: Error converting IP: {e.ToString()}", true);
+                            }
+                        }
+
+                        if (eventNetAddress != null && eventNetAddress.Equals(this.netAddress)) // Don't announce event on the server it's on
+                        {
+                            continue;
+                        }
+
                         Connection mainChatConnection = null;
                         lock (connectionsCameraOperatorsMutex)
                         {
@@ -856,54 +884,65 @@ namespace JKWatcher
                                 }
                             }
                         }
+                        bool cancelDisplay = false;
                         if(mainChatConnection != null)
                         {
                             string announcement = ce.announcementTemplate;
                             string timeString = "";
                             if (eventAlreadyRunning)
                             {
+                                bool eventOlderThan2Hours = (now - eventTime).TotalHours > 2.0;
                                 timeString  = "active now";
-                                if(ce.serverIP != null && ce.serverIP.Trim() != "")
+                                try
                                 {
-                                    try
+                                    if (eventNetAddress != null)
                                     {
-                                        NetAddress netAddress = NetAddress.FromString(ce.serverIP.Trim());
-                                        if (netAddress != null)
+                                        using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
                                         {
-                                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
+                                            browser.Start(async (JKClientException ex) => {
+                                                this.addToLog("Exception trying to get ServerInfo for calendar event: " + ex.ToString());
+                                            });
+
+                                            ServerInfo serverInfo = null;
+                                            try
                                             {
-                                                browser.Start(async (JKClientException ex) => {
-                                                    this.addToLog("Exception trying to get ServerInfo for calendar event: " + ex.ToString());
-                                                });
-
-                                                ServerInfo serverInfo = null;
-                                                try
-                                                {
-                                                    serverInfo = await browser.GetFullServerInfo(netAddress,true,false);
-                                                }
-                                                catch (Exception e)
-                                                {
-                                                    this.addToLog("Exception trying to get ServerInfo for calendar event (during await): " + e.ToString());
-                                                    return;
-                                                }
-
-                                                if (serverInfo.StatusResponseReceived)
-                                                {
-                                                    if(serverInfo.RealClients > 4) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
-                                                    {
-                                                        timeString += $" with {serverInfo.RealClients} players";
-                                                    }
-                                                }
-
-                                                browser.Stop();
+                                                serverInfo = await browser.GetFullServerInfo(eventNetAddress,true,false);
                                             }
+                                            catch (Exception e)
+                                            {
+                                                this.addToLog("Exception trying to get ServerInfo for calendar event (during await): " + e.ToString());
+                                                return;
+                                            }
+
+                                            if (serverInfo.StatusResponseReceived)
+                                            {
+                                                if(serverInfo.RealClients > 4) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
+                                                {
+                                                    timeString += $" with {serverInfo.RealClients} players";
+                                                }
+                                                else
+                                                {
+                                                    if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and it doesn't seem active anymore
+                                                }
+                                            }
+                                            else
+                                            {
+                                                if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
+                                            }
+
+                                            browser.Stop();
                                         }
-                                    }
-                                    catch (Exception e)
+                                    } else
                                     {
-                                        addToLog($"Calendar: Error checking server for activity: {e.ToString()}", true);
+                                        if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
                                     }
                                 }
+                                catch (Exception e)
+                                {
+                                    addToLog($"Calendar: Error checking server for activity: {e.ToString()}", true);
+                                    if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
+                                }
+                               
                             }
                             else
                             {
@@ -936,7 +975,7 @@ namespace JKWatcher
                                 }
                             }
                             announcement = announcement.Replace("###TIME###", timeString);
-                            mainChatConnection.leakyBucketRequester.requestExecution($"say {announcement}", RequestCategory.CALENDAREVENT_ANNOUNCE,0,60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                            if(!cancelDisplay) mainChatConnection.leakyBucketRequester.requestExecution($"say {announcement}", RequestCategory.CALENDAREVENT_ANNOUNCE,0,60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                             calendarEventsLastAnnounced[ce.id] = DateTime.Now;
                             break; // Only 1 event announced at a time.
                         }

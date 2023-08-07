@@ -215,6 +215,7 @@ namespace JKWatcher
         public SnapStatusInfo SnapStatus { get; private set; } = new SnapStatusInfo();
 
         public bool AlwaysFollowSomeone { get; set; } = true;
+        public bool HandleAutoCommands { get; set; } = true; // Conditional commands etc.
 
         //public ConnectionStatus Status => client != null ? client.Status : ConnectionStatus.Disconnected;
         public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
@@ -1885,6 +1886,8 @@ findHighestScore:
             }
         }
 
+        ClientInfo[] oldClientInfo = new ClientInfo[64];
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
@@ -1932,7 +1935,7 @@ findHighestScore:
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
             }
-            if (executeMapChangeCommands)
+            if (executeMapChangeCommands && this.HandleAutoCommands)
             {
                 ExecuteCommandList(_connectionOptions.mapChangeCommands,RequestCategory.MAPCHANGECOMMAND);
             }
@@ -2085,24 +2088,11 @@ findHighestScore:
                         noActivePlayers = false;
                     }
 
-                    bool playerBecameActive = false;
-
-                    if (client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
-                    {
-                        if (infoPool.playerInfo[i].team != client.ClientInfo[i].Team || infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
-                        {
-                            playerBecameActive = true;
-                        }
-                    }
 
                     infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
 
                     // Whole JkWatcher instance based
                     if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
-                        if (client.ClientInfo[i].InfoValid)
-                        {
-                            playerBecameActive = true;
-                        }
 
                         // Client connected/disconnected. Reset some stats
                         for(int p=0;p< client.ClientHandler.MaxClients; p++)
@@ -2113,15 +2103,31 @@ findHighestScore:
                         infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince=DateTime.Now};
                     }
 
-                    if (playerBecameActive) // Check conditional commands
+                    if(oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                     {
-                        ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
-                        foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                        clientsWhoDontWantTOrCannotoBeSpectated[i] = DateTime.Now - new TimeSpan(1, 0, 0); // Reset this if he connected/disconnected, or there will be a timeout on the slot next time someone connects
+                    }
+
+                    if (this.HandleAutoCommands) // Check conditional commands
+                    {
+                        bool playerBecameActive = false;
+                        if (client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                         {
-                            if (cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                            if (oldClientInfo[i].Team != client.ClientInfo[i].Team || oldClientInfo[i].Name != client.ClientInfo[i].Name || oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                             {
-                                string commands = cmd.commands.Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase);
-                                ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                                playerBecameActive = true;
+                            }
+                        }
+                        if (playerBecameActive)
+                        {
+                            ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                            foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                            {
+                                if (cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                                {
+                                    string commands = cmd.commands.Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase);
+                                    ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                                }
                             }
                         }
                     }
@@ -2186,6 +2192,8 @@ findHighestScore:
                     leakyBucketRequester.requestExecution("follow " + highestScorePlayer, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }
             }*/
+
+            oldClientInfo = (ClientInfo[])client.ClientInfo.Clone();
 
             snapsEnforcementUpdate();
         }
@@ -2260,7 +2268,7 @@ findHighestScore:
                     EvaluateChat(commandEventArgs);
                     break;
                 case "map_restart":
-                    ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
+                    if (this.HandleAutoCommands) ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
                     break;
                 default:
                     break;
@@ -2381,7 +2389,7 @@ findHighestScore:
             {
                 string printText = commandEventArgs.Command.Argv(1);
 
-                if(printText != null)
+                if(printText != null && this.HandleAutoCommands)
                 {
                     ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                     foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm

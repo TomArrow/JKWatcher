@@ -250,13 +250,16 @@ namespace JKWatcher
                     if (pm.message == null) return; // Message from myself. Ignore.
 
 
-                    ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
-                    foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                    if (this.HandleAutoCommands)
                     {
-                        if (cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
+                        ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                        foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                         {
-                            string commands = cmd.commands.Replace("$name",pm.playerName, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", pm.playerNum.ToString(),StringComparison.OrdinalIgnoreCase);
-                            ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                            if (cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
+                            {
+                                string commands = cmd.commands.Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", pm.playerNum.ToString(), StringComparison.OrdinalIgnoreCase);
+                                ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                            }
                         }
                     }
 

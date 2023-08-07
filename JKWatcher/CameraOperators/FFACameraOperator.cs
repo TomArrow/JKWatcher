@@ -73,6 +73,7 @@ namespace JKWatcher.CameraOperators
                     conn.AlwaysFollowSomeone = true;
                     conn.AllowBotFight = false;
                     conn.HandlesFightBotChatCommands = false;
+                    conn.HandleAutoCommands = true;
                 }
                 base.Destroy();
                 isDestroyed = true;
@@ -231,6 +232,7 @@ namespace JKWatcher.CameraOperators
                         extraConnection.AlwaysFollowSomeone = false;
                         extraConnection.AllowBotFight = true;
                         extraConnection.HandlesFightBotChatCommands = true;
+                        extraConnection.HandleAutoCommands = false;
                         extraConnection.leakyBucketRequester.requestExecution("team f",RequestCategory.FIGHTBOTSPAWNRELATED,5,2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     } else if (!needFightBot && infoPool.playerInfo[clientNum].team != Team.Spectator)
                     {
@@ -238,6 +240,7 @@ namespace JKWatcher.CameraOperators
                         extraConnection.AlwaysFollowSomeone = true;
                         extraConnection.AllowBotFight = false;
                         extraConnection.HandlesFightBotChatCommands = false;
+                        extraConnection.HandleAutoCommands = true;
                         extraConnection.leakyBucketRequester.requestExecution("team s",RequestCategory.FIGHTBOTSPAWNRELATED,5,2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     }
                 }
