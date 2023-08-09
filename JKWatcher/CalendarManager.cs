@@ -14,10 +14,12 @@ namespace JKWatcher
         public Int64 id { get; set; }
         [Indexed]
         public DateTime eventTime { get; set; }
+        public bool perpetual { get; set; } = false;
         public string name { get; set; }
         public string announcementTemplate { get; set; }
         public string announcementTemplateSilent { get; set; }
         public string serverIP { get; set; }
+        public int minPlayersToBeConsideredActive { get; set; } = 4;
         public bool active { get; set; } = false;
         public bool deleted { get; set; } = false;
 
@@ -50,8 +52,6 @@ namespace JKWatcher
                     var db = new SQLiteConnection(calendarDatabaseFilename, false);
 
                     db.CreateTable<CalendarEvent>();
-                    //db.BeginTransaction();
-                    //db.Commit();
                     db.Close();
                     db.Dispose();
                 }
@@ -75,7 +75,7 @@ namespace JKWatcher
                         List<CalendarEvent> res = null;
                         if (onlyUpcoming)
                         {
-                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent WHERE deleted=0 AND eventTime > ?", twoHoursBeforeNow) as List<CalendarEvent>;
+                            res = db.Query<CalendarEvent>($"SELECT * FROM CalendarEvent WHERE deleted=0 AND (eventTime > ? OR perpetual>0)", twoHoursBeforeNow) as List<CalendarEvent>;
                         }
                         else
                         {

@@ -827,7 +827,7 @@ namespace JKWatcher
                         eventTime = DateTime.SpecifyKind(eventTime, DateTimeKind.Local);
                     }
 
-                    //if((eventTime-now).TotalDays > 14 || )
+                    if ((eventTime - now).TotalDays > 31) continue;
                     if(!ce.active )
                     {
                         continue;
@@ -889,7 +889,7 @@ namespace JKWatcher
                         {
                             string announcement = ce.announcementTemplate;
                             string timeString = "";
-                            if (eventAlreadyRunning)
+                            if (eventAlreadyRunning || ce.perpetual)
                             {
                                 bool eventOlderThan2Hours = (now - eventTime).TotalHours > 2.0;
                                 timeString  = "active now";
@@ -916,31 +916,31 @@ namespace JKWatcher
 
                                             if (serverInfo.StatusResponseReceived)
                                             {
-                                                if(serverInfo.RealClients > 4) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
+                                                if(serverInfo.RealClients > ce.minPlayersToBeConsideredActive) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
                                                 {
                                                     timeString += $" with {serverInfo.RealClients} players";
                                                 }
                                                 else
                                                 {
-                                                    if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and it doesn't seem active anymore
+                                                    if (eventOlderThan2Hours || ce.perpetual) cancelDisplay = true; // This event is older than 2 hours and it doesn't seem active anymore
                                                 }
                                             }
                                             else
                                             {
-                                                if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
+                                                if (eventOlderThan2Hours || ce.perpetual) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
                                             }
 
                                             browser.Stop();
                                         }
                                     } else
                                     {
-                                        if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
+                                        if (eventOlderThan2Hours || ce.perpetual) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
                                     }
                                 }
                                 catch (Exception e)
                                 {
                                     addToLog($"Calendar: Error checking server for activity: {e.ToString()}", true);
-                                    if (eventOlderThan2Hours) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
+                                    if (eventOlderThan2Hours || ce.perpetual) cancelDisplay = true; // This event is older than 2 hours and we can't verify it's still active
                                 }
                                
                             }
@@ -990,11 +990,11 @@ namespace JKWatcher
         private (string,string) humanReadableFutureDateTime(DateTime now, DateTime then)
         {
             string dayString = "";
-            if (then.Day == now.Day)
+            if (then.Day == now.Day && (then - now).TotalDays < 4.0)
             {
                 dayString = "today";
             }
-            else if (now.AddDays(1).Day == then.Day)
+            else if (now.AddDays(1).Day == then.Day && (then - now).TotalDays < 4.0)
             {
                 dayString = "tomorrow";
             }

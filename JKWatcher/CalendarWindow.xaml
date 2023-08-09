@@ -16,6 +16,8 @@
             <Button x:Name="deleteEventsBtn" Click="deleteEventsBtn_Click">Delete selected events</Button>
             <GroupBox Header="Editing" DataContext="{Binding ElementName=calendarEventsGrid,Path=SelectedItem}">
                 <StackPanel>
+                    <CheckBox IsChecked="{Binding perpetual, Mode=TwoWay}" ToolTip="If checked, the date doesn't matter. It is simply announced whenever there is players on a server and there is no other announcements beforehand.">Perpetual</CheckBox>
+                    <Label>Date &amp; Time</Label>
                     <pickers:DateTimePicker SelectedValue="{Binding eventTime, Mode=TwoWay}"></pickers:DateTimePicker>
                     <Label>Name</Label>
                     <TextBox Text="{Binding name, Mode=TwoWay}"></TextBox>
@@ -23,6 +25,8 @@
                     <TextBox Text="{Binding announcementTemplate, Mode=TwoWay}"></TextBox>
                     <Label ToolTip="###CASUALTIME### is placeholder for casual dynamic time string (not yet done)">Announcement template (silent)</Label>
                     <TextBox Text="{Binding announcementTemplateSilent, Mode=TwoWay}"></TextBox>
+                    <Label ToolTip="If the event is perpetual or already started more than 2 hours ago, this determines how many players need to be active for the announcement to be done.">Minimum players to be active</Label>
+                    <TextBox Text="{Binding minPlayersToBeConsideredActive, Mode=TwoWay}"></TextBox>
                     <Label>Server IP</Label>
                     <TextBox Text="{Binding serverIP, Mode=TwoWay}"></TextBox>
                     <CheckBox IsChecked="{Binding active, Mode=TwoWay}">Active</CheckBox>
