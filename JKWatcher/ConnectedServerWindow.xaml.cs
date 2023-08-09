@@ -800,7 +800,7 @@ namespace JKWatcher
 
         string timeString = "", lastTimeString = "", lastTimeStringForced = "";
         Dictionary<Int64,DateTime> calendarEventsLastAnnounced = new Dictionary<Int64, DateTime>();
-        private async void eventNotifier(CancellationToken ct)
+        private async void eventNotifier(CancellationToken ct) // TODO Only notify in same game. Don't notify of jk2 in jka etc.
         {
             while (true)
             {

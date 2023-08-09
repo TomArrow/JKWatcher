@@ -326,6 +326,7 @@ namespace JKWatcher
             StringBuilder sb = new StringBuilder();
             foreach(string line in lines)
             {
+                if (line == null) continue;
                 sb.AppendLine(line);
             }
             logToSpecificDebugFile(Encoding.UTF8.GetBytes(sb.ToString()),specificFileName,append);

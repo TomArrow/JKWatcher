@@ -66,12 +66,12 @@ namespace JKWatcher
         public MainWindow()
         {
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             // Check botroutes
             BotRouteManager.Initialize();
 
             InitializeComponent();
-            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             protocols.ItemsSource = System.Enum.GetValues(typeof(ProtocolVersion));
             protocols.SelectedItem = ProtocolVersion.Protocol15;
@@ -376,7 +376,7 @@ namespace JKWatcher
                                         if (serverIsExcluded) continue; // Skip this one.
                                     }
 
-                                    if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived)
+                                    if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived && !serverInfo.NoBots)
                                     {
 
                                         Dispatcher.Invoke(() => {
@@ -398,6 +398,9 @@ namespace JKWatcher
                                         // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
                                         // arrive for some reason
                                         nextCheckFast = true;
+                                    } else if (serverInfo.NoBots)
+                                    {
+                                        Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"),serverInfo.HostName?.ToString(),serverInfo.Address?.ToString(),serverInfo.InfoStringValues?.ToString(),serverInfo.StatusInfoStringValues?.ToString(),"" },"noBotServersDebug.log",true);
                                     }
                                 }
                             }

@@ -488,15 +488,16 @@ namespace JKWatcher
 				//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
 				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 				{
-					if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
-					if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
 					float curdistance = (pi.position - myself.position).Length();
 					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
 					{
 						grippingPlayers.Add(pi);
 					}
 
-                    if (pi.chatCommandTrackingStuff.fightBotBlacklist)
+					if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
+					if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
+
+					if (pi.chatCommandTrackingStuff.fightBotBlacklist)
                     {
 						bool blacklistOverridden = pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight;
 						if (!blacklistOverridden && !_connectionOptions.noBotIgnore && curdistance < 500)

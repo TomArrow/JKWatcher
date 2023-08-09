@@ -16,6 +16,7 @@ namespace JKWatcher
 		public DateTime? StatusResponseReceivedTime { get; set; } = null;
 		public bool InfoPacketReceived { get; set; } = false;
 		public bool StatusResponseReceived { get; set; } = false; // If this is true, the Clients count is the actual count of clients excluding bots
+		public bool NoBots { get; internal set; } = false;
 		public string Address { get; set; }
 		public string HostName { get; set; }
 		public string MapName { get; set; }
