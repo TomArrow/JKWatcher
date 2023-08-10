@@ -834,7 +834,11 @@ namespace JKWatcher
                     }
 
 
-                    if (eventTime > now) // upcoming
+                    if (ce.perpetual)
+                    {
+                        remindInterval = minRemindInterval;
+                    }
+                    else if (eventTime > now) // upcoming
                     {
                         double timeDeltaInHours = (eventTime - now).TotalHours;
                         eventInLessThan5Hours = timeDeltaInHours < 5;
@@ -867,8 +871,9 @@ namespace JKWatcher
                             }
                         }
 
-                        if (eventNetAddress != null && eventNetAddress.Equals(this.netAddress)) // Don't announce event on the server it's on
+                        if (eventNetAddress != null && eventNetAddress == this.netAddress) // Don't announce event on the server it's on
                         {
+                            calendarEventsLastAnnounced[ce.id] = DateTime.Now;
                             continue;
                         }
 
