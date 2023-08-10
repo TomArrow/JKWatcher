@@ -811,6 +811,8 @@ namespace JKWatcher
 
                 CalendarEvent[] ces = CalendarManager.GetCalendarEvents(true);
 
+                if (ces == null) continue;
+
                 foreach (CalendarEvent ce in ces)
                 {
                     double minRemindInterval = 1000 * 60 * 10; // 10 minutes (min interval)
@@ -827,7 +829,7 @@ namespace JKWatcher
                         eventTime = DateTime.SpecifyKind(eventTime, DateTimeKind.Local);
                     }
 
-                    if ((eventTime - now).TotalDays > 31) continue;
+                    if ((eventTime - now).TotalDays > 31 && !ce.perpetual) continue;
                     if(!ce.active )
                     {
                         continue;
@@ -916,7 +918,7 @@ namespace JKWatcher
                                             catch (Exception e)
                                             {
                                                 this.addToLog("Exception trying to get ServerInfo for calendar event (during await): " + e.ToString());
-                                                return;
+                                                //continue;
                                             }
 
                                             if (serverInfo.StatusResponseReceived)
