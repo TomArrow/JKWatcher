@@ -1720,7 +1720,8 @@ namespace JKWatcher
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
-            // Actually don't do this: Our normal follow command accomplishes the same thing and at least follows someone worth following instead of random person
+
+
             /*if (amNotInSpec) // Maybe in the future I will
             {
                 
@@ -1733,14 +1734,18 @@ namespace JKWatcher
                     // Depending on server settings, this might not work though, but hey, we can try.
 
                     // Duel could theoretically allow suicide, in which case this could be used to let next player play safely.
-                    leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    // Actually don't do this: If we can't go spec, oh well.
+                    //leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 10000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
 
                     if (maySendFollow) // In jka i can actually weasel out of duels like this, but not in jk2 sadly. It puts me spec but immediately queues me back up for the next fight. Sad. Never found out why.
                     {
-                        leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 6000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        // Do this with a big delay. We may not be allowed to go into spec at all so eh... just try once a minute.
+                        // We still ahve to do this to begin with because on some servers we can't force ourselves spec via the follow command, but we can via team spectator.
+                        leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                     
                         // Ironic... this does allow me to go spec in duel, but it creates an endless loop where I am always the next upcoming player, at leasts in jk2. :( Even worse
-                        leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
+                        // Actually don't do this: Our normal follow command accomplishes the same thing and at least follows someone worth following instead of random person            
+                        //leakyBucketRequester.requestExecution("follownext", RequestCategory.GOINTOSPECHACK, 5, 3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS); // Evil hack to go spec in duel mode LOL
                     }
                 }
             }
@@ -1762,6 +1767,11 @@ namespace JKWatcher
                 )
                 ) // Not following anyone. Let's follow someone.
             {
+                if (amNotInSpec)
+                {
+                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                }
+
                 int highestScore = int.MinValue;
                 List<int> highestScorePlayer = new List<int>();
                 //int highestScorePlayer = -1;
@@ -2324,12 +2334,27 @@ findHighestScore:
                             infoPool.teamInfo[teamToCheck].lastTimeFlagWasSeenAtBase = DateTime.Now;
                         }
                     }
-                    int tmp = int.Parse(str[0].ToString());
-                    infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
-                    infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
-                    tmp = int.Parse(str[1].ToString());
-                    infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
-                    infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                    int tmp = 0;
+                    if(!int.TryParse(str[0].ToString(), out tmp))
+                    {
+                        serverWindow.addToLog($"ERROR parsing integer in flagstatus configstring [0]: {str}",true);
+                    }
+                    else
+                    {
+                        infoPool.teamInfo[(int)Team.Red].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagUpdate = DateTime.Now;
+                    }
+                    //int tmp = int.Parse(str[0].ToString());
+                    //tmp = int.Parse(str[1].ToString());
+                    if(!int.TryParse(str[1].ToString(), out tmp))
+                    {
+                        serverWindow.addToLog($"ERROR parsing integer in flagstatus configstring [1]: {str}",true);
+                    }
+                    else
+                    {
+                        infoPool.teamInfo[(int)Team.Blue].flag = tmp == 2 ? FlagStatus.FLAG_DROPPED : (FlagStatus)tmp;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagUpdate = DateTime.Now;
+                    }
                 }
 
                 // Reasoning: If a flag is dropped/in base, and then it is taken and our cam operator knows this, but the current flag carrier isn't updated *yet*, we will otherwise assume the wrong flag carrier.
