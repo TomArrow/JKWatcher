@@ -272,6 +272,40 @@ namespace JKWatcher
                 }
             }
 
+            public enum DisconnectTriggers :UInt64 { // This is for bitfields, so each new value must be twice the last one.
+                GAMETYPE_NOT_CTF = 1
+            }
+            private string _disconnectTriggers = null;
+            public string disconnectTriggers
+            {
+                get
+                {
+                    return _disconnectTriggers;
+                }
+                set
+                {
+                    if (value != _disconnectTriggers)
+                    {
+                        _disconnectTriggers = value;
+                        _disconnectTriggersParsed = 0;
+                        if (_disconnectTriggers != null && _disconnectTriggers.Contains("gameTypeNotCTF", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT_CTF;
+                        }
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggers"));
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggersParsed"));
+                    }
+                }
+            }
+            private DisconnectTriggers _disconnectTriggersParsed = 0;
+            public DisconnectTriggers disconnectTriggersParsed
+            {
+                get
+                {
+                    return _disconnectTriggersParsed;
+                }
+            }
+
         }
 
         ConnectionOptions _connectionOptions = null;
@@ -419,6 +453,15 @@ namespace JKWatcher
 
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
+            // Disconnect if "gametypenotctf" disconnecttrigger is set.
+            if((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT_CTF) > 0 && !(obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
+            {
+                Dispatcher.Invoke(()=> {
+                    this.Close();
+                });
+                return;
+            }
+
             //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless
             if (_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
             {
@@ -1296,19 +1339,43 @@ namespace JKWatcher
 
         public void createCTFOperator()
         {
-            createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
+            lock (destructionMutex)
+            {
+                if (!isDestroyed)
+                {
+                    createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
+                }
+            }
         }
         public void createOCDefragOperator()
         {
-            createCameraOperator<CameraOperators.OCDCameraOperator>();
+            lock (destructionMutex)
+            {
+                if (!isDestroyed)
+                {
+                    createCameraOperator<CameraOperators.OCDCameraOperator>();
+                }
+            }
         }
         public void createStrobeOperator()
         {
-            createCameraOperator<CameraOperators.StrobeCameraOperator>();
+            lock (destructionMutex)
+            {
+                if (!isDestroyed)
+                {
+                    createCameraOperator<CameraOperators.StrobeCameraOperator>();
+                }
+            }
         }
         public void createFFAOperator()
         {
-            createCameraOperator<CameraOperators.FFACameraOperator>();
+            lock (destructionMutex)
+            {
+                if (!isDestroyed)
+                {
+                    createCameraOperator<CameraOperators.FFACameraOperator>();
+                }
+            }
         }
 
         private void createCameraOperator<T>() where T:CameraOperator, new()
@@ -1386,49 +1453,65 @@ namespace JKWatcher
             CloseDown();
         }
 
+        private Mutex destructionMutex = new Mutex();
+        private bool isDestroyed = false;
+
         private void CloseDown()
         {
-            _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
-            foreach (CancellationTokenSource backgroundTask in backgroundTasks)
+            lock (destructionMutex)
             {
-                backgroundTask.Cancel();
-            }
+                if (isDestroyed) return;
+                isDestroyed = true;
 
-            //if (connections.Count == 0) return; // doesnt really matter.
+                _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
+                this.Closed -= ConnectedServerWindow_Closed;
+                foreach (CancellationTokenSource backgroundTask in backgroundTasks)
+                {
+                    backgroundTask.Cancel();
+                }
 
-            foreach (CameraOperator op in cameraOperators)
-            {
+                //if (connections.Count == 0) return; // doesnt really matter.
+
+                foreach (CameraOperator op in cameraOperators)
+                {
+                    lock (connectionsCameraOperatorsMutex)
+                    {
+                        op.Destroy();
+                    }
+                    //cameraOperators.Remove(op); // Don't , we're inside for each
+                    updateIndices();
+                    op.Errored -= CamOperator_Errored;
+                }
+                cameraOperators.Clear();
                 lock (connectionsCameraOperatorsMutex)
                 {
-                    op.Destroy();
+                    foreach (Connection connection in connections)
+                    {
+                        connection.stopDemoRecord();
+                        //connection.disconnect();
+                        connection.CloseDown();
+                        //connections.Remove(connection); // Don't, we're inside foreach
+                    }
+                    connections.Clear();
                 }
-                //cameraOperators.Remove(op); // Don't , we're inside for each
-                updateIndices();
-                op.Errored -= CamOperator_Errored;
-            }
-            cameraOperators.Clear();
-            lock (connectionsCameraOperatorsMutex)
-            {
-                foreach (Connection connection in connections)
-                {
-                    connection.stopDemoRecord();
-                    //connection.disconnect();
-                    connection.CloseDown();
-                    //connections.Remove(connection); // Don't, we're inside foreach
-                }
-                connections.Clear();
-            }
 
+            }
         }
 
         public void recordAll()
         {
-            int i = 0;
-            foreach (Connection conn in connections)
+            lock (destructionMutex)
             {
-                if (conn != null)
+                if (!isDestroyed)
                 {
-                    conn.startDemoRecord(i++);
+                    int i = 0;
+                    foreach (Connection conn in connections)
+                    {
+                        if (conn != null)
+                        {
+                            conn.startDemoRecord(i++);
+                        }
+                    }
                 }
             }
         }

@@ -206,7 +206,26 @@ namespace JKWatcher
         private int? oldSpectatedPlayer = null;
         public int? SpectatedPlayer { get; set; } = null;
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
-        public int? Index { get; set; } = null;
+
+        private int? _index = null;
+        public int? Index
+        {
+            get
+            {
+                return _index;
+            }
+            set
+            {
+                if(_index != value)
+                {
+                    _index = value;
+                    updateName();
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("Index"));
+                }
+            }
+        }
+
+
         //public int? CameraOperator { get; set; } = null;
         public CameraOperator CameraOperator { get; set; } = null;
 
@@ -334,6 +353,21 @@ namespace JKWatcher
             if (client != null)
             {
                 string nameToUse = nameOverride == null ? ( _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan" ) : nameOverride;
+
+                if (nameToUse.Contains('\\'))
+                {
+                    string[] nameOptions = nameToUse.Split('\\');
+                    if (this.Index.HasValue)
+                    {
+                        int nameIndex = (int)Math.Abs(this.Index.GetValueOrDefault(0) % nameOptions.Length);
+                        nameToUse = nameOptions[nameIndex];
+                    }
+                    else
+                    {
+                        nameToUse = "Padawan";
+                    }
+                }
+
                 bool clientNumAlreadyAdded = false;
                 if (_connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
                 {
@@ -1767,7 +1801,7 @@ namespace JKWatcher
                 )
                 ) // Not following anyone. Let's follow someone.
             {
-                if (amNotInSpec)
+                if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
                     leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                 }

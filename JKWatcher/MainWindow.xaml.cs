@@ -239,7 +239,18 @@ namespace JKWatcher
                 string[] ffaAutoJoinExcludeList = ffaAutoJoinExclude == null ? null : ffaAutoJoinExclude.Split(",",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
 
                 NetAddress[] manualServers = getManualServers();
-                ServerBrowser.SetHiddenServers(manualServers);
+                List<NetAddress> hiddenServersAll = new List<NetAddress>();
+                hiddenServersAll.AddRange(manualServers);
+                lock (serversToConnectDelayed) {
+                    foreach (ServerToConnect srvTC in serversToConnectDelayed)
+                    { 
+                        if(srvTC.ip != null)
+                        {
+                            hiddenServersAll.Add(srvTC.ip);
+                        }
+                    }
+                }
+                ServerBrowser.SetHiddenServers(hiddenServersAll.ToArray());
 
 
                 int delayedConnectServersCount = 0;
@@ -452,8 +463,22 @@ namespace JKWatcher
             IEnumerable<ServerInfo> servers = null;
             connectBtn.IsEnabled = false;
 
+            //NetAddress[] manualServers = getManualServers();
+            //ServerBrowser.SetHiddenServers(manualServers);
             NetAddress[] manualServers = getManualServers();
-            ServerBrowser.SetHiddenServers(manualServers);
+            List<NetAddress> hiddenServersAll = new List<NetAddress>();
+            hiddenServersAll.AddRange(manualServers);
+            lock (serversToConnectDelayed)
+            {
+                foreach (ServerToConnect srvTC in serversToConnectDelayed)
+                {
+                    if (srvTC.ip != null)
+                    {
+                        hiddenServersAll.Add(srvTC.ip);
+                    }
+                }
+            }
+            ServerBrowser.SetHiddenServers(hiddenServersAll.ToArray());
 
 
             bool jkaMode = false;
@@ -582,11 +607,13 @@ namespace JKWatcher
 
         class ServerToConnect
         {
+            public NetAddress ip = null;
             public string hostName = null;
             public string playerName = null;
             public string password = null;
             public bool autoRecord = false;
             public bool delayed = false;
+            public int delayPerWatcher = 0;
             public int retries = 5;
             public int minRealPlayers = 1;
             public int? botSnaps = 5;
@@ -594,24 +621,97 @@ namespace JKWatcher
             public string mapChangeCommands = null;
             public string quickCommands = null;
             public string conditionalCommands = null;
+            public string disconnectTriggers = null;
+            public int gameTypes = 0;
+            public bool attachClientNumToName = true;
+            public bool demoTimeColorNames = true;
+            public bool silentMode = false;
 
             public ServerToConnect(ConfigSection config)
             {
+                try
+                {
+                    string ipString = config["ip"]?.Trim();
+                    if(ipString != null && ipString.Length != 0)
+                    {
+                        ip = NetAddress.FromString(ipString);
+                    }
+                } catch(Exception e)
+                {
+                    throw new Exception("ServerConnectConfig: error parsing IP {}");
+                }
                 hostName = config["hostName"]?.Trim();
-                if (hostName == null || hostName.Length == 0) throw new Exception("ServerConnectConfig: hostName must be provided");
+                if (hostName != null && hostName.Length == 0) hostName = null;
+                if (hostName == null && ip==null) throw new Exception("ServerConnectConfig: hostName or ip must be provided");
                 playerName = config["playerName"]?.Trim();
                 password = config["password"]?.Trim();
                 mapChangeCommands = config["mapChangeCommands"]?.Trim();
                 quickCommands = config["quickCommands"]?.Trim();
                 conditionalCommands = config["conditionalCommands"]?.Trim();
+                disconnectTriggers = config["disconnectTriggers"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
+                delayPerWatcher = (config["delayPerWatcher"]?.Trim().Atoi()).GetValueOrDefault(0);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
-                watchers = config["watchers"]?.Trim().Split(',');
+                watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
                 delayed = config["delayed"]?.Trim().Atoi() > 0;
 
-                if(minRealPlayers>0 && !delayed)
+                attachClientNumToName = (config["attachClientNumToName"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
+                demoTimeColorNames = (config["demoTimeColorNames"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
+                silentMode = (config["silentMode"]?.Trim().Atoi()).GetValueOrDefault(0) > 0;
+
+                string[] gameTypesStrings = config["gameTypes"]?.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (gameTypesStrings != null)
+                {
+                    foreach (string gameTypeString in gameTypesStrings)
+                    {
+                        switch (gameTypeString) {
+                            case "ffa":
+                                gameTypes |= (1 << (int)GameType.FFA);
+                                break;
+                            case "holocron":
+                                gameTypes |= (1 << (int)GameType.Holocron);
+                                break;
+                            case "jedimaster":
+                                gameTypes |= (1 << (int)GameType.JediMaster);
+                                break;
+                            case "duel":
+                                gameTypes |= (1 << (int)GameType.Duel);
+                                break;
+                            case "powerduel":
+                                gameTypes |= (1 << (int)GameType.PowerDuel);
+                                break;
+                            case "sp":
+                                gameTypes |= (1 << (int)GameType.SinglePlayer);
+                                break;
+                            case "tffa":
+                                gameTypes |= (1 << (int)GameType.Team);
+                                break;
+                            case "siege":
+                                gameTypes |= (1 << (int)GameType.Siege);
+                                break;
+                            case "cty":
+                                gameTypes |= (1 << (int)GameType.CTF);
+                                break;
+                            case "ctf":
+                                gameTypes |= (1 << (int)GameType.CTY);
+                                break;
+                            case "1flagctf":
+                                gameTypes |= (1 << (int)GameType.OneFlagCTF);
+                                break;
+                            case "obelisk":
+                                gameTypes |= (1 << (int)GameType.Obelisk);
+                                break;
+                            case "harvester":
+                                gameTypes |= (1 << (int)GameType.Harvester);
+                                break;
+                        }
+
+                    }
+                }
+
+                if (minRealPlayers>0 && !delayed)
                 {
                     throw new Exception("ServerConnectConfig: minPlayers value > 0 requires delayed=1");
                 }
@@ -620,9 +720,13 @@ namespace JKWatcher
             public bool FitsRequirements(ServerInfo serverInfo)
             {
                 if (serverInfo.HostName == null) return false;
-                if (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName))) // Improve this to also find non-colorcoded terms etc
+                if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
-                    return (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) && (!serverInfo.NeedPassword || serverInfo.NeedPassword && password != null && password.Length > 0);
+                    return (gameTypes == 0 || serverInfo.InfoPacketReceived && 0 < (gameTypes & (1 << (int)serverInfo.GameType)) ) 
+                        && (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) 
+                        && (!serverInfo.NeedPassword || serverInfo.NeedPassword 
+                        && password != null 
+                        && password.Length > 0);
                 }
                 else
                 {
@@ -639,7 +743,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;
@@ -655,26 +759,54 @@ namespace JKWatcher
                     }
                     if (serverToConnect.watchers != null)
                     {
+                        int index = 0;
                         foreach (string camera in serverToConnect.watchers)
                         {
-                            switch (camera)
+                            string cameraLocal = camera;
+                            Action watcherCreate = new Action(()=> {
+                                switch (cameraLocal)
+                                {
+                                    case "defrag":
+                                    case "ocd":
+                                        newWindow.createOCDefragOperator();
+                                        break;
+                                    case "ctf":
+                                        newWindow.createCTFOperator();
+                                        break;
+                                    case "strobe":
+                                        newWindow.createStrobeOperator();
+                                        break;
+                                    case "ffa":
+                                        newWindow.createFFAOperator();
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            });
+
+                            index++;
+                            int delayHere = index * serverToConnect.delayPerWatcher;
+
+                            if(delayHere > 0)
                             {
-                                case "defrag":
-                                case "ocd":
-                                    newWindow.createOCDefragOperator();
-                                    break;
-                                case "ctf":
-                                    newWindow.createCTFOperator();
-                                    break;
-                                case "strobe":
-                                    newWindow.createStrobeOperator();
-                                    break;
-                                case "ffa":
-                                    newWindow.createFFAOperator();
-                                    break;
-                                default:
-                                    break;
+                                bool localAutoRecord = serverToConnect.autoRecord;
+                                Task.Run(()=> { 
+                                    System.Threading.Thread.Sleep(delayHere);
+                                    Dispatcher.Invoke(()=> {
+                                        watcherCreate();
+                                        if (localAutoRecord)
+                                        {
+                                            newWindow.recordAll();
+                                        }
+                                    });
+                                });
                             }
+                            else
+                            {
+                                watcherCreate();
+                            }
+
+
                         }
                     }
                     if (serverToConnect.autoRecord)
@@ -727,7 +859,7 @@ namespace JKWatcher
                 {
                     if (section.SectionName == "__general__") continue;
 
-                    if (section["hostName"] != null)
+                    if (section["hostName"] != null || section["ip"] != null)
                     {
                         var newServer = new ServerToConnect(section);
                         if (newServer.delayed)
@@ -738,6 +870,22 @@ namespace JKWatcher
                     }
                 }
             }
+
+            NetAddress[] manualServers = getManualServers();
+            List<NetAddress> hiddenServersAll = new List<NetAddress>();
+            hiddenServersAll.AddRange(manualServers);
+            lock (serversToConnectDelayed)
+            {
+                foreach (ServerToConnect srvTC in serversToConnect)
+                {
+                    if (srvTC.ip != null)
+                    {
+                        hiddenServersAll.Add(srvTC.ip);
+                    }
+                }
+            }
+            ServerBrowser.SetHiddenServers(hiddenServersAll.ToArray());
+
             if (serversToConnect.Count > 0)
             {
                 int tries = 0;
