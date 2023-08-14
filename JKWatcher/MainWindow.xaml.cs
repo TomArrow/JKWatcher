@@ -319,19 +319,22 @@ namespace JKWatcher
                             }
                             // We want to be speccing/recording this.
                             // Check if we are already connected. If so, do nothing.
-                            if(!alreadyConnected && !serverInfo.NeedPassword) { 
+                            if(!alreadyConnected && !serverInfo.NeedPassword) {
 
-                                if(delayedConnectServersCount > 0)
+                                bool configgedRequirementsExplicitlyNotMet = false;
+                                if (delayedConnectServersCount > 0)
                                 {
                                     ServerToConnect srvTCChosen = null;
                                     lock (serversToConnectDelayed) { 
                                         foreach (ServerToConnect srvTC in serversToConnectDelayed)
                                         {
-                                            if (srvTC.FitsRequirements(serverInfo))
+                                            bool serverMatchedButMayNotSatisfyConditions = false;
+                                            if (srvTC.FitsRequirements(serverInfo, ref serverMatchedButMayNotSatisfyConditions))
                                             {
                                                 srvTCChosen = srvTC;
                                                 break;
                                             }
+                                            configgedRequirementsExplicitlyNotMet = configgedRequirementsExplicitlyNotMet || serverMatchedButMayNotSatisfyConditions;
                                         }
                                         if(srvTCChosen != null)
                                         {
@@ -342,79 +345,83 @@ namespace JKWatcher
                                     }
                                 }
 
-                                if(ctfAutoJoinActive && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY)) { 
-                                    if (serverInfo.RealClients >= ctfMinPlayersForJoin && statusReceived)
-                                    {
-                                
-                                        Dispatcher.Invoke(()=> {
-
-                                            lock (connectedServerWindows)
-                                            {
-                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
-                                                connectedServerWindows.Add(newWindow);
-                                                newWindow.Loaded += NewWindow_Loaded;
-                                                newWindow.Closed += NewWindow_Closed;
-                                                newWindow.ShowActivated = false;
-                                                newWindow.Show();
-                                                newWindow.createCTFOperator();
-                                                if (ctfAutoJoinWithStrobeActive)
-                                                {
-                                                    newWindow.createStrobeOperator();
-                                                }
-                                                newWindow.recordAll();
-                                            }
-                                        });
-                                    } else if (serverInfo.Clients >= ctfMinPlayersForJoin && !statusReceived)
-                                    {
-                                        // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
-                                        // arrive for some reason
-                                        nextCheckFast = true;
-                                    }
-                                } else if (ffaAutoJoinActive && !(serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                                if (!configgedRequirementsExplicitlyNotMet)
                                 {
-                                    // Check for exclude filter
-                                    if(ffaAutoJoinExcludeList != null)
-                                    {
-                                        bool serverIsExcluded = false;
-                                        foreach(string excludeString in ffaAutoJoinExcludeList)
+
+                                    if(ctfAutoJoinActive && (serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY)) { 
+                                        if (serverInfo.RealClients >= ctfMinPlayersForJoin && statusReceived)
                                         {
-                                            if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                serverIsExcluded = true;
-                                                break;
-                                            }
+                                
+                                            Dispatcher.Invoke(()=> {
+
+                                                lock (connectedServerWindows)
+                                                {
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                                    connectedServerWindows.Add(newWindow);
+                                                    newWindow.Loaded += NewWindow_Loaded;
+                                                    newWindow.Closed += NewWindow_Closed;
+                                                    newWindow.ShowActivated = false;
+                                                    newWindow.Show();
+                                                    newWindow.createCTFOperator();
+                                                    if (ctfAutoJoinWithStrobeActive)
+                                                    {
+                                                        newWindow.createStrobeOperator();
+                                                    }
+                                                    newWindow.recordAll();
+                                                }
+                                            });
+                                        } else if (serverInfo.Clients >= ctfMinPlayersForJoin && !statusReceived)
+                                        {
+                                            // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
+                                            // arrive for some reason
+                                            nextCheckFast = true;
                                         }
-                                        if (serverIsExcluded) continue; // Skip this one.
-                                    }
-
-                                    if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived && !serverInfo.NoBots)
+                                    } else if (ffaAutoJoinActive && !(serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
                                     {
-
-                                        Dispatcher.Invoke(() => {
-
-                                            lock (connectedServerWindows)
+                                        // Check for exclude filter
+                                        if(ffaAutoJoinExcludeList != null)
+                                        {
+                                            bool serverIsExcluded = false;
+                                            foreach(string excludeString in ffaAutoJoinExcludeList)
                                             {
-                                                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive });
-                                                connectedServerWindows.Add(newWindow);
-                                                newWindow.Loaded += NewWindow_Loaded;
-                                                newWindow.Closed += NewWindow_Closed;
-                                                newWindow.ShowActivated = false;
-                                                newWindow.Show();
-                                                newWindow.recordAll();
+                                                if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    serverIsExcluded = true;
+                                                    break;
+                                                }
                                             }
-                                        });
+                                            if (serverIsExcluded) continue; // Skip this one.
+                                        }
+
+                                        if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived && !serverInfo.NoBots)
+                                        {
+
+                                            Dispatcher.Invoke(() => {
+
+                                                lock (connectedServerWindows)
+                                                {
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive });
+                                                    connectedServerWindows.Add(newWindow);
+                                                    newWindow.Loaded += NewWindow_Loaded;
+                                                    newWindow.Closed += NewWindow_Closed;
+                                                    newWindow.ShowActivated = false;
+                                                    newWindow.Show();
+                                                    newWindow.recordAll();
+                                                }
+                                            });
+                                        }
+                                        else if (serverInfo.Clients >= ffaMinPlayersForJoin && !statusReceived)
+                                        {
+                                            // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
+                                            // arrive for some reason
+                                            nextCheckFast = true;
+                                        } else if (serverInfo.NoBots)
+                                        {
+                                            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"),serverInfo.HostName?.ToString(),serverInfo.Address?.ToString(),serverInfo.InfoStringValues?.ToString(),serverInfo.StatusInfoStringValues?.ToString(),"" },"noBotServersDebug.log",true);
+                                        }
                                     }
-                                    else if (serverInfo.Clients >= ffaMinPlayersForJoin && !statusReceived)
-                                    {
-                                        // If there's a potential candidate but we haven't received info about whether the players are real players, make next refresh with less waiting time. It's possible the StatusResponse just didn't
-                                        // arrive for some reason
-                                        nextCheckFast = true;
-                                    } else if (serverInfo.NoBots)
-                                    {
-                                        Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"),serverInfo.HostName?.ToString(),serverInfo.Address?.ToString(),serverInfo.InfoStringValues?.ToString(),serverInfo.StatusInfoStringValues?.ToString(),"" },"noBotServersDebug.log",true);
-                                    }
-                                }
-                            }
+                                } // if (!configgedRequirementsExplicitlyNotMet)
+                            } // if(!alreadyConnected && !serverInfo.NeedPassword) {
 
                         }
 
@@ -717,11 +724,13 @@ namespace JKWatcher
                 }
             }
 
-            public bool FitsRequirements(ServerInfo serverInfo)
+            public bool FitsRequirements(ServerInfo serverInfo, ref bool matchesButMightNotMeetRequirements)
             {
+                matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
+                    matchesButMightNotMeetRequirements = true;
                     return (gameTypes == 0 || serverInfo.InfoPacketReceived && 0 < (gameTypes & (1 << (int)serverInfo.GameType)) ) 
                         && (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) 
                         && (!serverInfo.NeedPassword || serverInfo.NeedPassword 
@@ -947,7 +956,8 @@ namespace JKWatcher
                                 ServerToConnect wishServer = null;
                                 foreach (ServerToConnect serverToConnect in serversToConnect)
                                 {
-                                    if (serverToConnect.FitsRequirements(serverInfo))
+                                    bool matchesButMayNotFitRequirements = false;
+                                    if (serverToConnect.FitsRequirements(serverInfo, ref matchesButMayNotFitRequirements))
                                     {
                                         wantToConnect = true;
                                         wishServer = serverToConnect;
