@@ -66,6 +66,43 @@ namespace JKWatcher
         //public int lastKnownServerTime;
     }
 
+    public struct PlayerIdentification
+    {
+        public string name { get; init; }
+        public string model { get; init; }
+        public string color1 { get; init; }
+        public string color2 { get; init; }
+        public string g_redteam { get; init; }
+        public string g_blueteam { get; init; }
+
+        public static bool operator ==(PlayerIdentification u1, PlayerIdentification u2)
+        {
+            return u1.name == u2.name &&
+                u1.model == u2.model &&
+                u1.color1 == u2.color1 &&
+                u1.color2 == u2.color2// && 
+                //u1.g_redteam == u2.g_redteam && // Sadly we can't use these 2 because for some reason they aren't always consistent. Idk why.
+                //u1.g_blueteam == u2.g_blueteam
+                ;
+        }
+        public static bool operator !=(PlayerIdentification u1, PlayerIdentification u2)
+        {
+            return !(u1==u2);
+        }
+
+        public static PlayerIdentification FromClientInfo(ClientInfo info)
+        {
+            return new PlayerIdentification() { 
+                name=info.Name,
+                model=info.Model,
+                color1=info.Color1,
+                color2=info.Color2,
+                g_redteam=info.GRedTeam,
+                g_blueteam=info.GBlueTeam
+            };
+        }
+    }
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
@@ -100,6 +137,8 @@ namespace JKWatcher
         public DateTime? lastDeath;
 
         // For killtrackers/memes and such
+        public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
+        public DateTime? lastSeenValid = null;
         public ChatCommandTrackingStuff chatCommandTrackingStuff = new ChatCommandTrackingStuff();
         public void ResetChatCommandTrackingStuff()
         {

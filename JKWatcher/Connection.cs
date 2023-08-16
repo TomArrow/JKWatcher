@@ -2135,19 +2135,47 @@ findHighestScore:
 
                     infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
 
+                    PlayerIdentification thisPlayerID = PlayerIdentification.FromClientInfo(client.ClientInfo[i]);
+                    
                     // Whole JkWatcher instance based
                     if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
 
-                        // Client connected/disconnected. Reset some stats
-                        for(int p=0;p< client.ClientHandler.MaxClients; p++)
+                        // Client connected/disconnected. Masybe reset some stats
+                        if (client.ClientInfo[i].InfoValid)
                         {
-                            infoPool.killTrackers[i, p] = new KillTracker();
-                            infoPool.killTrackers[p, i] = new KillTracker();
+                            // Wasn't connected before, is connected now.
+                            // Is it a reconnect? If not, reset some stats.
+                            bool isReconnect = infoPool.playerInfo[i].lastSeenValid.HasValue && (DateTime.Now - infoPool.playerInfo[i].lastSeenValid.Value).TotalMilliseconds < 60000
+                                && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
+                            if (!isReconnect)
+                            {
+                                for (int p = 0; p < client.ClientHandler.MaxClients; p++)
+                                {
+                                    infoPool.killTrackers[i, p] = new KillTracker();
+                                    infoPool.killTrackers[p, i] = new KillTracker();
+                                }
+                                infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
+                            }
+                            else
+                            {
+                                serverWindow.addToLog($"Reconnect detected: {i}: {client.ClientInfo[i].Name}");
+                            }
                         }
-                        infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince=DateTime.Now};
+                        else
+                        {
+                            // Player is disconnecting. Remember time to check for reconnect.
+                            infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
+                        }
+                        
                     }
 
-                    if(oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
+                    if (client.ClientInfo[i].InfoValid)
+                    {
+                        infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
+                        infoPool.playerInfo[i].lastValidPlayerData = thisPlayerID;
+                    }
+
+                    if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                     {
                         clientsWhoDontWantTOrCannotoBeSpectated[i] = DateTime.Now - new TimeSpan(1, 0, 0); // Reset this if he connected/disconnected, or there will be a timeout on the slot next time someone connects
                     }
