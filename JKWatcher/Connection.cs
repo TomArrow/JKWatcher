@@ -1803,7 +1803,7 @@ namespace JKWatcher
             {
                 if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
-                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,null,6000);
                 }
 
                 int highestScore = int.MinValue;

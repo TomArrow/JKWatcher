@@ -9,6 +9,12 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+    // TODO Handle JKA style floodprotect value.
+    // It's 1000 ms for sv_floodProtect == 1 and just the millisecond value if its another value than 0.
+    // And there is no burst seemingly:
+    // https://github.com/JACoders/OpenJK/blob/995d0dd461ce41755cb54dc78059cd42aeef0445/codemp/server/sv_client.cpp#L1332-L1348
+
+
 
     class SleepInterrupter // To avoid any issues with calling cancellationtokensources that are already disposed etc.
     {
