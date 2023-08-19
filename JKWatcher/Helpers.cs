@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -235,6 +236,10 @@ namespace JKWatcher
         public static string forcedLogFileName = "forcedLog.log";
         public static void logToFile(string[] texts)
         {
+            foreach(string line in texts)
+            {
+                Debug.WriteLine(line);
+            }
             try {
 
                 //lock (forcedLogFileName)

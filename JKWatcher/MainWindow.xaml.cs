@@ -97,6 +97,13 @@ namespace JKWatcher
             }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
 
+            tokenSource = new CancellationTokenSource();
+            ct = tokenSource.Token;
+            Task.Factory.StartNew(() => { fastDelayedConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                Helpers.logToFile(new string[] { t.Exception.ToString() });
+            }, TaskContinuationOptions.OnlyOnFaulted);
+            backgroundTasks.Add(tokenSource);
+
             //Timeline.DesiredFrameRateProperty.OverrideMetadata(
             //    typeof(Timeline),
             //    new FrameworkPropertyMetadata { DefaultValue = 165 }
@@ -243,8 +250,9 @@ namespace JKWatcher
                 hiddenServersAll.AddRange(manualServers);
                 lock (serversToConnectDelayed) {
                     foreach (ServerToConnect srvTC in serversToConnectDelayed)
-                    { 
-                        if(srvTC.ip != null)
+                    {
+                        //if (srvTC.pollingInterval.HasValue && !fastDelayedConnecterBroken) continue; // Servers with custom polling interval are handled elsewhere.
+                        if (srvTC.ip != null)
                         {
                             hiddenServersAll.Add(srvTC.ip);
                         }
@@ -331,8 +339,12 @@ namespace JKWatcher
                                             bool serverMatchedButMayNotSatisfyConditions = false;
                                             if (srvTC.FitsRequirements(serverInfo, ref serverMatchedButMayNotSatisfyConditions))
                                             {
-                                                srvTCChosen = srvTC;
-                                                break;
+                                                if (!srvTC.pollingInterval.HasValue || fastDelayedConnecterBroken)
+                                                { // Servers with custom polling interval are handled elsewhere.
+
+                                                    srvTCChosen = srvTC;
+                                                    break;
+                                                }
                                             }
                                             configgedRequirementsExplicitlyNotMet = configgedRequirementsExplicitlyNotMet || serverMatchedButMayNotSatisfyConditions;
                                         }
@@ -435,6 +447,137 @@ namespace JKWatcher
             }
         }
 
+        class DelayConnecterData
+        {
+            public Task<ServerInfo> pollTask = null;
+            public DateTime lastTimePolled = DateTime.Now - new TimeSpan(240000, 0, 0);
+            public DateTime lastTimeGotAnswer = DateTime.Now;
+        };
+
+        bool fastDelayedConnecterBroken = false;
+
+        private async void fastDelayedConnecter(CancellationToken ct)
+        {
+            bool nextCheckFast = false;
+
+            ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true));
+
+            try
+            {
+
+                serverBrowser.Start(ExceptionCallback);
+                //servers = await serverBrowser.GetNewList();
+                //servers = await serverBrowser.RefreshList();
+            }
+            catch (Exception e)
+            {
+                // Just in case getting servers crashes or sth.
+                //continue;
+                Helpers.logToFile(e.ToString());
+            }
+
+            Dictionary<ServerToConnect, DelayConnecterData> serverPollingInfo = new Dictionary<ServerToConnect, DelayConnecterData>();
+            while (true)
+            {
+
+                System.Threading.Thread.Sleep(500); 
+
+                lock (serversToConnectDelayed)
+                {
+                    foreach (ServerToConnect srvTC in serversToConnectDelayed)
+                    {
+                        if (!srvTC.pollingInterval.HasValue || srvTC.ip == null) continue; // Servers with custom polling interval are handled elsewhere.
+
+                        bool alreadyConnected = false;
+                        lock (connectedServerWindows)
+                        {
+                            foreach (ConnectedServerWindow window in connectedServerWindows)
+                            {
+                                if (window.netAddress == srvTC.ip)
+                                {
+                                    alreadyConnected = true;
+                                }
+                            }
+                        }
+
+                        if (alreadyConnected) continue;
+
+                        if (!serverPollingInfo.ContainsKey(srvTC))
+                        {
+                            serverPollingInfo[srvTC] = new DelayConnecterData();
+                        }
+
+                        if(serverPollingInfo[srvTC].pollTask == null && (DateTime.Now-serverPollingInfo[srvTC].lastTimePolled).TotalMilliseconds > srvTC.pollingInterval.Value)
+                        {
+                            serverPollingInfo[srvTC].pollTask = serverBrowser.GetFullServerInfo(srvTC.ip, srvTC.minRealPlayers > 0, true, srvTC.pollingInterval.Value); // Only need status if we have a min real player requirement.
+                            serverPollingInfo[srvTC].lastTimePolled = DateTime.Now;
+                        }
+
+                        double millisecondsSinceLastAnswer = (DateTime.Now - serverPollingInfo[srvTC].lastTimeGotAnswer).TotalMilliseconds;
+                        if (millisecondsSinceLastAnswer > Math.Max(srvTC.pollingInterval.Value*10,60000))
+                        {
+                            if (!fastDelayedConnecterBroken)
+                            {
+                                fastDelayedConnecterBroken = true;
+                                // Let main loop take care of it then.
+                                Helpers.logToFile($"ERROR: fastDelayedConnecter seems to be broken. No answer received in a long time ({millisecondsSinceLastAnswer}ms).");
+                            }
+                        } else
+                        {
+                            fastDelayedConnecterBroken = false;
+                        }
+
+                    }
+                }
+
+                foreach (KeyValuePair<ServerToConnect, DelayConnecterData> kvp in serverPollingInfo)
+                {
+                    DelayConnecterData dcd = kvp.Value;
+                    if (dcd.pollTask != null && dcd.pollTask.IsCompleted)
+                    {
+                        if(dcd.pollTask.Status == TaskStatus.RanToCompletion)
+                        {
+                            dcd.lastTimeGotAnswer = DateTime.Now;
+                            ServerInfo thisServerInfo = dcd.pollTask.Result;
+                            ServerToConnect stc = kvp.Key;
+                            bool isMatchThough = false;
+                            if (stc.FitsRequirements(thisServerInfo, ref isMatchThough))
+                            {
+                                Debug.WriteLine($"Server {stc.ip.ToString()} polled, fits requirements. IsMatch: {isMatchThough}.");
+                                ConnectFromConfig(thisServerInfo, stc);
+                            } else
+                            {
+                                Debug.WriteLine($"Server {stc.ip.ToString()} polled, doesn't fit requirements. IsMatch: {isMatchThough}.");
+                            }
+                        }
+                        dcd.pollTask = null;
+                    }
+                }
+                /*lock (serversToConnectDelayed)
+                {
+                    foreach (ServerToConnect srvTC in serversToConnectDelayed)
+                    {
+                        if (!srvTC.pollingInterval.HasValue) continue; // Servers with custom polling interval are handled elsewhere.
+                        bool serverMatchedButMayNotSatisfyConditions = false;
+                        if (srvTC.FitsRequirements(serverInfo, ref serverMatchedButMayNotSatisfyConditions))
+                        {
+                            srvTCChosen = srvTC;
+                            break;
+                        }
+                        configgedRequirementsExplicitlyNotMet = configgedRequirementsExplicitlyNotMet || serverMatchedButMayNotSatisfyConditions;
+                    }
+                    if (srvTCChosen != null)
+                    {
+                        ConnectFromConfig(serverInfo, srvTCChosen);
+                        continue;
+                        //serversToConnectDelayed.Remove(srvTCChosen); // actually dont delete it.
+                    }
+                }*/
+
+
+            }
+        }
+
         private void NewWindow_Closed(object sender, EventArgs e)
         {
             ConnectedServerWindow newWindow = sender as ConnectedServerWindow;
@@ -534,6 +677,7 @@ namespace JKWatcher
 
         Task ExceptionCallback(JKClientException exception)
         {
+            Helpers.logToFile(new string[] { exception.ToString() });
             Debug.WriteLine(exception);
             return null;
         }
@@ -622,7 +766,7 @@ namespace JKWatcher
             public bool delayed = false;
             public int delayPerWatcher = 0;
             public int retries = 5;
-            public int minRealPlayers = 1;
+            public int minRealPlayers = 0;
             public int? botSnaps = 5;
             public string[] watchers = null;
             public string mapChangeCommands = null;
@@ -633,6 +777,7 @@ namespace JKWatcher
             public bool attachClientNumToName = true;
             public bool demoTimeColorNames = true;
             public bool silentMode = false;
+            public int? pollingInterval = null;
 
             public ServerToConnect(ConfigSection config)
             {
@@ -660,6 +805,7 @@ namespace JKWatcher
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 delayPerWatcher = (config["delayPerWatcher"]?.Trim().Atoi()).GetValueOrDefault(0);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
+                pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
                 delayed = config["delayed"]?.Trim().Atoi() > 0;
@@ -718,9 +864,19 @@ namespace JKWatcher
                     }
                 }
 
+                if(pollingInterval.HasValue && ip == null)
+                {
+                    throw new Exception("ServerConnectConfig: pollingInterval for server requires IP to be set");
+                }
+
                 if (minRealPlayers>0 && !delayed)
                 {
                     throw new Exception("ServerConnectConfig: minPlayers value > 0 requires delayed=1");
+                }
+
+                if (pollingInterval.HasValue && !delayed)
+                {
+                    throw new Exception("ServerConnectConfig: pollingInterval requires delayed=1");
                 }
             }
 
