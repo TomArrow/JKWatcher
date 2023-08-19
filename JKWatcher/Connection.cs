@@ -1803,6 +1803,11 @@ namespace JKWatcher
             {
                 if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
+                    if(lastPlayerState.Stats[0] > 0)
+                    {
+                        // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
+                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null,6000);
+                    }
                     leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,null,6000);
                 }
 
