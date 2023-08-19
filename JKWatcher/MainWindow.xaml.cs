@@ -524,7 +524,12 @@ namespace JKWatcher
                             }
                         } else
                         {
-                            fastDelayedConnecterBroken = false;
+                            if (fastDelayedConnecterBroken)
+                            {
+                                fastDelayedConnecterBroken = false;
+                                // Let main loop take care of it then.
+                                Helpers.logToFile($"ERROR: fastDelayedConnecter unbroken again. Last answer recent ({millisecondsSinceLastAnswer}ms).");
+                            }
                         }
 
                     }
