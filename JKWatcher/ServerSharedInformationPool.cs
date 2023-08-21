@@ -52,6 +52,7 @@ namespace JKWatcher
         public int kickDeaths;
         public int falls;
         public int doomkills;
+        public int returns;
         public int totalKills;
         public int totalDeaths;
         public bool fightBotIgnore;
@@ -106,6 +107,10 @@ namespace JKWatcher
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
+        public ServerSharedInformationPool infoPool { get; init; } = null;
+
+        public int ProbableRetCount => (infoPool?.serverSeemsToSupportRetsCountScoreboard).GetValueOrDefault(true) ? this.score.impressiveCount : this.chatCommandTrackingStuff.returns;
+
         #region position
         public Vector3 position;
         public DateTime? lastPositionUpdate; // Last time the player position alone was updated (from events or such)
@@ -254,6 +259,7 @@ namespace JKWatcher
 
     public struct KillTracker
     {
+        public int returns; // Not currently used.
         public int kills;
         public DateTime? lastKillTime;
         public bool trackingMatch;
@@ -309,7 +315,19 @@ namespace JKWatcher
 
         public KillTracker[,] killTrackers;
 
+        public int getProbableRetCount(int clientNum)
+        {
+            if(clientNum < 0 || clientNum > _maxClients)
+            {
+                return 0;
+            } else
+            {
+                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].score.impressiveCount : this.playerInfo[clientNum].chatCommandTrackingStuff.returns;
+            }
+        }
+
         public bool NoActivePlayers { get; set; }
+        public bool serverSeemsToSupportRetsCountScoreboard = false;
 
         public DateTime? lastBotOnlyConfirmed = null;
         public DateTime? lastScoreboardReceived = null;
@@ -394,7 +412,7 @@ namespace JKWatcher
 
             for (int i = 0; i < playerInfo.Length; i++)
             {
-                playerInfo[i] = new PlayerInfo();
+                playerInfo[i] = new PlayerInfo() { infoPool=this};
             }
             jkaMode = jkaModeA;
             if (jkaMode)
@@ -425,6 +443,7 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
             }
         }
+        /*
         public void ResetInfo(bool isMBII)
         {
             playerInfo = new PlayerInfo[_maxClients];
@@ -440,7 +459,7 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
                 this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
             }
-        }
+        }*/
     }
 
     public enum FlagStatus : int

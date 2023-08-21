@@ -80,7 +80,7 @@
                     <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
                     <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Rets" Binding="{Binding score.impressiveCount}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
                 </DataGrid.Columns>
 

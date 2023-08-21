@@ -17,6 +17,8 @@ namespace JKWatcher.CameraOperators
     // If a flag is not visible, check if the other connection sees it. And maybe that can help find a better match.
     // If the other connection sees it, we may not have to give chances to recently died players
     // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
+
+    // TODO If we are forced to be in game and can't spectate, at least try to put ourselves across both teams?
     class CTFCameraOperatorRedBlue : CameraOperator
     {
 
@@ -427,7 +429,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             visibilityMultiplier = flagItemNumber == -1 ? 1.0f: infoPool.getVisibilityMultiplier(i, flagItemNumber),
                         };
                         tmp.gradeForFlagAtBase(flagTeam, !flagVisible);
@@ -627,7 +629,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                         };
                         tmp.gradeForFlagTakenUnknownPlayer(flagTeam);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -920,7 +922,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             isVisible = connection.entityOrPSVisible[i],
                             isCarryingTheFlag = i == flagCarrier,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false,
                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagCarrier),
                         };
@@ -1110,7 +1112,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount // Will only be filled on nwh but won't hurt anything otherwise. TODO : Do our own counting?
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount // Will only be filled on nwh but won't hurt anything otherwise. TODO : Do our own counting?
                         };
                         tmp.gradeForFlagDroppedUnknownPosition(flagTeam, timeSinceAtBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -1246,7 +1248,7 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.playerInfo[i].score.impressiveCount,
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagItemNumber),
                         };
                         tmp.gradeForFlagDroppedWithKnownPosition(flagTeam,flagVisible,flagDistanceFromBase);

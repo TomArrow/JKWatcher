@@ -1312,7 +1312,11 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
                     } 
                     serverWindow.addToLog(pi.name + " killed carrier of " + otherTeamAsString + " flag.");
-                    
+                    if (this.IsMainChatConnection)
+                    {
+                        infoPool.playerInfo[playerNum].chatCommandTrackingStuff.returns++; // Our own tracking of rets in case server doesn't send them.
+                    }
+
                 } else if (messageType == CtfMessageType.FlagReturned)
                 {
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_ATBASE;
@@ -2701,6 +2705,12 @@ findHighestScore:
                     infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
                     infoPool.playerInfo[clientNum].score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
                     infoPool.playerInfo[clientNum].score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+
+                    if (infoPool.playerInfo[clientNum].score.impressiveCount > 0)
+                    {
+                        infoPool.serverSeemsToSupportRetsCountScoreboard = true;
+                    }
+
                     infoPool.playerInfo[clientNum].score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
 
                     infoPool.playerInfo[clientNum].score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
