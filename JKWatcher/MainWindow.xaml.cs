@@ -500,7 +500,11 @@ namespace JKWatcher
                             }
                         }
 
-                        if (alreadyConnected) continue;
+                        if (alreadyConnected)
+                        {
+                            serverPollingInfo[srvTC].lastTimePolled = DateTime.Now; // Avoid fast connecter being identified as broken just because we were connected and then disconnected.
+                            continue;
+                        }
 
                         if (!serverPollingInfo.ContainsKey(srvTC))
                         {
