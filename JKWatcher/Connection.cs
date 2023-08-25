@@ -89,6 +89,7 @@ namespace JKWatcher
         GOINTOSPECHACK,
         FIGHTBOT,
         FIGHTBOT_QUEUED,
+        FIGHTBOT_WAYPOINTCOMMAND,
         BOTSAY,
         FIGHTBOTSPAWNRELATED, // Going to spec, going into free team etc.
         CALENDAREVENT_ANNOUNCE,

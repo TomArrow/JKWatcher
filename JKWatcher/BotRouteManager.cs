@@ -21,6 +21,7 @@ namespace JKWatcher
         public Vector3 origin;
         public ushort[] neighborsNums = null;
         public float distToNext;
+        public string command = null;
     }
 
     public class WayPointPath

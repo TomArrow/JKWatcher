@@ -35,7 +35,8 @@ namespace JKWatcher
 		LOVER,
 		CUSTOM,
 		ABSORBSPEED,
-		MINDTRICKSPEED
+		MINDTRICKSPEED,
+		WALKWAYPOINTS
 	}
 	public enum GripKickDBSMode
 	{
@@ -384,9 +385,11 @@ namespace JKWatcher
 				if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 30)
 				{
 					// KMS
-					leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-					lastTimeFastMove = DateTime.Now;
-					return;
+					if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
+						leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+						lastTimeFastMove = DateTime.Now;
+						return;
+					}
 				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2)
 				{
 					findShortestBotPathWalkDistance = true; // Dont clear here, just recalculate. Reason: It can use the current points as exclusion.
@@ -483,107 +486,119 @@ namespace JKWatcher
 
 
 			// Find nearest player
-			foreach (PlayerInfo pi in infoPool.playerInfo)
-			{
-				//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
-				if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
+			if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
+				foreach (PlayerInfo pi in infoPool.playerInfo)
 				{
-					float curdistance = (pi.position - myself.position).Length();
-					if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
+					//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
+					if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 					{
-						grippingPlayers.Add(pi);
-					}
-
-					if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
-					if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
-
-					if (pi.chatCommandTrackingStuff.fightBotBlacklist)
-                    {
-						bool blacklistOverridden = pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight;
-						if (!blacklistOverridden && !_connectionOptions.noBotIgnore && curdistance < 500)
+						float curdistance = (pi.position - myself.position).Length();
+						if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
 						{
-							blackListedPlayerIsNearby = true;
+							grippingPlayers.Add(pi);
+						}
+
+						if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
+						if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
+
+						if (pi.chatCommandTrackingStuff.fightBotBlacklist)
+						{
+							bool blacklistOverridden = pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight;
+							if (!blacklistOverridden && !_connectionOptions.noBotIgnore && curdistance < 500)
+							{
+								blackListedPlayerIsNearby = true;
+								continue;
+							}
+						}
+						if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 300) {
+							strongIgnoreNearby = true;
 							continue;
 						}
-					}
-					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 300) {
-						strongIgnoreNearby = true;
-						continue;
-					}
-					if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 100 && amInAttack) { // If a very scared person less than 100 units away and im attacking ... kill myself with high priority.
-						leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 300, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-						return;
-					}
-					if (pi.chatCommandTrackingStuff.fightBotIgnore && !_connectionOptions.noBotIgnore) continue;
-					if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
-																							// Check if player is in the radius of someone with strong ignore
-					bool thisPlayerNearStrongIgnore = false;
-					foreach (PlayerInfo piSub in infoPool.playerInfo)
-					{
-						if (piSub.infoValid && piSub.IsAlive && piSub.team != Team.Spectator && piSub.clientNum != myNum && !piSub.duelInProgress)
-						{
-							bool blacklistOverridden = piSub.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && piSub.chatCommandTrackingStuff.wantsBotFight;
-							if ((piSub.chatCommandTrackingStuff.fightBotStrongIgnore || (piSub.chatCommandTrackingStuff.fightBotBlacklist && !blacklistOverridden)) && (pi.position - piSub.position).Length() < 300)
-                            {
-								thisPlayerNearStrongIgnore = true;
-								break;
+						if (pi.chatCommandTrackingStuff.fightBotStrongIgnore && !_connectionOptions.noBotIgnore && curdistance < 100 && amInAttack) { // If a very scared person less than 100 units away and im attacking ... kill myself with high priority.
+							if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
+								leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 300, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 							}
+							return;
 						}
-					}
-					if (thisPlayerNearStrongIgnore) continue;
-
-
-					bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
-
-					if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
-                    {
-						WayPoint hisClosestWayPoint = this.pathFinder.findClosestWayPoint(pi.position, null,pi.groundEntityNum == Common.MaxGEntities-2);
-						if(hisClosestWayPoint != null)
-                        {
-							float walkDistance = 0;
-							var path = this.pathFinder.getPath(myClosestWayPoint, hisClosestWayPoint,ref walkDistance);
-                            if (playerIsAfk)
-                            {
-								if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathAfkDistance)
+						if (pi.chatCommandTrackingStuff.fightBotIgnore && !_connectionOptions.noBotIgnore) continue;
+						if (grippingSomebody && personImTryingToGrip != pi.clientNum) continue; // This is shit. There must be better way. Basically, wanna get the player we're actually gripping.
+																								// Check if player is in the radius of someone with strong ignore
+						bool thisPlayerNearStrongIgnore = false;
+						foreach (PlayerInfo piSub in infoPool.playerInfo)
+						{
+							if (piSub.infoValid && piSub.IsAlive && piSub.team != Team.Spectator && piSub.clientNum != myNum && !piSub.duelInProgress)
+							{
+								bool blacklistOverridden = piSub.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && piSub.chatCommandTrackingStuff.wantsBotFight;
+								if ((piSub.chatCommandTrackingStuff.fightBotStrongIgnore || (piSub.chatCommandTrackingStuff.fightBotBlacklist && !blacklistOverridden)) && (pi.position - piSub.position).Length() < 300)
 								{
-									closestWayPointPathAfk = path;
-									closestWayPointBotPathAfkDistance = walkDistance;
-								}
-							} else
-                            {
-								if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathDistance)
-								{
-									closestWayPointPath = path;
-									closestWayPointBotPathDistance = walkDistance;
+									thisPlayerNearStrongIgnore = true;
+									break;
 								}
 							}
-                        }
-					}
-
-					// We just deprioritize them
-					//if (playerIsAfk) continue; // ignore mildly afk players
-
-                    if (playerIsAfk)
-                    {
-						if (curdistance < closestDistanceAfk)
-						{
-							closestDistanceAfk = curdistance;
-							closestPlayerAfk = pi;
 						}
-					} else
-                    {
-						if (curdistance < closestDistance)
+						if (thisPlayerNearStrongIgnore) continue;
+
+
+						bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
+
+						if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
 						{
-							closestDistance = curdistance;
-							closestPlayer = pi;
+							WayPoint hisClosestWayPoint = this.pathFinder.findClosestWayPoint(pi.position, null,pi.groundEntityNum == Common.MaxGEntities-2);
+							if(hisClosestWayPoint != null)
+							{
+								float walkDistance = 0;
+								var path = this.pathFinder.getPath(myClosestWayPoint, hisClosestWayPoint,ref walkDistance);
+								if (playerIsAfk)
+								{
+									if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathAfkDistance)
+									{
+										closestWayPointPathAfk = path;
+										closestWayPointBotPathAfkDistance = walkDistance;
+									}
+								} else
+								{
+									if (path != null && walkDistance > 0 && walkDistance < closestWayPointBotPathDistance)
+									{
+										closestWayPointPath = path;
+										closestWayPointBotPathDistance = walkDistance;
+									}
+								}
+							}
+						}
+
+						// We just deprioritize them
+						//if (playerIsAfk) continue; // ignore mildly afk players
+
+						if (playerIsAfk)
+						{
+							if (curdistance < closestDistanceAfk)
+							{
+								closestDistanceAfk = curdistance;
+								closestPlayerAfk = pi;
+							}
+						} else
+						{
+							if (curdistance < closestDistance)
+							{
+								closestDistance = curdistance;
+								closestPlayer = pi;
+							}
 						}
 					}
 				}
 			}
 
-            if (findShortestBotPathWalkDistance)
+			if (findShortestBotPathWalkDistance || (infoPool.sillyMode == SillyMode.WALKWAYPOINTS && wayPointsToWalk.Count == 0))
             {
-				if(closestWayPointPath != null)
+                if (infoPool.sillyMode == SillyMode.WALKWAYPOINTS)
+                {
+					wayPointsToWalk.Clear();
+                    lock (infoPool.wayPoints)
+                    {
+						wayPointsToWalk.AddRange(infoPool.wayPoints);
+					}
+				}
+				else if(closestWayPointPath != null)
                 {
 					wayPointsToWalk.Clear();
 					wayPointsToWalk.AddRange(closestWayPointPath);
@@ -641,7 +656,9 @@ namespace JKWatcher
 					if((DateTime.Now - lastTimeAnyPlayerSeen).TotalSeconds > 120)
 					{
 						// KMS
-						leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+						if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
+							leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+						}
 						lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
 					}
 					closestPlayer = dummyPlayerInfo;
@@ -753,6 +770,16 @@ namespace JKWatcher
 			float nextSharpTurnOrEnd = float.PositiveInfinity;
 			if (wayPointsToWalk.Count > 0) // Do some potential trimming of waypoints.
             {
+				if(wayPointsToWalk[0].command != null)
+                {
+					if (infoPool.sillyMode == SillyMode.WALKWAYPOINTS && _connectionOptions.allowWayPointBotmodeCommands)
+                    {
+						leakyBucketRequester.requestExecution(wayPointsToWalk[0].command, RequestCategory.FIGHTBOT_WAYPOINTCOMMAND, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+					}
+					wayPointsToWalk.RemoveAt(0);
+					return;
+				}
+
 				bool inAntiStuckCooldown = (DateTime.Now-lastStuckDetectReset).TotalMilliseconds < 3000 && !stuckDetectRandomDirectionSet;
 				if ((enemyLikelyOnSamePlane || dbsPossible) && !inAntiStuckCooldown)
 				{
@@ -1102,6 +1129,14 @@ namespace JKWatcher
             {
 				userCmd.Upmove = 127;
             }
+			else if (sillyMode == SillyMode.WALKWAYPOINTS)
+			{
+				// Nothing to do.
+				if(userCmd.ForwardMove == 0)
+                {
+					userCmd.ForwardMove = 127;
+				}
+			}
 			else if (sillyMode == SillyMode.LOVER)
 			{
 

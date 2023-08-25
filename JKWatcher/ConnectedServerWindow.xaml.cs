@@ -186,6 +186,8 @@ namespace JKWatcher
             public bool demoTimeColorNames { get; set; } = true;
             public bool silentMode { get; set; } = false;
             public bool noBotIgnore { get; set; } = false;
+            public bool allowWayPointBotmode { get; set; } = false;
+            public bool allowWayPointBotmodeCommands { get; set; } = false;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;

@@ -492,6 +492,17 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
                             MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
                             MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
+                            if (_connectionOptions.allowWayPointBotmode)
+                            {  
+                                if (_connectionOptions.allowWayPointBotmodeCommands)
+                                {
+                                    MemeRequest(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
+                                } else
+                                {
+                                    MemeRequest(pm, "!waypoint !clearwaypoints", true, true, true, true);
+                                }
+                                MemeRequest(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
+                            }
                             MemeRequest(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
@@ -746,8 +757,14 @@ namespace JKWatcher
                             if (demoNoteString == null)
                             {
                                 MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
-                                MemeRequest(pm, "speedabsorb, assassin", true, true, true);
-                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin" }).Contains(stringParams[1].ToLower()))
+                                if (_connectionOptions.allowWayPointBotmode)
+                                {
+                                    MemeRequest(pm, "waypoints, speedabsorb, assassin", true, true, true);
+                                } else
+                                {
+                                    MemeRequest(pm, "speedabsorb, assassin", true, true, true);
+                                }
+                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin", "waypoints" }).Contains(stringParams[1].ToLower()))
                             {
                                 MemeRequest(pm, $"Unknown mode {stringParams[1]}", true, true, true);
                             }
@@ -768,6 +785,7 @@ namespace JKWatcher
                             {
                                 string skin = "kyle/default";
                                 string forcePowers = Client.forcePowersAllDark;
+                                bool modeDisallowed = false;
                                 switch (stringParams[1].ToLower()) {
                                     case "silly":
                                         infoPool.sillyMode = SillyMode.SILLY;
@@ -775,6 +793,18 @@ namespace JKWatcher
                                         break;
                                     case "dbs":
                                         infoPool.sillyMode = SillyMode.DBS;
+                                        break;
+                                    case "waypoints":
+                                    case "walkwaypoints":
+                                        if (_connectionOptions.allowWayPointBotmode)
+                                        {
+                                            infoPool.sillyMode = SillyMode.WALKWAYPOINTS;
+                                            forcePowers = Client.forcePowersJKClientDefault;
+                                        }
+                                        else
+                                        {
+                                            modeDisallowed = true;
+                                        }
                                         break;
                                     case "lover":
                                         infoPool.sillyMode = SillyMode.LOVER;
@@ -827,20 +857,26 @@ namespace JKWatcher
                                         forcePowers = Client.forcePowersAllLight;
                                         break;
                                 }
-                                this.client.SkipUserInfoUpdatesAfterNextNChanges(1);
-                                bool doKill = false;
-                                if (this.client.GetUserInfoKeyValue("forcepowers") != forcePowers)
+                                if (!modeDisallowed)
                                 {
-                                    doKill = true;
-                                }
-                                this.client.SetUserInfoKeyValue("forcepowers", forcePowers);
-                                this.client.Skin = skin;
-                                if (doKill)
-                                {
-                                    leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT_QUEUED, 5, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                                }
+                                    this.client.SkipUserInfoUpdatesAfterNextNChanges(1);
+                                    bool doKill = false;
+                                    if (this.client.GetUserInfoKeyValue("forcepowers") != forcePowers)
+                                    {
+                                        doKill = true;
+                                    }
+                                    this.client.SetUserInfoKeyValue("forcepowers", forcePowers);
+                                    this.client.Skin = skin;
+                                    if (doKill)
+                                    {
+                                        leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT_QUEUED, 5, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                                    }
 
-                                MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
+                                    MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
+                                } else
+                                {
+                                    MemeRequest(pm, $"{demoNoteString} mode not allowed.", true, true, true);
+                                }
                             }
                             notDemoCommand = true;
                             break;
@@ -934,6 +970,65 @@ namespace JKWatcher
                                 MemeRequest(pm, $"Fast DBS is currently {infoPool.fastDbs}. Use 1/0 to enable/disable.", true, true, true);
                             }
                             notDemoCommand = true;
+                            break;
+                        case "!waypointcommand":
+                            if (_connectionOptions.allowWayPointBotmode && _connectionOptions.allowWayPointBotmodeCommands) { 
+                                if (!weHandleFightBotCommands) return;
+                                if (demoNoteString == null)
+                                {
+                                    MemeRequest(pm, "!waypointcommand requires a command to be excuted.", true, true, true, true);
+                                }
+                                else if (!customSillyModeCommands.Contains(demoNoteString.ToLower().Trim()))
+                                {
+                                    MemeRequest(pm, $"{demoNoteString} command is not whitelisted.", true, true, true, true);
+                                }
+                                else
+                                {
+                                    if (infoPool.playerInfo[pm.playerNum].lastFullPositionUpdate.HasValue && (DateTime.Now - infoPool.playerInfo[pm.playerNum].lastFullPositionUpdate.Value).TotalMilliseconds < 500)
+                                    {
+                                        lock (infoPool.wayPoints)
+                                        {
+                                            infoPool.wayPoints.Add(new WayPoint() { command = demoNoteString });
+                                        }
+                                        MemeRequest(pm, $"Waypoint added.", true, true, true);
+                                    }
+                                    else
+                                    {
+                                        MemeRequest(pm, $"Can't set waypoint, I don't see you.", true, true, true);
+                                    }
+                                    notDemoCommand = true; 
+                                }
+                            }
+                            break;
+                        case "!waypoint":
+                            if (_connectionOptions.allowWayPointBotmode) { 
+                                if (!weHandleFightBotCommands) return;
+                                if (infoPool.playerInfo[pm.playerNum].lastFullPositionUpdate.HasValue && (DateTime.Now-infoPool.playerInfo[pm.playerNum].lastFullPositionUpdate.Value).TotalMilliseconds < 500)
+                                {
+                                    Vector3 newWp = infoPool.playerInfo[pm.playerNum].position;
+                                    lock (infoPool.wayPoints)
+                                    {
+                                        infoPool.wayPoints.Add(new WayPoint {origin= newWp });
+                                    }
+                                    MemeRequest(pm, $"Waypoint added.", true, true, true);
+                                }
+                                else
+                                {
+                                    MemeRequest(pm, $"Can't set waypoint, I don't see you.", true, true, true);
+                                }
+                                notDemoCommand = true;
+                            }
+                            break;
+                        case "!clearwaypoints":
+                            if (_connectionOptions.allowWayPointBotmode) { 
+                                if (!weHandleFightBotCommands) return;
+                                lock (infoPool.wayPoints)
+                                {
+                                    infoPool.wayPoints.Clear();
+                                }
+                                MemeRequest(pm, $"Waypoints cleared.", true, true, true);
+                                notDemoCommand = true;
+                            }
                             break;
 
 

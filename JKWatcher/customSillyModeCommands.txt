@@ -25,6 +25,8 @@ amspinr
 amsuper
 amsuper2
 amsurrender
+amtelemark
+amtele
 amthreaten
 amthumbsdown
 amthumbsup

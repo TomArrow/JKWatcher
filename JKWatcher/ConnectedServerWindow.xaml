@@ -194,6 +194,8 @@
                                 </Style>
                             </TextBox.Style>
                         </TextBox>
+                        <CheckBox IsChecked="{Binding allowWayPointBotmode,Mode=TwoWay}">Allow waypoint botmode</CheckBox>
+                        <CheckBox IsChecked="{Binding allowWayPointBotmodeCommands,Mode=TwoWay}">Allow waypoint commands</CheckBox>
                     </StackPanel>
                 </TabItem>
             </TabControl>

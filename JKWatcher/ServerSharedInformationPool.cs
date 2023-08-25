@@ -312,6 +312,7 @@ namespace JKWatcher
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }
+        public List<WayPoint> wayPoints = new List<WayPoint>();
 
         public KillTracker[,] killTrackers;
 
