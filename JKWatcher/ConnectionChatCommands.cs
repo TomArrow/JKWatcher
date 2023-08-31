@@ -1374,9 +1374,10 @@ namespace JKWatcher
 
                         if (reframeRequested)
                         {
+                            string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
                             demoCutCommand.Append("DemoReframer ");
-                            demoCutCommand.Append($"\"{filename}.dm_{(int)this.protocol}\" ");
-                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}.dm_{(int)this.protocol}\" ");
+                            demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
+                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
                             demoCutCommand.Append(reframeClientNum);
                             demoCutCommand.Append("\n");
                         }

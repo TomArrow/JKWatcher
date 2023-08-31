@@ -312,6 +312,13 @@ namespace JKWatcher
 
         ConnectionOptions _connectionOptions = null;
 
+        private bool mohMode = false;
+
+
+        private string chatCommandPublic = "say";
+        private string chatCommandTeam = "say_team";
+
+
         public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {
             if(connectionOptions == null)
@@ -328,6 +335,15 @@ namespace JKWatcher
             //demoTimeColorNames = demoTimeColorNamesA;
             netAddress = netAddressA;
             protocol = protocolA;
+
+            mohMode = protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8;
+
+            if (mohMode)
+            {
+                chatCommandPublic = "dmmessage 0";
+                chatCommandTeam = "dmmessage -1";
+            }
+
             password = passwordA;
             //userInfoName = userInfoNameA;
             InitializeComponent();
@@ -340,7 +356,7 @@ namespace JKWatcher
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
-            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, 32) {connectionOptions = connectionOptions };
+            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode ? 64 : 32) {connectionOptions = connectionOptions };
 
             gameTimeTxt.DataContext = infoPool;
             mapNameTxt.DataContext = infoPool;
@@ -1682,14 +1698,14 @@ namespace JKWatcher
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
-            DoExecuteCommand("say \""+ commandLine.Text + "\"",conns.ToArray());
+            DoExecuteCommand($"{chatCommandPublic} \"" + commandLine.Text + "\"",conns.ToArray());
         }
 
         private void msgSendTeamBtn_Click(object sender, RoutedEventArgs e)
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
-            DoExecuteCommand("say_team \"" + commandLine.Text + "\"", conns.ToArray());
+            DoExecuteCommand($"{chatCommandTeam} \"" + commandLine.Text + "\"", conns.ToArray());
 
         }
 

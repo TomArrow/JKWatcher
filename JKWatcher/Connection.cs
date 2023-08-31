@@ -280,10 +280,14 @@ namespace JKWatcher
         ConnectedServerWindow.ConnectionOptions _connectionOptions = null;
 
         private bool jkaMode = false;
+        private bool mohMode = false;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
         private bool SaberModDetected = false;
+
+        private string chatCommandPublic = "say";
+        private string chatCommandTeam = "say_team";
 
         public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
         {
@@ -297,6 +301,11 @@ namespace JKWatcher
             if (protocolA == ProtocolVersion.Protocol26)
             {
                 jkaMode = true;
+            } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8)
+            {
+                mohMode = true;
+                chatCommandPublic = "dmmessage 0";
+                chatCommandTeam = "dmmessage -1";
             }
             snapsSettings = snapsSettingsA;
             //demoTimeNameColors = dateTimeColorNamesA;
@@ -672,11 +681,14 @@ namespace JKWatcher
         {
             Status = client.Status;
             infoPool.MapName = client.ServerInfo.MapName;
-            infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
-            infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
-            infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
-            infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
-            EvaluateFlagStatus(client.GetMappedConfigstring(ClientGame.Configstring.FlagStatus));
+            if (!mohMode)
+            {
+                infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+                infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+                infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+                infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+                EvaluateFlagStatus(client.GetMappedConfigstring(ClientGame.Configstring.FlagStatus));
+            }
         }
 
         private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
@@ -698,6 +710,9 @@ namespace JKWatcher
             } else if(protocol == ProtocolVersion.Protocol26)
             {
                 handler = new JAClientHandler(ProtocolVersion.Protocol26, ClientVersion.JA_v1_01);
+            } else if(protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8)
+            {
+                handler = new MOHClientHandler(protocol, ClientVersion.MOH);
             } else
             {
                 serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);
@@ -2109,11 +2124,14 @@ findHighestScore:
             ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;
 
-            infoPool.MapName = client.ServerInfo.MapName;
-            infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
-            infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
-            infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
-            infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+            if (!mohMode)
+            {
+                infoPool.MapName = client.ServerInfo.MapName;
+                infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+                infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+                infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+                infoPool.ScoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+            }
 
             if (obj.FloodProtect >=-1)
             {
@@ -2452,6 +2470,8 @@ findHighestScore:
 
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
+            if (mohMode) return; // MOH Doesn't have flag status.
+
             int num = commandEventArgs.Command.Argv(1).Atoi();
 
             switch (num)
@@ -2476,6 +2496,7 @@ findHighestScore:
         bool skipSanityCheck = false;
 
         Regex unknownCmdRegex = new Regex(@"^unknown (?:cmd|command) ([^\n]+?)\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex unknownCmdRegexMOH = new Regex(@"^Command '([^\n]+?)' not available from console.\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex clientInactiveRegex = new Regex(@"Client '?(\d+)'? is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         void EvaluatePrint(CommandEventArgs commandEventArgs)
@@ -2565,6 +2586,19 @@ findHighestScore:
                     if (!infoPool.unsupportedCommands.Contains(unknownCmd)) // This isn't PERFECTLY threadsafe, but it should be fine. Shouldn't end up with too many duplicates.
                     {
                         serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this server. Noting.");
+                        infoPool.unsupportedCommands.Add(unknownCmd);
+                    }
+                } else if ( mohMode && (unknownCmdMatch = unknownCmdRegexMOH.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (unknownCmdMatch.Groups.Count < 2) return;
+
+                    string unknownCmd = unknownCmdMatch.Groups[1].Value.Trim().ToLower();
+
+
+                    if (!infoPool.unsupportedCommands.Contains(unknownCmd)) // This isn't PERFECTLY threadsafe, but it should be fine. Shouldn't end up with too many duplicates.
+                    {
+                        serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this MOH server. Noting.");
                         infoPool.unsupportedCommands.Add(unknownCmd);
                     }
                 }
