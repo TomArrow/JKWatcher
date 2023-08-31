@@ -1415,6 +1415,40 @@ namespace JKWatcher
             PropertyChanged?.Invoke(this, eventArgs);
         }
 
+        static uint MOH_CPT_NormalizePlayerStateFlags_ver_6(uint flags)
+        {
+            uint normalizedFlags = 0;
+
+            // Convert AA PlayerMove flags to SH/BT flags
+            normalizedFlags |= flags & (1 << 0);
+            for (int i = 2; i < 32; ++i)
+            {
+                if ((flags & (1 << (i + 2))) != 0)
+                {
+                    normalizedFlags |= (1U << i);
+                }
+            }
+
+            // So that flags are normalized across modules
+            return normalizedFlags;
+        }
+        static uint MOH_CPT_NormalizePlayerStateFlags_ver_15(uint flags)
+        {
+            return flags;
+        }
+        static uint MOH_CPT_NormalizePlayerStateFlags(uint flags, ProtocolVersion protocol)
+        {
+            if (protocol <= ProtocolVersion.Protocol8)
+            {
+                return MOH_CPT_NormalizePlayerStateFlags_ver_6(flags);
+            }
+            else
+            {
+                return MOH_CPT_NormalizePlayerStateFlags_ver_15(flags);
+            }
+        }
+        const int PMF_CAMERA_VIEW_MOH = (1 << 7);
+        const int PMF_SPECTATING_MOH = (1 << 2);
 
         int lastRequestedAlwaysFollowSpecClientNum = -1;
         DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[32] { // Looool this is cringe xd
@@ -1437,6 +1471,7 @@ namespace JKWatcher
         private Snapshot lastSnapshot = new Snapshot();
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
+
 
         public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
@@ -1625,6 +1660,19 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
+
+                    if (mohMode  // MOH hack to find out who we are spectating.... lol
+                        && snap.PlayerState.Origin[0] == snap.Entities[snapEntityNum].Position.Base[0]
+                        && snap.PlayerState.Origin[1] == snap.Entities[snapEntityNum].Position.Base[1]
+                        && snap.PlayerState.Origin[2] == snap.Entities[snapEntityNum].Position.Base[2]
+                        )
+                    {
+                        uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags,this.protocol);
+                        if((normalizePMFlags & PMF_CAMERA_VIEW_MOH) != 0 && (normalizePMFlags & PMF_SPECTATING_MOH) != 0)
+                        {
+                            SpectatedPlayer = i;
+                        }
+                    }
                     
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
