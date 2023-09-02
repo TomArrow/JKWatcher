@@ -1955,6 +1955,7 @@ namespace JKWatcher
                 {
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                     if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                    if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     float currentScore = float.NegativeInfinity;
                     if(currentGameType > GameType.Team)
                     {
@@ -2304,9 +2305,9 @@ namespace JKWatcher
             ClientNum = client.clientNum;
             SpectatedPlayer = client.playerStateClientNum;
 
+            infoPool.MapName = client.ServerInfo.MapName;
             if (!mohMode)
             {
-                infoPool.MapName = client.ServerInfo.MapName;
                 infoPool.teamInfo[(int)Team.Red].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
                 infoPool.ScoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
                 infoPool.teamInfo[(int)Team.Blue].teamScore = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
