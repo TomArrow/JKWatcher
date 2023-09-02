@@ -379,7 +379,7 @@ namespace JKWatcher
                 }
 
                 bool clientNumAlreadyAdded = false;
-                if (_connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
+                if (!mohMode && _connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
                 {
                     DemoName_t demoName = client.getDemoName();
                     if(demoName != null) // Pointless I guess, hmm
@@ -860,6 +860,13 @@ namespace JKWatcher
 
         DateTime lastForcedActivity = DateTime.Now;
 
+        int queuedButtonPress = 0;
+        public void QueueButtonPress(int btn)
+        {
+            queuedButtonPress |= btn;
+        }
+
+
         int doClicks = 0;
         bool lastWasClick = false;
 
@@ -868,6 +875,11 @@ namespace JKWatcher
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand)
         {
+            if (queuedButtonPress > 0)
+            {
+                modifiableCommand.Buttons |= queuedButtonPress;
+                queuedButtonPress = 0;
+            }
             if (amNotInSpec)
             {
                 DoSillyThings(ref modifiableCommand, in previousCommand);
@@ -1384,8 +1396,8 @@ namespace JKWatcher
 
         private void snapsEnforcementUpdate()
         {
-
-            if (snapsSettings != null)
+            // Bot and Team info in MOH is completely unreliable so we don't do this nice fancy stuff there.
+            if (!mohMode && snapsSettings != null)
             {
                 client.AfkDropSnaps = snapsSettings.forceAFKSnapDrop;
                 client.AfkDropSnapsMinFPS = snapsSettings.afkMaxSnaps;
@@ -1481,6 +1493,8 @@ namespace JKWatcher
         const int EF_ALLIES_MOH = 0x00000080;       // su44: this player is in allies team
         const int EF_AXIS_MOH = 0x00000100;     // su44: this player is in axis team
         const int EF_ANY_TEAM_MOH = (EF_ALLIES_MOH | EF_AXIS_MOH);
+
+        public DateTime lastMOHFollowChangeButtonPressQueued = DateTime.Now; // Last time we requested to watch a new player
 
         public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
@@ -1913,106 +1927,155 @@ namespace JKWatcher
                 leakyBucketRequester.purgeByKinds( new RequestCategory[] { RequestCategory.SELFKILL, RequestCategory.GOINTOSPEC, RequestCategory.GOINTOSPECHACK});
             }*/
 
-            bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
-            bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
-            bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
-            Int64 myClientNums = serverWindow.getJKWatcherClientOrFollowedNumsBitMask();
-            if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
-                maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
-                && (ClientNum == SpectatedPlayer || (
-                (isFFACameraOperator || this.CameraOperator == null) && (
-                (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
-                )
-                ) // Not following anyone. Let's follow someone.
+            if (mohMode)
             {
+                // MOHAA is a special child and needs its own kind of handling
                 if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
-                    if (mohMode)
+                    if (lastPlayerState.Stats[0] > 0)
                     {
-                        leakyBucketRequester.requestExecution("spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
-                    } else { 
+                        // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
+                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
+                    }
+                    leakyBucketRequester.requestExecution("spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
+                   
+                }
+
+                // Determine best player.
+                float bestScore = float.NegativeInfinity;
+                int bestScorePlayer = -1;
+                foreach (PlayerInfo player in infoPool.playerInfo)
+                {
+                    if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
+                    float currentScore = float.NegativeInfinity;
+                    if(currentGameType > GameType.Team)
+                    {
+                        // Total kill count. We don't get death count here.
+                        currentScore = player.score.totalKills;
+                    } else if(currentGameType > GameType.FFA)
+                    {
+                        // K/D
+                        currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
+                    } else
+                    {
+                        // K/D
+                        currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
+                    }
+                    if(currentScore > bestScore)
+                    {
+                        bestScorePlayer = player.clientNum;
+                        bestScore = currentScore;
+                    }
+                }
+                if(bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now- lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping*2))
+                {
+                    // No follow command in MOH. We just have to press the change player button a million times :)
+                    lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                    this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
+                }
+
+            } else
+            {
+
+
+                bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
+                bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
+                bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
+                Int64 myClientNums = serverWindow.getJKWatcherClientOrFollowedNumsBitMask();
+                if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
+                    maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
+                    && (ClientNum == SpectatedPlayer || (
+                    (isFFACameraOperator || this.CameraOperator == null) && (
+                    (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
+                    )
+                    ) // Not following anyone. Let's follow someone.
+                {
+                    if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
+                    {
                         if(lastPlayerState.Stats[0] > 0)
                         {
                             // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
                             leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null,6000);
                         }
                         leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,null,6000);
+                        
                     }
-                }
 
-                int highestScore = int.MinValue;
-                List<int> highestScorePlayer = new List<int>();
-                //int highestScorePlayer = -1;
-                float highestScoreRatio = float.NegativeInfinity;
-                //int highestScoreRatioPlayer = -1;
-                List<int> highestScoreRatioPlayer = new List<int>();
-                // Pick player with highest score.
-findHighestScore:
-                //bool allowAFK = true;
-                for(int allowAfkLevel = 0; allowAfkLevel < 3; allowAfkLevel++)
-                {
-                    //if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
-                    if (highestScorePlayer.Count > 0) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
-                    //allowAFK = !allowAFK;
-                    foreach (PlayerInfo player in infoPool.playerInfo)
+                    int highestScore = int.MinValue;
+                    List<int> highestScorePlayer = new List<int>();
+                    //int highestScorePlayer = -1;
+                    float highestScoreRatio = float.NegativeInfinity;
+                    //int highestScoreRatioPlayer = -1;
+                    List<int> highestScoreRatioPlayer = new List<int>();
+                    // Pick player with highest score.
+    findHighestScore:
+                    //bool allowAFK = true;
+                    for(int allowAfkLevel = 0; allowAfkLevel < 3; allowAfkLevel++)
                     {
-                        bool afkCriteriaSatisfied = !playerIsVeryAfk(player.clientNum, false) || (player.confirmedAfk ? (allowAfkLevel >= 2) : (allowAfkLevel >= 1)); // Only allow confirmed afk ppl in the last stage.
-
-                        if ((myClientNums & (1L << player.clientNum)) == 0 // Don't follow ourselves or someone another connection of ours is already following
-                            && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
-                            && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
-                            && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
-                            && afkCriteriaSatisfied
-                            //&& (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
-                        )
+                        //if (highestScorePlayer != -1) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
+                        if (highestScorePlayer.Count > 0) break; // first search only for players that arent afk. then if that doesnt work, include afk ones but not main
+                        //allowAFK = !allowAFK;
+                        foreach (PlayerInfo player in infoPool.playerInfo)
                         {
-                            if (player.score.score > highestScore || highestScorePlayer.Count == 0)
+                            bool afkCriteriaSatisfied = !playerIsVeryAfk(player.clientNum, false) || (player.confirmedAfk ? (allowAfkLevel >= 2) : (allowAfkLevel >= 1)); // Only allow confirmed afk ppl in the last stage.
+
+                            if ((myClientNums & (1L << player.clientNum)) == 0 // Don't follow ourselves or someone another connection of ours is already following
+                                && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
+                                && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
+                                && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
+                                && afkCriteriaSatisfied
+                                //&& (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
+                            )
                             {
-                                highestScore = player.score.score;
-                                //highestScorePlayer = player.clientNum;
-                                highestScorePlayer.Clear();
-                                highestScorePlayer.Add(player.clientNum);
-                            } else if (player.score.score == highestScore)
-                            {
-                                highestScorePlayer.Add(player.clientNum);
-                            }
-                            int thisPlayerScoreTime = player.score.time;
-                            if (thisPlayerScoreTime > 5) // we try to find the player with highest score ratio (score per time in game) if we can. but don't count people under 5 minutes, their values might not be statistically representative? Also avoid division by 0 that way
-                            {
-                                // Would be even cooler if we could remove afk time from the equation since that distorts the score/time ratio. 
-                                // Sadly there is no 100% reliable way of observing afk time and we might very well get the number very wrong.
-                                // For example we might act like someone is afk because we aren't seeing him but he's actually there.
-                                // Alternatively, we could just track confirmed afk time - player visible and afk. And subtract that?
-                                // Similarly to tracking total time visible for some other stats.
-                                float thisPlayerScoreRatio = (float)player.score.score / (float)thisPlayerScoreTime;
-                                if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer.Count == 0)
+                                if (player.score.score > highestScore || highestScorePlayer.Count == 0)
                                 {
-                                    highestScoreRatio = thisPlayerScoreRatio;
-                                    //highestScoreRatioPlayer = player.clientNum;
-                                    highestScoreRatioPlayer.Clear();
-                                    highestScoreRatioPlayer.Add(player.clientNum);
-                                } else if (thisPlayerScoreRatio == highestScoreRatio)
+                                    highestScore = player.score.score;
+                                    //highestScorePlayer = player.clientNum;
+                                    highestScorePlayer.Clear();
+                                    highestScorePlayer.Add(player.clientNum);
+                                } else if (player.score.score == highestScore)
                                 {
-                                    highestScoreRatioPlayer.Add(player.clientNum);
+                                    highestScorePlayer.Add(player.clientNum);
+                                }
+                                int thisPlayerScoreTime = player.score.time;
+                                if (thisPlayerScoreTime > 5) // we try to find the player with highest score ratio (score per time in game) if we can. but don't count people under 5 minutes, their values might not be statistically representative? Also avoid division by 0 that way
+                                {
+                                    // Would be even cooler if we could remove afk time from the equation since that distorts the score/time ratio. 
+                                    // Sadly there is no 100% reliable way of observing afk time and we might very well get the number very wrong.
+                                    // For example we might act like someone is afk because we aren't seeing him but he's actually there.
+                                    // Alternatively, we could just track confirmed afk time - player visible and afk. And subtract that?
+                                    // Similarly to tracking total time visible for some other stats.
+                                    float thisPlayerScoreRatio = (float)player.score.score / (float)thisPlayerScoreTime;
+                                    if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer.Count == 0)
+                                    {
+                                        highestScoreRatio = thisPlayerScoreRatio;
+                                        //highestScoreRatioPlayer = player.clientNum;
+                                        highestScoreRatioPlayer.Clear();
+                                        highestScoreRatioPlayer.Add(player.clientNum);
+                                    } else if (thisPlayerScoreRatio == highestScoreRatio)
+                                    {
+                                        highestScoreRatioPlayer.Add(player.clientNum);
+                                    }
                                 }
                             }
                         }
                     }
+                    //if(highestScoreRatioPlayer != -1)
+                    if(highestScoreRatioPlayer.Count > 0)
+                    {
+                        int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
+                        lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                        leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    }
+                    //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
+                    else if (highestScorePlayer.Count > 0) // Assuming any players at all exist that are playing atm.
+                    {
+                        int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
+                        lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                        leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                    }
                 }
-                //if(highestScoreRatioPlayer != -1)
-                if(highestScoreRatioPlayer.Count > 0)
-                {
-                    int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
-                    lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
-                    leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                }
-                //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
-                else if (highestScorePlayer.Count > 0) // Assuming any players at all exist that are playing atm.
-                {
-                    int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
-                    lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
-                    leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
-                }
+
             }
 
             oldSpectatedPlayer = SpectatedPlayer;
@@ -2775,8 +2838,316 @@ findHighestScore:
             }
         }
 
+        Team mohTeamToRealTeam(TeamMOH mohTeam)
+        {
+            switch (mohTeam)
+            {
+                case TeamMOH.Spectator:
+                default:
+                    return Team.Spectator;
+                case TeamMOH.Axis:
+                    return Team.Red;
+                case TeamMOH.Allies:
+                    return Team.Blue;
+                case TeamMOH.FreeForAll:
+                    return Team.Free;
+            }
+        }
+        int mohTimeStringToSeconds(string timeString)
+        {
+            string[] parts = timeString.Trim().Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if(parts.Length == 0)
+            {
+                return 0;
+            } else if (parts.Length == 1)
+            {
+                return parts[0].Atoi();
+            } else if(parts.Length == 2)
+            {
+                return parts[0].Atoi()*60+ parts[1].Atoi();
+            }else if(parts.Length == 3)
+            {
+                return parts[0].Atoi()*3600+parts[1].Atoi()*60+ parts[2].Atoi();
+            } else
+            {
+                serverWindow.addToLog($"MOH time string parsing error. More than 3 parts: {timeString}",true);
+                return 0;
+            }
+        }
+
+        enum TeamMOH {
+            None,
+            Spectator,
+            FreeForAll,
+            Allies,
+            Axis
+        }
+        // Based on OpenMOHAA
+        unsafe void EvaluateScoreMOH(CommandEventArgs commandEventArgs) // TODO This is only v6 btw. Aka base MOHAA, no extensions
+        {
+            int i;
+            int iEntryCount;
+            TeamMOH iClientTeam;
+            int iClientNum;
+            int iDatumCount;
+            TeamMOH iMatchTeam;
+            int iCurrentEntry;
+            bool bIsDead, bIsHeader;
+            string szString2 = null;
+            string szString3 = null;
+            string szString4 = null;
+            string szString5 = null;
+            string szString6 = null;
+
+            iMatchTeam = (TeamMOH)(-1);
+
+
+            iCurrentEntry = 1;
+            if (currentGameType > GameType.FFA)
+            {
+                iDatumCount = 6;
+                iMatchTeam = (TeamMOH)lastPlayerState.Stats[20];
+                if (iMatchTeam != TeamMOH.Allies && iMatchTeam != TeamMOH.Axis)
+                {
+                    iMatchTeam = TeamMOH.Allies;
+                }
+            }
+            else
+            {
+                // free-for-all
+                iDatumCount = 5;
+            }
+
+            iEntryCount = commandEventArgs.Command.Argv(iCurrentEntry++).Atoi();
+            if (iEntryCount > 64)
+            {
+                iEntryCount = 64;
+            }
+
+            if (iEntryCount * iDatumCount > (commandEventArgs.Command.Argc - 2))
+            {
+                // Shouldn't happen I think, I added this as a precaution
+                serverWindow.addToLog($"MOH Scoreboard error: {iEntryCount} entries a {iDatumCount} numbers but only {commandEventArgs.Command.Argc} total command parameters.", true, 1000 * 10); // Only show this error once per hour.
+                return;
+            }
+
+            Team lastTeamHeader = (Team)(-1);
+            for (i = 0; i < iEntryCount; ++i)
+            {
+                Team realTeam = (Team)(-1);
+
+                bIsHeader = false;
+                if (currentGameType > GameType.FFA)
+                {
+                    iClientNum = commandEventArgs.Command.Argv(iCurrentEntry + iDatumCount * i).Atoi();
+                    iClientTeam = (TeamMOH) commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
+                    if (iClientTeam >= 0)
+                    {
+                        bIsDead = false;
+                    }
+                    else
+                    {
+                        bIsDead = true;
+                        iClientTeam = (TeamMOH)(-(int)iClientTeam);
+                    }
+
+                    realTeam = mohTeamToRealTeam(iClientTeam);
+
+
+
+                    if (iClientNum == -1)
+                    {
+                        bIsHeader = true;
+
+                        switch ((int)iClientTeam)
+                        {
+                            case 1:
+                                szString2 = "Spectators";
+                                lastTeamHeader = Team.Spectator;
+                                break;
+                            case 2:
+                                szString2 = "Free-For-Allers";
+                                lastTeamHeader = Team.Free;
+                                break;
+                            case 3:
+                                szString2 = "Allies";
+                                lastTeamHeader = Team.Blue;
+                                break;
+                            case 4:
+                                szString2 = "Axis";
+                                lastTeamHeader = Team.Red;
+                                break;
+                            default:
+                                szString2 = "No Team"; // ?!
+                                lastTeamHeader = Team.Spectator;
+                                break;
+                        }
+                    }
+                    else if (iClientNum == -2)
+                    {
+                        // spectating !!?
+                        szString2 = "";
+                        lastTeamHeader = Team.Spectator; // ?!
+                    }
+                    else
+                    {
+                        szString2 = infoPool.playerInfo[iClientNum].name;
+                    }
+
+                    if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
+                    {
+                        infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                        infoPool.playerInfo[iClientNum].team = realTeam;
+                        infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        if(currentGameType > GameType.Team)
+                        {
+                            infoPool.playerInfo[iClientNum].score.totalKills = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.totalKills;
+                        } else
+                        {
+                            infoPool.playerInfo[iClientNum].score.deaths = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.kills;
+                        }
+                        infoPool.playerInfo[iClientNum].score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
+                        string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
+                        if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                        {
+
+                        } else
+                        {
+                            infoPool.playerInfo[iClientNum].score.ping = pingString.Atoi();
+                        }
+
+                    }
+
+                    //szString3 = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i);
+                    //szString4 = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i);
+                    //szString5 = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
+                    //szString6 = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
+
+                    if (iClientNum == lastPlayerState.ClientNum)
+                    {
+                        // This is me
+                    }
+                    else if (iClientNum == -2)
+                    {
+                        // No team. Is this the filler stuff? not sure
+                    }
+                    else if (iClientTeam == TeamMOH.Allies || iClientTeam == TeamMOH.Axis)
+                    {
+                        if (iClientTeam == iMatchTeam)
+                        {
+                            // My team
+                        }
+                        else
+                        {
+                            // Other team
+                        }
+                    }
+                    else
+                    {
+                        // No team. Huh? Free for all I guess?
+                    }
+
+                    if (bIsDead)
+                    {
+                        // Dead.;
+                    }
+                }
+                else
+                {
+                    iClientNum = commandEventArgs.Command.Argv(iCurrentEntry + iDatumCount * i).Atoi();
+                    if (iClientNum >= 0)
+                    {
+                        szString2 = infoPool.playerInfo[iClientNum].name;
+                        szString3 = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i);
+                        szString4 = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i);
+                        szString5 = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i);
+                        szString6 = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
+                    }
+                    else
+                    {
+                        if (iClientNum == -3)
+                        {
+                            szString2 = "Players";
+                            lastTeamHeader = Team.Free;
+                            bIsHeader = true;
+                        }
+                        else if (iClientNum == -2)
+                        {
+                            szString2 = "Spectators";
+                            lastTeamHeader = Team.Spectator;
+                            bIsHeader = true;
+                        }
+                        else
+                        {
+                            // unknown
+                            szString2 = "";
+                        }
+                        szString3 = "";
+                        szString4 = "";
+                        szString5 = "";
+                        szString6 = "";
+                    }
+
+                    if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
+                    {
+                        if((int)lastTeamHeader != -1)
+                        {
+                            infoPool.playerInfo[iClientNum].team = lastTeamHeader;
+                        }
+                        infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
+                        infoPool.playerInfo[iClientNum].score.deaths = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.kills;
+                        infoPool.playerInfo[iClientNum].score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
+                        string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
+                        if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                        {
+
+                        }
+                        else
+                        {
+                            infoPool.playerInfo[iClientNum].score.ping = pingString.Atoi();
+                        }
+
+                    }
+
+                    if (iClientNum == lastPlayerState.ClientNum)
+                    {
+                        // This is me
+                    }
+                    else
+                    {
+                        // No team. ?!
+                    }
+                }
+
+                /*cgi.UI_SetScoreBoardItem(
+                    i,
+                    szString2,
+                    szString3,
+                    szString4,
+                    szString5,
+                    szString6,
+                    NULL,
+                    NULL,
+                    NULL,
+                    pItemTextColor,
+                    pItemBackColor,
+                    bIsHeader
+                );*/
+            }
+
+        }
+
         void EvaluateScore(CommandEventArgs commandEventArgs)
         {
+            if (mohMode)
+            {
+                EvaluateScoreMOH(commandEventArgs);
+                return;
+            }
+
             int i, powerups, readScores;
 
             readScores = commandEventArgs.Command.Argv(1).Atoi();

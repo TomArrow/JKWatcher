@@ -101,6 +101,7 @@
                 <Button x:Name="msgSendBtn" Click="msgSendBtn_Click" IsEnabled="False">S</Button>
                 <Button x:Name="msgSendTeamBtn" Click="msgSendTeamBtn_Click" IsEnabled="False">T</Button>
                 <Button x:Name="msgSendPlayerBtn" Click="msgSendPlayerBtn_Click" IsEnabled="False">P</Button>
+                <Button x:Name="buttonHitBtn" Click="buttonHitBtn_Click" IsEnabled="False">B</Button>
                 <Label ToolTip="Verbosity level">V.:</Label>
                 <ComboBox x:Name="verbosityComboBox" SelectionChanged="verbosityComboBox_SelectionChanged">
                     <ComboBoxItem Content="0" Tag="0"></ComboBoxItem>

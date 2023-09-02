@@ -212,6 +212,7 @@ namespace JKWatcher
         public volatile int mbIIrounds; // shows as "R" on scoreboard 
         public volatile int remainingLives; 
         public volatile int kills; 
+        public volatile int totalKills; // MOHAA
         public volatile int mbIImysteryValue; 
         public volatile bool shortScoresMBII; // Indicate if only 9 score info things were sent.
 

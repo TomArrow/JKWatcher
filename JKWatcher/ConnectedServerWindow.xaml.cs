@@ -1251,12 +1251,17 @@ namespace JKWatcher
             {
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
                 int timeout = 2000;
-                if (infoPool.NoActivePlayers)
+                if (!mohMode)
                 {
-                    timeout = 30000;
-                } else if (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 15000)
-                {
-                    timeout = 10000;
+                    // The team info in MOH is shaky and unreliable so let's not get into this.
+                    if (infoPool.NoActivePlayers)
+                    {
+                        timeout = 30000;
+                    }
+                    else if (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 15000)
+                    {
+                        timeout = 10000;
+                    }
                 }
                 System.Threading.Thread.Sleep(timeout);
                 //ct.ThrowIfCancellationRequested();
@@ -1626,6 +1631,7 @@ namespace JKWatcher
 
             msgSendBtn.IsEnabled = connectionsSelected;
             msgSendTeamBtn.IsEnabled = connectionsSelected;
+            buttonHitBtn.IsEnabled = connectionsSelected;
             msgSendPlayerBtn.IsEnabled = playersSelected && connectionsSelected; // Sending to specific players.
 
             followBtn.IsEnabled = playersSelected && connectionsSelected; // Need to know who to follow and which connection to use
@@ -2009,6 +2015,20 @@ namespace JKWatcher
             else
             {
                 this.addToLog("Quick command value was null, wtf.", true);
+            }
+        }
+
+        private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            int btns = 0;
+            if(int.TryParse(commandLine.Text,out btns))
+            {
+                foreach(Connection conn in conns)
+                {
+                    conn.QueueButtonPress(btns);
+                }
             }
         }
 
