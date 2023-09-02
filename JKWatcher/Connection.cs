@@ -1148,6 +1148,7 @@ namespace JKWatcher
                 thisSnapshotObituaryVictims.Add(target, locationOfDeath);
 
                 infoPool.playerInfo[target].IsAlive = false;
+                infoPool.playerInfo[target].lastAliveStatusUpdated = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
                 infoPool.playerInfo[target].lastDeath = DateTime.Now;
                 infoPool.playerInfo[target].position = locationOfDeath;
@@ -1545,6 +1546,10 @@ namespace JKWatcher
             //}
 
             int EFDeadFlag = jkaMode ? (int)JKAStuff.EntityFlags.EF_DEAD : (int)JOStuff.EntityFlags.EF_DEAD;
+            if (mohMode)
+            {
+                EFDeadFlag = 0x00000200; // Ofc MOHAA has to be the most special one :)
+            }
             int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
             int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
             int ETTeam = jkaMode ? (int)JKAStuff.entityType_t.ET_TEAM : (int)JOStuff.entityType_t.ET_TEAM;
@@ -1569,6 +1574,7 @@ namespace JKWatcher
                 if(snapEntityNum == -1 && i == snap.PlayerState.ClientNum)
                 {
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
                     if (
                         infoPool.playerInfo[i].movementDir != snap.PlayerState.MovementDirection
                         /*infoPool.playerInfo[i].position.X != snap.PlayerState.Origin[0] ||
@@ -1668,6 +1674,7 @@ namespace JKWatcher
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
                     infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     if (
                         infoPool.playerInfo[i].movementDir != snap.Entities[snapEntityNum].Angles2[YAW]
                         /*infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
@@ -1947,6 +1954,7 @@ namespace JKWatcher
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
+                    if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     float currentScore = float.NegativeInfinity;
                     if(currentGameType > GameType.Team)
                     {
@@ -2997,6 +3005,7 @@ namespace JKWatcher
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
                     {
                         infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                        infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         infoPool.playerInfo[iClientNum].team = realTeam;
                         infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                         if(currentGameType > GameType.Team)
