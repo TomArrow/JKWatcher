@@ -256,6 +256,10 @@ namespace JKWatcher
         public volatile int droppedFlagEntityNumber;
         public DateTime? lastFlagDroppedPositionUpdate;
 
+        public volatile int teamKills; // MOHAA
+        public volatile int teamDeaths; // MOHAA
+        public volatile int teamAveragePing; // MOHAA
+
     }
 
 

@@ -2581,6 +2581,24 @@ namespace JKWatcher
                 }
                 for (int i = 0; i < commandEventArgs.Command.Argc; i++)
                 {
+                    if(mohMode && i == 1 && commandEventArgs.Command.Argv(0) == "print" && commandEventArgs.Command.Argv(1).Length > 0)
+                    {
+                        switch ((byte)commandEventArgs.Command.Argv(1)[0]) // MOHAA print colors translated to q3 colors
+                        {
+                            case 1:
+                                allArgs.Append("^3"); // Yellow
+                                break;
+                            case 2:
+                                allArgs.Append("^7"); // White
+                                break;
+                            case 3:
+                                allArgs.Append("^7"); // White too
+                                break;
+                            case 4:
+                                allArgs.Append("^1"); // Red (kill messages)
+                                break;
+                        }
+                    }
                     allArgs.Append(commandEventArgs.Command.Argv(i));
                     allArgs.Append(" ");
                 }
@@ -3001,6 +3019,7 @@ namespace JKWatcher
                     else
                     {
                         szString2 = infoPool.playerInfo[iClientNum].name;
+                        lastTeamHeader = Team.Spectator; // ?!
                     }
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
@@ -3028,6 +3047,11 @@ namespace JKWatcher
                             infoPool.playerInfo[iClientNum].score.ping = pingString.Atoi();
                         }
 
+                    } else if (bIsHeader && lastTeamHeader >= Team.Free && lastTeamHeader<= Team.Spectator)
+                    {
+                        infoPool.teamInfo[(int)lastTeamHeader].teamScore = infoPool.teamInfo[(int)lastTeamHeader].teamKills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        infoPool.teamInfo[(int)lastTeamHeader].teamDeaths = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                        infoPool.teamInfo[(int)lastTeamHeader].teamAveragePing = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i).Atoi();
                     }
 
                     //szString3 = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i);
