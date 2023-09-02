@@ -36,7 +36,10 @@ namespace JKWatcher.CameraOperators
 
         private void startBackground()
         {
-            decisionsLogger = new DecisionsLogger(infoPool);
+            if(decisionsLogger == null || decisionsLogger.isThisDestroyed())
+            {
+                decisionsLogger = new DecisionsLogger(infoPool);
+            }
             cts = new CancellationTokenSource();
             CancellationToken ct = cts.Token;
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
@@ -1641,6 +1644,14 @@ namespace JKWatcher.CameraOperators
         ServerSharedInformationPool infoPool = null;
 
 
+        public bool isThisDestroyed()
+        {
+            lock (destructionMutex)
+            {
+                return isDestroyed;
+            }
+        }
+
         public DecisionsLogger(ServerSharedInformationPool _infoPool)
         {
             infoPool = _infoPool;
@@ -1670,8 +1681,8 @@ namespace JKWatcher.CameraOperators
                     try // Idk why this is needed. Sometimes random clicks in UI make this happen
                     {
 
-                        sw.Close(); // Got cannot access a closed file once, strange.
                         sw.Dispose();
+                        //sw.Close(); // Got cannot access a closed file once, strange.
                         isDestroyed = true; 
                     } catch (Exception e)
                     {

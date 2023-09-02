@@ -1451,14 +1451,20 @@ namespace JKWatcher
         const int PMF_SPECTATING_MOH = (1 << 2);
 
         int lastRequestedAlwaysFollowSpecClientNum = -1;
-        DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[32] { // Looool this is cringe xd
+        DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[64] { // Looool this is cringe xd
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
         };
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
@@ -1472,6 +1478,9 @@ namespace JKWatcher
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
 
+        const int EF_ALLIES_MOH = 0x00000080;       // su44: this player is in allies team
+        const int EF_AXIS_MOH = 0x00000100;     // su44: this player is in axis team
+        const int EF_ANY_TEAM_MOH = (EF_ALLIES_MOH | EF_AXIS_MOH);
 
         public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
@@ -1533,6 +1542,8 @@ namespace JKWatcher
 
             amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
 
+            bool teamChangesDetected = false;
+
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
@@ -1584,6 +1595,26 @@ namespace JKWatcher
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
                     this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
                     this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
+
+                    if (mohMode)
+                    {
+                        int playerTeam = snap.PlayerState.Stats[20];
+                        switch (playerTeam)
+                        {
+                            default:
+                                playerTeam = (int)Team.Free;
+                                break;
+                            case 1:
+                                playerTeam = (int)Team.Spectator;
+                                break;
+                            case 3: // Allies
+                                playerTeam = (int)Team.Blue;
+                                break;
+                            case 4: // Axis
+                                playerTeam = (int)Team.Red;
+                                break;
+                        }
+                    }
 
                     infoPool.playerInfo[i].powerUps = 0;
                     for (int y = 0; y < Common.MaxPowerUps; y++)
@@ -1660,6 +1691,20 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
+
+                    if (mohMode)
+                    {
+                        Team entityTeam =  ((snap.Entities[snapEntityNum].EntityFlags & EF_ANY_TEAM_MOH) > 0) ? (((snap.Entities[snapEntityNum].EntityFlags & EF_AXIS_MOH) > 0) ? Team.Red : Team.Blue) : Team.Free;
+                        if(currentGameType <= GameType.FFA)
+                        {
+                            entityTeam = Team.Free;
+                        }
+                        if (entityTeam != infoPool.playerInfo[i].team)
+                        {
+                            infoPool.playerInfo[i].team = entityTeam;
+                            teamChangesDetected = true;
+                        }
+                    }
 
                     if (mohMode  // MOH hack to find out who we are spectating.... lol
                         && snap.PlayerState.Origin[0] == snap.Entities[snapEntityNum].Position.Base[0]
@@ -1824,6 +1869,17 @@ namespace JKWatcher
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
 
 
+            if (teamChangesDetected)
+            {
+                serverWindow.Dispatcher.Invoke(() => {
+                    lock (serverWindow.playerListDataGrid)
+                    {
+                        serverWindow.playerListDataGrid.ItemsSource = null;
+                        serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
+                    }
+                });
+            }
+
             /*if (amNotInSpec) // Maybe in the future I will
             {
                 
@@ -1871,12 +1927,17 @@ namespace JKWatcher
             {
                 if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
-                    if(lastPlayerState.Stats[0] > 0)
+                    if (mohMode)
                     {
-                        // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
-                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null,6000);
+                        leakyBucketRequester.requestExecution("spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
+                    } else { 
+                        if(lastPlayerState.Stats[0] > 0)
+                        {
+                            // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
+                            leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null,6000);
+                        }
+                        leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,null,6000);
                     }
-                    leakyBucketRequester.requestExecution("team spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,null,6000);
                 }
 
                 int highestScore = int.MinValue;
@@ -2208,8 +2269,15 @@ findHighestScore:
                         noActivePlayers = false;
                     }
 
-
-                    infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
+                    if (!mohMode)
+                    {
+                        infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
+                    } else if(oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
+                    {
+                        // MOHAA information on teams is non-existent, we have to derive it from scoreboard and entity flags. (cringe yea)
+                        // So whenever we have a confirmed connect or disconnect we set this to spectator here.
+                        infoPool.playerInfo[i].team = Team.Spectator;
+                    }
 
                     PlayerIdentification thisPlayerID = PlayerIdentification.FromClientInfo(client.ClientInfo[i]);
                     
@@ -2296,7 +2364,14 @@ findHighestScore:
                     infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
-                    infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
+                    if(!mohMode || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
+                    {
+                        // Information about players coming from MOHAA is a bit worthless. 
+                        // We can only trust it if it's changing.
+                        // AKA: it wasn't valid before and now it is (player connected).
+                        // or it was valid before and now it isn't (rare server that does inform us, or got a new gamestate that resetted everything)
+                        infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
+                    }
                     infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
                     infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
 

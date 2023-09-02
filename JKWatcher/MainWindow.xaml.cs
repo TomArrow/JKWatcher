@@ -738,7 +738,7 @@ namespace JKWatcher
                 lock (connectedServerWindows)
                 {
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip), protocol.Value, null, pw);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip.Trim()), protocol.Value, null, pw);
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;

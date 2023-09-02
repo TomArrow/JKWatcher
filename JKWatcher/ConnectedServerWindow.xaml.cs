@@ -982,7 +982,7 @@ namespace JKWatcher
                                                 //continue;
                                             }
 
-                                            if (serverInfo.StatusResponseReceived)
+                                            if (serverInfo != null && serverInfo.StatusResponseReceived)
                                             {
                                                 if(serverInfo.RealClients > ce.minPlayersToBeConsideredActive) // Don't advertise low player counts, it's unattractive. TODO: Make this number configurable per event?
                                                 {
