@@ -115,7 +115,9 @@
             <Label>IP</Label>
             <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
             <Label ToolTip="Password">PW</Label>
-            <TextBox x:Name="pwTxt" MinWidth="150"></TextBox>
+            <TextBox x:Name="pwTxt" MinWidth="70"></TextBox>
+            <Label ToolTip="Name">Name</Label>
+            <TextBox x:Name="userInfoNameTxt" MinWidth="70"></TextBox>
             <Label>Protocol</Label>
             <ComboBox x:Name="protocols"></ComboBox>
 

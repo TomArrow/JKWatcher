@@ -192,6 +192,17 @@ namespace JKWatcher
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;
             public string quickCommands { get; set; } = null;
+
+
+            public void LoadMOHDefaults()
+            {
+                this.demoTimeColorNames = false;
+                this.attachClientNumToName = false;
+                this.disconnectTriggers = "kicked";
+                this.silentMode = true;
+                this.userInfoName = "soldier";
+            }
+
             private string _conditionalCommands = null;
             public string conditionalCommands { 
                 get {
@@ -275,7 +286,8 @@ namespace JKWatcher
             }
 
             public enum DisconnectTriggers :UInt64 { // This is for bitfields, so each new value must be twice the last one.
-                GAMETYPE_NOT_CTF = 1
+                GAMETYPE_NOT_CTF = 1,
+                KICKED = 2
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -293,6 +305,10 @@ namespace JKWatcher
                         if (_disconnectTriggers != null && _disconnectTriggers.Contains("gameTypeNotCTF", StringComparison.OrdinalIgnoreCase))
                         {
                             _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT_CTF;
+                        }
+                        if (_disconnectTriggers != null && _disconnectTriggers.Contains("kicked", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _disconnectTriggersParsed |= DisconnectTriggers.KICKED;
                         }
                         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggers"));
                         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggersParsed"));
@@ -321,8 +337,10 @@ namespace JKWatcher
 
         public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {
+            bool connectionOptionsWereProvided = true;
             if(connectionOptions == null)
             {
+                connectionOptionsWereProvided = false;
                 connectionOptions = new ConnectionOptions();
             }
             _connectionOptions = connectionOptions;
@@ -342,6 +360,11 @@ namespace JKWatcher
             {
                 chatCommandPublic = "dmmessage 0";
                 chatCommandTeam = "dmmessage -1";
+                if (!connectionOptionsWereProvided)
+                {
+                    // Different defaults.
+                    connectionOptions.LoadMOHDefaults();
+                }
             }
 
             password = passwordA;
@@ -467,6 +490,13 @@ namespace JKWatcher
                 }
                 updateIndices();
             }
+        }
+
+        public void requestClose()
+        {
+            Dispatcher.Invoke(() => {
+                this.Close();
+            });
         }
 
         private void Con_ServerInfoChanged(ServerInfo obj)
@@ -1084,7 +1114,7 @@ namespace JKWatcher
             {
                 System.Threading.Thread.Sleep(100);
                 //ct.ThrowIfCancellationRequested();
-                if (ct.IsCancellationRequested) return;
+                if (ct.IsCancellationRequested && logQueue.IsEmpty) return;
 
                 string serverNameString = serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName;
                 stringsToForceWriteToLogFile.Add($"[{serverNameString}]");

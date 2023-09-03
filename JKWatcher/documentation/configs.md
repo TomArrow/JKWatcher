@@ -115,6 +115,7 @@ Comma-separated: Triggers for disconnecting from the server.
 Possible options: 
 
 - ```gameTypeNotCTF```: Disconnects when the gametype is not CTF or CTY.
+- ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
 
 #### mapChangeCommands 
 

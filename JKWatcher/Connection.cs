@@ -281,6 +281,7 @@ namespace JKWatcher
 
         private bool jkaMode = false;
         private bool mohMode = false;
+        private bool mohFreezeTagDetected = false;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
@@ -357,7 +358,7 @@ namespace JKWatcher
             updateName();
         }*/
 
-
+        private string realName = "Padawan";
         private void updateName()
         {
             if (client != null)
@@ -499,6 +500,7 @@ namespace JKWatcher
                         nameToUse += $" ^7(^2{clientNum}^7)";
                     }
                 }
+                realName = nameToUse;
                 client.Name = nameToUse;
             }
         }
@@ -888,6 +890,12 @@ namespace JKWatcher
                 if ((DateTime.Now - lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
                 {
                     modifiableCommand.ForwardMove = 127;
+                    if (mohMode)
+                    {
+                        modifiableCommand.Upmove = 127;
+                        modifiableCommand.Buttons |= (int)UserCommand.Button.MouseMOH;
+                    }
+
                     lastForcedActivity = DateTime.Now;
                 }
             }
@@ -1953,9 +1961,12 @@ namespace JKWatcher
                 int bestScorePlayer = -1;
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
+                    // TODO If player disconnects, detect disconnect string and set infovalid false.
+                    // TODO Detect frozen players as dead.
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                     if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                    if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
                     float currentScore = float.NegativeInfinity;
                     if(currentGameType > GameType.Team)
                     {
@@ -2545,6 +2556,20 @@ namespace JKWatcher
 
             switch (command)
             {
+                case "disconnect":
+                    if(LastTimeProbablyKicked.HasValue && (DateTime.Now-LastTimeProbablyKicked.Value).TotalMilliseconds < 2000)
+                    {
+                        serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
+                        if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
+                        {
+                            serverWindow.addToLog("KICK DISCONNECT TRIGGER: Kick detected. Disconnecting.");
+                            serverWindow.requestClose();
+                        }
+                    }
+                    break;
+                case "droperror":
+                    lastDropError = DateTime.Now; // MOH, connection was dropped serverside. This precedes possible kick messages which we wanna check for.
+                    break;
                 case "tinfo":
                     EvaluateTInfo(commandEventArgs);
                     break;
@@ -2697,6 +2722,9 @@ namespace JKWatcher
         }
 
         public bool ConnectionLimitReached { get; private set; } = false;
+        public DateTime? LastTimeProbablyKicked { get; private set; } = null;
+
+        private DateTime? lastDropError = null;
 
         private DateTime lastClientDoesNotWishToBeSpectated = DateTime.Now.AddYears(-1);
 
@@ -2814,6 +2842,18 @@ namespace JKWatcher
                         serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this MOH server. Noting.");
                         infoPool.unsupportedCommands.Add(unknownCmd);
                     }
+                } else if ( mohMode && /*lastDropError.HasValue &&(DateTime.Now- lastDropError.Value).TotalMilliseconds < 2000  &&*/ ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).Length > (6+infoPool.playerInfo[ClientNum.Value].name.Length) && 
+                    (commandEventArgs.Command.Argv(1).Substring(0, infoPool.playerInfo[ClientNum.Value].name.Length).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase) ||
+                    commandEventArgs.Command.Argv(1).Substring(1, infoPool.playerInfo[ClientNum.Value].name.Length+1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
+                    (commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase))
+                    )
+                {
+                    // We have been kicked. Take note.
+                    LastTimeProbablyKicked = DateTime.Now;
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
                 }
             }
         }
@@ -3024,7 +3064,10 @@ namespace JKWatcher
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
                     {
-                        infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                        if (!mohFreezeTagDetected)
+                        { // Freeze tag breaks the alive status in scoreboards for some reason
+                            infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                        }
                         infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         infoPool.playerInfo[iClientNum].team = realTeam;
                         infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();

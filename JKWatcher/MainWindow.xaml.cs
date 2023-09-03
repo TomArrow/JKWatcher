@@ -732,13 +732,24 @@ namespace JKWatcher
         {
             string ip = ipTxt.Text;
             string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
             ProtocolVersion? protocol = protocols.SelectedItem != null ? (ProtocolVersion)protocols.SelectedItem : null;
             if(ip.Length > 0 && protocol != null)
             {
                 lock (connectedServerWindows)
                 {
+                    ConnectedServerWindow.ConnectionOptions connOpts = null;
+                    if (userinfoName != null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                        if (protocol.Value >= ProtocolVersion.Protocol6 && protocol.Value <= ProtocolVersion.Protocol8)
+                        {
+                            connOpts.LoadMOHDefaults(); // MOH needs different defaults.
+                        }
+                        connOpts.userInfoName = userinfoName;
+                    }
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip.Trim()), protocol.Value, null, pw);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip.Trim()), protocol.Value, null, pw, connOpts);
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;
