@@ -2178,6 +2178,7 @@ namespace JKWatcher
 
         private string oldMapName = "";
         private string oldGameName = "";
+        private string oldMOHHUDMEssage = "";
         PathFinder pathFinder = null;
 
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -2249,6 +2250,19 @@ namespace JKWatcher
             if (serverName != "")
             {
                 serverWindow.ServerName = obj.HostName;
+            }
+
+            if (mohMode && obj.MOHHUDMessage != oldMOHHUDMEssage)
+            {
+                if(obj.MOHHUDMessage == "axiswin" || obj.MOHHUDMessage == "allieswin") // End of round. Clear all frozen status.
+                {
+                    // clear frozen status of all players.
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        pi.IsFrozen = false;
+                    }
+                }
+                oldMOHHUDMEssage = obj.MOHHUDMessage;
             }
 
             bool executeMapChangeCommands = newGameState;
