@@ -1259,8 +1259,9 @@ namespace JKWatcher
 
         Dictionary<string,DateTime> rateLimitedErrorMessages = new Dictionary<string,DateTime>();
         // Use timeout (milliseconds) for messages that might happen often.
-        public void addToLog(string someString,bool forceLogToFile=false,int timeOut = 0)
+        public void addToLog(string someString,bool forceLogToFile=false,int timeOut = 0,int logLevel=0)
         {
+            if (logLevel > verboseOutput) return;
             if(timeOut != 0)
             {
                 if (rateLimitedErrorMessages.ContainsKey(someString) && rateLimitedErrorMessages[someString] > DateTime.Now)

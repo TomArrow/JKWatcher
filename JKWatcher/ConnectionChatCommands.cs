@@ -443,6 +443,7 @@ namespace JKWatcher
                             PlayerInfo highestFallsPlayer = null;
                             foreach(PlayerInfo pi in infoPool.playerInfo)
                             {
+                                if (!pi.infoValid) continue;
                                 double fallsPerMinute = (double)pi.chatCommandTrackingStuff.falls / (DateTime.Now - pi.chatCommandTrackingStuff.onlineSince).TotalMinutes;
                                 if (fallsPerMinute > highestFallsPerMinute)
                                 {
@@ -466,7 +467,7 @@ namespace JKWatcher
                             PlayerInfo mostDoomsPlayer = null;
                             foreach(PlayerInfo pi in infoPool.playerInfo)
                             {
-                                if (pi.chatCommandTrackingStuff.doomkills > mostDooms)
+                                if (pi.infoValid && pi.chatCommandTrackingStuff.doomkills > mostDooms)
                                 {
                                     mostDooms = pi.chatCommandTrackingStuff.doomkills;
                                     mostDoomsPlayer = pi;

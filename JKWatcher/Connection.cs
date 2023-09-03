@@ -282,6 +282,8 @@ namespace JKWatcher
         private bool jkaMode = false;
         private bool mohMode = false;
         private bool mohFreezeTagDetected = false;
+        private bool mohFreezeTagSendsFrozenMessages = false;
+        private bool mohFreezeTagSendsMeltedMessages = false;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
@@ -1554,14 +1556,15 @@ namespace JKWatcher
             //}
 
             int EFDeadFlag = jkaMode ? (int)JKAStuff.EntityFlags.EF_DEAD : (int)JOStuff.EntityFlags.EF_DEAD;
-            if (mohMode)
-            {
-                EFDeadFlag = 0x00000200; // Ofc MOHAA has to be the most special one :)
-            }
             int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
             int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
             int ETTeam = jkaMode ? (int)JKAStuff.entityType_t.ET_TEAM : (int)JOStuff.entityType_t.ET_TEAM;
             int ETItem = jkaMode ? (int)JKAStuff.entityType_t.ET_ITEM : (int)JOStuff.entityType_t.ET_ITEM;
+            if (mohMode)
+            {
+                EFDeadFlag = 0x00000200; // Ofc MOHAA has to be the most special one :)
+                ETItem = 4; 
+            }
             //int EFBounceHalf = jkaMode ? 0 : (int)JOStuff.EntityFlags.EF_BOUNCE_HALF; // ?!?!
 
             int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
@@ -1682,6 +1685,12 @@ namespace JKWatcher
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
                     infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    bool frozenStatus = mohFreezeTagDetected && snap.Entities[snapEntityNum].Solid==0;
+                    if(infoPool.playerInfo[i].IsFrozen != frozenStatus)
+                    {
+                        serverWindow.addToLog($"MOH Freeze Tag detection: Player name \"{infoPool.playerInfo[i].name}\", clientnum {i} frozen status {frozenStatus} from solid property.", false, 0, 5);
+                    }
+                    infoPool.playerInfo[i].IsFrozen = frozenStatus;
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     if (
                         infoPool.playerInfo[i].movementDir != snap.Entities[snapEntityNum].Angles2[YAW]
@@ -1828,6 +1837,7 @@ namespace JKWatcher
             // In theory we should be able to just check the flag item against the flag status (cs 23) but 
             // we might be (?) at a point in time where the new flag status has not yet been parsed, but the new 
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
+            List<Vector3> mohBeamsFound = mohFreezeTagDetected ? null : new List<Vector3>();
             for (int i = client.ClientHandler.MaxClients; i < JKClient.Common.MaxGEntities; i++)
             {
                 int snapEntityNum = snapEntityMapping[i];
@@ -1839,8 +1849,53 @@ namespace JKWatcher
                         entityOrPSVisible[i] = true;
                     }
 
+                    if (mohMode && !mohFreezeTagDetected && snap.Entities[snapEntityNum].EntityType == 8) // ET _BEAM
+                    {
+                        // We try to detect beams to see if we are in freeze tag gamemode.
+                        // Beams are used for that lil colorful "prison" around frozen players.
+                        // We need to detect it because the scoreboard "dead" status is broken for freeze tag, for whatever reason,
+                        // and using it breaks the calculation of who to follow
+                        //
+                        // We do not do this detection if we already have detected this.
+                        if(snap.Entities[snapEntityNum].ModelIndex == 1
+                            && snap.Entities[snapEntityNum].Parent == 1023 // ENTITYNUM_NONE
+                            && snap.Entities[snapEntityNum].RenderFx == 48 // RF_BEAM | RF_FRAMELERP
+                            && snap.Entities[snapEntityNum].BoneTag[0] == -1 // IDk. all bonetags set like that.
+                            && snap.Entities[snapEntityNum].Scale == 4 // Idk
+                            && snap.Entities[snapEntityNum].EntityFlags == 64 // EF_LINKANGLES ?
+                            && Math.Abs(snap.Entities[snapEntityNum].Alpha-0.5f) < 0.01f // The weird transmission seems to change it from actual 0.5f to some value like 0.5019608f. So make more of a "soft" comparison
+                            )
+                        {
+                            // This seems like one of those beams
+                            Vector3 thisBeamPos = new Vector3() {
+                                X= snap.Entities[snapEntityNum].Position.Base[0],
+                                Y= snap.Entities[snapEntityNum].Position.Base[1],
+                                Z= snap.Entities[snapEntityNum].Position.Base[2]
+                            };
+
+                            int foundCloseBeams = 0;
+                            // Compare to previous found beams.
+                            foreach(Vector3 otherBeamPos in mohBeamsFound)
+                            {
+                                if(otherBeamPos.Z == thisBeamPos.Z && Vector3.Distance(thisBeamPos,otherBeamPos) < 30) // The actual distance between the beams appears to be 25.9xxxxx but who knows if it varies a bit between servers. Let's go safe
+                                {
+                                    foundCloseBeams++;
+                                }
+                            }
+
+                            if(foundCloseBeams > 1)
+                            {
+                                mohFreezeTagDetected = true;
+                                serverWindow.addToLog("MOH Freeze Tag detected from beams.");
+                            }
+                            else
+                            {
+                                mohBeamsFound.Add(thisBeamPos);
+                            }
+                        }
+                    }
                     // Flag bases
-                    if (snap.Entities[snapEntityNum].EntityType == ETTeam)
+                    else if (snap.Entities[snapEntityNum].EntityType == ETTeam)
                     {
                         Team team = (Team)snap.Entities[snapEntityNum].ModelIndex;
                         if (team == Team.Blue || team == Team.Red)
@@ -1965,6 +2020,7 @@ namespace JKWatcher
                     // TODO Detect frozen players as dead.
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                     if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                    if (player.IsFrozen && mohFreezeTagDetected) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
                     float currentScore = float.NegativeInfinity;
@@ -2121,6 +2177,7 @@ namespace JKWatcher
         }
 
         private string oldMapName = "";
+        private string oldGameName = "";
         PathFinder pathFinder = null;
 
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -2154,6 +2211,12 @@ namespace JKWatcher
         {
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
+
+            if (newGameState || obj.GameName != oldGameName)
+            {
+                mohFreezeTagDetected = false;
+            }
+
             //obj.GameName
             if (/*obj.GameName.Contains("JA+ Mod", StringComparison.OrdinalIgnoreCase) || */obj.GameName.Contains("JA+", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^5X^2Jedi ^5Academy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("^4U^3A^5Galaxy", StringComparison.OrdinalIgnoreCase) || obj.GameName.Contains("AbyssMod", StringComparison.OrdinalIgnoreCase))
             {
@@ -2162,6 +2225,11 @@ namespace JKWatcher
             else if(obj.GameName.Contains("japro", StringComparison.OrdinalIgnoreCase))
             {
                 this.JAProDetected = true;
+            } 
+            else if(obj.GameName.Contains("Freeze-Tag", StringComparison.OrdinalIgnoreCase))
+            {
+                this.mohFreezeTagDetected = true; // This might not always work tho if the server doesn't send that info. So there's a redundant detection of it elsewhere
+                serverWindow.addToLog("MOH Freeze-Tag detected from game name.");
             } 
             else if(obj.GameName.Contains("SaberMod", StringComparison.OrdinalIgnoreCase))
             {
@@ -2195,6 +2263,7 @@ namespace JKWatcher
                 }
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
+                oldGameName = obj.GameName;
             }
             if (executeMapChangeCommands && this.HandleAutoCommands)
             {
@@ -2740,10 +2809,15 @@ namespace JKWatcher
         Regex unknownCmdRegexMOH = new Regex(@"^Command '([^\n]+?)' not available from console.\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex clientInactiveRegex = new Regex(@"Client '?(\d+)'? is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+        Regex mohPlayerFrozenRegex = new Regex(@"^\x03(?<team>\w+) player \((?<playerName>.*?)\) frozen. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex mohPlayerMeltedRegex = new Regex(@"^\x01(?<team>\w+) player \((?<playerName>.*?)\) melted by (?<melterName>.*?)\. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
             Match specMatch;
             Match unknownCmdMatch;
+            Match mohFrozenMatch = null;
+            Match mohMeltedMatch = null;
             if (commandEventArgs.Command.Argc >= 2)
             {
                 string printText = commandEventArgs.Command.Argv(1);
@@ -2842,6 +2916,47 @@ namespace JKWatcher
                         serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this MOH server. Noting.");
                         infoPool.unsupportedCommands.Add(unknownCmd);
                     }
+                } else if ( mohMode && mohFreezeTagDetected && ((mohFrozenMatch = mohPlayerFrozenRegex.Match(commandEventArgs.Command.Argv(1))).Success || (mohMeltedMatch = mohPlayerMeltedRegex.Match(commandEventArgs.Command.Argv(1))).Success))
+                {
+                    Match relevantMatch = mohMeltedMatch != null ? mohMeltedMatch : mohFrozenMatch;
+                    bool frozenStatus = mohMeltedMatch != null ? false : true;
+                    if (frozenStatus)
+                    {
+                        mohFreezeTagSendsFrozenMessages = true;
+                    } else
+                    {
+                        mohFreezeTagSendsMeltedMessages = true;
+                    }
+                    if (mohFreezeTagSendsFrozenMessages && mohFreezeTagSendsMeltedMessages && relevantMatch.Success)
+                    {
+                        string playerName = relevantMatch.Groups.ContainsKey("playerName") && relevantMatch.Groups["playerName"].Success ? relevantMatch.Groups["playerName"].Value : null;
+
+                        if(playerName != null)
+                        {
+                            playerName = playerName.Trim();
+                            List<int> clientNumMatches = new List<int>();
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                if(pi.infoValid && pi.name == playerName)
+                                {
+                                    clientNumMatches.Add(pi.clientNum);
+                                    pi.IsFrozen = frozenStatus;
+                                    serverWindow.addToLog($"MOH Freeze Tag detection: Player name \"{playerName}\", clientnum {pi.clientNum} frozen status {frozenStatus} from message.",false,0,5);
+                                }
+                            }
+                            if(clientNumMatches.Count == 0)
+                            {
+                                serverWindow.addToLog($"MOH Freeze Tag detection: Player name \"{playerName}\" matches nobody.");
+                            } else if(clientNumMatches.Count == 1)
+                            {
+                                
+                            } else
+                            {
+                                serverWindow.addToLog($"MOH Freeze Tag detection: Player name \"{playerName}\" matches {clientNumMatches.Count} people.");
+                            }
+                        }
+                    }
+
                 } else if ( mohMode && /*lastDropError.HasValue &&(DateTime.Now- lastDropError.Value).TotalMilliseconds < 2000  &&*/ ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).Length > (6+infoPool.playerInfo[ClientNum.Value].name.Length) && 
                     (commandEventArgs.Command.Argv(1).Substring(0, infoPool.playerInfo[ClientNum.Value].name.Length).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase) ||
                     commandEventArgs.Command.Argv(1).Substring(1, infoPool.playerInfo[ClientNum.Value].name.Length+1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
@@ -3064,11 +3179,11 @@ namespace JKWatcher
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
                     {
-                        if (!mohFreezeTagDetected)
+                        if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
                         { // Freeze tag breaks the alive status in scoreboards for some reason
                             infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                            infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         }
-                        infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         infoPool.playerInfo[iClientNum].team = realTeam;
                         infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                         if(currentGameType > GameType.Team)
