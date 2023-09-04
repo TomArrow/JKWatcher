@@ -2654,6 +2654,7 @@ namespace JKWatcher
                 case "disconnect":
                     if(LastTimeProbablyKicked.HasValue && (DateTime.Now-LastTimeProbablyKicked.Value).TotalMilliseconds < 2000)
                     {
+                        LastTimeConfirmedKicked = DateTime.Now;
                         serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
                         if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
                         {
@@ -2827,6 +2828,7 @@ namespace JKWatcher
 
         public bool ConnectionLimitReached { get; private set; } = false;
         public DateTime? LastTimeProbablyKicked { get; private set; } = null;
+        public DateTime? LastTimeConfirmedKicked { get; private set; } = null;
 
         private DateTime? lastDropError = null;
 
@@ -3000,9 +3002,15 @@ namespace JKWatcher
                     commandEventArgs.Command.Argv(1).Substring(1, infoPool.playerInfo[ClientNum.Value].name.Length+1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
                     (commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
                     commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase))
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)
                     )
+                    )
+                {
+                    // We have been kicked. Take note.
+                    LastTimeProbablyKicked = DateTime.Now;
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+                } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
                     LastTimeProbablyKicked = DateTime.Now;
@@ -3030,7 +3038,7 @@ namespace JKWatcher
                     {
                         // Maybe update GUI? Or whatever, fuck it.
                     }
-                } */else if ( mohMode && (tmpString=commandEventArgs.Command.Argv(1).EndsWithReturnStart(" disconnected\n", " timed out\n", " Server command overflow\n"))!= null)
+                } */else if ( mohMode && (tmpString=commandEventArgs.Command.Argv(1).EndsWithReturnStart(" disconnected\n", " timed out\n", " Server command overflow\n", " was kicked\n"))!= null)
                 {
                     // A player disconnected. Set Infovalid to false. MOHAA doesn't update this stuff for us so we have to..
                     string disconnectedPlayerName = tmpString;
