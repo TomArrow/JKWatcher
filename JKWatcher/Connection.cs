@@ -2855,6 +2855,7 @@ namespace JKWatcher
             Match unknownCmdMatch;
             Match mohFrozenMatch = null;
             Match mohMeltedMatch = null;
+            string tmpString = null;
             if (commandEventArgs.Command.Argc >= 2)
             {
                 string printText = commandEventArgs.Command.Argv(1);
@@ -3006,12 +3007,33 @@ namespace JKWatcher
                     // We have been kicked. Take note.
                     LastTimeProbablyKicked = DateTime.Now;
                     serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
-                } else if ( mohMode && commandEventArgs.Command.Argv(1).Length > disconnectedString.Length 
+                }/* else if ( mohMode && commandEventArgs.Command.Argv(1).Length > disconnectedString.Length 
                     && commandEventArgs.Command.Argv(1).Substring(commandEventArgs.Command.Argv(1).Length- disconnectedString.Length).Equals(disconnectedString,StringComparison.OrdinalIgnoreCase)
                     )
                 {
                     // A player disconnected. Set Infovalid to false. MOHAA doesn't update this stuff for us so we have to..
                     string disconnectedPlayerName = commandEventArgs.Command.Argv(1).Substring(0,commandEventArgs.Command.Argv(1).Length - disconnectedString.Length);
+                    bool importantStatusChange = false;
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if(pi.name == disconnectedPlayerName)
+                        {
+                            serverWindow.addToLog($"MOH DISCONNECT DETECTION: \"{pi.name}\" ({pi.clientNum}) disconnected, setting to invalid.");
+                            if (pi.infoValid)
+                            {
+                                importantStatusChange = true;
+                            }
+                            pi.infoValid = false; // This might hit the wrong ppl too with duplicate names but oh well. We reset it to true other places if needed.
+                        }
+                    }
+                    if (importantStatusChange)
+                    {
+                        // Maybe update GUI? Or whatever, fuck it.
+                    }
+                } */else if ( mohMode && (tmpString=commandEventArgs.Command.Argv(1).EndsWithReturnStart(" disconnected\n", " timed out\n", " Server command overflow\n"))!= null)
+                {
+                    // A player disconnected. Set Infovalid to false. MOHAA doesn't update this stuff for us so we have to..
+                    string disconnectedPlayerName = tmpString;
                     bool importantStatusChange = false;
                     foreach (PlayerInfo pi in infoPool.playerInfo)
                     {

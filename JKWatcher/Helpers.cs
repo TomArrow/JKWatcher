@@ -80,6 +80,35 @@ namespace JKWatcher
                 return null;
             }
         }
+
+        /*public static string EndsWithReturnStart(this string inputString, string otherString)
+        {
+            if (inputString.Length > otherString.Length
+                   && inputString.Substring(inputString.Length - otherString.Length).Equals(otherString, StringComparison.OrdinalIgnoreCase)
+                   )
+            {
+                return inputString.Substring(0, inputString.Length - otherString.Length);
+                
+            } else
+            {
+                return null;
+            }
+        }*/
+        public static string EndsWithReturnStart(this string inputString, params string[] otherStrings)
+        {
+            foreach(string otherString in otherStrings)
+            {
+
+                if (inputString.Length > otherString.Length
+                       && inputString.Substring(inputString.Length - otherString.Length).Equals(otherString, StringComparison.OrdinalIgnoreCase))
+                {
+                    return inputString.Substring(0, inputString.Length - otherString.Length);
+
+                }
+            }
+            return null;
+        }
+
         public static float DistanceToLineSlow(this in Vector3 point, in Vector3 linePoint1, in Vector3 linePoint2)
         {
             Vector3 P1toPoint = linePoint2 - point;
