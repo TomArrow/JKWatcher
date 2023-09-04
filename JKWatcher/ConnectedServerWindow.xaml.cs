@@ -1278,8 +1278,9 @@ namespace JKWatcher
                     rateLimitedErrorMessages[someString] = DateTime.Now.AddMilliseconds(timeOut);
                     if (rateLimitedErrorMessagesCount[someString] > 0)
                     {
+                        int countSkipped = rateLimitedErrorMessagesCount[someString];
                         rateLimitedErrorMessagesCount[someString] = 0;
-                        someString = $"[SKIPPED {rateLimitedErrorMessagesCount[someString]} TIMES]\n{someString}";
+                        someString = $"[SKIPPED {countSkipped} TIMES]\n{someString}";
                     }
                 }
             }
