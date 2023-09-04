@@ -2643,7 +2643,7 @@ namespace JKWatcher
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
-        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats", "stufftext" };
+        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats" };
 
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
@@ -2725,7 +2725,13 @@ namespace JKWatcher
                     allArgs.Append(commandEventArgs.Command.Argv(i));
                     allArgs.Append(" ");
                 }
-                serverWindow.addToLog(allArgs.ToString());
+                if(mohMode && command.Equals("stufftext", StringComparison.OrdinalIgnoreCase))
+                {
+                    serverWindow.addToLog(allArgs.ToString(),false,60000);
+                } else
+                {
+                    serverWindow.addToLog(allArgs.ToString());
+                }
             }
             //addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
             Debug.WriteLine(commandEventArgs.Command.Argv(0));

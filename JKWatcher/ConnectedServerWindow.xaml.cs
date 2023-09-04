@@ -1258,17 +1258,28 @@ namespace JKWatcher
 
 
         Dictionary<string,DateTime> rateLimitedErrorMessages = new Dictionary<string,DateTime>();
+        Dictionary<string, int> rateLimitedErrorMessagesCount = new Dictionary<string,int>();
         // Use timeout (milliseconds) for messages that might happen often.
         public void addToLog(string someString,bool forceLogToFile=false,int timeOut = 0,int logLevel=0)
         {
             if (logLevel > verboseOutput) return;
             if(timeOut != 0)
             {
+                if (!rateLimitedErrorMessagesCount.ContainsKey(someString))
+                {
+                    rateLimitedErrorMessagesCount[someString] = 0;
+                }
                 if (rateLimitedErrorMessages.ContainsKey(someString) && rateLimitedErrorMessages[someString] > DateTime.Now)
                 {
+                    rateLimitedErrorMessagesCount[someString]++;
                     return; // Skipping repeated message.
                 } else
                 {
+                    if(rateLimitedErrorMessagesCount[someString] > 0)
+                    {
+                        someString = $"[SKIPPED {rateLimitedErrorMessagesCount[someString]} TIMES]\n{someString}";
+                        rateLimitedErrorMessagesCount[someString] = 0;
+                    }
                     rateLimitedErrorMessages[someString] = DateTime.Now.AddMilliseconds(timeOut);
                 }
             }
