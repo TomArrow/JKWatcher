@@ -286,8 +286,9 @@ namespace JKWatcher
             }
 
             public enum DisconnectTriggers :UInt64 { // This is for bitfields, so each new value must be twice the last one.
-                GAMETYPE_NOT_CTF = 1,
-                KICKED = 2
+                GAMETYPE_NOT_CTF = 1 << 0,
+                KICKED = 1 << 1,
+                PLAYERCOUNT_UNDER = 1 << 2,
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -300,8 +301,43 @@ namespace JKWatcher
                 {
                     if (value != _disconnectTriggers)
                     {
+                        //playercount_under
+                        string[] triggersTexts = value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
                         _disconnectTriggers = value;
                         _disconnectTriggersParsed = 0;
+
+                        foreach(string triggerText in triggersTexts)
+                        {
+                            string[] triggerTextParts = triggerText.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            if(triggerTextParts.Length > 0)
+                            {
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("gameTypeNotCTF", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT_CTF;
+                                }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("kicked", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _disconnectTriggersParsed |= DisconnectTriggers.KICKED;
+                                }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("playercount_under", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if(triggerTextParts.Length == 2)
+                                    {
+                                        disconnectTriggerPlayerCountUnderPlayerCount = triggerTextParts[1].Atoi();
+                                        disconnectTriggerPlayerCountUnderDelay = 60000;
+                                        _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                                    } else if(triggerTextParts.Length == 3)
+                                    {
+                                        disconnectTriggerPlayerCountUnderPlayerCount = triggerTextParts[1].Atoi();
+                                        disconnectTriggerPlayerCountUnderDelay = triggerTextParts[2].Atoi();
+                                        _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                                    }
+                                }
+                            }
+                        }
+
+                        /*
                         if (_disconnectTriggers != null && _disconnectTriggers.Contains("gameTypeNotCTF", StringComparison.OrdinalIgnoreCase))
                         {
                             _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT_CTF;
@@ -310,6 +346,11 @@ namespace JKWatcher
                         {
                             _disconnectTriggersParsed |= DisconnectTriggers.KICKED;
                         }
+                        if (_disconnectTriggers != null && _disconnectTriggers.Contains("playercount_under", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                        }*/
+
                         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggers"));
                         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("disconnectTriggersParsed"));
                     }
@@ -323,6 +364,9 @@ namespace JKWatcher
                     return _disconnectTriggersParsed;
                 }
             }
+
+            public int disconnectTriggerPlayerCountUnderPlayerCount { get; private set; } = 10;
+            public int disconnectTriggerPlayerCountUnderDelay { get; private set; } = 60000;
 
         }
 
@@ -499,17 +543,49 @@ namespace JKWatcher
             });
         }
 
+        private object serverInfoChangedLock = new object();
+        private DateTime? playerCountUnderDisconnectTriggerLastSatisfied = null;
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
-            // Disconnect if "gametypenotctf" disconnecttrigger is set.
-            if((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT_CTF) > 0 && !(obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
+            lock (serverInfoChangedLock)
             {
-                Dispatcher.Invoke(()=> {
-                    this.Close();
-                });
-                return;
+                // Disconnect if "gametypenotctf" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT_CTF) > 0 && !(obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
+                {
+                    Dispatcher.BeginInvoke((Action)(() =>
+                    { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                        this.Close();
+                    }));
+                    return;
+                }
+
+                // Disconnect if "playercount_under" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && obj.Clients < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
+                {
+                    if (playerCountUnderDisconnectTriggerLastSatisfied.HasValue && (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
+                    {
+                        /*Dispatcher.Invoke(() => {
+                            this.Close();
+                        });*/
+                        Dispatcher.BeginInvoke((Action)(() =>
+                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                            this.Close();
+                        }));
+                        return;
+                    }
+                    else if (playerCountUnderDisconnectTriggerLastSatisfied == null)
+                    {
+                        playerCountUnderDisconnectTriggerLastSatisfied = DateTime.Now;
+                    }
+                }
+                else
+                {
+                    playerCountUnderDisconnectTriggerLastSatisfied = null;
+                }
             }
 
+            // This part below here feels messy. Should prolly somehow do a lock here but I can't think of a clever way to do it because creating a new connection might cause this method to get called and result in a deadlock.
             //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless
             if (_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
             {
@@ -528,7 +604,7 @@ namespace JKWatcher
                     _connectionOptions.attachClientNumToName = true;
                     _connectionOptions.demoTimeColorNames = true;
                     _connectionOptions.silentMode = false;
-                    Dispatcher.Invoke(() => {
+                    Dispatcher.Invoke(() => { 
                         bool anyNewWatcherCreated = false;
                         if (!alreadyHaveCTFWatcher)
                         {
@@ -547,6 +623,7 @@ namespace JKWatcher
                     });
                 }
             }
+            
         }
 
         /*public ConnectedServerWindow(string ipA, ProtocolVersion protocolA)

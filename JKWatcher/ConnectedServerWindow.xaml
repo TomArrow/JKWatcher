@@ -163,7 +163,7 @@
                         <TextBox Text="{Binding mapChangeCommands,Mode=TwoWay}"></TextBox>
                         <Label>Quick commands (show above log), separate with ";":</Label>
                         <TextBox Text="{Binding quickCommands,Mode=TwoWay}"></TextBox>
-                        <Label ToolTip="Available: gameTypeNotCTF">Disconnect triggers (separate with ,):</Label>
+                        <Label ToolTip="Available: gameTypeNotCTF, kicked, playercount_under:10:60000 (example for the latter)">Disconnect triggers (separate with ,):</Label>
                         <TextBox Text="{Binding disconnectTriggers,Mode=TwoWay}"></TextBox>
                         <Label>
                             <Label.ToolTip>
