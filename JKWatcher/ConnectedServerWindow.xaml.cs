@@ -1275,12 +1275,12 @@ namespace JKWatcher
                     return; // Skipping repeated message.
                 } else
                 {
-                    if(rateLimitedErrorMessagesCount[someString] > 0)
-                    {
-                        someString = $"[SKIPPED {rateLimitedErrorMessagesCount[someString]} TIMES]\n{someString}";
-                        rateLimitedErrorMessagesCount[someString] = 0;
-                    }
                     rateLimitedErrorMessages[someString] = DateTime.Now.AddMilliseconds(timeOut);
+                    if (rateLimitedErrorMessagesCount[someString] > 0)
+                    {
+                        rateLimitedErrorMessagesCount[someString] = 0;
+                        someString = $"[SKIPPED {rateLimitedErrorMessagesCount[someString]} TIMES]\n{someString}";
+                    }
                 }
             }
             logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now });
