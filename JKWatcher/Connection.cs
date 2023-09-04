@@ -1684,6 +1684,15 @@ namespace JKWatcher
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
+                    if (mohMode && i < serverMaxClientsLimit)
+                    {
+                        if (!infoPool.playerInfo[i].infoValid)
+                        {
+                            teamChangesDetected = true;
+                            serverWindow.addToLog($"Entity {i} exists but player {i}'s infoValid is false. Player name: {infoPool.playerInfo[i].name}. Setting to true.");
+                        }
+                        infoPool.playerInfo[i].infoValid = true;
+                    }
                     infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     bool frozenStatus = mohFreezeTagDetected && snap.Entities[snapEntityNum].Solid==0;
                     if(infoPool.playerInfo[i].IsFrozen != frozenStatus)
@@ -2205,6 +2214,7 @@ namespace JKWatcher
             }
         }
 
+        int serverMaxClientsLimit = 0;
         ClientInfo[] oldClientInfo = new ClientInfo[64];
 
         // Update player list
@@ -2212,6 +2222,8 @@ namespace JKWatcher
         {
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
+
+            serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
 
             if (newGameState || obj.GameName != oldGameName)
             {
@@ -2666,6 +2678,9 @@ namespace JKWatcher
                 case "print":
                     EvaluatePrint(commandEventArgs);
                     break;
+                case "stufftext":
+                    EvaluateStufftext(commandEventArgs);
+                    break;
                 case "chat":
                 case "tchat":
                     EvaluateChat(commandEventArgs);
@@ -2826,6 +2841,8 @@ namespace JKWatcher
         Regex mohPlayerFrozenRegex = new Regex(@"^\x03(?<team>\w+) player \((?<playerName>.*?)\) frozen. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex mohPlayerMeltedRegex = new Regex(@"^\x01(?<team>\w+) player \((?<playerName>.*?)\) melted by (?<melterName>.*?)\. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+        string disconnectedString = " disconnected\n";
+
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
             Match specMatch;
@@ -2983,6 +3000,65 @@ namespace JKWatcher
                     // We have been kicked. Take note.
                     LastTimeProbablyKicked = DateTime.Now;
                     serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+                } else if ( mohMode && commandEventArgs.Command.Argv(1).Length > disconnectedString.Length 
+                    && commandEventArgs.Command.Argv(1).Substring(commandEventArgs.Command.Argv(1).Length- disconnectedString.Length).Equals(disconnectedString,StringComparison.OrdinalIgnoreCase)
+                    )
+                {
+                    // A player disconnected. Set Infovalid to false. MOHAA doesn't update this stuff for us so we have to..
+                    string disconnectedPlayerName = commandEventArgs.Command.Argv(1).Substring(0,commandEventArgs.Command.Argv(1).Length - disconnectedString.Length);
+                    bool importantStatusChange = false;
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if(pi.name == disconnectedPlayerName)
+                        {
+                            serverWindow.addToLog($"MOH DISCONNECT DETECTION: \"{pi.name}\" ({pi.clientNum}) disconnected, setting to invalid.");
+                            if (pi.infoValid)
+                            {
+                                importantStatusChange = true;
+                            }
+                            pi.infoValid = false; // This might hit the wrong ppl too with duplicate names but oh well. We reset it to true other places if needed.
+                        }
+                    }
+                    if (importantStatusChange)
+                    {
+                        // Maybe update GUI? Or whatever, fuck it.
+                    }
+                }
+            }
+        }
+
+        string[] stuffTextSetuWhiteList = new string[] {"FST_dmTeam" };
+        void EvaluateStufftext(CommandEventArgs commandEventArgs)
+        {
+            return; // It doesn't actually matter. I set the userinfo stuff and server doesn't care, keeps sending stufftext. Shrug.
+            StringBuilder stuffParams = new StringBuilder();
+            for(int i = 1; i < commandEventArgs.Command.Argc; i++)
+            {
+                if(i > 1)
+                {
+                    stuffParams.Append(" ");
+                }
+                stuffParams.Append(commandEventArgs.Command.Argv(i));
+            }
+            string[] commands = stuffParams.ToString().Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach(string command in commands)
+            {
+                string[] commandParts = command.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                if (commandParts[0].Equals("setu",StringComparison.OrdinalIgnoreCase) && commandParts.Length > 2)
+                {
+                    bool isAllowed = false;
+                    foreach (string allowedUserInfoStufftext in stuffTextSetuWhiteList)
+                    {
+                        if (allowedUserInfoStufftext.Equals(commandParts[1], StringComparison.OrdinalIgnoreCase))
+                        {
+                            isAllowed = true;
+                            break;
+                        }
+                    }
+                    if (isAllowed)
+                    {
+                        this.client?.SetUserInfoKeyValue(commandParts[1], commandParts[2]);
+                    }
                 }
             }
         }
@@ -3193,6 +3269,11 @@ namespace JKWatcher
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
                     {
+                        if (!infoPool.playerInfo[iClientNum].infoValid)
+                        {
+                            serverWindow.addToLog($"Retrieved scoreboard entry for player {i} but player {i}'s infoValid is false. Player name: {infoPool.playerInfo[i].name}. Setting to true.");
+                        }
+                        infoPool.playerInfo[iClientNum].infoValid = true;
                         if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
                         { // Freeze tag breaks the alive status in scoreboards for some reason
                             infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
@@ -3298,7 +3379,12 @@ namespace JKWatcher
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
                     {
-                        if((int)lastTeamHeader != -1)
+                        if (!infoPool.playerInfo[iClientNum].infoValid)
+                        {
+                            serverWindow.addToLog($"Retrieved scoreboard entry for player {i} but player {i}'s infoValid is false. Player name: {infoPool.playerInfo[i].name}. Setting to true.");
+                        }
+                        infoPool.playerInfo[iClientNum].infoValid = true;
+                        if ((int)lastTeamHeader != -1)
                         {
                             infoPool.playerInfo[iClientNum].team = lastTeamHeader;
                         }
