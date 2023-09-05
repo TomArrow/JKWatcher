@@ -95,6 +95,7 @@ namespace JKWatcher
         CALENDAREVENT_ANNOUNCE,
         MAPCHANGECOMMAND,
         CONDITIONALCOMMAND,
+        STUFFTEXTECHO,
     }
 
     struct MvHttpDownloadInfo
@@ -3081,10 +3082,12 @@ namespace JKWatcher
             }
         }
 
+
+        static readonly HashSet<string> mohCmds = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ui_removehud", "-back", "-moveright", "-leanright", "cvarlist", "-moveleft", "-scores", "+scores", "record", "-use", "ui_addhud", "ui_hud", "vote", "callvote", "pushmenu_weaponselect", "pushmenu_teamselect", "instamsg_group_e", "instamsg_group_d", "instamsg_group_c", "instamsg_group_b", "instamsg_group_a", "instamsg_main", "wisper", "sayone", "sayprivate", "teamsay", "sayteam", "say", "messagemode_private", "messagemode_team", "messagemode_all", "messagemode", "editchshader", "getchshader", "resetvss", "loademitter", "dumpemitter", "deleteemittercommand", "newemittercommand", "nextemittercommand", "prevemittercommand", "triggertestemitter", "testemitter", "cg_dumpallclasses", "cg_dumpclassevents", "cg_classevents", "cg_classtree", "cg_classlist", "cg_pendingevents", "cg_dumpevents", "cg_eventhelp", "cg_eventlist", "sizedown", "sizeup", "viewpos", "toggleitem", "weapdrop", "holster", "uselast", "weapprev", "weapnext", "useweaponclass", "ter_restart", "-attackprimary", "connect", "popmenu", "gotoreturnmenu", "wait", "pushmenu", "disconnect", "-moveup", "widgetcommand", "set", "devcon", "setreturnmenu", "-statistics", "+statistics", "ui_getplayermodel", "ui_applyplayermodel", "playermodel", "finishloadingscreen", "startserver", "locationprint", "centerprint", "ui_checkrestart", "ui_resetcvars", "clear", "ui_testlist", "ui_loadconsolepos", "ui_saveconsolepos", "ui_hidemouse", "ui_showmouse", "inv_restart", "editspecificshader", "editshader", "editscript", "notepad", "soundpicker", "lod_spawnlist", "viewspawnlist", "ui_startdmmap", "dmmapselect", "maplist", "loadmenu", "togglemenu", "listmenus", "globalwidgetcommand", "hidemenu", "showmenu", "forcemenu", "pushmenu_dm", "pushmenu_sp", "tmstop", "tmstartloop", "tmstart", "pitch", "playsong", "loadsoundtrack", "stopmp3", "playmp3", "sounddump", "soundinfo", "soundlist", "play", "ff_disable", "r_infoworldtris", "r_infostaticmodels", "farplane_info", "gfxinfo", "screenshot", "modelist", "modellist", "shaderlist", "imagelist", "cl_dumpallclasses", "cl_dumpclassevents", "cl_classevents", "cl_classtree", "cl_classlist", "cl_pendingevents", "cl_dumpevents", "cl_eventhelp", "cl_eventlist", "playdemo", "fastconnect", "aliasdump", "dialog", "saveshot", "vidmode", "tiki", "animlist", "tikilist", "tikianimlist", "ping", "setenv", "rcon", "localservers", "reconnect", "menuconnect", "stoprecord", "cinematic", "vid_restart", "snd_restart", "clientinfo", "configstrings", "cmd", "-cameralook", "+cameralook", "+togglemouse", "-mlook", "+mlook", "-button14", "+button14", "-button13", "+button13", "-button12", "+button12", "-button11", "+button11", "-button10", "+button10", "-button9", "+button9", "-button8", "+button8", "-button7", "+button7", "-button6", "+button6", "-button5", "+button5", "-button4", "+button4", "-button3", "+button3", "-button2", "+button2", "-button1", "+button1", "-button0", "+button0", "-speed", "+speed", "+leanright", "-leanleft", "+leanleft", "+use", "-attacksecondary", "+attacksecondary", "+attackprimary", "-attack", "+attack", "+moveright", "+moveleft", "-strafe", "+strafe", "-lookdown", "+lookdown", "-lookup", "+lookup", "+back", "-forward", "+forward", "-right", "+right", "-left", "+left", "-movedown", "+movedown", "+moveup", "centerview", "difficultyHard", "difficultyMedium", "difficultyEasy", "loadlastgame", "loadgame", "autosavegame", "savegame", "killserver", "gamemap", "devmap", "map", "spdevmap", "spmap", "sectorlist", "restart", "dumpuser", "systeminfo", "serverinfo", "status", "clientkick", "kick", "heartbeat", "midiinfo", "net_restart", "in_restart", "pause", "writeconfig", "changeVectors", "quit", "exec", "bind", "alias", "seta", "unbindall", "touchFile", "cd", "fdir", "dir", "path", "ctrlbindlist", "altbindlist", "bindlist", "unctrlbind", "ctrlbind", "unaltbind", "altbind", "unbind", "append", "scale", "subtract", "add", "cvar_savegame_restart", "cvar_restart", "reset", "setu", "sets", "toggle", "echo", "vstr", "meminfo" };
         string[] stuffTextSetuWhiteList = new string[] {"FST_dmTeam" };
         void EvaluateStufftext(CommandEventArgs commandEventArgs)
         {
-            return; // It doesn't actually matter. I set the userinfo stuff and server doesn't care, keeps sending stufftext. Shrug.
+            //return; // It doesn't actually matter. I set the userinfo stuff and server doesn't care, keeps sending stufftext. Shrug.
             StringBuilder stuffParams = new StringBuilder();
             for(int i = 1; i < commandEventArgs.Command.Argc; i++)
             {
@@ -3100,7 +3103,7 @@ namespace JKWatcher
                 string[] commandParts = command.Split(' ',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 if (commandParts[0].Equals("setu",StringComparison.OrdinalIgnoreCase) && commandParts.Length > 2)
                 {
-                    bool isAllowed = false;
+                    /*bool isAllowed = false;
                     foreach (string allowedUserInfoStufftext in stuffTextSetuWhiteList)
                     {
                         if (allowedUserInfoStufftext.Equals(commandParts[1], StringComparison.OrdinalIgnoreCase))
@@ -3109,10 +3112,21 @@ namespace JKWatcher
                             break;
                         }
                     }
-                    if (isAllowed)
-                    {
-                        this.client?.SetUserInfoKeyValue(commandParts[1], commandParts[2]);
+                    if (isAllowed)*/
+                    if(mohMode)
+                    { // Whatever, just do it.
+                        string oldValue = this.client?.GetUserInfoKeyValue(commandParts[1]);
+                        if(oldValue != commandParts[2])
+                        {
+                            serverWindow.addToLog($"Stufftext userinfo cvar setter executed: {command}");
+                            this.client?.SkipUserInfoUpdatesAfterNextNChanges(1); // The real game also doesn't update this immediately, only next time userinfo is sent.
+                            this.client?.SetUserInfoKeyValue(commandParts[1], commandParts[2]);
+                        }
                     }
+                } else if (!mohCmds.Contains(commandParts[0]))
+                {
+                    serverWindow.addToLog($"Stufftext non-client command detected, echoing: {command}");
+                    leakyBucketRequester.requestExecution(command.Trim(),RequestCategory.STUFFTEXTECHO,3,0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 }
             }
         }
