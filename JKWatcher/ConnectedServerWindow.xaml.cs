@@ -553,6 +553,7 @@ namespace JKWatcher
                 // Disconnect if "gametypenotctf" disconnecttrigger is set.
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT_CTF) > 0 && !(obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
                 {
+                    this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType.ToString()} not CTF nor CTY. Disconnecting.");
                     Dispatcher.BeginInvoke((Action)(() =>
                     { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
                         this.Close();
@@ -563,11 +564,13 @@ namespace JKWatcher
                 // Disconnect if "playercount_under" disconnecttrigger is set.
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && obj.Clients < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
                 {
-                    if (playerCountUnderDisconnectTriggerLastSatisfied.HasValue && (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
+                    double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
+                    if (playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
                     {
                         /*Dispatcher.Invoke(() => {
                             this.Close();
                         });*/
+                        this.addToLog($"Disconnect trigger tripped: Player count {obj.Clients} under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount} for over {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
                         Dispatcher.BeginInvoke((Action)(() =>
                         { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
                             this.Close();
@@ -680,8 +683,10 @@ namespace JKWatcher
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
                 Helpers.logToFile(dequeuedStrings.ToArray());
                 Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
+                Helpers.logToFile(stringsToWriteToMentionLog.ToArray());
                 dequeuedStrings.Clear();
                 stringsToForceWriteToLogFile.Clear();
+                stringsToWriteToMentionLog.Clear();
                 startLogStringUpdater();
             }, TaskContinuationOptions.OnlyOnFaulted);
             backgroundTasks.Add(tokenSource);
@@ -956,6 +961,7 @@ namespace JKWatcher
         public struct LogQueueItem {
             public string logString;
             public bool forceLogToFile;
+            public bool logAsMention;
             public DateTime time;
         }
 
@@ -965,8 +971,9 @@ namespace JKWatcher
 
         List<string> dequeuedStrings = new List<string>();
         List<string> stringsToForceWriteToLogFile = new List<string>();
+        List<string> stringsToWriteToMentionLog = new List<string>();
 
-        string timeString = "", lastTimeString = "", lastTimeStringForced = "";
+        string timeString = "", lastTimeString = "", lastTimeStringForced = "", lastTimeStringMentions = "";
         Dictionary<Int64,DateTime> calendarEventsLastAnnounced = new Dictionary<Int64, DateTime>();
         private async void eventNotifier(CancellationToken ct) // TODO Only notify in same game. Don't notify of jk2 in jka etc.
         {
@@ -1195,6 +1202,7 @@ namespace JKWatcher
 
                 string serverNameString = serverName == null ? netAddress.ToString() : netAddress.ToString() + "_" + serverName;
                 stringsToForceWriteToLogFile.Add($"[{serverNameString}]");
+                stringsToWriteToMentionLog.Add($"[{serverNameString}]");
 
                 LogQueueItem stringToAdd;
                 while (logQueue.TryDequeue(out stringToAdd))
@@ -1205,6 +1213,21 @@ namespace JKWatcher
                         if(lastTimeStringForced != timeString) stringsToForceWriteToLogFile.Add(timeString);
                         stringsToForceWriteToLogFile.Add(stringToAdd.logString);
                         lastTimeStringForced = timeString;
+                    }
+                    if (stringToAdd.logAsMention)
+                    {
+                        if(lastTimeStringMentions != timeString) stringsToWriteToMentionLog.Add(timeString);
+                        stringsToWriteToMentionLog.Add(stringToAdd.logString);
+                        lastTimeStringMentions = timeString;
+                        try
+                        {
+
+                            Helpers.FlashTaskBarIcon(this);
+                        } catch (Exception ex)
+                        {
+                            dequeuedStrings.Add($"Error flashing taskbar icon: {ex.ToString()}");
+                            stringsToForceWriteToLogFile.Add($"Error flashing taskbar icon: {ex.ToString()}");
+                        }
                     }
                     if (timeString != lastTimeString) dequeuedStrings.Add(timeString);
                     dequeuedStrings.Add(stringToAdd.logString);
@@ -1224,6 +1247,10 @@ namespace JKWatcher
                 {
                     Helpers.logToFile(stringsToForceWriteToLogFile.ToArray());
                 }
+                if(stringsToWriteToMentionLog.Count > 1) // First one is the server name and IP.
+                {
+                    Helpers.logToSpecificDebugFile(stringsToWriteToMentionLog.ToArray(),"possibleMentions.txt",true);
+                }
 //#if DEBUG
                 // TODO Clean this up, make it get serverInfo from connections if connected via ip.
                 //Helpers.debugLogToFile(serverInfo == null ? netAddress.ToString() : serverInfo.Address.ToString() + "_" + serverInfo.HostName , dequeuedStrings.ToArray());
@@ -1232,6 +1259,7 @@ namespace JKWatcher
 
                 dequeuedStrings.Clear();
                 stringsToForceWriteToLogFile.Clear();
+                stringsToWriteToMentionLog.Clear();
             }
             
         }
@@ -1337,7 +1365,7 @@ namespace JKWatcher
         Dictionary<string,DateTime> rateLimitedErrorMessages = new Dictionary<string,DateTime>();
         Dictionary<string, int> rateLimitedErrorMessagesCount = new Dictionary<string,int>();
         // Use timeout (milliseconds) for messages that might happen often.
-        public void addToLog(string someString,bool forceLogToFile=false,int timeOut = 0,int logLevel=0)
+        public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, bool logAsMention = false)
         {
             if (logLevel > verboseOutput) return;
             if(timeOut != 0)
@@ -1361,7 +1389,7 @@ namespace JKWatcher
                     }
                 }
             }
-            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now });
+            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now,logAsMention= logAsMention });
         }
 
 

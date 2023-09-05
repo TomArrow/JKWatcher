@@ -5,12 +5,15 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 
 namespace JKWatcher
 {
@@ -181,6 +184,61 @@ namespace JKWatcher
                 return null;
             }
         }
+
+        [DllImport("user32.dll")]
+        private static extern bool FlashWindowEx(ref FLASHWINFO pwfi);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct FLASHWINFO
+        {
+            public UInt32 cbSize;
+            public IntPtr hwnd;
+            public UInt32 dwFlags;
+            public UInt32 uCount;
+            public UInt32 dwTimeout;
+        }
+
+        private const UInt32 FLASHW_ALL = 3;
+        private const UInt32 FLASHW_TIMERNOFG = 12;
+
+        private static Mutex flashyMutex = new Mutex();
+
+        public static void FlashTaskBarIcon(Window window = null)
+        {
+            if(window == null)
+            {
+                lock (flashyMutex)
+                {
+                    IntPtr hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle; // Idk why this doesnt care about owning threads
+                    FLASHWINFO fInfo = new FLASHWINFO();
+                    fInfo.cbSize = Convert.ToUInt32(Marshal.SizeOf(fInfo));
+                    fInfo.hwnd = hwnd;
+                    fInfo.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+                    fInfo.uCount = UInt32.MaxValue;
+                    fInfo.dwTimeout = 0;
+                    FlashWindowEx(ref fInfo);
+                }
+            } else if(window.Dispatcher != null)
+            {
+                window.Dispatcher.Invoke(() => {  // Idk why this does care about owning threads
+                    lock (flashyMutex)
+                    {
+                        IntPtr hwnd = (new System.Windows.Interop.WindowInteropHelper(window).Handle);
+                        FLASHWINFO fInfo = new FLASHWINFO();
+                        fInfo.cbSize = Convert.ToUInt32(Marshal.SizeOf(fInfo));
+                        fInfo.hwnd = hwnd;
+                        fInfo.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+                        fInfo.uCount = UInt32.MaxValue;
+                        fInfo.dwTimeout = 0;
+                        FlashWindowEx(ref fInfo);
+                    }
+                });
+            }
+            
+            
+        }
+
+
         static public unsafe string DemoCuttersanitizeFilename(string input , bool allowExtension)
         {
             

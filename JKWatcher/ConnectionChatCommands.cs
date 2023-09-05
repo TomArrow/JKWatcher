@@ -249,6 +249,19 @@ namespace JKWatcher
 
                     if (pm.message == null) return; // Message from myself. Ignore.
 
+                    string myName = infoPool.playerInfo[myClientNum.Value].name;
+                    string myBasePlayerName = _connectionOptions.userInfoName;
+                    if(_connectionOptions.userInfoName == null)
+                    {
+                        myBasePlayerName = "Padawan";
+                    }
+                    if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                    } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName), StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                    }
 
                     if (this.HandleAutoCommands)
                     {

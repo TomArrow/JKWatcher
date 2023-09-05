@@ -2848,6 +2848,8 @@ namespace JKWatcher
 
         Regex mohPlayerFrozenRegex = new Regex(@"^\x03(?<team>\w+) player \((?<playerName>.*?)\) frozen. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex mohPlayerMeltedRegex = new Regex(@"^\x01(?<team>\w+) player \((?<playerName>.*?)\) melted by (?<melterName>.*?)\. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        
+        Regex mohSimpleChatParse = new Regex(@"^\x02(?:\((?<prefix>[^\)]+)\))? ?(?<chatterName>.*?):\s*(?<message>.*)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         string disconnectedString = " disconnected\n";
 
@@ -2855,6 +2857,7 @@ namespace JKWatcher
         {
             Match specMatch;
             Match unknownCmdMatch;
+            Match mohChatMatch;
             Match mohFrozenMatch = null;
             Match mohMeltedMatch = null;
             string tmpString = null;
@@ -2955,6 +2958,21 @@ namespace JKWatcher
                     {
                         serverWindow.addToLog($"NOTE: Command {unknownCmd} is not supported by this MOH server. Noting.");
                         infoPool.unsupportedCommands.Add(unknownCmd);
+                    }
+                } else if ( mohMode && (mohChatMatch = mohSimpleChatParse.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    if (mohChatMatch.Groups["message"].Success)
+                    {
+                        string message = mohChatMatch.Groups["message"].Value;
+                        int? clientNum = ClientNum;
+                        if (clientNum.HasValue)
+                        {
+                            string myName = infoPool.playerInfo[clientNum.Value].name;
+                            if (myName != null && message.Contains(myName,StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                serverWindow.addToLog($"MOH CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                            }
+                        }
                     }
                 } else if ( mohMode && mohFreezeTagDetected && ((mohFrozenMatch = mohPlayerFrozenRegex.Match(commandEventArgs.Command.Argv(1))).Success || (mohMeltedMatch = mohPlayerMeltedRegex.Match(commandEventArgs.Command.Argv(1))).Success))
                 {
