@@ -39,6 +39,38 @@ namespace JKWatcher
         private List<ConnectedServerWindow> connectedServerWindows = new List<ConnectedServerWindow>();
 
 
+        static Dictionary<NetAddress,Tuple<DateTime,double>> lastTimeDisconnected = new Dictionary<NetAddress, Tuple<DateTime, double>>(new NetAddressComparer());
+        static Random timeFromDisconnectedTimeRangeModifierRandom = new Random();
+
+        public static void setServerLastDisconnectedNow(NetAddress address)
+        {
+            if (address == null)
+            {
+                // idk how it would happen but whatever
+                return;
+            }
+            lock (lastTimeDisconnected)
+            {
+                lastTimeDisconnected[address] = new Tuple<DateTime, double>(DateTime.Now, timeFromDisconnectedTimeRangeModifierRandom.NextDouble());
+            }
+        }
+        public static (DateTime?,double?) getServerLastDisconnected(NetAddress address)
+        {
+            if (address == null)
+            {
+                return (null,null);
+            }
+            lock (lastTimeDisconnected)
+            {
+                if (lastTimeDisconnected.ContainsKey(address))
+                {
+                    return (lastTimeDisconnected[address].Item1, lastTimeDisconnected[address].Item1);
+                } else
+                {
+                    return (null, null);
+                }
+            }
+        }
 
         public bool executionInProgress { get; private set; } = false;
 
@@ -826,6 +858,8 @@ namespace JKWatcher
             public int delayPerWatcher = 0;
             public int retries = 5;
             public int minRealPlayers = 0;
+            public int timeFromDisconnect = 0;
+            public int timeFromDisconnectUpperRange = 0;
             public int? botSnaps = 5;
             public string[] watchers = null;
             public string mapChangeCommands = null;
@@ -867,6 +901,19 @@ namespace JKWatcher
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
+                string timeFromDisconnectString = config["timeFromDisconnect"];
+                if (timeFromDisconnectString != null)
+                {
+                    string[] rangeParts = timeFromDisconnectString.Split('-',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                    if(rangeParts.Length > 0)
+                    {
+                        timeFromDisconnect = Math.Max(0, rangeParts[0].Atoi());
+                    }
+                    if(rangeParts.Length > 1)
+                    {
+                        timeFromDisconnectUpperRange = Math.Max(0, rangeParts[1].Atoi());
+                    }
+                }
                 delayed = config["delayed"]?.Trim().Atoi() > 0;
 
                 attachClientNumToName = (config["attachClientNumToName"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
@@ -946,6 +993,30 @@ namespace JKWatcher
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
                     matchesButMightNotMeetRequirements = true;
+                    if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
+                    {
+                        // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.
+                        // This double modifies the time delay until we can connect again if it was specified as a range, for example 5-10
+                        // Then the random double will define the relative position between 5 and 10. 
+                        // We could directly generate the random here but then it would be a new roll of the dice every time we check if the server fits requirements
+                        // which will sooner or later just end up giving something close to the lower end of the range due to probability,
+                        // thus destroying the potential for true randomness. Hence the random value is generated the moment we disconnect
+                        (DateTime? lastDisconnect,double? lastDisconnectTimeRangeModifier) = MainWindow.getServerLastDisconnected(serverInfo.Address);
+                        
+                        if (lastDisconnect.HasValue)
+                        {
+                            double actualMinTimeDelay = timeFromDisconnect;
+                            if (timeFromDisconnectUpperRange > 0 && lastDisconnectTimeRangeModifier.HasValue) // No reason why lastDisconnectTimeRangeModifier shouldn't have a value if lastDisconnect does but let's be safe?
+                            {
+                                actualMinTimeDelay = (double)timeFromDisconnect + ((double)timeFromDisconnectUpperRange - (double)timeFromDisconnect) * lastDisconnectTimeRangeModifier.Value;
+                            }
+                            if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < actualMinTimeDelay)
+                            {
+                                return false;
+                            }
+                        }
+                        
+                    }
                     return (gameTypes == 0 || serverInfo.InfoPacketReceived && 0 < (gameTypes & (1 << (int)serverInfo.GameType)) ) 
                         && (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) 
                         && (!serverInfo.NeedPassword || serverInfo.NeedPassword 

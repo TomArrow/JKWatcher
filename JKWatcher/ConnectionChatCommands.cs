@@ -1545,11 +1545,11 @@ namespace JKWatcher
 
 
         static Random randomMakerRandom = new Random();
-        int getNiceRandom(int min, int max)
+        public static int getNiceRandom(int min, int max)
         {
             lock (randomMakerRandom)
             {
-                return randomMakerRandom.Next(min, max);
+                return max<min ? randomMakerRandom.Next(max,min): randomMakerRandom.Next(min, max);
             }
         }
 

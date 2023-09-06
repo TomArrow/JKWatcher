@@ -285,6 +285,26 @@ namespace JKWatcher
                 }
             }
 
+            int? getRangeOrNumberValue(string rangeOrNumber)
+            {
+                string[] rangeParts = rangeOrNumber.Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (rangeParts.Length > 1)
+                {
+                    // We decide the actual random value the moment we set this setting and then it stays. 
+                    return Connection.getNiceRandom(rangeParts[0].Atoi(), rangeParts[1].Atoi()+1);
+                }
+                else if (rangeParts.Length == 1)
+                {
+
+                    return rangeParts[0].Atoi();
+                }
+                else
+                {
+                    //uh?! Maybe typo?
+                    return null;
+                }
+            }
+
             public enum DisconnectTriggers :UInt64 { // This is for bitfields, so each new value must be twice the last one.
                 GAMETYPE_NOT_CTF = 1 << 0,
                 KICKED = 1 << 1,
@@ -323,24 +343,36 @@ namespace JKWatcher
                                 }
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("playercount_under", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    if(triggerTextParts.Length == 2)
+                                    if(triggerTextParts.Length > 1)
                                     {
-                                        disconnectTriggerPlayerCountUnderPlayerCount = triggerTextParts[1].Atoi();
-                                        disconnectTriggerPlayerCountUnderDelay = 60000;
-                                        _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
-                                    } else if(triggerTextParts.Length == 3)
-                                    {
-                                        disconnectTriggerPlayerCountUnderPlayerCount = triggerTextParts[1].Atoi();
-                                        disconnectTriggerPlayerCountUnderDelay = triggerTextParts[2].Atoi();
-                                        _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                                        int? playerCount = getRangeOrNumberValue(triggerTextParts[1]);
+                                        if (playerCount.HasValue)
+                                        {
+                                            if (triggerTextParts.Length == 2)
+                                            {
+                                                disconnectTriggerPlayerCountUnderPlayerCount = playerCount.Value;
+                                                disconnectTriggerPlayerCountUnderDelay = 60000;
+                                                _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                                            }
+                                            else if (triggerTextParts.Length == 3)
+                                            {
+                                                disconnectTriggerPlayerCountUnderPlayerCount = playerCount.Value;
+                                                disconnectTriggerPlayerCountUnderDelay = triggerTextParts[2].Atoi();
+                                                _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
+                                            }
+                                        }
                                     }
                                 }
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("connectedtime_over", StringComparison.OrdinalIgnoreCase))
                                 {
                                     if(triggerTextParts.Length == 2)
                                     {
-                                        disconnectTriggerConnectedTimeOverDelayMinutes = triggerTextParts[1].Atoi();
-                                        _disconnectTriggersParsed |= DisconnectTriggers.CONNECTEDTIME_OVER;
+                                        int? delayTime = getRangeOrNumberValue(triggerTextParts[1]);
+                                        if (delayTime.HasValue)
+                                        {
+                                            disconnectTriggerConnectedTimeOverDelayMinutes = delayTime.Value;
+                                            _disconnectTriggersParsed |= DisconnectTriggers.CONNECTEDTIME_OVER;
+                                        }
                                     }
                                 }
                             }
@@ -1699,6 +1731,8 @@ namespace JKWatcher
                     }
                     connections.Clear();
                 }
+
+                MainWindow.setServerLastDisconnectedNow(this.netAddress);
 
             }
         }

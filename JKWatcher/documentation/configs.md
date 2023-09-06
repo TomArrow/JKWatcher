@@ -96,6 +96,10 @@ Only works if the server is identified via ```ip```. How often to query new serv
 
 Minimum amount of real players (non-bots) on server required to connect.
 
+#### timeFromDisconnect
+
+Minimum amount of time that must have passed since the last time we disconnected from this server, in minutes. Optionally can be a range like "5-10". A random value will be picked in between.
+
 #### retries
 
 Number of retries of connecting initially after executing the script. It's a little bit irrelevant now since any failed connects are added to a delayed connect list anyway but might take a bit longer that way.
@@ -120,8 +124,8 @@ Possible options:
 
 - ```gameTypeNotCTF```: Disconnects when the gametype is not CTF or CTY.
 - ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
-- ```playercount_under:10:60000```: Disconnects if player count falls under 10 for more than 1 minute (replace with numbers of your choice)
-- ```connectedtime_over:60```: Disconnects if we were connected for more than 60 minutes (change number to what you desire)
+- ```playercount_under:8-10:60000```: Disconnects if player count falls under 8 to 10 for more than 1 minute (replace with numbers of your choice. player count can be range or single number without "-")
+- ```connectedtime_over:55-60```: Disconnects if we were connected for more than 55 to 60 minutes (random within that range, change numbers to what you desire or use single number without "-")
 
 #### mapChangeCommands 
 
