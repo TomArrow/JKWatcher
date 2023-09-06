@@ -289,6 +289,7 @@ namespace JKWatcher
                 GAMETYPE_NOT_CTF = 1 << 0,
                 KICKED = 1 << 1,
                 PLAYERCOUNT_UNDER = 1 << 2,
+                CONNECTEDTIME_OVER = 1 << 3,
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -334,6 +335,14 @@ namespace JKWatcher
                                         _disconnectTriggersParsed |= DisconnectTriggers.PLAYERCOUNT_UNDER;
                                     }
                                 }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("connectedtime_over", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if(triggerTextParts.Length == 2)
+                                    {
+                                        disconnectTriggerConnectedTimeOverDelayMinutes = triggerTextParts[1].Atoi();
+                                        _disconnectTriggersParsed |= DisconnectTriggers.CONNECTEDTIME_OVER;
+                                    }
+                                }
                             }
                         }
 
@@ -367,6 +376,7 @@ namespace JKWatcher
 
             public int disconnectTriggerPlayerCountUnderPlayerCount { get; private set; } = 10;
             public int disconnectTriggerPlayerCountUnderDelay { get; private set; } = 60000;
+            public int disconnectTriggerConnectedTimeOverDelayMinutes { get; private set; } = 60;
 
         }
 
@@ -546,6 +556,9 @@ namespace JKWatcher
         private object serverInfoChangedLock = new object();
         private DateTime? playerCountUnderDisconnectTriggerLastSatisfied = null;
 
+
+        private DateTime? connectedTimeOverDisconnectTriggerFirstConnected = null;
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
             lock (serverInfoChangedLock)
@@ -585,6 +598,27 @@ namespace JKWatcher
                 else
                 {
                     playerCountUnderDisconnectTriggerLastSatisfied = null;
+                }
+                
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.CONNECTEDTIME_OVER) > 0)
+                {
+                    double connectedTime = connectedTimeOverDisconnectTriggerFirstConnected.HasValue ? (DateTime.Now - connectedTimeOverDisconnectTriggerFirstConnected.Value).TotalMinutes : 0;
+                    int connectedTimeLimit = Math.Max(_connectionOptions.disconnectTriggerConnectedTimeOverDelayMinutes, 1);
+                    if (connectedTime > connectedTimeLimit)
+                    {
+                        this.addToLog($"Disconnect trigger tripped: Connected for over {connectedTimeLimit} minutes ({connectedTime} min). Disconnecting.");
+                        Dispatcher.BeginInvoke((Action)(() =>
+                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                            this.Close();
+                        }));
+                        return;
+                    } else if (!connectedTimeOverDisconnectTriggerFirstConnected.HasValue)
+                    {
+                        connectedTimeOverDisconnectTriggerFirstConnected = DateTime.Now;
+                    }
+                } else
+                {
+                    connectedTimeOverDisconnectTriggerFirstConnected = null;
                 }
             }
 

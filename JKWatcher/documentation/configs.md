@@ -117,6 +117,7 @@ Possible options:
 - ```gameTypeNotCTF```: Disconnects when the gametype is not CTF or CTY.
 - ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
 - ```playercount_under:10:60000```: Disconnects if player count falls under 10 for more than 1 minute (replace with numbers of your choice)
+- ```connectedtime_over:60```: Disconnects if we were connected for more than 60 minutes (change number to what you desire)
 
 #### mapChangeCommands 
 
