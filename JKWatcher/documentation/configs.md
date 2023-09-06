@@ -34,6 +34,10 @@ Comma-separated list of search strings for servers to exclude from ffa auto conn
 
 0 or 1. Jedi Academy mode instead of JK2.
 
+#### mohMode 
+
+0 or 1. MOH mode instead of JK2.
+
 #### allJK2Versions
 
 0 or 1. For JK2, query servers of all JK2 versions, not just 1.02.

@@ -84,6 +84,7 @@
 
                 <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">All JK2 Versions</CheckBox>
                 <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
+                <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
                 <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                 <Label ToolTip="Password">PW</Label>
                 <TextBox x:Name="pwListTxt" Width="100"></TextBox>
@@ -113,11 +114,11 @@
         </DockPanel>
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">
             <Label>IP</Label>
-            <TextBox x:Name="ipTxt" MinWidth="200"></TextBox>
+            <TextBox x:Name="ipTxt" MinWidth="150"></TextBox>
             <Label ToolTip="Password">PW</Label>
-            <TextBox x:Name="pwTxt" MinWidth="70"></TextBox>
+            <TextBox x:Name="pwTxt" MinWidth="50"></TextBox>
             <Label ToolTip="Name">Name</Label>
-            <TextBox x:Name="userInfoNameTxt" MinWidth="70"></TextBox>
+            <TextBox x:Name="userInfoNameTxt" MinWidth="50"></TextBox>
             <Label>Protocol</Label>
             <ComboBox x:Name="protocols"></ComboBox>
 

@@ -224,6 +224,7 @@ namespace JKWatcher
                 int ctfMinPlayersForJoin = 4;
                 int ffaMinPlayersForJoin = 2;
                 bool jkaMode = false;
+                bool mohMode = false;
                 bool allJK2Versions = false;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
@@ -232,6 +233,7 @@ namespace JKWatcher
                     ffaAutoJoinSilentActive = ffaAutoJoinSilent.IsChecked == true;
                     ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
+                    mohMode = mohModeCheck.IsChecked == true;
                     allJK2Versions = allJK2VersionsCheck.IsChecked == true;
                     if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out ctfMinPlayersForJoin))
                     {
@@ -272,7 +274,19 @@ namespace JKWatcher
                     IEnumerable<ServerInfo> servers = null;
 
 
-                    ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L,ForceStatus=true }: new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15,allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                    ServerBrowser serverBrowser = null;
+                    if (jkaMode)
+                    {
+                        serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L, ForceStatus = true };
+                    }
+                    else if (mohMode)
+                    {
+                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8,true)) { RefreshTimeout = 30000L, ForceStatus = true };
+                    }
+                    else
+                    {
+                        serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus = true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                    }
 
                     try
                     {
@@ -312,7 +326,7 @@ namespace JKWatcher
                             }
                         }
                         bool statusReceived = serverInfo.StatusResponseReceived; // We get this value first because it seems in rare situations 1.03 servers can slip through. Maybe status just arrives a bit later and then with very unlucky timing the status received underneath passes but higher up the version was still set to JO_v1_02 because the status hadn't been received yet?
-                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions || delayedConnectServersCount > 0)
+                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions || delayedConnectServersCount > 0)
                         {
                             bool alreadyConnected = false;
                             lock (connectedServerWindows)
@@ -641,13 +655,27 @@ namespace JKWatcher
 
 
             bool jkaMode = false;
+            bool mohMode = false;
             bool allJK2Versions = false;
             Dispatcher.Invoke(() => {
                 jkaMode = jkaModeCheck.IsChecked == true;
+                mohMode = mohModeCheck.IsChecked == true;
                 allJK2Versions = allJK2VersionsCheck.IsChecked == true;
             });
 
-            ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions)) { ForceStatus = true};
+            ServerBrowser serverBrowser = null;
+            if (jkaMode)
+            {
+                serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true };
+            }
+            else if (mohMode)
+            {
+                serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { ForceStatus = true };
+            }
+            else
+            {
+                serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions)) { ForceStatus = true };
+            }
 
             try
             {
@@ -667,7 +695,7 @@ namespace JKWatcher
 
             foreach(ServerInfo serverInfo in servers)
             {
-                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || allJK2Versions)
+                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions)
                 {
                     filteredServers.Add(serverInfo);
                 }
@@ -695,13 +723,24 @@ namespace JKWatcher
         {
             ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
             string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
             //MessageBox.Show(serverInfo.HostName);
             if (serverInfo != null)
             {
                 lock (connectedServerWindows)
                 {
+                    ConnectedServerWindow.ConnectionOptions connOpts = null;
+                    if (userinfoName != null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                        if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8)
+                        {
+                            connOpts.LoadMOHDefaults(); // MOH needs different defaults.
+                        }
+                        connOpts.userInfoName = userinfoName;
+                    }
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;
@@ -1031,11 +1070,16 @@ namespace JKWatcher
             {
                 jkaModeCheck.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "mohMode", 0) == 1)
+            {
+                mohModeCheck.IsChecked = true;
+            }
             if (cp.GetValue("__general__", "allJK2Versions", 0) == 1)
             {
                 allJK2VersionsCheck.IsChecked = true;
             }
             bool jkaMode = jkaModeCheck.IsChecked == true;
+            bool mohMode = mohModeCheck.IsChecked == true;
             List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
             lock (serversToConnectDelayed)
             {
@@ -1106,7 +1150,18 @@ namespace JKWatcher
 
                         IEnumerable<ServerInfo> servers = null;
 
-                        ServerBrowser serverBrowser = jkaMode ? new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L,ForceStatus=true } : new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L,ForceStatus=true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                        ServerBrowser serverBrowser = null;
+                        if (jkaMode)
+                        {
+                            serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L, ForceStatus = true };
+                        }
+                        else if (mohMode)
+                        {
+                            serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { RefreshTimeout = 10000L, ForceStatus = true };
+                        } else
+                        {
+                            serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L, ForceStatus = true }; 
+                        }
 
                         try
                         {
