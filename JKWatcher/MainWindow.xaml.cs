@@ -64,7 +64,7 @@ namespace JKWatcher
             {
                 if (lastTimeDisconnected.ContainsKey(address))
                 {
-                    return (lastTimeDisconnected[address].Item1, lastTimeDisconnected[address].Item1);
+                    return (lastTimeDisconnected[address].Item1, lastTimeDisconnected[address].Item2);
                 } else
                 {
                     return (null, null);
