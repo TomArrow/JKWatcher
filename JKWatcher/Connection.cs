@@ -3022,7 +3022,8 @@ namespace JKWatcher
                     (commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
                     commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
                     commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).Equals(" \n", StringComparison.OrdinalIgnoreCase) // Special case for some servers where kicks don't actually send "was kicked". aka reason left empty. idk if this is really right but let's run with it
                     )
                     )
                 {
