@@ -233,8 +233,16 @@ namespace JKWatcher
             bool nextCheckFast = false;
             while (true)
             {
+                int autoJoinCheckInterval = 2;
+                Dispatcher.Invoke(() => {
+                    if (!int.TryParse(autoJoinCheckIntervalTxt.Text, out autoJoinCheckInterval))
+                    {
+                        autoJoinCheckInterval = 2;
+                    }
+                });
+
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
-                System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 *2); // every 2 min or 1 min if fast recheck requested (see code below)
+                System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 * autoJoinCheckInterval); // every 2 min or 1 min if fast recheck requested (see code below)
 
                 lock (autoConnectRecentlyClosedBlockList)
                 {
@@ -1136,6 +1144,12 @@ namespace JKWatcher
             {
                 ffaAutoConnectExclude = ffaAutoConnectExclude.Trim();
                 ffaAutoJoinExcludeTxt.Text = ffaAutoConnectExclude;
+            }
+            string autoJoinCheckInterval = cp.GetValue("__general__", "autoJoinCheckInterval", "");
+            if (autoJoinCheckInterval != null)
+            {
+                autoJoinCheckInterval = autoJoinCheckInterval.Trim();
+                autoJoinCheckIntervalTxt.Text = autoJoinCheckInterval;
             }
             if (cp.GetValue("__general__", "jkaMode", 0) == 1)
             {

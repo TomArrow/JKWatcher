@@ -30,6 +30,10 @@ General settings for this instance of JKWatcher. Keys, meaning and possible valu
 
 Comma-separated list of search strings for servers to exclude from ffa auto connect.
 
+#### autoJoinCheckInterval
+
+Interval (in minutes) in which to check for new servers for auto join/delayed connecter.
+
 #### jkaMode 
 
 0 or 1. Jedi Academy mode instead of JK2.

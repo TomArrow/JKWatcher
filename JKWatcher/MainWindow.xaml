@@ -32,6 +32,10 @@
                             </TextBox>
                             <Label Padding="2" Margin="1" FontSize="10" ToolTip="players">pl.</Label>
                             <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="1" FontSize="10" ToolTip="w/ strobe">str.</CheckBox>
+                            <Label Padding="2" Margin="1" FontSize="10" ToolTip="Auto join check interval (in minutes)">, int.</Label>
+                            <TextBox x:Name="autoJoinCheckIntervalTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                                2
+                            </TextBox>
                         </WrapPanel>
                         <WrapPanel>
                             <CheckBox x:Name="ffaAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ffa matches. Single client but will upgrade to CTF if gametype changes. Will upgrade to use Strobe if clicked above.">FFA >=</CheckBox>

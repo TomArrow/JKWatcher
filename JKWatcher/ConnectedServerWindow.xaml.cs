@@ -593,6 +593,16 @@ namespace JKWatcher
 
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
+            int activeClientCount = obj.Clients;
+            if (mohMode)
+            {
+                activeClientCount = 0;
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if (pi.infoValid) activeClientCount++;
+                }
+            }
+
             lock (serverInfoChangedLock)
             {
                 // Disconnect if "gametypenotctf" disconnecttrigger is set.
@@ -607,7 +617,7 @@ namespace JKWatcher
                 }
 
                 // Disconnect if "playercount_under" disconnecttrigger is set.
-                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && obj.Clients < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && activeClientCount < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
                 {
                     double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
                     if (playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
@@ -615,7 +625,7 @@ namespace JKWatcher
                         /*Dispatcher.Invoke(() => {
                             this.Close();
                         });*/
-                        this.addToLog($"Disconnect trigger tripped: Player count {obj.Clients} under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount} for over {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
+                        this.addToLog($"Disconnect trigger tripped: Player count {obj.Clients} ({activeClientCount}) under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount} for over {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
                         Dispatcher.BeginInvoke((Action)(() =>
                         { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
                             this.Close();
