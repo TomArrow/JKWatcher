@@ -291,7 +291,9 @@ namespace JKWatcher
                 if (rangeParts.Length > 1)
                 {
                     // We decide the actual random value the moment we set this setting and then it stays. 
-                    return Connection.getNiceRandom(rangeParts[0].Atoi(), rangeParts[1].Atoi()+1);
+                    int result = Connection.getNiceRandom(rangeParts[0].Atoi(), rangeParts[1].Atoi() + 1);
+                    Debug.WriteLine($"getRangeOrNumberValue: {rangeOrNumber} interpreted as {result}");
+                    return result;
                 }
                 else if (rangeParts.Length == 1)
                 {

@@ -266,6 +266,7 @@ namespace JKWatcher
                 bool jkaMode = false;
                 bool mohMode = false;
                 bool allJK2Versions = false;
+                bool delayedConnecterActive = false;
                 Dispatcher.Invoke(()=> {
                     ctfAutoJoinActive = ctfAutoJoin.IsChecked == true;
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
@@ -275,6 +276,7 @@ namespace JKWatcher
                     jkaMode = jkaModeCheck.IsChecked == true;
                     mohMode = mohModeCheck.IsChecked == true;
                     allJK2Versions = allJK2VersionsCheck.IsChecked == true;
+                    delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
                     if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out ctfMinPlayersForJoin))
                     {
                         ctfMinPlayersForJoin = 4;
@@ -309,7 +311,7 @@ namespace JKWatcher
                     delayedConnectServersCount = serversToConnectDelayed.Count;
                 }
 
-                if (ctfAutoJoinActive || ffaAutoJoinActive || delayedConnectServersCount > 0)
+                if (ctfAutoJoinActive || ffaAutoJoinActive || (delayedConnectServersCount > 0 && delayedConnecterActive))
                 {
                     IEnumerable<ServerInfo> servers = null;
 
@@ -384,7 +386,7 @@ namespace JKWatcher
                             if(!alreadyConnected && !serverInfo.NeedPassword) {
 
                                 bool configgedRequirementsExplicitlyNotMet = false;
-                                if (delayedConnectServersCount > 0)
+                                if (delayedConnectServersCount > 0 && delayedConnecterActive)
                                 {
                                     ServerToConnect srvTCChosen = null;
                                     lock (serversToConnectDelayed) { 
@@ -404,7 +406,13 @@ namespace JKWatcher
                                         }
                                         if(srvTCChosen != null)
                                         {
-                                            ConnectFromConfig(serverInfo, srvTCChosen);
+                                            Dispatcher.Invoke(() => {
+                                                delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true; // Just double check to be safe.
+                                            });
+                                            if (delayedConnecterActive)
+                                            {
+                                                ConnectFromConfig(serverInfo, srvTCChosen);
+                                            }
                                             continue;
                                             //serversToConnectDelayed.Remove(srvTCChosen); // actually dont delete it.
                                         }
@@ -534,7 +542,13 @@ namespace JKWatcher
             while (true)
             {
 
-                System.Threading.Thread.Sleep(500); 
+                System.Threading.Thread.Sleep(500);
+                bool delayedConnecterActive = true;
+                Dispatcher.Invoke(() => {
+                    delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
+                });
+
+                if (!delayedConnecterActive) continue;
 
                 lock (serversToConnectDelayed)
                 {
@@ -606,8 +620,14 @@ namespace JKWatcher
                             bool isMatchThough = false;
                             if (stc.FitsRequirements(thisServerInfo, ref isMatchThough))
                             {
-                                Debug.WriteLine($"Server {stc.ip.ToString()} polled, fits requirements. IsMatch: {isMatchThough}.");
-                                ConnectFromConfig(thisServerInfo, stc);
+                                Dispatcher.Invoke(() => {
+                                    delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true; // Just double check to be safe.
+                                });
+                                if (delayedConnecterActive)
+                                {
+                                    Debug.WriteLine($"Server {stc.ip.ToString()} polled, fits requirements. IsMatch: {isMatchThough}.");
+                                    ConnectFromConfig(thisServerInfo, stc);
+                                }
                             } else
                             {
                                 Debug.WriteLine($"Server {stc.ip.ToString()} polled, doesn't fit requirements. IsMatch: {isMatchThough}.");
