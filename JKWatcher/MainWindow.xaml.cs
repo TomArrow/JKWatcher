@@ -993,6 +993,18 @@ namespace JKWatcher
                             case "harvester":
                                 gameTypes |= (1 << (int)GameType.Harvester);
                                 break;
+                            case "teamrounds":
+                                gameTypes |= (1 << (int)GameType.TeamRounds);
+                                break;
+                            case "objective":
+                                gameTypes |= (1 << (int)GameType.Objective);
+                                break;
+                            case "tow":
+                                gameTypes |= (1 << (int)GameType.TOW);
+                                break;
+                            case "liberation":
+                                gameTypes |= (1 << (int)GameType.Liberation);
+                                break;
                         }
 
                     }

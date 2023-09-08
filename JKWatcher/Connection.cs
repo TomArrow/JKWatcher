@@ -2862,6 +2862,7 @@ namespace JKWatcher
             Match mohFrozenMatch = null;
             Match mohMeltedMatch = null;
             string tmpString = null;
+            int tmpInt;
             if (commandEventArgs.Command.Argc >= 2)
             {
                 string printText = commandEventArgs.Command.Argv(1);
@@ -3016,14 +3017,15 @@ namespace JKWatcher
                         }
                     }
 
-                } else if ( mohMode && /*lastDropError.HasValue &&(DateTime.Now- lastDropError.Value).TotalMilliseconds < 2000  &&*/ ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).Length > (6+infoPool.playerInfo[ClientNum.Value].name.Length) && 
-                    (commandEventArgs.Command.Argv(1).Substring(0, infoPool.playerInfo[ClientNum.Value].name.Length).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase) ||
-                    commandEventArgs.Command.Argv(1).Substring(1, infoPool.playerInfo[ClientNum.Value].name.Length+1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
-                    (commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length+1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
-                    commandEventArgs.Command.Argv(1).Substring(infoPool.playerInfo[ClientNum.Value].name.Length).Equals(" \n", StringComparison.OrdinalIgnoreCase) // Special case for some servers where kicks don't actually send "was kicked". aka reason left empty. idk if this is really right but let's run with it
+                } else if ( mohMode && /*lastDropError.HasValue &&(DateTime.Now- lastDropError.Value).TotalMilliseconds < 2000  &&*/ ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).Length >= (2+(tmpInt=infoPool.playerInfo[ClientNum.Value].name.Length)) && 
+                    (commandEventArgs.Command.Argv(1).Substring(0, tmpInt).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase) ||
+                    commandEventArgs.Command.Argv(1).Substring(1, tmpInt + 1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
+                    (commandEventArgs.Command.Argv(1).Substring(tmpInt).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
+                    commandEventArgs.Command.Argv(1).Substring(tmpInt + 1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(tmpInt + 1).StartsWith(" has been kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(tmpInt).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(tmpInt + 1).StartsWith(" Kicked", StringComparison.OrdinalIgnoreCase)||
+                    commandEventArgs.Command.Argv(1).Substring(tmpInt).Equals(" \n", StringComparison.OrdinalIgnoreCase) // Special case for some servers where kicks don't actually send "was kicked". aka reason left empty. idk if this is really right but let's run with it
                     )
                     )
                 {

@@ -90,7 +90,7 @@ Snaps value to use if all active players are bots. (discards other packets)
 
 #### gameTypes
 
-Comma-separated list of gametypes. Will only connect if gametype matches one of the provided ones. Options: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester
+Comma-separated list of gametypes. Will only connect if gametype matches one of the provided ones. Options: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester, teamrounds, objective, tow, liberation (not all are supported by each game ofc)
 
 #### pollingInterval
 
