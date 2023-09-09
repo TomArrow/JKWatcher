@@ -877,31 +877,49 @@ namespace JKWatcher
 
         class ServerToConnect
         {
-            public NetAddress ip = null;
-            public string hostName = null;
-            public string playerName = null;
+            public string sectionName { get; init; } = null;
+            public NetAddress ip { get; init; } = null;
+            public string hostName { get; init; } = null;
+            public bool active { get; set; } = true;
+            public string playerName { get; init; } = null;
             public string password = null;
-            public bool autoRecord = false;
-            public bool delayed = false;
-            public int delayPerWatcher = 0;
-            public int retries = 5;
-            public int minRealPlayers = 0;
-            public int timeFromDisconnect = 0;
-            public int timeFromDisconnectUpperRange = 0;
-            public int? botSnaps = 5;
-            public string[] watchers = null;
-            public string mapChangeCommands = null;
-            public string quickCommands = null;
-            public string conditionalCommands = null;
-            public string disconnectTriggers = null;
-            public int gameTypes = 0;
-            public bool attachClientNumToName = true;
-            public bool demoTimeColorNames = true;
-            public bool silentMode = false;
-            public int? pollingInterval = null;
+            public bool autoRecord { get; init; } = false;
+            public bool delayed { get; init; } = false;
+            public int delayPerWatcher { get; init; } = 0;
+            public int retries { get; init; } = 5;
+            public int minRealPlayers { get; init; } = 0;
+            public int timeFromDisconnect { get; init; } = 0;
+            public int timeFromDisconnectUpperRange { get; init; } = 0;
+            public int? botSnaps { get; init; } = 5;
+            public string[] watchers { get; init; } = null;
+            public string watchersDisp
+            {
+                get
+                {
+                    try
+                    {
+                        return watchers == null ? null : string.Join(',', watchers);
+                    }
+                    catch (System.ArgumentNullException e) // Just in case of some weird multithreading race stuff blahblah
+                    {
+                        return null;
+                    }
+                }
+            }
+            public string mapChangeCommands { get; init; } = null;
+            public string quickCommands { get; init; } = null;
+            public string conditionalCommands { get; init; } = null;
+            public string disconnectTriggers { get; init; } = null;
+            public int gameTypes { get; init; } = 0;
+            public bool attachClientNumToName { get; init; } = true;
+            public bool demoTimeColorNames { get; init; } = true;
+            public bool silentMode { get; init; } = false;
+            public int? pollingInterval { get; init; } = null;
 
             public ServerToConnect(ConfigSection config)
             {
+                sectionName = config.SectionName;
+
                 try
                 {
                     string ipString = config["ip"]?.Trim();
@@ -1033,6 +1051,7 @@ namespace JKWatcher
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
                     matchesButMightNotMeetRequirements = true;
+                    if (!this.active) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.
@@ -1232,6 +1251,22 @@ namespace JKWatcher
             }
             ServerBrowser.SetHiddenServers(hiddenServersAll.ToArray());
 
+            bool delayedConnecterActive = true;
+            Dispatcher.Invoke(() => {
+                delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true; // Just double check to be safe.
+            });
+
+            if (!delayedConnecterActive)
+            {
+                lock (serversToConnectDelayed)
+                {
+                    serversToConnectDelayed.Clear();
+                    serversToConnectDelayed.AddRange(serversToConnect);
+                    executionInProgress = false;
+                    return;
+                }
+            }
+
             if (serversToConnect.Count > 0)
             {
                 int tries = 0;
@@ -1364,7 +1399,7 @@ namespace JKWatcher
 
         private void executeConfig_Click(object sender, RoutedEventArgs e)
         {
-            lock (executionInProgressMutex) { 
+            lock (executionInProgressMutex) { // Wait, does this make sense?
                 if(executionInProgress)
                 {
                     MessageBox.Show("Execution already in progress, please wait.");
@@ -1392,6 +1427,15 @@ namespace JKWatcher
         {
             var calendarWindow = new CalendarWindow();
             calendarWindow.Show();
+        }
+
+        private void delayedConnectsRefreshListBtn_Click(object sender, RoutedEventArgs e)
+        {
+            lock (serversToConnectDelayed)
+            {
+
+                delayedConnectsList.ItemsSource = serversToConnectDelayed.ToArray();
+            }
         }
     }
 }

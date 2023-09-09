@@ -87,39 +87,61 @@
                 
             </TabControl>
         </DockPanel>
-        <DockPanel Grid.Row="0">
-            <WrapPanel DockPanel.Dock="Top">
+        <TabControl Grid.Row="0">
+            <TabItem Header="Server Browser">
+                <DockPanel>
+                    <WrapPanel DockPanel.Dock="Top">
 
-                <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">All JK2 Versions</CheckBox>
-                <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
-                <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
-                <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
-                <Label ToolTip="Password">PW</Label>
-                <TextBox x:Name="pwListTxt" Width="100"></TextBox>
-                <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect</Button>
+                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">All JK2 Versions</CheckBox>
+                        <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
+                        <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
+                        <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
+                        <Label ToolTip="Password">PW</Label>
+                        <TextBox x:Name="pwListTxt" Width="70"></TextBox>
+                        <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect</Button>
 
-                
-                <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
-                <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
-            </WrapPanel>
-            <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Ver" Binding="{Binding Version}" Visibility="{Binding Source={x:Reference allJK2VersionsCheck},Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="PW" Binding="{Binding NeedPassword}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Cl" Binding="{Binding ClientsIncludingBots}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="RCl" Binding="{Binding RealClients}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Max" Binding="{Binding MaxClients}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="MapName" Binding="{Binding MapName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Game" Binding="{Binding Game}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}" MaxWidth="200"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Ping" Binding="{Binding Ping}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="MaxPing" Binding="{Binding MaxPing}"></DataGridTextColumn>
-                </DataGrid.Columns>
 
-            </DataGrid>
-        </DockPanel>
+                        <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
+                        <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
+                    </WrapPanel>
+                    <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Ver" Binding="{Binding Version}" Visibility="{Binding Source={x:Reference allJK2VersionsCheck},Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="PW" Binding="{Binding NeedPassword}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Cl" Binding="{Binding ClientsIncludingBots}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="RCl" Binding="{Binding RealClients}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Max" Binding="{Binding MaxClients}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="GameType" Binding="{Binding GameType}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="MapName" Binding="{Binding MapName,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Game" Binding="{Binding Game}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="HostName" Binding="{Binding HostName,Converter={StaticResource q3StringToPlaintextConverter}}" MaxWidth="200"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="Ping" Binding="{Binding Ping}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="MaxPing" Binding="{Binding MaxPing}"></DataGridTextColumn>
+                        </DataGrid.Columns>
+
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+            <TabItem Header="Delayed connects">
+                <DockPanel>
+
+                    <WrapPanel DockPanel.Dock="Bottom" Height="20" DataContext="{Binding ElementName=delayedConnectsList,Path=SelectedItem}">
+                        <CheckBox IsChecked="{Binding active,Mode=TwoWay}">Active</CheckBox>
+                    </WrapPanel>
+                    <DockPanel DockPanel.Dock="Top">
+                        <WrapPanel DockPanel.Dock="Top">
+                            <Button x:Name="delayedConnectsRefreshListBtn" Click="delayedConnectsRefreshListBtn_Click">Load/refresh list</Button>
+                        </WrapPanel>
+                        <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="delayedConnectsList" AutoGenerateColumns="True">
+                        
+
+                        </DataGrid>
+                    </DockPanel>
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+        
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">
             <Label>IP</Label>
             <TextBox x:Name="ipTxt" MinWidth="150"></TextBox>
