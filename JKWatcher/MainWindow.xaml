@@ -132,8 +132,9 @@
                     <DockPanel DockPanel.Dock="Top">
                         <WrapPanel DockPanel.Dock="Top">
                             <Button x:Name="delayedConnectsRefreshListBtn" Click="delayedConnectsRefreshListBtn_Click">Load/refresh list</Button>
+                            <Button x:Name="delayedForceConnectBtn" Click="delayedForceConnectBtn_Click" IsEnabled="False">Force connect</Button>
                         </WrapPanel>
-                        <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="delayedConnectsList" AutoGenerateColumns="True">
+                        <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="delayedConnectsList" AutoGenerateColumns="True" SelectionChanged="delayedConnectsList_SelectionChanged">
                         
 
                         </DataGrid>

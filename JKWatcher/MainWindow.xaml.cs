@@ -1437,5 +1437,95 @@ namespace JKWatcher
                 delayedConnectsList.ItemsSource = serversToConnectDelayed.ToArray();
             }
         }
+
+        private void delayedConnectsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (delayedConnectsList.Items.Count > 0 && delayedConnectsList.SelectedItems.Count > 0)
+            {
+                delayedForceConnectBtn.IsEnabled = true;
+            }
+            else
+            {
+                delayedForceConnectBtn.IsEnabled = false;
+            }
+        }
+
+        private async void delayedForceConnectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerToConnect serverToConnect = (ServerToConnect)delayedConnectsList.SelectedItem;
+            string errorString = null;
+            if(serverToConnect != null)
+            {
+                NetAddress ip = serverToConnect.ip;
+                if (ip == null)
+                {
+                    errorString = ("Cannot force connect to a server without IP. Not implemented.");
+                } else
+                {
+                    try
+                    {
+                        bool jkaMode = jkaModeCheck.IsChecked == true;
+                        bool mohMode = mohModeCheck.IsChecked == true;
+
+                        IBrowserHandler bHandler = null;
+                        if (jkaMode)
+                        {
+                            bHandler = new JABrowserHandler(ProtocolVersion.Protocol26);
+                        }
+                        else if (mohMode)
+                        {
+                            bHandler = new MOHBrowserHandler(ProtocolVersion.Protocol8, true);
+                        }
+                        else
+                        {
+                            bHandler = new JOBrowserHandler(ProtocolVersion.Protocol15, true);
+                        }
+
+                        using (ServerBrowser browser = new ServerBrowser(bHandler))
+                        {
+                            browser.Start(async (JKClientException ex) => {
+                                errorString = ("Exception trying to get ServerInfo for forced connect: " + ex.ToString());
+                            });
+
+                            ServerInfo serverInfo = null;
+                            try
+                            {
+                                serverInfo = await browser.GetFullServerInfo(ip, false, true);
+                            }
+                            catch (Exception ex2)
+                            {
+                                errorString = ("Exception trying to get ServerInfo for forced connect (during await): " + e.ToString());
+                                //continue;
+                            }
+
+                            if (serverInfo != null && (serverInfo.StatusResponseReceived || serverInfo.InfoPacketReceived))
+                            {
+
+                                ConnectFromConfig(serverInfo, serverToConnect);
+                            } else if (serverInfo == null)
+                            {
+                                errorString = ("Unknown error trying to get ServerInfo for forced connect. serverInfo is null");
+                            }
+                            else
+                            {
+                                errorString = ($"Unknown error trying to get ServerInfo for forced connect. status received: {serverInfo.StatusResponseReceived}, info received: {serverInfo.InfoPacketReceived} ");
+                            }
+
+                            browser.Stop();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errorString = ("Exception trying to get ServerInfo for forced connect (outer): " + ex.ToString());
+                    }
+                }
+            }
+
+            if(errorString != null)
+            {
+                MessageBox.Show(errorString);
+                Helpers.logToFile(errorString);
+            }
+        }
     }
 }
