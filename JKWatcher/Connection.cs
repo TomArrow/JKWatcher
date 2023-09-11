@@ -1637,7 +1637,7 @@ namespace JKWatcher
                 bool oldKnockedDown = infoPool.playerInfo[i].knockedDown;
                 
                 int snapEntityNum = snapEntityMapping[i];
-                if(snapEntityNum == -1 && i == snap.PlayerState.ClientNum)
+                if((snapEntityNum == -1 || mohMode) && i == snap.PlayerState.ClientNum)
                 {
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
@@ -1688,10 +1688,11 @@ namespace JKWatcher
                         switch (playerTeam)
                         {
                             default:
-                                playerTeam = (int)Team.Free;
-                                break;
                             case 1:
                                 playerTeam = (int)Team.Spectator;
+                                break;
+                            case 2:
+                                playerTeam = (int)Team.Free;
                                 break;
                             case 3: // Allies
                                 playerTeam = (int)Team.Blue;
@@ -1700,6 +1701,7 @@ namespace JKWatcher
                                 playerTeam = (int)Team.Red;
                                 break;
                         }
+                        infoPool.playerInfo[i].team = (Team)playerTeam;
                     }
 
                     infoPool.playerInfo[i].powerUps = 0;
@@ -2361,7 +2363,7 @@ namespace JKWatcher
 
             serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
 
-            if (newGameState || obj.GameName != oldGameName)
+            if (mohMode && (newGameState || obj.GameName != oldGameName || obj.MapName != oldMapName))
             {
                 mohFreezeTagDetected = false;
                 resetAllFrozenStatus();
@@ -3516,7 +3518,7 @@ namespace JKWatcher
                     {
                         if (!infoPool.playerInfo[iClientNum].infoValid)
                         {
-                            serverWindow.addToLog($"Retrieved scoreboard entry for player {i} but player {i}'s infoValid is false. Player name: {infoPool.playerInfo[i].name}. Setting to true.");
+                            serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
                         infoPool.playerInfo[iClientNum].infoValid = true;
                         if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
@@ -3626,7 +3628,7 @@ namespace JKWatcher
                     {
                         if (!infoPool.playerInfo[iClientNum].infoValid)
                         {
-                            serverWindow.addToLog($"Retrieved scoreboard entry for player {i} but player {i}'s infoValid is false. Player name: {infoPool.playerInfo[i].name}. Setting to true.");
+                            serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
                         infoPool.playerInfo[iClientNum].infoValid = true;
                         if ((int)lastTeamHeader != -1)
