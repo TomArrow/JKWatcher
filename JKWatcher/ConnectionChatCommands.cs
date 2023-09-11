@@ -875,7 +875,7 @@ namespace JKWatcher
                                 {
                                     this.client.SkipUserInfoUpdatesAfterNextNChanges(1);
                                     bool doKill = false;
-                                    if (this.client.GetUserInfoKeyValue("forcepowers") != forcePowers)
+                                    if (this.client.GetUserInfoKeyValue("forcepowers", out _) != forcePowers)
                                     {
                                         doKill = true;
                                     }
