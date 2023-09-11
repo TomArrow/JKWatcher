@@ -285,6 +285,9 @@ namespace JKWatcher
         private bool mohFreezeTagDetected = false;
         private bool mohFreezeTagSendsFrozenMessages = false;
         private bool mohFreezeTagSendsMeltedMessages = false;
+        private int mohFreezeTagSwitchToFrozenCount = 0;
+        private bool mohFreezeTagAllowsFrozenFollow = false;
+        private DateTime mohFreezeTagAllowsFrozenFollowLastConfirmed = DateTime.Now;
         private bool JAPlusDetected = false;
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
@@ -1601,6 +1604,12 @@ namespace JKWatcher
             //    return;
             //}
 
+            if (mohFreezeTagAllowsFrozenFollow && (DateTime.Now-mohFreezeTagAllowsFrozenFollowLastConfirmed).TotalMinutes > 5)
+            {
+                serverWindow.addToLog("MOH Freeze Tag detection: More than 5 minutes since we confirmed that server allows following frozen players. Resetting setting.");
+                mohFreezeTagAllowsFrozenFollow = false;
+            }
+
             int EFDeadFlag = jkaMode ? (int)JKAStuff.EntityFlags.EF_DEAD : (int)JOStuff.EntityFlags.EF_DEAD;
             int PWRedFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_REDFLAG : (int)JOStuff.ItemList.powerup_t.PW_REDFLAG;
             int PWBlueFlag = jkaMode ? (int)JKAStuff.ItemList.powerup_t.PW_BLUEFLAG : (int)JOStuff.ItemList.powerup_t.PW_BLUEFLAG;
@@ -1739,7 +1748,8 @@ namespace JKWatcher
                         }
                         infoPool.playerInfo[i].infoValid = true;
                     }
-                    infoPool.playerInfo[i].IsAlive = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) == 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    bool deadFlagSet = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) > 0;
+                    infoPool.playerInfo[i].IsAlive = !deadFlagSet; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     bool frozenStatus = mohFreezeTagDetected && snap.Entities[snapEntityNum].Solid==0;
                     if(infoPool.playerInfo[i].IsFrozen != frozenStatus)
                     {
@@ -1809,6 +1819,19 @@ namespace JKWatcher
                         if((normalizePMFlags & PMF_CAMERA_VIEW_MOH) != 0 && (normalizePMFlags & PMF_SPECTATING_MOH) != 0)
                         {
                             SpectatedPlayer = i;
+
+                            if (mohFreezeTagDetected)
+                            {
+                                if(i != oldSpectatedPlayer && infoPool.playerInfo[i].IsFrozen && frozenStatus && !deadFlagSet)
+                                {
+                                    if (!mohFreezeTagAllowsFrozenFollow)
+                                    {
+                                        serverWindow.addToLog("MOH Freeze Tag detection: Server seems to allow following frozen players.");
+                                        mohFreezeTagAllowsFrozenFollow = true;
+                                    }
+                                    mohFreezeTagAllowsFrozenFollowLastConfirmed = DateTime.Now;
+                                }
+                            }
                         }
                     }
                     
@@ -1867,6 +1890,13 @@ namespace JKWatcher
                 {
                     infoPool.playerInfo[i].chatCommandTrackingStuff.falls++;
                 }
+            }
+
+            if (mohMode && oldSpectatedPlayer != SpectatedPlayer) // Since we have to derive this from entity positions in MOH, we have to do the check here.
+            {
+                lastSpectatedPlayerChange = DateTime.Now;
+               
+
             }
 
             PlayerState currentPs = snap.PlayerState;
@@ -1941,6 +1971,7 @@ namespace JKWatcher
                             if(foundCloseBeams > 1)
                             {
                                 mohFreezeTagDetected = true;
+                                resetAllFrozenStatus();
                                 serverWindow.addToLog("MOH Freeze Tag detected from beams.");
                             }
                             else
@@ -2080,10 +2111,17 @@ namespace JKWatcher
                     // TODO Detect frozen players as dead.
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                     if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
-                    if (player.IsFrozen && mohFreezeTagDetected) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.score.ping >= 999) continue; 
                     if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
+                    if (player.IsFrozen && mohFreezeTagDetected)
+                    {
+                        if (mohFreezeTagAllowsFrozenFollow) // This might always be the case, not sure. Better safe than sorry?
+                        {
+                            index++; // If following frozen people is possible, make sure we do increment the index here so that fast skipping remains possible without getting a too low estimate of required skips.
+                        }
+                        continue;
+                    }
                     float currentScore = float.NegativeInfinity;
                     if(currentGameType > GameType.Team)
                     {
@@ -2304,6 +2342,14 @@ namespace JKWatcher
             }
         }
 
+        private void resetAllFrozenStatus()
+        {
+            foreach(PlayerInfo pi in infoPool.playerInfo)
+            {
+                pi.IsFrozen = false;
+            }
+        }
+
         int serverMaxClientsLimit = 0;
         ClientInfo[] oldClientInfo = new ClientInfo[64];
 
@@ -2318,6 +2364,7 @@ namespace JKWatcher
             if (newGameState || obj.GameName != oldGameName)
             {
                 mohFreezeTagDetected = false;
+                resetAllFrozenStatus();
             }
 
             //obj.GameName
@@ -2331,6 +2378,10 @@ namespace JKWatcher
             } 
             else if(obj.GameName.Contains("Freeze-Tag", StringComparison.OrdinalIgnoreCase))
             {
+                if (!this.mohFreezeTagDetected)
+                {
+                    resetAllFrozenStatus();
+                }
                 this.mohFreezeTagDetected = true; // This might not always work tho if the server doesn't send that info. So there's a redundant detection of it elsewhere
                 serverWindow.addToLog("MOH Freeze-Tag detected from game name.");
             } 
@@ -2358,11 +2409,7 @@ namespace JKWatcher
             {
                 if(obj.MOHHUDMessage == "axiswin" || obj.MOHHUDMessage == "allieswin") // End of round. Clear all frozen status.
                 {
-                    // clear frozen status of all players.
-                    foreach (PlayerInfo pi in infoPool.playerInfo)
-                    {
-                        pi.IsFrozen = false;
-                    }
+                    resetAllFrozenStatus();
                 }
                 oldMOHHUDMEssage = obj.MOHHUDMessage;
             }
@@ -2370,6 +2417,7 @@ namespace JKWatcher
             bool executeMapChangeCommands = newGameState;
             if(obj.MapName != oldMapName)
             {
+                resetAllFrozenStatus();
                 executeMapChangeCommands = true;
                 string mapNameRaw = obj.MapName;
                 int lastSlashIndex = mapNameRaw.LastIndexOf('/');
@@ -2639,6 +2687,7 @@ namespace JKWatcher
                         // AKA: it wasn't valid before and now it is (player connected).
                         // or it was valid before and now it isn't (rare server that does inform us, or got a new gamestate that resetted everything)
                         infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
+                        infoPool.playerInfo[i].IsFrozen = false;
                     }
                     infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
                     infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
