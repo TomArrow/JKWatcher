@@ -176,9 +176,9 @@ namespace JKWatcher
 
         public event UserCommandGeneratedEventHandler ClientUserCommandGenerated;
         public event Action<ServerInfo> ServerInfoChanged; // forward to the outside if desired
-        internal void OnClientUserCommandGenerated(ref UserCommand cmd, in UserCommand previousCommand)
+        internal void OnClientUserCommandGenerated(ref UserCommand cmd, in UserCommand previousCommand, ref List<UserCommand> insertCommands)
         {
-            this.ClientUserCommandGenerated?.Invoke(this, ref cmd, in previousCommand);
+            this.ClientUserCommandGenerated?.Invoke(this, ref cmd, in previousCommand, ref insertCommands);
         }
 
         public JKClient.Statistics clientStatistics { get; private set; }
@@ -866,9 +866,20 @@ namespace JKWatcher
         DateTime lastForcedActivity = DateTime.Now;
 
         int queuedButtonPress = 0;
-        public void QueueButtonPress(int btn)
+        public void QueueSingleButtonPress(int btn)
         {
             queuedButtonPress |= btn;
+        }
+
+        Queue<int> queuedButtonPresses = new Queue<int>();
+        int lastDequeuedAppliedButtonPress = 0;
+        DateTime lastAppliedQueueButtonPress = DateTime.Now;
+        public void QueueButtonPress(int btn)
+        {
+            lock (queuedButtonPresses)
+            {
+                queuedButtonPresses.Enqueue(btn);
+            }
         }
 
 
@@ -878,12 +889,46 @@ namespace JKWatcher
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
         // It also means we don't have to have watchers subscribe directly to the client because then that would break
         // when we get disconnected/reconnected etc.
-        private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand)
+        private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand, ref List<UserCommand> insertCommands)
         {
             if (queuedButtonPress > 0)
             {
                 modifiableCommand.Buttons |= queuedButtonPress;
                 queuedButtonPress = 0;
+            } else
+            {
+                lock (queuedButtonPresses)
+                {
+                    int previousServerTime = previousCommand.ServerTime;
+                    while (queuedButtonPresses.Count > 0 && previousServerTime < modifiableCommand.ServerTime)
+                    {
+                        int newCmd = queuedButtonPresses.Peek();
+                        if ((lastDequeuedAppliedButtonPress & newCmd) > 0) // We have overlap between last pressed buttons and pressed buttons this round. Insert an empty no-buttons-pressed packet, else it will just count as a single button press
+                        {
+                            newCmd = 0;
+                        } else
+                        {
+                            queuedButtonPresses.Dequeue();
+                        }
+
+                        int newServerTime = previousServerTime + 1;
+                        if (newServerTime == modifiableCommand.ServerTime /*|| (queuedButtonPresses.Count == 0 && newServerTime < modifiableCommand.ServerTime)*/)
+                        {
+                            modifiableCommand.Buttons |= newCmd;
+                        } else if (newServerTime < modifiableCommand.ServerTime)
+                        {
+                            insertCommands.Add(new UserCommand() { Buttons = newCmd, ServerTime = newServerTime });
+                        } else
+                        {
+                            // Shouldn't happen
+                            Debug.WriteLine("queuedButtonPresses processing: Weird anomaly with serverTime");
+                        }
+                        lastDequeuedAppliedButtonPress = newCmd;
+                        previousServerTime = newServerTime;
+                        lastAppliedQueueButtonPress = DateTime.Now;
+                    }
+                    
+                }
             }
             if (amNotInSpec)
             {
@@ -916,7 +961,7 @@ namespace JKWatcher
                     lastWasClick = false;
                 }
             }
-            OnClientUserCommandGenerated(ref modifiableCommand, in previousCommand);
+            OnClientUserCommandGenerated(ref modifiableCommand, in previousCommand, ref insertCommands);
         }
 
         int reconnectTriesCount = 0;
@@ -2024,14 +2069,20 @@ namespace JKWatcher
                 // Determine best player.
                 float bestScore = float.NegativeInfinity;
                 int bestScorePlayer = -1;
+                int index = 0;
+                int currentlySpectatedIndex = 0;
+                int wishPlayerIndex = 0;
                 foreach (PlayerInfo player in infoPool.playerInfo)
                 {
+                    if (SpectatedPlayer == player.clientNum) currentlySpectatedIndex = index;
+
                     // TODO If player disconnects, detect disconnect string and set infovalid false.
                     // TODO Detect frozen players as dead.
                     if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                     if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.IsFrozen && mohFreezeTagDetected) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                     if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                    if (player.score.ping >= 999) continue; 
                     if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
                     float currentScore = float.NegativeInfinity;
                     if(currentGameType > GameType.Team)
@@ -2051,13 +2102,51 @@ namespace JKWatcher
                     {
                         bestScorePlayer = player.clientNum;
                         bestScore = currentScore;
+                        wishPlayerIndex = index;
                     }
+                    index++;
                 }
-                if(bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now- lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping*2))
+                if (_connectionOptions.mohFastSwitchFollow)
                 {
-                    // No follow command in MOH. We just have to press the change player button a million times :)
-                    lastMOHFollowChangeButtonPressQueued = DateTime.Now;
-                    this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
+                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
+                    {
+
+                        int countButtonPressesRequired = 0;
+
+                        if(wishPlayerIndex > currentlySpectatedIndex)
+                        {
+                            countButtonPressesRequired = wishPlayerIndex - currentlySpectatedIndex;
+                        } else
+                        {
+                            int highestIndexPlayer = index - 1;
+                            countButtonPressesRequired = (highestIndexPlayer - currentlySpectatedIndex) + (wishPlayerIndex+1);
+                        }
+
+                        int fastSwitchManualCount = _connectionOptions.mohVeryFastSwitchFollowManualCount;
+                        int countButtonPressesToRequest = 0;
+                        if (_connectionOptions.mohVeryFastSwitchFollow && fastSwitchManualCount > 0)
+                        {
+                            countButtonPressesToRequest = countButtonPressesRequired > fastSwitchManualCount ? (countButtonPressesRequired - fastSwitchManualCount) : 1;
+                        } else
+                        {
+                            countButtonPressesToRequest = countButtonPressesRequired >= 4 ? countButtonPressesRequired / 2 : 1; // We can't 100% rely on our indexes and that they accurately represent who can be watched. Aka we don't know exactly who we will get with a single press. So just do half the required switches in one go. Rest by single presses. Just feels safer.
+                        }
+
+                        // No follow command in MOH. We just have to press the change player button a million times :)
+                        lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                        for(int i=0;i< countButtonPressesToRequest; i++)
+                        {
+                            this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
+                        }
+                    }
+                } else
+                {
+                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2))
+                    {
+                        // No follow command in MOH. We just have to press the change player button a million times :)
+                        lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                        this.QueueSingleButtonPress((int)UserCommand.Button.UseMOHAA);
+                    }
                 }
 
             } else

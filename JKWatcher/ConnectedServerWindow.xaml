@@ -79,6 +79,7 @@
                     <DataGridTextColumn Header="Score" Binding="{Binding score.score}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
                     <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="S/D" Binding="{Binding score.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
@@ -197,6 +198,13 @@
                         </TextBox>
                         <CheckBox IsChecked="{Binding allowWayPointBotmode,Mode=TwoWay}">Allow waypoint botmode</CheckBox>
                         <CheckBox IsChecked="{Binding allowWayPointBotmodeCommands,Mode=TwoWay}">Allow waypoint commands</CheckBox>
+                        <WrapPanel>
+
+                            <CheckBox IsChecked="{Binding mohFastSwitchFollow,Mode=TwoWay}">MOH fast switch follow</CheckBox>
+                            <CheckBox IsChecked="{Binding mohVeryFastSwitchFollow,Mode=TwoWay}">very fast </CheckBox>
+                            <Label Margin="5 0 0 0" Padding="0" > (manual count):</Label>
+                            <TextBox  Width="20" Margin="0 0 0 0" Padding="0" TextAlignment="Right" Text="{Binding mohVeryFastSwitchFollowManualCount,Mode=TwoWay}"></TextBox>
+                        </WrapPanel>
                     </StackPanel>
                 </TabItem>
             </TabControl>

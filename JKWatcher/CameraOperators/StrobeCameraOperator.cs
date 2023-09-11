@@ -26,7 +26,7 @@ namespace JKWatcher.CameraOperators
         }
 
         bool pressAttack = false;
-        private void StrobeCameraOperator_ClientUserCommandGenerated(object sender, ref JKClient.UserCommand modifiableCommand, in JKClient.UserCommand previousCommand)
+        private void StrobeCameraOperator_ClientUserCommandGenerated(object sender, ref JKClient.UserCommand modifiableCommand, in JKClient.UserCommand previousCommand, ref List<JKClient.UserCommand> insertCommands)
         {
             if (pressAttack) // Just turn it on and off as quick as possible.
             {

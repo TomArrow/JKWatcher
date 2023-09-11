@@ -188,6 +188,9 @@ namespace JKWatcher
             public bool noBotIgnore { get; set; } = false;
             public bool allowWayPointBotmode { get; set; } = false;
             public bool allowWayPointBotmodeCommands { get; set; } = false;
+            public bool mohFastSwitchFollow { get; set; } = true;
+            public bool mohVeryFastSwitchFollow { get; set; } = true;
+            public int mohVeryFastSwitchFollowManualCount { get; set; } = 2;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;

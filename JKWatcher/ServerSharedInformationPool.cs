@@ -192,6 +192,13 @@ namespace JKWatcher
                 return tmpTime == 0 ? 0 : (float)score / (float)tmpTime;
             }
         }
+        public float scorePerDeaths { 
+            get
+            {
+                int tmpDeaths = deaths;// Due to multithreading. It might change from one line to the next.
+                return tmpDeaths == 0 ? 0 : (float)score / (float)tmpDeaths;
+            }
+        }
         public volatile int scoreFlags;
         public volatile int powerUps;
         public volatile int accuracy;
@@ -207,7 +214,7 @@ namespace JKWatcher
         public DateTime? lastNonZeroPing;
         public volatile int pingUpdatesSinceLastNonZeroPing;
 
-        public volatile int deaths; // times he got killed. Some JKA mods send this.
+        public volatile int deaths; // times he got killed. Some JKA mods and some MOH gametypes send this.
         public volatile bool deathsIsFilled; // Indicate if killed value was sent
 
         // Special values only MB II uses.
