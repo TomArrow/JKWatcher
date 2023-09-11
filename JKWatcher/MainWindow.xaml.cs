@@ -1076,8 +1076,11 @@ namespace JKWatcher
                         }
                         
                     }
+
+                    bool isMOH = Common.ProtocolIsMOH(serverInfo.Protocol);
+                    int? clientCountToCompare = isMOH ? (serverInfo.StatusResponseReceived ? serverInfo.RealClients : serverInfo.Clients) : serverInfo.RealClients; // MOH servers are more unreliable, sometimes just don't send status packet etc.
                     return (gameTypes == 0 || serverInfo.InfoPacketReceived && 0 < (gameTypes & (1 << (int)serverInfo.GameType)) ) 
-                        && (serverInfo.RealClients >= minRealPlayers || minRealPlayers == 0) 
+                        && (clientCountToCompare >= minRealPlayers || minRealPlayers == 0) 
                         && (!serverInfo.NeedPassword || serverInfo.NeedPassword 
                         && password != null 
                         && password.Length > 0);
