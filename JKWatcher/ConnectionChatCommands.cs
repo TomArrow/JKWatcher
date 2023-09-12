@@ -250,15 +250,19 @@ namespace JKWatcher
                     if (pm.message == null) return; // Message from myself. Ignore.
 
                     string myName = infoPool.playerInfo[myClientNum.Value].name;
+                    string myNameNoSpecialChars = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(myName, "");
+                    string myNameNoSpecialCharsCleanedUp = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myName), "");
                     string myBasePlayerName = _connectionOptions.userInfoName;
-                    if(_connectionOptions.userInfoName == null)
+                    string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
+                    string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName), "");
+                    if (_connectionOptions.userInfoName == null)
                     {
                         myBasePlayerName = "Padawan";
                     }
-                    if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase)))
+                    if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
-                    } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName), StringComparison.InvariantCultureIgnoreCase)))
+                    } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
                     }

@@ -753,11 +753,19 @@ namespace JKWatcher
 
             List<ServerInfo> filteredServers = new List<ServerInfo>();
 
-            foreach(ServerInfo serverInfo in servers)
+            bool tmp = false;
+            lock (serversToConnectDelayed)
             {
-                if(serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions)
+                foreach (ServerInfo serverInfo in servers)
                 {
-                    filteredServers.Add(serverInfo);
+                    foreach (ServerToConnect stc in serversToConnectDelayed)
+                    {
+                        stc.FitsRequirements(serverInfo, ref tmp); // Just to update a serverinfo in there if needed.
+                    }
+                    if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions)
+                    {
+                        filteredServers.Add(serverInfo);
+                    }
                 }
             }
 
@@ -892,6 +900,7 @@ namespace JKWatcher
             public int timeFromDisconnectUpperRange { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
             public string[] watchers { get; init; } = null;
+            public string[] mapNames { get; init; } = null;
             public string watchersDisp
             {
                 get
@@ -899,6 +908,20 @@ namespace JKWatcher
                     try
                     {
                         return watchers == null ? null : string.Join(',', watchers);
+                    }
+                    catch (System.ArgumentNullException e) // Just in case of some weird multithreading race stuff blahblah
+                    {
+                        return null;
+                    }
+                }
+            }
+            public string mapNamesDisp
+            {
+                get
+                {
+                    try
+                    {
+                        return mapNames == null ? null : string.Join(',', mapNames);
                     }
                     catch (System.ArgumentNullException e) // Just in case of some weird multithreading race stuff blahblah
                     {
@@ -915,6 +938,8 @@ namespace JKWatcher
             public bool demoTimeColorNames { get; init; } = true;
             public bool silentMode { get; init; } = false;
             public int? pollingInterval { get; init; } = null;
+
+            public ServerInfo lastFittingServerInfo = null;
 
             public ServerToConnect(ConfigSection config)
             {
@@ -946,6 +971,7 @@ namespace JKWatcher
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                mapNames = config["maps"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
                 string timeFromDisconnectString = config["timeFromDisconnect"];
                 if (timeFromDisconnectString != null)
@@ -1050,6 +1076,7 @@ namespace JKWatcher
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
+                    lastFittingServerInfo = serverInfo;
                     matchesButMightNotMeetRequirements = true;
                     if (!this.active) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
@@ -1075,6 +1102,18 @@ namespace JKWatcher
                             }
                         }
                         
+                    }
+                    if(mapNames != null)
+                    {
+                        bool mapMatches = false;
+                        foreach(string mapName in mapNames)
+                        {
+                            if (mapName.Equals(serverInfo.MapName,StringComparison.OrdinalIgnoreCase))
+                            {
+                                mapMatches = true;
+                            }
+                        }
+                        if (!mapMatches) return false;
                     }
 
                     bool isMOH = Common.ProtocolIsMOH(serverInfo.Protocol);
@@ -1460,7 +1499,10 @@ namespace JKWatcher
             if(serverToConnect != null)
             {
                 NetAddress ip = serverToConnect.ip;
-                if (ip == null)
+                if (serverToConnect.lastFittingServerInfo != null)
+                {
+                    ConnectFromConfig(serverToConnect.lastFittingServerInfo, serverToConnect);
+                } else if (ip == null)
                 {
                     errorString = ("Cannot force connect to a server without IP. Not implemented.");
                 } else

@@ -37,6 +37,7 @@ namespace JKWatcher
 		public string Protocol { get; set; }
 		public string Version { get; set; }
 		public string ServerGameVersionString { get; set; }
+		public string ServerSVInfoString { get; set; }
 		public string Location { get; set; }
 		public bool NWH { get; set; } // NWH mod detection
 		public int FloodProtect { get; set; } = -1; // -1 if not yet set, -2 if server does not send it at all

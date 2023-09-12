@@ -726,7 +726,8 @@ namespace JKWatcher
                 serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);
                 return false;
             }
-            client = new Client(handler) { GhostPeer = this.GhostPeer }; // Todo make more flexible
+            string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
+            client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine }; // Todo make more flexible
             //client.Name = "Padawan";
             client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
             if (jkaMode) // TODO Detect mods and proceed accordingly
@@ -2992,6 +2993,9 @@ namespace JKWatcher
         
         Regex mohSimpleChatParse = new Regex(@"^\x02(?:\((?<prefix>[^\)]+)\))? ?(?<chatterName>.*?):\s*(?<message>.*)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+        Regex playerNameSpecialCharsRegex = new Regex(@"[^\w\d ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex playerNameSpecialCharsExceptRoofRegex = new Regex(@"[^\w\d\^ ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         string disconnectedString = " disconnected\n";
 
         void EvaluatePrint(CommandEventArgs commandEventArgs)
@@ -3110,7 +3114,7 @@ namespace JKWatcher
                         if (clientNum.HasValue)
                         {
                             string myName = infoPool.playerInfo[clientNum.Value].name;
-                            if (myName != null && message.Contains(myName,StringComparison.InvariantCultureIgnoreCase))
+                            if (myName != null && (message.Contains(myName,StringComparison.InvariantCultureIgnoreCase) || message.Contains(playerNameSpecialCharsRegex.Replace(myName,""), StringComparison.InvariantCultureIgnoreCase)))
                             {
                                 serverWindow.addToLog($"MOH CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
                             }

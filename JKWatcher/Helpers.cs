@@ -59,6 +59,116 @@ namespace JKWatcher
     static class Helpers
     {
 
+        private static readonly Dictionary<string, string> cachedFileReadCache = new Dictionary<string, string>();
+        private static readonly Dictionary<string, DateTime> cachedFileReadLastRead = new Dictionary<string, DateTime>();
+        private static readonly Dictionary<string, DateTime> cachedFileReadLastDateModified = new Dictionary<string, DateTime>();
+        private static readonly Dictionary<string, bool> cachedFileReadFileExists = new Dictionary<string, bool>();
+        const int cachedFileReadTimeout = 5000;
+        const int cachedFileReadRetryDelay = 100;
+        public static string cachedFileRead(string path)
+        {
+            string data = null;
+            DateTime? lastModified = null;
+            bool fileExists = false;
+            try
+            {
+
+                try
+                {
+
+                    lock (cachedFileReadCache)
+                    {
+                        if (cachedFileReadCache.ContainsKey(path) && cachedFileReadLastRead.ContainsKey(path) && cachedFileReadFileExists.ContainsKey(path))
+                        {
+                            TimeSpan delta = DateTime.Now - cachedFileReadLastRead[path];
+                            if (delta.TotalSeconds < 10)
+                            {
+                                return cachedFileReadCache[path];
+                            }
+                            else if (delta.TotalMinutes < 10)
+                            {
+                                if (File.Exists(path))
+                                {
+                                    if (cachedFileReadFileExists[path])
+                                    {
+                                        DateTime lastWriteTime = File.GetLastWriteTime(path);
+                                        if (cachedFileReadLastDateModified.ContainsKey(path) && lastWriteTime == cachedFileReadLastDateModified[path])
+                                        {
+                                            return cachedFileReadCache[path];
+                                        }
+                                    }
+                                } else
+                                {
+                                    if (!cachedFileReadFileExists[path])
+                                    {
+                                        return null; // File didn't exist. Still doesn't.
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch(IOException)
+                {
+                    /// whatever
+                }
+
+
+                if (!File.Exists(path))
+                {
+                    data = null;
+                }
+                else
+                {
+                    fileExists = true;
+
+                    using (new GlobalMutexHelper("JKWatcherCachedFileReadMutex"))
+                    {
+
+                        int retryTime = 0;
+                        bool successfullyRead = false;
+                        while (!successfullyRead && retryTime < cachedFileReadTimeout)
+                        {
+                            try
+                            {
+
+                                data = File.ReadAllText(path);
+                                lastModified = File.GetLastWriteTime(path);
+
+                                successfullyRead = true;
+                            }
+                            catch (IOException)
+                            {
+                                // Wait 100 ms then try again. File is probably locked.
+                                // This will probably lock up the thread a bit in some cases
+                                // but the log display/write thread is separate from the rest of the 
+                                // program anyway so it shouldn't have a terrible impact other than a delayed
+                                // display.
+                                System.Threading.Thread.Sleep(cachedFileReadRetryDelay);
+                                retryTime += cachedFileReadRetryDelay;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Failed to get  mutex, weird...
+            }
+
+            lock (cachedFileReadCache)
+            {
+                cachedFileReadCache[path] = data;
+                cachedFileReadLastRead[path] = DateTime.Now;
+                cachedFileReadFileExists[path] = fileExists;
+                if (lastModified.HasValue)
+                {
+                    cachedFileReadLastDateModified[path] = lastModified.Value;
+                }
+            }
+                
+            return data;
+        }
+
         public static DateTime? ToEST(this DateTime dateTime)
         {
             try
