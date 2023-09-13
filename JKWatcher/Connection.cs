@@ -886,6 +886,16 @@ namespace JKWatcher
             }
         }
 
+        int durationButtonPress = 0;
+        bool durationButtonPressLastFrameActive = false;
+        DateTime lastAppliedDurationButtonPress = DateTime.Now;
+        DateTime durationButtonPressUntil = DateTime.Now;
+        public void SetDurationButtonPress(int btn, int milliseconds)
+        {
+            durationButtonPress = btn;
+            durationButtonPressUntil = DateTime.Now + new TimeSpan(0,0,0,0,milliseconds);
+        }
+
 
         int doClicks = 0;
         bool lastWasClick = false;
@@ -895,7 +905,27 @@ namespace JKWatcher
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand, ref List<UserCommand> insertCommands)
         {
-            if (queuedButtonPress > 0)
+            if (durationButtonPress > 0) // For example in MOH not every button press is processed for spectator change. Instead button presses are processed once per server frame. So the only thing we can do to speed things up is to just alternate the button for a duration that in combination with a known sv_fps will give us the amount of changes we need. This is not a precise science or anything and kinda fucked.
+            {
+                if(DateTime.Now > durationButtonPressUntil)
+                {
+                    modifiableCommand.Buttons &= ~durationButtonPress;
+                    durationButtonPress = 0;
+                    durationButtonPressLastFrameActive = false;
+                } else
+                {
+                    if (durationButtonPressLastFrameActive)
+                    {
+                        modifiableCommand.Buttons &= ~durationButtonPress;
+                    } else
+                    {
+                        modifiableCommand.Buttons |= durationButtonPress;
+                    }
+                    durationButtonPressLastFrameActive = !durationButtonPressLastFrameActive;
+                }
+                lastAppliedDurationButtonPress = DateTime.Now;
+            }
+            else if (queuedButtonPress > 0)
             {
                 modifiableCommand.Buttons |= queuedButtonPress;
                 queuedButtonPress = 0;
@@ -2088,6 +2118,8 @@ namespace JKWatcher
 
             if (mohMode)
             {
+                bool serverFPSKnown = this.serverFPS > 0;
+
                 // MOHAA is a special child and needs its own kind of handling
                 if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                 {
@@ -2149,7 +2181,7 @@ namespace JKWatcher
                 }
                 if (_connectionOptions.mohFastSwitchFollow)
                 {
-                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
+                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
                     {
 
                         int countButtonPressesRequired = 0;
@@ -2164,8 +2196,12 @@ namespace JKWatcher
                         }
 
                         int fastSwitchManualCount = _connectionOptions.mohVeryFastSwitchFollowManualCount;
+                        int durationBasedSwitchManualCount = _connectionOptions.mohDurationBasedSwitchFollowManualCount; // This needs more buffer because it's even less precise than the fast switch thing. Default 3 atm.
                         int countButtonPressesToRequest = 0;
-                        if (_connectionOptions.mohVeryFastSwitchFollow && fastSwitchManualCount > 0)
+                        if (serverFPSKnown)
+                        {
+                            countButtonPressesToRequest = countButtonPressesRequired > durationBasedSwitchManualCount ? (countButtonPressesRequired - durationBasedSwitchManualCount) : 1;
+                        } else if (_connectionOptions.mohVeryFastSwitchFollow && fastSwitchManualCount > 0)
                         {
                             countButtonPressesToRequest = countButtonPressesRequired > fastSwitchManualCount ? (countButtonPressesRequired - fastSwitchManualCount) : 1;
                         } else
@@ -2175,9 +2211,23 @@ namespace JKWatcher
 
                         // No follow command in MOH. We just have to press the change player button a million times :)
                         lastMOHFollowChangeButtonPressQueued = DateTime.Now;
-                        for(int i=0;i< countButtonPressesToRequest; i++)
+                        if(serverFPSKnown)
                         {
-                            this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
+                            if(countButtonPressesToRequest > 1)
+                            {
+                                int serverFrameDuration = 1000 / serverFPS;
+                                SetDurationButtonPress((int)UserCommand.Button.UseMOHAA,countButtonPressesToRequest* serverFrameDuration);
+                            } else
+                            {
+                                QueueSingleButtonPress((int)UserCommand.Button.UseMOHAA);
+                            }
+                        } else
+                        {
+                            // This was a nice idea but doesn't actually work because
+                            for(int i=0;i< countButtonPressesToRequest; i++)
+                            {
+                                this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
+                            }
                         }
                     }
                 } else
@@ -2356,11 +2406,15 @@ namespace JKWatcher
         int serverMaxClientsLimit = 0;
         ClientInfo[] oldClientInfo = new ClientInfo[64];
 
+        int serverFPS = 0;
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
+
+            serverFPS = obj.FPS;
 
             serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
 
@@ -3911,6 +3965,8 @@ namespace JKWatcher
 
             _ = firstPacketRecordedTCS.Task.ContinueWith((Task<bool> s) =>
             {
+                if (mohMode) return; // Can't write message to myself and these commands don't do anything in MOH anyway.
+
                 // Send a few commands that give interesting outputs, nothing more to it.
 
                 // Some or most of these commands won't do anything on many servers.

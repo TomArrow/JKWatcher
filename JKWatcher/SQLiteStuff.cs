@@ -28,6 +28,7 @@ namespace JKWatcher
 		public int MaxClients { get; set; }
 		public int MinPing { get; set; }
 		public int MaxPing { get; set; }
+		public int FPS { get; set; }
 		public int Ping { get; set; }
 		public bool Visibile { get; set; }
 		public bool NeedPassword { get; set; }

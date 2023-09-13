@@ -253,12 +253,12 @@ namespace JKWatcher
                     string myNameNoSpecialChars = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(myName, "");
                     string myNameNoSpecialCharsCleanedUp = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myName), "");
                     string myBasePlayerName = _connectionOptions.userInfoName;
-                    string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
-                    string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName), "");
                     if (_connectionOptions.userInfoName == null)
                     {
                         myBasePlayerName = "Padawan";
                     }
+                    string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
+                    string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName), "");
                     if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
@@ -1416,7 +1416,16 @@ namespace JKWatcher
             }
             catch (Exception e)
             {
-                serverWindow.addToLog("Error evaluating chat: " + e.ToString(), true);
+                StringBuilder erroredChat = new StringBuilder();
+                for(int i=0; i < commandEventArgs.Command.Argc; i++)
+                {
+                    if(i != 0)
+                    {
+                        erroredChat.Append(" ");
+                    }
+                    erroredChat.Append(commandEventArgs.Command.Argv(i));
+                }
+                serverWindow.addToLog($"Error evaluating chat ({erroredChat.ToString()}): " + e.ToString(), true);
             }
         }
 
