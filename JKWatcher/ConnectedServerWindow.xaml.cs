@@ -446,7 +446,7 @@ namespace JKWatcher
             netAddress = netAddressA;
             protocol = protocolA;
 
-            mohMode = protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8;
+            mohMode = protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17; // TODO Support 15,16 too?
 
             if (mohMode)
             {

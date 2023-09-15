@@ -308,7 +308,7 @@ namespace JKWatcher
             if (protocolA == ProtocolVersion.Protocol26)
             {
                 jkaMode = true;
-            } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8)
+            } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8 || protocolA == ProtocolVersion.Protocol17) // TODO Support 15,16 too?
             {
                 mohMode = true;
                 chatCommandPublic = "dmmessage 0";
@@ -718,7 +718,7 @@ namespace JKWatcher
             } else if(protocol == ProtocolVersion.Protocol26)
             {
                 handler = new JAClientHandler(ProtocolVersion.Protocol26, ClientVersion.JA_v1_01);
-            } else if(protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8)
+            } else if(protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17) // TODO support protocols 15 and 16 for moh too? Or useless?
             {
                 handler = new MOHClientHandler(protocol, ClientVersion.MOH);
             } else
@@ -2422,6 +2422,13 @@ namespace JKWatcher
             {
                 mohFreezeTagDetected = false;
                 resetAllFrozenStatus();
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    pi.score.score = 0; // Reset after map changes so we don't think about following timed out players who still have the old high score remembered.
+                    pi.score.totalKills = 0;
+                    pi.score.kills = 0;
+                    pi.score.deaths = 0;
+                }
             }
 
             //obj.GameName
