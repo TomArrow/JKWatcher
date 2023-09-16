@@ -2568,13 +2568,13 @@ namespace JKWatcher
                 }
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
-                oldGameName = obj.GameName;
             }
             if (executeMapChangeCommands && this.HandleAutoCommands)
             {
                 ExecuteCommandList(_connectionOptions.mapChangeCommands,RequestCategory.MAPCHANGECOMMAND);
             }
 
+            oldGameName = obj.GameName;
             currentGameType = obj.GameType;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
