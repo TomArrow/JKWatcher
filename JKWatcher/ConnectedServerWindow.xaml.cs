@@ -605,7 +605,7 @@ namespace JKWatcher
                 activeClientCount = 0;
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    if (pi.infoValid) activeClientCount++;
+                    if (pi.infoValid && !pi.inactiveMOH) activeClientCount++;
                 }
             }
 

@@ -2223,7 +2223,7 @@ namespace JKWatcher
                         if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                         if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                         if (player.score.ping >= 999) continue; 
-                        if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
+                        if (!player.infoValid || player.inactiveMOH) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
                         if (player.IsFrozen && mohFreezeTagDetected)
                         {
                             if (mohFreezeTagAllowsFrozenFollow) // This might always be the case, not sure. Better safe than sorry?
@@ -2725,6 +2725,8 @@ namespace JKWatcher
                     {
                         noActivePlayers = false;
                     }
+
+                    infoPool.playerInfo[i].inactiveMOH = (mohMode && mohExpansion) ? !client.ClientInfo[i].IsActiveMOH : false;
 
                     if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
                     {

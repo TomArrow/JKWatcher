@@ -59,6 +59,9 @@
                                 </DataTrigger.Value>
                                 <Setter Property="Background" Value="LightYellow"/>
                             </DataTrigger>
+                            <DataTrigger Binding="{Binding inactiveMOH}" Value="True">
+                                <Setter Property="Foreground" Value="Gray"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding infoValid}" Value="False">
                                 <Setter Property="Background" Value="White"/>
                                 <Setter Property="IsEnabled" Value="False"/>
