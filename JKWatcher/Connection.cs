@@ -209,6 +209,9 @@ namespace JKWatcher
         public int? SpectatedPlayer { get; set; } = null;
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
 
+        private bool mohSpectatorFreeFloat = false;
+        private DateTime lastMOHSpectatorNonFreeFloat = DateTime.Now;
+
         private int? _index = null;
         public int? Index
         {
@@ -282,6 +285,7 @@ namespace JKWatcher
 
         private bool jkaMode = false;
         private bool mohMode = false;
+        private bool mohExpansion = false;
         private bool mohFreezeTagDetected = false;
         private bool mohFreezeTagSendsFrozenMessages = false;
         private bool mohFreezeTagSendsMeltedMessages = false;
@@ -311,6 +315,10 @@ namespace JKWatcher
             } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8 || protocolA == ProtocolVersion.Protocol17) // TODO Support 15,16 too?
             {
                 mohMode = true;
+                if (protocolA > ProtocolVersion.Protocol8)
+                {
+                    mohExpansion = true;
+                }
                 chatCommandPublic = "dmmessage 0";
                 chatCommandTeam = "dmmessage -1";
             }
@@ -869,16 +877,16 @@ namespace JKWatcher
 
         DateTime lastForcedActivity = DateTime.Now;
 
-        int queuedButtonPress = 0;
-        public void QueueSingleButtonPress(int btn)
+        Int64 queuedButtonPress = 0;
+        public void QueueSingleButtonPress(Int64 btn)
         {
             queuedButtonPress |= btn;
         }
 
-        Queue<int> queuedButtonPresses = new Queue<int>();
-        int lastDequeuedAppliedButtonPress = 0;
+        Queue<Int64> queuedButtonPresses = new Queue<Int64>();
+        Int64 lastDequeuedAppliedButtonPress = 0;
         DateTime lastAppliedQueueButtonPress = DateTime.Now;
-        public void QueueButtonPress(int btn)
+        public void QueueButtonPress(Int64 btn)
         {
             lock (queuedButtonPresses)
             {
@@ -886,14 +894,20 @@ namespace JKWatcher
             }
         }
 
-        int durationButtonPress = 0;
+        Int64 durationButtonPress = 0;
         bool durationButtonPressLastFrameActive = false;
         DateTime lastAppliedDurationButtonPress = DateTime.Now;
         DateTime durationButtonPressUntil = DateTime.Now;
-        public void SetDurationButtonPress(int btn, int milliseconds)
+        public void SetDurationButtonPress(Int64 btn, int milliseconds)
         {
             durationButtonPress = btn;
             durationButtonPressUntil = DateTime.Now + new TimeSpan(0,0,0,0,milliseconds);
+        }
+
+        enum FakeButton : Int64
+        {
+            Jump = 1L << 32,
+            Crouch = 1L << 33
         }
 
 
@@ -907,19 +921,32 @@ namespace JKWatcher
         {
             if (durationButtonPress > 0) // For example in MOH not every button press is processed for spectator change. Instead button presses are processed once per server frame. So the only thing we can do to speed things up is to just alternate the button for a duration that in combination with a known sv_fps will give us the amount of changes we need. This is not a precise science or anything and kinda fucked.
             {
-                if(DateTime.Now > durationButtonPressUntil)
+                int durationButtonPressRealButtons = (int)(durationButtonPress & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
+                if (DateTime.Now > durationButtonPressUntil)
                 {
-                    modifiableCommand.Buttons &= ~durationButtonPress;
+                    modifiableCommand.Buttons &= ~durationButtonPressRealButtons;
+                    if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                    {
+                        modifiableCommand.Upmove = 0;
+                    }
                     durationButtonPress = 0;
                     durationButtonPressLastFrameActive = false;
                 } else
                 {
                     if (durationButtonPressLastFrameActive)
                     {
-                        modifiableCommand.Buttons &= ~durationButtonPress;
+                        modifiableCommand.Buttons &= ~durationButtonPressRealButtons;
+                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                        {
+                            modifiableCommand.Upmove = 0;
+                        }
                     } else
                     {
-                        modifiableCommand.Buttons |= durationButtonPress;
+                        modifiableCommand.Buttons |= durationButtonPressRealButtons;
+                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                        {
+                            modifiableCommand.Upmove = (durationButtonPress & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
+                        }
                     }
                     durationButtonPressLastFrameActive = !durationButtonPressLastFrameActive;
                 }
@@ -927,7 +954,12 @@ namespace JKWatcher
             }
             else if (queuedButtonPress > 0)
             {
-                modifiableCommand.Buttons |= queuedButtonPress;
+                int queuedButtonPressRealButtons = (int)(queuedButtonPress & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
+                modifiableCommand.Buttons |= queuedButtonPressRealButtons;
+                if ((queuedButtonPress & (Int64)FakeButton.Jump) > 0 || (queuedButtonPress & (Int64)FakeButton.Jump) > 1)
+                {
+                    modifiableCommand.Upmove = (queuedButtonPress & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
+                }
                 queuedButtonPress = 0;
             } else
             {
@@ -936,7 +968,7 @@ namespace JKWatcher
                     int previousServerTime = previousCommand.ServerTime;
                     while (queuedButtonPresses.Count > 0 && previousServerTime < modifiableCommand.ServerTime)
                     {
-                        int newCmd = queuedButtonPresses.Peek();
+                        Int64 newCmd = queuedButtonPresses.Peek();
                         if ((lastDequeuedAppliedButtonPress & newCmd) > 0) // We have overlap between last pressed buttons and pressed buttons this round. Insert an empty no-buttons-pressed packet, else it will just count as a single button press
                         {
                             newCmd = 0;
@@ -945,13 +977,21 @@ namespace JKWatcher
                             queuedButtonPresses.Dequeue();
                         }
 
+                        int cmdRealButtons = (int)(newCmd & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
+                        sbyte upMove = 0;
+                        if ((newCmd & (Int64)FakeButton.Jump) > 0 || (newCmd & (Int64)FakeButton.Jump) > 1)
+                        {
+                            upMove = (newCmd & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
+                        }
+
                         int newServerTime = previousServerTime + 1;
                         if (newServerTime == modifiableCommand.ServerTime /*|| (queuedButtonPresses.Count == 0 && newServerTime < modifiableCommand.ServerTime)*/)
                         {
-                            modifiableCommand.Buttons |= newCmd;
+                            modifiableCommand.Buttons |= cmdRealButtons;
+                            modifiableCommand.Upmove = upMove;
                         } else if (newServerTime < modifiableCommand.ServerTime)
                         {
-                            insertCommands.Add(new UserCommand() { Buttons = newCmd, ServerTime = newServerTime });
+                            insertCommands.Add(new UserCommand() { Buttons = cmdRealButtons, ServerTime = newServerTime,Upmove= upMove });
                         } else
                         {
                             // Shouldn't happen
@@ -974,7 +1014,10 @@ namespace JKWatcher
                     modifiableCommand.ForwardMove = 127;
                     if (mohMode)
                     {
-                        modifiableCommand.Upmove = 127;
+                        if (!mohExpansion)
+                        {
+                            modifiableCommand.Upmove = 127; // In expansions, upmove changes who we follow.
+                        }
                         modifiableCommand.Buttons |= (int)UserCommand.Button.MouseMOH;
                     }
 
@@ -1586,8 +1629,10 @@ namespace JKWatcher
         const int EF_ANY_TEAM_MOH = (EF_ALLIES_MOH | EF_AXIS_MOH);
 
         public DateTime lastMOHFollowChangeButtonPressQueued = DateTime.Now; // Last time we requested to watch a new player
+        public DateTime lastMOHChangeToFollowModeCommandSent = DateTime.Now;
 
         public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
 
@@ -1713,7 +1758,7 @@ namespace JKWatcher
                     this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
                     this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
 
-                    if (mohMode)
+                    if (mohMode && !mohExpansion)
                     {
                         int playerTeam = snap.PlayerState.Stats[20];
                         switch (playerTeam)
@@ -1765,6 +1810,16 @@ namespace JKWatcher
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
                     }
+
+                    if (mohMode)
+                    {
+                        uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags, this.protocol);
+                        this.mohSpectatorFreeFloat = (normalizePMFlags & PMF_CAMERA_VIEW_MOH) == 0;
+                        if (!this.mohSpectatorFreeFloat)
+                        {
+                            lastMOHSpectatorNonFreeFloat = DateTime.Now;
+                        }
+                    }
                 }
                 else if (snapEntityNum != -1 /* entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState */) {
 
@@ -1772,7 +1827,7 @@ namespace JKWatcher
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
                     // Weird thing is, EntityFlags was not being copied from PlayerState at all! So how come the value changed at all?! It doesn't really make sense.
-                    if (mohMode && i < serverMaxClientsLimit)
+                    if (mohMode && !mohExpansion && i < serverMaxClientsLimit)
                     {
                         if (!infoPool.playerInfo[i].infoValid)
                         {
@@ -1828,7 +1883,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
-                    if (mohMode)
+                    if (mohMode && !mohExpansion)
                     {
                         Team entityTeam =  ((snap.Entities[snapEntityNum].EntityFlags & EF_ANY_TEAM_MOH) > 0) ? (((snap.Entities[snapEntityNum].EntityFlags & EF_AXIS_MOH) > 0) ? Team.Red : Team.Blue) : Team.Free;
                         if(currentGameType <= GameType.FFA)
@@ -1842,11 +1897,17 @@ namespace JKWatcher
                         }
                     }
 
-                    if (mohMode  // MOH hack to find out who we are spectating.... lol
+                    bool mohFollowingPlayerBaseMOH = mohMode && !mohExpansion  // MOH hack to find out who we are spectating.... lol
                         && snap.PlayerState.Origin[0] == snap.Entities[snapEntityNum].Position.Base[0]
                         && snap.PlayerState.Origin[1] == snap.Entities[snapEntityNum].Position.Base[1]
-                        && snap.PlayerState.Origin[2] == snap.Entities[snapEntityNum].Position.Base[2]
-                        )
+                        && snap.PlayerState.Origin[2] == snap.Entities[snapEntityNum].Position.Base[2];
+                    bool mohFollowingPlayerExpansion = mohMode && mohExpansion  
+                        && Vector3.Distance(
+                        new Vector3() { X= snap.PlayerState.Origin[0], Y= snap.PlayerState.Origin[1], Z= snap.PlayerState.Origin[2] }, 
+                        new Vector3() { X = snap.Entities[snapEntityNum].Position.Base[0], Y = snap.Entities[snapEntityNum].Position.Base[1], Z = snap.Entities[snapEntityNum].Position.Base[2] }
+                        ) < 0.5f;
+
+                    if (mohFollowingPlayerBaseMOH || mohFollowingPlayerExpansion )
                     {
                         uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags,this.protocol);
                         if((normalizePMFlags & PMF_CAMERA_VIEW_MOH) != 0 && (normalizePMFlags & PMF_SPECTATING_MOH) != 0)
@@ -1865,7 +1926,7 @@ namespace JKWatcher
                                     mohFreezeTagAllowsFrozenFollowLastConfirmed = DateTime.Now;
                                 }
                             }
-                        }
+                        } 
                     }
                     
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
@@ -2118,126 +2179,142 @@ namespace JKWatcher
 
             if (mohMode)
             {
-                bool serverFPSKnown = this.serverFPS > 0;
-
-                // MOHAA is a special child and needs its own kind of handling
-                if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
-                {
-                    if (lastPlayerState.Stats[0] > 0)
+                if (mohExpansion && this.mohSpectatorFreeFloat)
+                { 
+                    // In expansions we can't just use use button to follow someone. We have to use use button to go into following mode and then jump or crouch to change players we follow.
+                    // So if we detect that we are free floating... make sure we aren't. Check once every 2 seconds.
+                    if((DateTime.Now- lastMOHChangeToFollowModeCommandSent).TotalMilliseconds > 2000 && (DateTime.Now- lastMOHSpectatorNonFreeFloat).TotalMilliseconds > 5000)
                     {
-                        // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
-                        leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
-                    }
-                    leakyBucketRequester.requestExecution("spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
-                   
-                }
-
-                // Determine best player.
-                float bestScore = float.NegativeInfinity;
-                int bestScorePlayer = -1;
-                int index = 0;
-                int currentlySpectatedIndex = 0;
-                int wishPlayerIndex = 0;
-                foreach (PlayerInfo player in infoPool.playerInfo)
-                {
-                    if (SpectatedPlayer == player.clientNum) currentlySpectatedIndex = index;
-
-                    // TODO If player disconnects, detect disconnect string and set infovalid false.
-                    // TODO Detect frozen players as dead.
-                    if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
-                    if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
-                    if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
-                    if (player.score.ping >= 999) continue; 
-                    if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
-                    if (player.IsFrozen && mohFreezeTagDetected)
-                    {
-                        if (mohFreezeTagAllowsFrozenFollow) // This might always be the case, not sure. Better safe than sorry?
-                        {
-                            index++; // If following frozen people is possible, make sure we do increment the index here so that fast skipping remains possible without getting a too low estimate of required skips.
-                        }
-                        continue;
-                    }
-                    float currentScore = float.NegativeInfinity;
-                    if(currentGameType > GameType.Team)
-                    {
-                        // Total kill count. We don't get death count here.
-                        currentScore = player.score.totalKills;
-                    } else if(currentGameType > GameType.FFA)
-                    {
-                        // K/D
-                        currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
-                    } else
-                    {
-                        // K/D
-                        currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
-                    }
-                    if(currentScore > bestScore)
-                    {
-                        bestScorePlayer = player.clientNum;
-                        bestScore = currentScore;
-                        wishPlayerIndex = index;
-                    }
-                    index++;
-                }
-                if (_connectionOptions.mohFastSwitchFollow)
-                {
-                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
-                    {
-
-                        int countButtonPressesRequired = 0;
-
-                        if(wishPlayerIndex > currentlySpectatedIndex)
-                        {
-                            countButtonPressesRequired = wishPlayerIndex - currentlySpectatedIndex;
-                        } else
-                        {
-                            int highestIndexPlayer = index - 1;
-                            countButtonPressesRequired = (highestIndexPlayer - currentlySpectatedIndex) + (wishPlayerIndex+1);
-                        }
-
-                        int fastSwitchManualCount = _connectionOptions.mohVeryFastSwitchFollowManualCount;
-                        int durationBasedSwitchManualCount = _connectionOptions.mohDurationBasedSwitchFollowManualCount; // This needs more buffer because it's even less precise than the fast switch thing. Default 3 atm.
-                        int countButtonPressesToRequest = 0;
-                        if (serverFPSKnown)
-                        {
-                            countButtonPressesToRequest = countButtonPressesRequired > durationBasedSwitchManualCount ? (countButtonPressesRequired - durationBasedSwitchManualCount) : 1;
-                        } else if (_connectionOptions.mohVeryFastSwitchFollow && fastSwitchManualCount > 0)
-                        {
-                            countButtonPressesToRequest = countButtonPressesRequired > fastSwitchManualCount ? (countButtonPressesRequired - fastSwitchManualCount) : 1;
-                        } else
-                        {
-                            countButtonPressesToRequest = countButtonPressesRequired >= 4 ? countButtonPressesRequired / 2 : 1; // We can't 100% rely on our indexes and that they accurately represent who can be watched. Aka we don't know exactly who we will get with a single press. So just do half the required switches in one go. Rest by single presses. Just feels safer.
-                        }
-
-                        // No follow command in MOH. We just have to press the change player button a million times :)
-                        lastMOHFollowChangeButtonPressQueued = DateTime.Now;
-                        if(serverFPSKnown)
-                        {
-                            if(countButtonPressesToRequest > 1)
-                            {
-                                int serverFrameDuration = 1000 / serverFPS;
-                                SetDurationButtonPress((int)UserCommand.Button.UseMOHAA,countButtonPressesToRequest* serverFrameDuration);
-                            } else
-                            {
-                                QueueSingleButtonPress((int)UserCommand.Button.UseMOHAA);
-                            }
-                        } else
-                        {
-                            // This was a nice idea but doesn't actually work because
-                            for(int i=0;i< countButtonPressesToRequest; i++)
-                            {
-                                this.QueueButtonPress((int)UserCommand.Button.UseMOHAA);
-                            }
-                        }
+                        this.QueueSingleButtonPress((Int64)UserCommand.Button.UseMOHAA);
+                        lastMOHChangeToFollowModeCommandSent = DateTime.Now;
                     }
                 } else
                 {
-                    if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2))
+
+
+                    Int64 nextPlayerButton = this.protocol > ProtocolVersion.Protocol8 ? (Int64)FakeButton.Jump : (Int64)UserCommand.Button.UseMOHAA;
+                    bool serverFPSKnown = this.serverFPS > 0;
+
+                    // MOHAA is a special child and needs its own kind of handling
+                    if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                     {
-                        // No follow command in MOH. We just have to press the change player button a million times :)
-                        lastMOHFollowChangeButtonPressQueued = DateTime.Now;
-                        this.QueueSingleButtonPress((int)UserCommand.Button.UseMOHAA);
+                        if (lastPlayerState.Stats[0] > 0)
+                        {
+                            // Also kill myself if I'm alive. Can still spectate from dead position but at least I'm not standing around bothering ppl.
+                            leakyBucketRequester.requestExecution("kill", RequestCategory.SELFKILL, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
+                        }
+                        leakyBucketRequester.requestExecution("spectator", RequestCategory.GOINTOSPEC, 5, 60000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS, null, 6000);
+                   
                     }
+
+                    // Determine best player.
+                    float bestScore = float.NegativeInfinity;
+                    int bestScorePlayer = -1;
+                    int index = 0;
+                    int currentlySpectatedIndex = 0;
+                    int wishPlayerIndex = 0;
+                    foreach (PlayerInfo player in infoPool.playerInfo)
+                    {
+                        if (SpectatedPlayer == player.clientNum) currentlySpectatedIndex = index;
+
+                        // TODO If player disconnects, detect disconnect string and set infovalid false.
+                        // TODO Detect frozen players as dead.
+                        if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
+                        if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                        if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
+                        if (player.score.ping >= 999) continue; 
+                        if (!player.infoValid) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
+                        if (player.IsFrozen && mohFreezeTagDetected)
+                        {
+                            if (mohFreezeTagAllowsFrozenFollow) // This might always be the case, not sure. Better safe than sorry?
+                            {
+                                index++; // If following frozen people is possible, make sure we do increment the index here so that fast skipping remains possible without getting a too low estimate of required skips.
+                            }
+                            continue;
+                        }
+                        float currentScore = float.NegativeInfinity;
+                        if(currentGameType > GameType.Team)
+                        {
+                            // Total kill count. We don't get death count here.
+                            currentScore = player.score.totalKills;
+                        } else if(currentGameType > GameType.FFA)
+                        {
+                            // K/D
+                            currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
+                        } else
+                        {
+                            // K/D
+                            currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
+                        }
+                        if(currentScore > bestScore)
+                        {
+                            bestScorePlayer = player.clientNum;
+                            bestScore = currentScore;
+                            wishPlayerIndex = index;
+                        }
+                        index++;
+                    }
+                    if (_connectionOptions.mohFastSwitchFollow)
+                    {
+                        if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
+                        {
+
+                            int countButtonPressesRequired = 0;
+
+                            if(wishPlayerIndex > currentlySpectatedIndex)
+                            {
+                                countButtonPressesRequired = wishPlayerIndex - currentlySpectatedIndex;
+                            } else
+                            {
+                                int highestIndexPlayer = index - 1;
+                                countButtonPressesRequired = (highestIndexPlayer - currentlySpectatedIndex) + (wishPlayerIndex+1);
+                            }
+
+                            int fastSwitchManualCount = _connectionOptions.mohVeryFastSwitchFollowManualCount;
+                            int durationBasedSwitchManualCount = _connectionOptions.mohDurationBasedSwitchFollowManualCount; // This needs more buffer because it's even less precise than the fast switch thing. Default 3 atm.
+                            int countButtonPressesToRequest = 0;
+                            if (serverFPSKnown)
+                            {
+                                countButtonPressesToRequest = countButtonPressesRequired > durationBasedSwitchManualCount ? (countButtonPressesRequired - durationBasedSwitchManualCount) : 1;
+                            } else if (_connectionOptions.mohVeryFastSwitchFollow && fastSwitchManualCount > 0)
+                            {
+                                countButtonPressesToRequest = countButtonPressesRequired > fastSwitchManualCount ? (countButtonPressesRequired - fastSwitchManualCount) : 1;
+                            } else
+                            {
+                                countButtonPressesToRequest = countButtonPressesRequired >= 4 ? countButtonPressesRequired / 2 : 1; // We can't 100% rely on our indexes and that they accurately represent who can be watched. Aka we don't know exactly who we will get with a single press. So just do half the required switches in one go. Rest by single presses. Just feels safer.
+                            }
+
+                            // No follow command in MOH. We just have to press the change player button a million times :)
+                            lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                            if(serverFPSKnown)
+                            {
+                                if(countButtonPressesToRequest > 1)
+                                {
+                                    int serverFrameDuration = 1000 / serverFPS;
+                                    SetDurationButtonPress(nextPlayerButton, countButtonPressesToRequest* serverFrameDuration);
+                                } else
+                                {
+                                    QueueSingleButtonPress(nextPlayerButton);
+                                }
+                            } else
+                            {
+                                // This was a nice idea but doesn't actually work because
+                                for(int i=0;i< countButtonPressesToRequest; i++)
+                                {
+                                    this.QueueButtonPress(nextPlayerButton);
+                                }
+                            }
+                        }
+                    } else
+                    {
+                        if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2))
+                        {
+                            // No follow command in MOH. We just have to press the change player button a million times :)
+                            lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                            this.QueueSingleButtonPress(nextPlayerButton);
+                        }
+                    }
+
                 }
 
             } else
@@ -2649,7 +2726,7 @@ namespace JKWatcher
                         noActivePlayers = false;
                     }
 
-                    if (!mohMode)
+                    if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
                     {
                         infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
                     } else if(oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
@@ -2744,7 +2821,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
-                    if(!mohMode || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
+                    if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
                     {
                         // Information about players coming from MOHAA is a bit worthless. 
                         // We can only trust it if it's changing.
@@ -2866,7 +2943,13 @@ namespace JKWatcher
                         }
                     }
                     break;
-                case "droperror":
+                case "droperror": // MOH servers sometimes send this with optionally a reason
+                    if (commandEventArgs.Command.Argc > 1 && (commandEventArgs.Command.Argv(1)?.Contains("kicked", StringComparison.OrdinalIgnoreCase) == true || commandEventArgs.Command.Argv(1)?.Contains("banned", StringComparison.OrdinalIgnoreCase) == true))
+                    {
+                        // We have been kicked. Take note.
+                        LastTimeProbablyKicked = DateTime.Now;
+                        serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+                    }
                     lastDropError = DateTime.Now; // MOH, connection was dropped serverside. This precedes possible kick messages which we wanna check for.
                     break;
                 case "tinfo":
@@ -3265,7 +3348,7 @@ namespace JKWatcher
                     {
                         // Maybe update GUI? Or whatever, fuck it.
                     }
-                } */else if ( mohMode && (tmpString=commandEventArgs.Command.Argv(1).EndsWithReturnStart(" disconnected\n", " timed out\n", " Server command overflow\n", " was kicked\n"))!= null)
+                } */else if ( mohMode && !mohExpansion && (tmpString=commandEventArgs.Command.Argv(1).EndsWithReturnStart(" disconnected\n", " timed out\n", " Server command overflow\n", " was kicked\n"))!= null)
                 {
                     // A player disconnected. Set Infovalid to false. MOHAA doesn't update this stuff for us so we have to..
                     string disconnectedPlayerName = tmpString;
@@ -3485,6 +3568,8 @@ namespace JKWatcher
 
             iMatchTeam = (TeamMOH)(-1);
 
+            bool isMOHExtension = this.protocol > ProtocolVersion.Protocol8;
+
 
             iCurrentEntry = 1;
             if (currentGameType > GameType.FFA)
@@ -3506,6 +3591,26 @@ namespace JKWatcher
             if (iEntryCount > 64)
             {
                 iEntryCount = 64;
+            }
+
+            if (currentGameType == GameType.TOW)
+            {
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_allied_obj1
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_allied_obj2
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_allied_obj3
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_allied_obj4
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_allied_obj5
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_axis_obj1
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_axis_obj2
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_axis_obj3
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_axis_obj4
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // tow_axis_obj5
+            }
+
+            if (currentGameType == GameType.Liberation)
+            {
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // scoreboard_toggle1
+                commandEventArgs.Command.Argv(iCurrentEntry++).Atof(); // scoreboard_toggle2
             }
 
             if (iEntryCount * iDatumCount > (commandEventArgs.Command.Argc - 2))
@@ -3556,10 +3661,18 @@ namespace JKWatcher
                             case 3:
                                 szString2 = "Allies";
                                 lastTeamHeader = Team.Blue;
+                                if (isMOHExtension)
+                                {
+                                    iCurrentEntry++; // Has the player count as well.
+                                }
                                 break;
                             case 4:
                                 szString2 = "Axis";
                                 lastTeamHeader = Team.Red;
+                                if (isMOHExtension)
+                                {
+                                    iCurrentEntry++; // Has the player count as well.
+                                }
                                 break;
                             default:
                                 szString2 = "No Team"; // ?!
@@ -3573,10 +3686,13 @@ namespace JKWatcher
                         szString2 = "";
                         lastTeamHeader = Team.Spectator; // ?!
                     }
-                    else
+                    else if (iClientNum >= 0 && iClientNum < 64)
                     {
                         szString2 = infoPool.playerInfo[iClientNum].name;
                         lastTeamHeader = Team.Spectator; // ?!
+                    } else
+                    {
+                        serverWindow.addToLog($"ParseScoresMOH > FFA: iClientNum is {iClientNum}, wtf.");
                     }
 
                     if (!bIsHeader && iClientNum >= 0 && iClientNum < 64)
@@ -3585,7 +3701,7 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
-                        infoPool.playerInfo[iClientNum].infoValid = true;
+                        if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
                         if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
                         { // Freeze tag breaks the alive status in scoreboards for some reason
                             infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
@@ -3656,7 +3772,11 @@ namespace JKWatcher
                 else
                 {
                     iClientNum = commandEventArgs.Command.Argv(iCurrentEntry + iDatumCount * i).Atoi();
-                    if (iClientNum >= 0)
+                    if (iClientNum >= 64)
+                    {
+                        serverWindow.addToLog($"ParseScoresMOH: iClientNum is {iClientNum}, wtf.");
+                    }
+                    else if (iClientNum >= 0)
                     {
                         szString2 = infoPool.playerInfo[iClientNum].name;
                         szString3 = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i);
@@ -3695,7 +3815,7 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
-                        infoPool.playerInfo[iClientNum].infoValid = true;
+                        if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
                         if ((int)lastTeamHeader != -1)
                         {
                             infoPool.playerInfo[iClientNum].team = lastTeamHeader;

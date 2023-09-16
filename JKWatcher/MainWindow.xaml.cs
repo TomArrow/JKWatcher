@@ -801,7 +801,7 @@ namespace JKWatcher
                     if (userinfoName != null)
                     {
                         connOpts = new ConnectedServerWindow.ConnectionOptions();
-                        if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8)
+                        if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
                         {
                             connOpts.LoadMOHDefaults(); // MOH needs different defaults.
                         }
@@ -849,7 +849,7 @@ namespace JKWatcher
                     if (userinfoName != null)
                     {
                         connOpts = new ConnectedServerWindow.ConnectionOptions();
-                        if (protocol.Value >= ProtocolVersion.Protocol6 && protocol.Value <= ProtocolVersion.Protocol8)
+                        if (protocol.Value >= ProtocolVersion.Protocol6 && protocol.Value <= ProtocolVersion.Protocol8 || protocol.Value == ProtocolVersion.Protocol17) // TODO Support 15,16?
                         {
                             connOpts.LoadMOHDefaults(); // MOH needs different defaults.
                         }
