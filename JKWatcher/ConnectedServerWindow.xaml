@@ -35,6 +35,10 @@
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Style.Triggers>
+
+                            <DataTrigger Binding="{Binding inactiveMOH}" Value="True">
+                                <Setter Property="Foreground" Value="Gray"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding team}">
                                 <DataTrigger.Value>
                                     <jkclient:Team>Free</jkclient:Team>
@@ -58,9 +62,10 @@
                                     <jkclient:Team>Spectator</jkclient:Team>
                                 </DataTrigger.Value>
                                 <Setter Property="Background" Value="LightYellow"/>
+                                <Setter Property="Foreground" Value="Black"/>
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding inactiveMOH}" Value="True">
-                                <Setter Property="Foreground" Value="Gray"/>
+                            <DataTrigger Binding="{Binding IsAlive}" Value="False">
+                                <Setter Property="Foreground" Value="Red"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding infoValid}" Value="False">
                                 <Setter Property="Background" Value="White"/>
@@ -243,6 +248,7 @@
                     <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Speed" Binding="{Binding Speed}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="wishSpec" Binding="{Binding WishSpectatedPlayer}" Width="30"></DataGridTextColumn>
                     <DataGridTextColumn Header="Chat"  Binding="{Binding IsMainChatConnection}">
                         <DataGridTextColumn.CellStyle>
                             <Style TargetType="DataGridCell">

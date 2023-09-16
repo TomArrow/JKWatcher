@@ -2254,8 +2254,8 @@ namespace JKWatcher
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
-            int btns = 0;
-            if(int.TryParse(commandLine.Text,out btns))
+            Int64 btns = 0;
+            if(Int64.TryParse(commandLine.Text,out btns))
             {
                 foreach(Connection conn in conns)
                 {

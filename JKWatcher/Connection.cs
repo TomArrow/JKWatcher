@@ -207,6 +207,7 @@ namespace JKWatcher
         private DateTime lastSpectatedPlayerChange = DateTime.Now;
         private int? oldSpectatedPlayer = null;
         public int? SpectatedPlayer { get; set; } = null;
+        public int? WishSpectatedPlayer { get; set; } = null;
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
 
         private bool mohSpectatorFreeFloat = false;
@@ -894,12 +895,20 @@ namespace JKWatcher
             }
         }
 
+        public enum DurationButtonPressType
+        {
+            NONE,
+            ALTERNATE,
+            KEEPPRESSED
+        }
         Int64 durationButtonPress = 0;
         bool durationButtonPressLastFrameActive = false;
+        DurationButtonPressType durationButtonPressType = DurationButtonPressType.ALTERNATE;
         DateTime lastAppliedDurationButtonPress = DateTime.Now;
         DateTime durationButtonPressUntil = DateTime.Now;
-        public void SetDurationButtonPress(Int64 btn, int milliseconds)
+        public void SetDurationButtonPress(Int64 btn, int milliseconds, DurationButtonPressType type = DurationButtonPressType.ALTERNATE)
         {
+            durationButtonPressType = type;
             durationButtonPress = btn;
             durationButtonPressUntil = DateTime.Now + new TimeSpan(0,0,0,0,milliseconds);
         }
@@ -925,25 +934,26 @@ namespace JKWatcher
                 if (DateTime.Now > durationButtonPressUntil)
                 {
                     modifiableCommand.Buttons &= ~durationButtonPressRealButtons;
-                    if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                    if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Crouch) > 0)
                     {
                         modifiableCommand.Upmove = 0;
                     }
                     durationButtonPress = 0;
                     durationButtonPressLastFrameActive = false;
+                    durationButtonPressType = DurationButtonPressType.NONE;
                 } else
                 {
-                    if (durationButtonPressLastFrameActive)
+                    if (durationButtonPressLastFrameActive && durationButtonPressType == DurationButtonPressType.ALTERNATE)
                     {
                         modifiableCommand.Buttons &= ~durationButtonPressRealButtons;
-                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Crouch) > 0)
                         {
                             modifiableCommand.Upmove = 0;
                         }
                     } else
                     {
                         modifiableCommand.Buttons |= durationButtonPressRealButtons;
-                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Jump) > 1)
+                        if ((durationButtonPress & (Int64)FakeButton.Jump) > 0 || (durationButtonPress & (Int64)FakeButton.Crouch) > 0)
                         {
                             modifiableCommand.Upmove = (durationButtonPress & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
                         }
@@ -956,7 +966,7 @@ namespace JKWatcher
             {
                 int queuedButtonPressRealButtons = (int)(queuedButtonPress & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
                 modifiableCommand.Buttons |= queuedButtonPressRealButtons;
-                if ((queuedButtonPress & (Int64)FakeButton.Jump) > 0 || (queuedButtonPress & (Int64)FakeButton.Jump) > 1)
+                if ((queuedButtonPress & (Int64)FakeButton.Jump) > 0 || (queuedButtonPress & (Int64)FakeButton.Crouch) > 0)
                 {
                     modifiableCommand.Upmove = (queuedButtonPress & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
                 }
@@ -979,7 +989,7 @@ namespace JKWatcher
 
                         int cmdRealButtons = (int)(newCmd & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
                         sbyte upMove = 0;
-                        if ((newCmd & (Int64)FakeButton.Jump) > 0 || (newCmd & (Int64)FakeButton.Jump) > 1)
+                        if ((newCmd & (Int64)FakeButton.Jump) > 0 || (newCmd & (Int64)FakeButton.Crouch) > 0)
                         {
                             upMove = (newCmd & (Int64)FakeButton.Jump) > 0 ? (sbyte)127 : (sbyte)-128;
                         }
@@ -2254,7 +2264,13 @@ namespace JKWatcher
                         }
                         index++;
                     }
-                    if (_connectionOptions.mohFastSwitchFollow)
+
+                    if(bestScorePlayer != -1)
+                    {
+                        WishSpectatedPlayer = bestScorePlayer;
+                    }
+
+                    if (_connectionOptions.mohFastSwitchFollow && !mohExpansion) // Expansions really can't handle the fast skip cuz they use jump button which always just uses the last value instead of a cumulative one.
                     {
                         if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
                         {
@@ -2305,7 +2321,26 @@ namespace JKWatcher
                                 }
                             }
                         }
-                    } else
+                    }
+                    else if (mohExpansion)
+                    {
+                        // MOH expansions are even worse than the original MOHAA... if I understand it currectly.
+                        // Their player changes are based on upmove instead of button presses.
+                        // Hence, only the last processed usercommand is actually considered, not like in the base game
+                        // so at the time of each server frame, the last usercommand must have had upmove set, else 
+                        // it just gets lost.
+                        // And then of course it also must process that there was a command before it that DIDN'T have it (a bit speculation)
+                        // So to be safe I must keep pressed for 2*server frame time and then keep released for 2*server frame time as well.
+                        //
+                        // Actually, 2*server frame time isn't enough, still doesn't work. It only started working after I went 4* server frame time. DON'T ASK ME WHY I DON'T KNOW.
+                        int serverFrameDuration = 1000 / serverFPS;
+                        if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > Math.Max(serverFrameDuration*4,lastSnapshot.ping * 2))
+                        {
+                            lastMOHFollowChangeButtonPressQueued = DateTime.Now;
+                            SetDurationButtonPress(nextPlayerButton, serverFrameDuration*4,DurationButtonPressType.KEEPPRESSED);
+                        }
+                    }
+                    else
                     {
                         if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2))
                         {
@@ -2408,6 +2443,7 @@ namespace JKWatcher
                     {
                         int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                        WishSpectatedPlayer = clientToFollow;
                         leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                     }
                     //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
@@ -2415,6 +2451,7 @@ namespace JKWatcher
                     {
                         int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
+                        WishSpectatedPlayer = clientToFollow;
                         leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
                     }
                 }
