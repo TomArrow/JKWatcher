@@ -192,7 +192,7 @@ namespace JKWatcher
             public bool mohVeryFastSwitchFollow { get; set; } = true;
             public int mohVeryFastSwitchFollowManualCount { get; set; } = 2;
             public int mohDurationBasedSwitchFollowManualCount { get; set; } = 3;
-            public int mohExpansionSwitchMinDuration { get; set; } = 250;
+            public int mohExpansionSwitchMinDuration { get; set; } = 50;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;

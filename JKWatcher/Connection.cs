@@ -1711,7 +1711,14 @@ namespace JKWatcher
             int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
             int knockDownUpper = jkaMode ? -2 : 848;
 
-            amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+            if (mohMode)
+            {
+                uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags, this.protocol);
+                amNotInSpec = (normalizePMFlags & PMF_SPECTATING_MOH) == 0;
+            } else
+            {
+                amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+            }
 
             bool teamChangesDetected = false;
 
@@ -2270,21 +2277,41 @@ namespace JKWatcher
                         WishSpectatedPlayer = bestScorePlayer;
                     }
 
+                    int countButtonPressesRequired = 0;
+                    int countButtonPressesRequiredInverse = 0;
+
+                    if (wishPlayerIndex > currentlySpectatedIndex)
+                    {
+                        countButtonPressesRequired = wishPlayerIndex - currentlySpectatedIndex;
+                    }
+                    else
+                    {
+                        int highestIndexPlayer = index - 1;
+                        countButtonPressesRequired = (highestIndexPlayer - currentlySpectatedIndex) + (wishPlayerIndex + 1);
+                    }
+
+                    if (mohExpansion)
+                    {
+                        if (wishPlayerIndex < currentlySpectatedIndex)
+                        {
+                            countButtonPressesRequiredInverse = currentlySpectatedIndex - wishPlayerIndex;
+                        }
+                        else
+                        {
+                            int highestIndexPlayer = index - 1;
+                            countButtonPressesRequiredInverse = (highestIndexPlayer - wishPlayerIndex) + (currentlySpectatedIndex + 1);
+                        }
+                        if(countButtonPressesRequiredInverse < countButtonPressesRequired)
+                        { // Move backwards if it's faster
+                            countButtonPressesRequired = countButtonPressesRequiredInverse;
+                            nextPlayerButton = (Int64)FakeButton.Crouch;
+                        }
+                    }
+
                     if (_connectionOptions.mohFastSwitchFollow && !mohExpansion) // Expansions really can't handle the fast skip cuz they use jump button which always just uses the last value instead of a cumulative one.
                     {
                         if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedQueueButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > (lastSnapshot.ping * 2))
                         {
-
-                            int countButtonPressesRequired = 0;
-
-                            if(wishPlayerIndex > currentlySpectatedIndex)
-                            {
-                                countButtonPressesRequired = wishPlayerIndex - currentlySpectatedIndex;
-                            } else
-                            {
-                                int highestIndexPlayer = index - 1;
-                                countButtonPressesRequired = (highestIndexPlayer - currentlySpectatedIndex) + (wishPlayerIndex+1);
-                            }
 
                             int fastSwitchManualCount = _connectionOptions.mohVeryFastSwitchFollowManualCount;
                             int durationBasedSwitchManualCount = _connectionOptions.mohDurationBasedSwitchFollowManualCount; // This needs more buffer because it's even less precise than the fast switch thing. Default 3 atm.
