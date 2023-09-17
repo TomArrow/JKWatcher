@@ -6,19 +6,30 @@
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
         Title="ConnectionStats" Height="450" Width="800">
+    <Window.Resources>
+        <Style x:Key="activeKeyStyle" TargetType="TextBox">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding DataContext, RelativeSource={RelativeSource Self},Mode=OneWay}" Value="True">
+                    <Setter Property="Foreground" Value="White"/>
+                    <Setter Property="Background" Value="Black"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
             <RowDefinition></RowDefinition>
-            <RowDefinition></RowDefinition>
+            <RowDefinition Height="1.2*"></RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition Width="150"></ColumnDefinition>
         </Grid.ColumnDefinitions>
         
-        <DataGrid Grid.ColumnSpan="3" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="commandQueueGrid" AutoGenerateColumns="False">
+        <DataGrid Grid.ColumnSpan="4" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="commandQueueGrid" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Type" Binding="{Binding type}"></DataGridTextColumn>
                 <DataGridTextColumn Header="MinTypeDelay" Binding="{Binding minimumDelayFromSameType}"></DataGridTextColumn>
@@ -27,7 +38,7 @@
             </DataGrid.Columns>
 
         </DataGrid>
-        <DataGrid  Grid.ColumnSpan="3" Grid.Row="1" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="recentCommandQueueGrid" AutoGenerateColumns="False">
+        <DataGrid  Grid.ColumnSpan="4" Grid.Row="1" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="recentCommandQueueGrid" AutoGenerateColumns="False">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Disc." Binding="{Binding discarded}"></DataGridTextColumn>
                 <DataGridTextColumn Header="Time" Binding="{Binding time}"></DataGridTextColumn>
@@ -41,62 +52,66 @@
         <StackPanel x:Name="clientStatsPanel" Grid.Row="2">
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120" FontSize="10">Demosize:</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeKiB,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeKiB,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Demosize full flushed:</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeFullFlushedKiB,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeFullFlushedKiB,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Delta snaps:</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding deltaSnaps,Mode=OneWay}" Width="120"  FontSize="10" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding deltaSnaps,Mode=OneWay}" Width="80"  FontSize="10" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Non-Delta snaps:</Label>
-                <TextBox Text="{Binding nonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding nonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Total messages:</Label>
-                <TextBox Text="{Binding totalMessages,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding totalMessages,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Dropped messages:</Label>
-                <TextBox Text="{Binding messagesDropped,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding messagesDropped,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Out of order messages:</Label>
-                <TextBox Text="{Binding messagesOutOfOrder,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding messagesOutOfOrder,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">DeltaDelta:</Label>
+                <TextBox Text="{Binding deltaDelta,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
         </StackPanel>
         <StackPanel x:Name="clientStatsPanel2" Grid.Row="2" Grid.Column="1">
 
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Skipped messages:</Label>
-                <TextBox Text="{Binding messagesSkipped,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding messagesSkipped,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120" FontSize="10">Skippable messages:</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSkippable,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSkippable,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120" FontSize="10">SuperSkippable msgs:</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSuperSkippable,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSuperSkippable,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (svc):</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableSvc,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableSvc,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (new cmd):</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNewCommands,Mode=OneWay}"  FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNewCommands,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (non-delta):</Label>
-                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNonDelta,Mode=OneWay}" Width="120"  FontSize="10" IsReadOnly="True"></TextBox>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesUnskippableNonDelta,Mode=OneWay}" Width="80"  FontSize="10" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Unskipped (time):</Label>
-                <TextBox Text="{Binding messagesNotSkippedTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding messagesNotSkippedTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             
         </StackPanel>
@@ -104,33 +119,70 @@
 
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Delta snap max delay:</Label>
-                <TextBox Text="{Binding deltaSnapMaxDelay,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding deltaSnapMaxDelay,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Client FPS:</Label>
-                <TextBox Text="{Binding lastFrameDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding lastFrameDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserCMD FPS:</Label>
-                <TextBox Text="{Binding lastUserCommandDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding lastUserCommandDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserPacket FPS:</Label>
-                <TextBox Text="{Binding lastUserPacketDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding lastUserPacketDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Demo current time:</Label>
-                <TextBox Text="{Binding demoCurrentTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding demoCurrentTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Demo current time based on actual writing into the demo. The other value is more up to date, but less precise.">Demo current time (wr.):</Label>
-                <TextBox Text="{Binding demoCurrentTimeWritten,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding demoCurrentTimeWritten,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Demo current time sync fix. Shows how much the old demo current time calculation method would have drifted by now.">Demo current time (sync):</Label>
-                <TextBox Text="{Binding demoCurrentTimeSyncFix,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="120" IsReadOnly="True"></TextBox>
+                <TextBox Text="{Binding demoCurrentTimeSyncFix,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
-            
+
+        </StackPanel>
+        <StackPanel Grid.Row="2" Grid.Column="3" x:Name="clientStatsPanel4" >
+            <WrapPanel>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveJump,Mode=OneWay}">jump</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveW,Mode=OneWay}">W</TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveCrouch,Mode=OneWay}">cr</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveA,Mode=OneWay}">A</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveS,Mode=OneWay}">S</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActiveD,Mode=OneWay}">D</TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive0,Mode=OneWay}">0</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive1,Mode=OneWay}">1</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive2,Mode=OneWay}">2</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive3,Mode=OneWay}">3</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive4,Mode=OneWay}">4</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive5,Mode=OneWay}">5</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive6,Mode=OneWay}">6</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive7,Mode=OneWay}">7</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive8,Mode=OneWay}">8</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive9,Mode=OneWay}">9</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive10,Mode=OneWay}">10</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive11,Mode=OneWay}">11</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive12,Mode=OneWay}">12</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive13,Mode=OneWay}">13</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive14,Mode=OneWay}">14</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive15,Mode=OneWay}">15</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive16,Mode=OneWay}">16</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive17,Mode=OneWay}">17</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive18,Mode=OneWay}">18</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive19,Mode=OneWay}">19</TextBox>
+                <TextBox Style="{StaticResource activeKeyStyle}" DataContext="{Binding keyActive20,Mode=OneWay}">20</TextBox>
+            </WrapPanel>
+
+            <TextBox Text="{Binding lastCommand,Mode=OneWay}"></TextBox>
         </StackPanel>
     </Grid>
 </Window>

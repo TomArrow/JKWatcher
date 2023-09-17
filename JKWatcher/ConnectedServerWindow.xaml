@@ -36,9 +36,6 @@
                     <Style TargetType="DataGridRow">
                         <Style.Triggers>
 
-                            <DataTrigger Binding="{Binding inactiveMOH}" Value="True">
-                                <Setter Property="Foreground" Value="Gray"/>
-                            </DataTrigger>
                             <DataTrigger Binding="{Binding team}">
                                 <DataTrigger.Value>
                                     <jkclient:Team>Free</jkclient:Team>
@@ -57,6 +54,10 @@
                                 </DataTrigger.Value>
                                 <Setter Property="Background" Value="LightBlue"/>
                             </DataTrigger>
+                            
+                            <DataTrigger Binding="{Binding IsAlive}" Value="False">
+                                <Setter Property="Foreground" Value="Red"/>
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding team}">
                                 <DataTrigger.Value>
                                     <jkclient:Team>Spectator</jkclient:Team>
@@ -64,8 +65,8 @@
                                 <Setter Property="Background" Value="LightYellow"/>
                                 <Setter Property="Foreground" Value="Black"/>
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding IsAlive}" Value="False">
-                                <Setter Property="Foreground" Value="Red"/>
+                            <DataTrigger Binding="{Binding inactiveMOH}" Value="True">
+                                <Setter Property="Foreground" Value="Gray"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding infoValid}" Value="False">
                                 <Setter Property="Background" Value="White"/>
@@ -212,6 +213,8 @@
                             <CheckBox IsChecked="{Binding mohVeryFastSwitchFollow,Mode=TwoWay}">very fast </CheckBox>
                             <Label Margin="5 0 0 0" Padding="0" > (manual count):</Label>
                             <TextBox  Width="20" Margin="0 0 0 0" Padding="0" TextAlignment="Right" Text="{Binding mohVeryFastSwitchFollowManualCount,Mode=TwoWay}"></TextBox>
+                            <Label Margin="5 0 0 0" Padding="0" > (expansion minduration):</Label>
+                            <TextBox  Width="20" Margin="0 0 0 0" Padding="0" TextAlignment="Right" Text="{Binding mohExpansionSwitchMinDuration,Mode=TwoWay}"></TextBox>
                         </WrapPanel>
                     </StackPanel>
                 </TabItem>

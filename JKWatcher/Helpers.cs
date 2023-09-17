@@ -25,6 +25,8 @@ namespace JKWatcher
 
         public GlobalMutexHelper(string mutexNameWithoutGlobal,int? timeout=5000)
         {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             mutex = new Mutex(false,$"Global\\{mutexNameWithoutGlobal}");
             MutexSecurity sec = new MutexSecurity();
             sec.AddAccessRule(new MutexAccessRule(new SecurityIdentifier(WellKnownSidType.WorldSid,null),MutexRights.FullControl,AccessControlType.Allow));
@@ -41,6 +43,12 @@ namespace JKWatcher
             if (!active)
             {
                 throw new Exception($"Failed to acquire acquire mutex \"{mutexNameWithoutGlobal}\".");
+            }
+            Int64 elapsed = sw.ElapsedMilliseconds;
+            sw.Stop();
+            if(elapsed > 500)
+            {
+                Helpers.logToFile($"WARNING: Acquiring global mutex '{mutexNameWithoutGlobal}' took {elapsed} milliseconds.\n");
             }
         }
         public void Dispose()

@@ -2333,11 +2333,11 @@ namespace JKWatcher
                         // So to be safe I must keep pressed for 2*server frame time and then keep released for 2*server frame time as well.
                         //
                         // Actually, 2*server frame time isn't enough, still doesn't work. It only started working after I went 4* server frame time. DON'T ASK ME WHY I DON'T KNOW.
-                        int serverFrameDuration = 1000 / serverFPS;
-                        if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > Math.Max(serverFrameDuration*4,lastSnapshot.ping * 2))
+                        int serverFrameDuration = serverFPS == 0 ? 0 : 1000 / serverFPS;
+                        if (bestScorePlayer != -1 && SpectatedPlayer != bestScorePlayer && (DateTime.Now - lastMOHFollowChangeButtonPressQueued).TotalMilliseconds > (lastSnapshot.ping * 2) && (DateTime.Now - lastAppliedDurationButtonPress).TotalMilliseconds > Math.Max(Math.Max(serverFrameDuration * 4,lastSnapshot.ping * 2), _connectionOptions.mohExpansionSwitchMinDuration))
                         {
                             lastMOHFollowChangeButtonPressQueued = DateTime.Now;
-                            SetDurationButtonPress(nextPlayerButton, serverFrameDuration*4,DurationButtonPressType.KEEPPRESSED);
+                            SetDurationButtonPress(nextPlayerButton, Math.Max(_connectionOptions.mohExpansionSwitchMinDuration, serverFrameDuration *4),DurationButtonPressType.KEEPPRESSED);
                         }
                     }
                     else

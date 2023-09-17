@@ -192,6 +192,7 @@ namespace JKWatcher
             public bool mohVeryFastSwitchFollow { get; set; } = true;
             public int mohVeryFastSwitchFollowManualCount { get; set; } = 2;
             public int mohDurationBasedSwitchFollowManualCount { get; set; } = 3;
+            public int mohExpansionSwitchMinDuration { get; set; } = 250;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;
@@ -532,6 +533,7 @@ namespace JKWatcher
 
         // For duel modes we require a ghost peer because without it, we get stuck in endless loop of bot playing and going spec and
         // the normal players never get to play.
+        // Update: Actually this idea didn't work because once a round is over, the ghost peer gets silently upgraded to real one by the server.
         private void ManageGhostPeer(bool needOne)
         {
             Dispatcher.Invoke(()=> {
