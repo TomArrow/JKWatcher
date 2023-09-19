@@ -285,7 +285,7 @@ namespace JKWatcher
         ConnectedServerWindow.ConnectionOptions _connectionOptions = null;
 
         private bool jkaMode = false;
-        private bool mohMode = false;
+        public bool mohMode { get; private set; } = false;
         private bool mohExpansion = false;
         private bool mohFreezeTagDetected = false;
         private bool mohFreezeTagSendsFrozenMessages = false;
@@ -2230,6 +2230,7 @@ namespace JKWatcher
                     int index = 0;
                     int currentlySpectatedIndex = 0;
                     int wishPlayerIndex = 0;
+                    int preferredPlayer = this.CameraOperator is CameraOperators.SpectatorCameraOperator? ((this.CameraOperator as CameraOperators.SpectatorCameraOperator)?.spectatorToFollow).GetValueOrDefault(-1) :-1;
                     foreach (PlayerInfo player in infoPool.playerInfo)
                     {
                         if (SpectatedPlayer == player.clientNum) currentlySpectatedIndex = index;
@@ -2249,6 +2250,8 @@ namespace JKWatcher
                             }
                             continue;
                         }
+
+
                         float currentScore = float.NegativeInfinity;
                         if(currentGameType > GameType.Team)
                         {
@@ -2263,11 +2266,16 @@ namespace JKWatcher
                             // K/D
                             currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
                         }
-                        if(currentScore > bestScore)
+                        if(currentScore > bestScore || preferredPlayer == player.clientNum)
                         {
                             bestScorePlayer = player.clientNum;
                             bestScore = currentScore;
                             wishPlayerIndex = index;
+
+                            if (preferredPlayer == player.clientNum)
+                            {
+                                break;
+                            }
                         }
                         index++;
                     }
@@ -2610,13 +2618,14 @@ namespace JKWatcher
                 serverWindow.ServerName = obj.HostName;
             }
 
-            if (mohMode && obj.MOHHUDMessage != oldMOHHUDMEssage)
+            if (mohMode && obj.MOHScoreboardPICover != oldMOHHUDMEssage)
             {
-                if(obj.MOHHUDMessage == "axiswin" || obj.MOHHUDMessage == "allieswin") // End of round. Clear all frozen status.
+                if(obj.MOHScoreboardPICover == "textures/hud/axiswin" || obj.MOHScoreboardPICover == "textures/hud/allieswin") // End of round. Clear all frozen status.
                 {
+                    serverWindow.addToLog("A team has won. Resetting frozen status for all players.");
                     resetAllFrozenStatus();
                 }
-                oldMOHHUDMEssage = obj.MOHHUDMessage;
+                oldMOHHUDMEssage = obj.MOHScoreboardPICover;
             }
 
             bool executeMapChangeCommands = newGameState;
@@ -3014,7 +3023,13 @@ namespace JKWatcher
                     {
                         // We have been kicked. Take note.
                         LastTimeProbablyKicked = DateTime.Now;
-                        serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+
+                        int validClientCount = 0;
+                        foreach (PlayerInfo pi in infoPool.playerInfo)
+                        {
+                            if (pi.infoValid) validClientCount++;
+                        }
+                        serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
                     }
                     lastDropError = DateTime.Now; // MOH, connection was dropped serverside. This precedes possible kick messages which we wanna check for.
                     break;
@@ -3385,12 +3400,22 @@ namespace JKWatcher
                 {
                     // We have been kicked. Take note.
                     LastTimeProbablyKicked = DateTime.Now;
-                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+                    int validClientCount = 0;
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if (pi.infoValid) validClientCount++;
+                    }
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
                 } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
                     LastTimeProbablyKicked = DateTime.Now;
-                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked.");
+                    int validClientCount = 0;
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if (pi.infoValid) validClientCount++;
+                    }
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
                 }/* else if ( mohMode && commandEventArgs.Command.Argv(1).Length > disconnectedString.Length 
                     && commandEventArgs.Command.Argv(1).Substring(commandEventArgs.Command.Argv(1).Length- disconnectedString.Length).Equals(disconnectedString,StringComparison.OrdinalIgnoreCase)
                     )

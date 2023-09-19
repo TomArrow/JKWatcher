@@ -695,6 +695,9 @@ namespace JKWatcher
         {
             IEnumerable<ServerInfo> servers = null;
             connectBtn.IsEnabled = false;
+            connectRBtn.IsEnabled = false;
+            connectSBtn.IsEnabled = false;
+            connectRSBtn.IsEnabled = false;
 
             //NetAddress[] manualServers = getManualServers();
             //ServerBrowser.SetHiddenServers(manualServers);
@@ -776,6 +779,9 @@ namespace JKWatcher
             if(filteredServers.Count == 0)
             {
                 connectBtn.IsEnabled = false;
+                connectRBtn.IsEnabled = false;
+                connectSBtn.IsEnabled = false;
+                connectRSBtn.IsEnabled = false;
             }
             saveServerStats(servers);
         }
@@ -787,40 +793,101 @@ namespace JKWatcher
             return null;
         }
 
+        private void connectFromButton(ServerInfo serverInfo, string userinfoName, string pw, bool autoRecord, bool silent)
+        {
+            lock (connectedServerWindows)
+            {
+                ConnectedServerWindow.ConnectionOptions connOpts = null;
+                if (userinfoName != null)
+                {
+                    connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
+                    {
+                        connOpts.LoadMOHDefaults(); // MOH needs different defaults.
+                    }
+                    connOpts.userInfoName = userinfoName;
+                }
+                if (silent)
+                {
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.silentMode = true;
+                    connOpts.demoTimeColorNames = false;
+                    connOpts.attachClientNumToName = false;
+                }
+                //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
+                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
+                connectedServerWindows.Add(newWindow);
+                newWindow.Loaded += NewWindow_Loaded;
+                newWindow.Closed += NewWindow_Closed;
+                newWindow.ShowActivated = false;
+                newWindow.Show();
+                if (autoRecord)
+                {
+                    newWindow.recordAll();
+                }
+            }
+        }
+
         private void connectBtn_Click(object sender, RoutedEventArgs e)
         {
             ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
-            string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            //string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
             string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
             //MessageBox.Show(serverInfo.HostName);
             if (serverInfo != null)
             {
-                lock (connectedServerWindows)
-                {
-                    ConnectedServerWindow.ConnectionOptions connOpts = null;
-                    if (userinfoName != null)
-                    {
-                        connOpts = new ConnectedServerWindow.ConnectionOptions();
-                        if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
-                        {
-                            connOpts.LoadMOHDefaults(); // MOH needs different defaults.
-                        }
-                        connOpts.userInfoName = userinfoName;
-                    }
-                    //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
-                    connectedServerWindows.Add(newWindow);
-                    newWindow.Loaded += NewWindow_Loaded;
-                    newWindow.Closed += NewWindow_Closed;
-                    newWindow.ShowActivated = false;
-                    newWindow.Show();
-                }
+                connectFromButton(serverInfo,userinfoName,pw,false,false);
+            }
+        }
+        private void connectRBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+           // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true,false);
+            }
+        }
+
+        private void connectSBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, false, true);
+            }
+        }
+
+        private void connectRSBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true);
             }
         }
 
         private void refreshBtn_Click(object sender, RoutedEventArgs e)
         {
             connectBtn.IsEnabled = false;
+            connectRBtn.IsEnabled = false;
+            connectSBtn.IsEnabled = false;
+            connectRSBtn.IsEnabled = false;
             getServers();
         }
 
@@ -829,9 +896,15 @@ namespace JKWatcher
             if(serverListDataGrid.Items.Count > 0 && serverListDataGrid.SelectedItems.Count > 0)
             {
                 connectBtn.IsEnabled = true;
+                connectRBtn.IsEnabled = true;
+                connectSBtn.IsEnabled = true;
+                connectRSBtn.IsEnabled = true;
             } else
             {
                 connectBtn.IsEnabled = false;
+                connectRBtn.IsEnabled = false;
+                connectSBtn.IsEnabled = false;
+                connectRSBtn.IsEnabled = false;
             }
         }
 
@@ -1572,5 +1645,6 @@ namespace JKWatcher
                 Helpers.logToFile(errorString);
             }
         }
+
     }
 }

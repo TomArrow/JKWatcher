@@ -119,7 +119,7 @@ namespace JKWatcher
         //public Vector3 delta_angles;
         public Vector3 velocity;
         public bool IsAlive { get; set; }
-        public bool IsFrozen; // MOH Freeze Tag.
+        public bool IsFrozen { get; set; } // MOH Freeze Tag.
         public DateTime? lastAliveStatusUpdated; // Need it for MOHAA :)
         public long consecutiveAfkMillisecondsCounter = 0; // Amount of consecutive milliseconds this player was SEEN and no change in pos.
         public bool confirmedAfk = false; // If consecutiveAfkMillisecondsCounter reaches a certain threshold we confirm the player as AFK

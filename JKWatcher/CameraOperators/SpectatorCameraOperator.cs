@@ -17,7 +17,7 @@ namespace JKWatcher.CameraOperators
 
         private Task backgroundTask = null;
 
-        private int spectatorToFollow = -1;
+        public int spectatorToFollow { get; private set; } = -1;
 
         public override void Initialize()
         {
@@ -117,6 +117,8 @@ namespace JKWatcher.CameraOperators
 
         private void MainLoopFunction()
         {
+            if (connections[0].mohMode) return;
+
             int currentlySpectatedPlayer = connections[0].client.playerStateClientNum;
 
             if (spectatorToFollow == -1) return;

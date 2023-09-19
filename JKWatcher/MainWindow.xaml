@@ -96,9 +96,12 @@
                         <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
                         <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
                         <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
-                        <Label ToolTip="Password">PW</Label>
-                        <TextBox x:Name="pwListTxt" Width="70"></TextBox>
-                        <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False">Connect</Button>
+                        <!--<Label ToolTip="Password">PW</Label>
+                        <TextBox x:Name="pwListTxt" Width="70"></TextBox>-->
+                        <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False" ToolTip="Connect">Connect</Button>
+                        <Button x:Name="connectRBtn" Click="connectRBtn_Click" IsEnabled="False" ToolTip="Connect &amp; Record">+R</Button>
+                        <Button x:Name="connectSBtn" Click="connectSBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode">+S</Button>
+                        <Button x:Name="connectRSBtn" Click="connectRSBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record">+RS</Button>
 
 
                         <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
