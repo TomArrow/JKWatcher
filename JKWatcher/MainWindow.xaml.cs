@@ -22,6 +22,7 @@ using System.Windows.Shapes;
 using Salaros.Configuration;
 using System.Windows.Threading;
 using System.ComponentModel;
+using System.Security.Cryptography;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -1032,10 +1033,14 @@ namespace JKWatcher
                     dailyChanceTrueToday = true;
                     return;
                 }
-                DateTime now = DateTime.Now;
+                DateTime now = DateTime.Now + new TimeSpan(12, 0, 0); // Wanna reset mid-day, not mid-night. Gamers are night creatures, it makes more sense to end gaming days at mid-day.
                 int todaySeed = now.Year * 372 + now.Month * 31 + now.Day;
-                todaySeed ^= sectionName.GetHashCode();
-                if(lastTodaySeed != todaySeed)
+                //todaySeed ^=  sectionName.GetHashCode(); // Can't use this, it changes on each program start ffs.
+                using (SHA256 hasher = SHA256.Create())
+                {
+                    todaySeed ^= BitConverter.ToInt32(hasher.ComputeHash(Encoding.UTF8.GetBytes(sectionName)));
+                }
+                if (lastTodaySeed != todaySeed)
                 {
                     Random rnd = new Random(todaySeed);
                     dailyChanceTrueToday = rnd.Next(1, 101) <= dailyChance; 
