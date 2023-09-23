@@ -358,7 +358,7 @@ namespace JKWatcher
                         }
                         lock (autoConnectRecentlyClosedBlockList)
                         {
-                            if (autoConnectRecentlyClosedBlockList.Contains(serverInfo.Address))
+                            if (autoConnectRecentlyClosedBlockList.Contains(serverInfo.Address,new NetAddressComparer()))
                             {
                                 // We were connected to this server recently, and disconnected after the current iteration of the autoconnecter started.
                                 // Thus the info we get about how many players are on the server might include ourselves, which is not intended and 
@@ -523,11 +523,13 @@ namespace JKWatcher
             bool nextCheckFast = false;
 
             ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true));
+            ServerBrowser serverBrowserMOH = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true));
 
             try
             {
 
                 serverBrowser.Start(ExceptionCallback);
+                serverBrowserMOH.Start(ExceptionCallback);
                 //servers = await serverBrowser.GetNewList();
                 //servers = await serverBrowser.RefreshList();
             }
@@ -581,7 +583,7 @@ namespace JKWatcher
 
                         if(serverPollingInfo[srvTC].pollTask == null && (DateTime.Now-serverPollingInfo[srvTC].lastTimePolled).TotalMilliseconds > srvTC.pollingInterval.Value)
                         {
-                            serverPollingInfo[srvTC].pollTask = serverBrowser.GetFullServerInfo(srvTC.ip, srvTC.minRealPlayers > 0, true, srvTC.pollingInterval.Value); // Only need status if we have a min real player requirement.
+                            serverPollingInfo[srvTC].pollTask = (srvTC.mohProtocol ? serverBrowserMOH : serverBrowser).GetFullServerInfo(srvTC.ip, srvTC.minRealPlayers > 0, true, srvTC.pollingInterval.Value); // Only need status if we have a min real player requirement.
                             serverPollingInfo[srvTC].lastTimePolled = DateTime.Now;
                         }
 
@@ -632,6 +634,9 @@ namespace JKWatcher
                             {
                                 Debug.WriteLine($"Server {stc.ip.ToString()} polled, doesn't fit requirements. IsMatch: {isMatchThough}.");
                             }
+                        } else
+                        {
+                            Debug.WriteLine($"Unknown error polling server {kvp.Key.ip.ToString()}.");
                         }
                         dcd.pollTask = null;
                     }
@@ -968,6 +973,8 @@ namespace JKWatcher
             public bool delayed { get; init; } = false;
             public int delayPerWatcher { get; init; } = 0;
             public int retries { get; init; } = 5;
+            public int chance { get; init; } = 100;
+            public int dailyChance { get; init; } = 100;
             public int minRealPlayers { get; init; } = 0;
             public int timeFromDisconnect { get; init; } = 0;
             public int timeFromDisconnectUpperRange { get; init; } = 0;
@@ -1011,8 +1018,30 @@ namespace JKWatcher
             public bool demoTimeColorNames { get; init; } = true;
             public bool silentMode { get; init; } = false;
             public int? pollingInterval { get; init; } = null;
+            public bool mohProtocol { get; init; } = false;
+            public int? maxTimeSinceMapChange { get; init; } = null;
 
             public ServerInfo lastFittingServerInfo = null;
+
+            public bool dailyChanceTrueToday { get; private set; } = true;
+            public int lastTodaySeed { get; private set; } = 0;
+            private void UpdateDailyChance()
+            {
+                if(dailyChance == 100)
+                {
+                    dailyChanceTrueToday = true;
+                    return;
+                }
+                DateTime now = DateTime.Now;
+                int todaySeed = now.Year * 372 + now.Month * 31 + now.Day;
+                todaySeed ^= sectionName.GetHashCode();
+                if(lastTodaySeed != todaySeed)
+                {
+                    Random rnd = new Random(todaySeed);
+                    dailyChanceTrueToday = rnd.Next(1, 101) <= dailyChance; 
+                    lastTodaySeed = todaySeed;
+                }
+            }
 
             public ServerToConnect(ConfigSection config)
             {
@@ -1039,10 +1068,15 @@ namespace JKWatcher
                 conditionalCommands = config["conditionalCommands"]?.Trim();
                 disconnectTriggers = config["disconnectTriggers"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
+                mohProtocol = config["mohProtocol"]?.Trim().Atoi()>0;
+                active = !(config["inactive"]?.Trim().Atoi()>0);
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 delayPerWatcher = (config["delayPerWatcher"]?.Trim().Atoi()).GetValueOrDefault(0);
+                dailyChance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
+                chance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
+                maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 mapNames = config["maps"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
@@ -1141,10 +1175,24 @@ namespace JKWatcher
                 {
                     throw new Exception("ServerConnectConfig: pollingInterval requires delayed=1");
                 }
+
+                UpdateDailyChance();
             }
+
+            private DateTime? lastMapChange = null;
+            private string lastMapName = null;
 
             public bool FitsRequirements(ServerInfo serverInfo, ref bool matchesButMightNotMeetRequirements)
             {
+                UpdateDailyChance();
+                if(lastMapName != serverInfo.MapName)
+                {
+                    if(lastMapName != null)
+                    {
+                        lastMapChange = DateTime.Now;
+                    }
+                    lastMapName = serverInfo.MapName;
+                }
                 matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
@@ -1152,6 +1200,9 @@ namespace JKWatcher
                     lastFittingServerInfo = serverInfo;
                     matchesButMightNotMeetRequirements = true;
                     if (!this.active) return false;
+                    if (!dailyChanceTrueToday) return false;
+                    if (chance < 100 && Connection.getNiceRandom(1,101) > chance) return false;
+                    if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.

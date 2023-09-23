@@ -317,6 +317,7 @@ namespace JKWatcher
                 KICKED = 1 << 1,
                 PLAYERCOUNT_UNDER = 1 << 2,
                 CONNECTEDTIME_OVER = 1 << 3,
+                MAPCHANGE = 1 << 4,
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -347,6 +348,10 @@ namespace JKWatcher
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("kicked", StringComparison.OrdinalIgnoreCase))
                                 {
                                     _disconnectTriggersParsed |= DisconnectTriggers.KICKED;
+                                }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("mapchange", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _disconnectTriggersParsed |= DisconnectTriggers.MAPCHANGE;
                                 }
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("playercount_under", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -599,8 +604,26 @@ namespace JKWatcher
 
         private DateTime? connectedTimeOverDisconnectTriggerFirstConnected = null;
 
+        private string lastMapName = null;
+        private object lastMapNameLock = new object();
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
+            bool mapChangeDetected = false;
+            string mapChangeFrom = null;
+            lock (lastMapNameLock)
+            {
+                if(obj.MapName != lastMapName)
+                {
+                    if(lastMapName != null)
+                    {
+                        mapChangeDetected = true;
+                        mapChangeFrom = lastMapName;
+                    }
+                    lastMapName = obj.MapName;
+                }
+            }
+
             int activeClientCount = obj.Clients;
             if (mohMode)
             {
@@ -617,6 +640,17 @@ namespace JKWatcher
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT_CTF) > 0 && !(obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
                 {
                     this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType.ToString()} not CTF nor CTY. Disconnecting.");
+                    Dispatcher.BeginInvoke((Action)(() =>
+                    { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                        this.Close();
+                    }));
+                    return;
+                }
+
+                // Disconnect if "mapchange" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.MAPCHANGE) > 0 && mapChangeDetected)
+                {
+                    this.addToLog($"Disconnect trigger tripped: Map change (from {lastMapName} to {obj.MapName}). Disconnecting.");
                     Dispatcher.BeginInvoke((Action)(() =>
                     { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
                         this.Close();
@@ -671,6 +705,7 @@ namespace JKWatcher
                     connectedTimeOverDisconnectTriggerFirstConnected = null;
                 }
             }
+
 
             // This part below here feels messy. Should prolly somehow do a lock here but I can't think of a clever way to do it because creating a new connection might cause this method to get called and result in a deadlock.
             //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless

@@ -2994,7 +2994,7 @@ namespace JKWatcher
             clientStatistics = null;
         }
 
-        
+        List<string> kickInfo = new List<string>();
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
@@ -3011,6 +3011,15 @@ namespace JKWatcher
                     {
                         LastTimeConfirmedKicked = DateTime.Now;
                         serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
+
+                        List<string> kickDebugInfo = new List<string>();
+                        kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                        kickDebugInfo.Add(serverWindow.Title);
+                        kickDebugInfo.AddRange(kickInfo);
+                        kickDebugInfo.Add("\n");
+                        Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
+                        kickInfo.Clear();
+
                         if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
                         {
                             serverWindow.addToLog("KICK DISCONNECT TRIGGER: Kick detected. Disconnecting.");
@@ -3021,7 +3030,9 @@ namespace JKWatcher
                 case "droperror": // MOH servers sometimes send this with optionally a reason
                     if (commandEventArgs.Command.Argc > 1 && (commandEventArgs.Command.Argv(1)?.Contains("kicked", StringComparison.OrdinalIgnoreCase) == true || commandEventArgs.Command.Argv(1)?.Contains("banned", StringComparison.OrdinalIgnoreCase) == true))
                     {
+
                         // We have been kicked. Take note.
+                        kickInfo.Add(commandEventArgs.Command.RawString());
                         LastTimeProbablyKicked = DateTime.Now;
 
                         int validClientCount = 0;
@@ -3399,6 +3410,7 @@ namespace JKWatcher
                     )
                 {
                     // We have been kicked. Take note.
+                    kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -3409,6 +3421,7 @@ namespace JKWatcher
                 } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
+                    kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)

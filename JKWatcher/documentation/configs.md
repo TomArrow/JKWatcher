@@ -96,6 +96,18 @@ Comma-separated list of gametypes. Will only connect if gametype matches one of 
 
 Only works if the server is identified via ```ip```. How often to query new server info? Milliseconds.
 
+#### mohProtocol
+
+Set to 1 if this server requires the MOH protocol. Mainly required in combination with pollingInterval if polling MOH servers, as their connectionless packets (used for server info/status) work differently.
+
+#### maxTimeSinceMapChange
+
+Maximum time in milliseconds since last detected map change. Mostly makes sense in combination with pollingInterval. If last detected map change happened more than the set amount of milliseconds ago, don't connect.
+
+#### inactive
+
+Set to 1 if this connection should be not active by default.
+
 #### minPlayers
 
 Minimum amount of real players (non-bots) on server required to connect.
@@ -111,6 +123,14 @@ Number of retries of connecting initially after executing the script. It's a lit
 #### delayed
 
 0 or 1. Whether this should go to the "delayed connect" list. Kind of irrelevant now, see ```retries```
+
+#### chance
+
+0-100 (default 100). Whenever the other criteria all match, roll the dice whether we should actually connect. Number is the probability in percent of actually connecting.
+
+#### dailyChance
+
+0-100 (default 100). Whenever the other criteria all match, roll the dice for each day whether on that day we should connect. This random chance is controlled with the current date as seed.
 
 #### watchers
 
@@ -130,6 +150,7 @@ Possible options:
 - ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
 - ```playercount_under:8-10:60000```: Disconnects if player count falls under 8 to 10 for more than 1 minute (replace with numbers of your choice. player count can be range or single number without "-")
 - ```connectedtime_over:55-60```: Disconnects if we were connected for more than 55 to 60 minutes (random within that range, change numbers to what you desire or use single number without "-")
+- ```mapchange```: Disconnect if a map change is detected.
 
 #### mapChangeCommands 
 
