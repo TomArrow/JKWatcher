@@ -2260,11 +2260,13 @@ namespace JKWatcher
                         } else if(currentGameType > GameType.FFA)
                         {
                             // K/D
-                            currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
+                            //currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
+                            currentScore = (float)(Math.Pow((double)player.score.kills,1.5)/ Math.Max(1.0,(double)player.score.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
                         } else
                         {
                             // K/D
-                            currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
+                            //currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
+                            currentScore = (float)(Math.Pow((double)player.score.kills, 1.5) / Math.Max(1.0, (double)player.score.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
                         }
                         if(currentScore > bestScore || preferredPlayer == player.clientNum)
                         {
@@ -3012,13 +3014,19 @@ namespace JKWatcher
                         LastTimeConfirmedKicked = DateTime.Now;
                         serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
 
-                        List<string> kickDebugInfo = new List<string>();
-                        kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                        kickDebugInfo.Add(serverWindow.Title);
-                        kickDebugInfo.AddRange(kickInfo);
-                        kickDebugInfo.Add("\n");
-                        Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
-                        kickInfo.Clear();
+                        serverWindow.Dispatcher.BeginInvoke(()=> {
+
+                            lock (kickInfo)
+                            {
+                                List<string> kickDebugInfo = new List<string>();
+                                kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                                kickDebugInfo.Add(serverWindow.Title);
+                                kickDebugInfo.AddRange(kickInfo);
+                                kickDebugInfo.Add("\n");
+                                Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
+                                kickInfo.Clear();
+                            }
+                        });
 
                         if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
                         {
@@ -3032,7 +3040,7 @@ namespace JKWatcher
                     {
 
                         // We have been kicked. Take note.
-                        kickInfo.Add(commandEventArgs.Command.RawString());
+                        lock(kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
                         LastTimeProbablyKicked = DateTime.Now;
 
                         int validClientCount = 0;
@@ -3410,7 +3418,7 @@ namespace JKWatcher
                     )
                 {
                     // We have been kicked. Take note.
-                    kickInfo.Add(commandEventArgs.Command.RawString());
+                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)
@@ -3421,7 +3429,7 @@ namespace JKWatcher
                 } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
-                    kickInfo.Add(commandEventArgs.Command.RawString());
+                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)

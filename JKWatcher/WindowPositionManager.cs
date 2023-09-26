@@ -5,6 +5,7 @@ using System.IO.MemoryMappedFiles;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -18,6 +19,7 @@ namespace JKWatcher
         public double top;
         public double width;
         public double height;
+        public Int64 dateTimeTicks;
     }
     struct WindowPositionsState
     {
@@ -38,7 +40,7 @@ namespace JKWatcher
             GlobalMutexHelper gmh = null;
             public AccessorGetter()
             {
-                gmh = new GlobalMutexHelper("JKWatcherWindowPositionManagerSharedMemoryMutex");
+                gmh = new GlobalMutexHelper("JKWatcherWindowPositionManagerSharedMemoryV2Mutex");
                 acc = mmf.CreateViewAccessor(0, spaceRequired, MemoryMappedFileAccess.ReadWrite);
             }
             public void Dispose()
@@ -57,9 +59,54 @@ namespace JKWatcher
 
         static WindowPositionManager()
         {
-            mmf = MemoryMappedFile.CreateOrOpen("JKWatcherWindowPositionManagerSharedMemory.mmf", spaceRequired, MemoryMappedFileAccess.ReadWrite,MemoryMappedFileOptions.None,System.IO.HandleInheritability.Inheritable);
-
+            mmf = MemoryMappedFile.CreateOrOpen("JKWatcherWindowPositionManagerSharedMemoryV2.mmf", spaceRequired, MemoryMappedFileAccess.ReadWrite,MemoryMappedFileOptions.None,System.IO.HandleInheritability.Inheritable);
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
+            SpawnBackgroundThread();
         }
+
+        private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            // Kinda destructor..
+            AppDomain.CurrentDomain.ProcessExit -= CurrentDomain_ProcessExit;
+            backgroundThreadCancelTokenSource.Cancel();
+            if(backgroundThreadTask != null)
+            {
+                backgroundThreadTask.Wait();
+            }
+        }
+
+        static CancellationTokenSource backgroundThreadCancelTokenSource = new CancellationTokenSource();
+        static CancellationToken backgroundThreadCancelToken = backgroundThreadCancelTokenSource.Token;
+        static Task backgroundThreadTask = null;
+        static void SpawnBackgroundThread()
+        {
+            backgroundThreadTask = Task.Factory.StartNew(() => { backgroundThread(); }, backgroundThreadCancelToken, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                Helpers.logToFile(new string[] { t.Exception.ToString() });
+                Task.Run(()=> {
+                    System.Threading.Thread.Sleep(30000);
+                    SpawnBackgroundThread();
+                });
+            }, TaskContinuationOptions.OnlyOnFaulted);
+        }
+
+        static void backgroundThread()
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(30000);
+                if (backgroundThreadCancelToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                // What we do here: Update timestamps of existing entries and remove entries that haven't been updated for very long.
+                // For example, if an instance of JKWatcher crashed, it would be unable to update the entries corresponding with its windows.
+                // If we don't remove those entries, we will have basically "ghost windows" messing with future window positions forever.
+                // So we check any entries that haven't been updated for very long and yeet them.
+                HandleGhostWindows();
+            }
+        }
+
 
         static WindowPositionsState getCurrentState()
         {
@@ -87,6 +134,7 @@ namespace JKWatcher
         static void changeWindowData(WindowPositionData newPosData, int index)
         {
             newPosData.isActive = 1;
+            newPosData.dateTimeTicks = DateTime.Now.Ticks;
             acc.Write<WindowPositionData>(sizeof(int) + windowPositionStructSize * index, ref newPosData);
 
             Debug.WriteLine($"WindowPositionManager: Window {index} updated: {newPosData.left},{newPosData.top},{newPosData.width},{newPosData.height}.");
@@ -103,6 +151,7 @@ namespace JKWatcher
         static int addWindowData(WindowPositionData newPosData)
         {
             newPosData.isActive = 1;
+            newPosData.dateTimeTicks = DateTime.Now.Ticks;
             WindowPositionsState curData = getCurrentState();
 
             int newIndex = curData.existingWindowCount;
@@ -214,12 +263,12 @@ namespace JKWatcher
                         position[1] = wnd.Top;
                     }
 
-                    WindowPositionData newPosData = new WindowPositionData() {left=position[0],top=position[1],width=initialPosition[2],height=initialPosition[3] };
+                    WindowPositionData newPosData = new WindowPositionData() { left = position[0], top = position[1], width = initialPosition[2], height = initialPosition[3] };
 
 
                     int newIndex = addWindowData(newPosData);
 
-                    registeredWindows.Add(wnd, newIndex);
+                    lock(registeredWindows) registeredWindows.Add(wnd, newIndex);
                     wnd.Closed += Wnd_Closed;
                     wnd.LocationChanged += Wnd_LocationChanged;
 
@@ -230,21 +279,75 @@ namespace JKWatcher
             } catch(Exception e)
             {
                 // Can't help it...
+                Helpers.logToFile(e.ToString());
                 return false;
             }
 
         }
 
-        private static void Wnd_LocationChanged(object sender, EventArgs e)
+
+        static void HandleGhostWindows()
         {
             try
             {
                 using (new AccessorGetter())
                 {
 
+                    WindowPositionsState curState = getCurrentState();
 
-                    Window wnd = (Window)sender;
-                    int windowIndex = registeredWindows[wnd];
+                    List<int> ourWindowIndizi = new List<int>();
+                    lock (registeredWindows)
+                    {
+                        foreach (var win in registeredWindows)
+                        {
+                            ourWindowIndizi.Add(win.Value);
+                        }
+                    }
+
+                    foreach(int windowIndex in ourWindowIndizi)
+                    {
+                        WindowPositionData windowData = curState.windowPositions[windowIndex];
+                        changeWindowData(windowData, windowIndex); // This function call automatically updates the current dateTimeTicks in the windowData. 
+                    }
+
+                    for(int i = 0; i < curState.windowPositions.Length; i++)
+                    {
+                        double age = (DateTime.Now - new DateTime(curState.windowPositions[i].dateTimeTicks)).TotalMinutes;
+                        if (!ourWindowIndizi.Contains(i) && curState.windowPositions[i].isActive > 0 && age > 10)
+                        {
+                            Helpers.logToFile($"WindowPositionManager: Removing ghost window {i} that hasn't gotten a heartbeat in {age} minutes.");
+                            removeWindowData(i); // This window is likely a ghost window, aka a window entry from a crashed or abruptly ended JKWatcher instance. It hasn't gotten a heartbeat in over 10 minutes (normally gets one every 30 seconds). Remove it.
+                        }
+                    }
+
+
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                // Can't help it...
+                Helpers.logToFile(e.ToString());
+                return;
+            }
+        }
+
+        private static void Wnd_LocationChanged(object sender, EventArgs e)
+        {
+            Window wnd = (Window)sender;
+            if (wnd.WindowState != WindowState.Normal)
+            {
+                return; // Maximized and minimized positions are nonsense values.
+            }
+            try
+            {
+                using (new AccessorGetter())
+                {
+                    int windowIndex = -1;
+                    lock (registeredWindows)
+                    {
+                        windowIndex = registeredWindows[wnd];
+                    }
                     WindowPositionData newPosData = new WindowPositionData() { left = wnd.Left, top = wnd.Top, width = wnd.ActualWidth, height = wnd.ActualHeight };
 
                     changeWindowData(newPosData, windowIndex);
@@ -258,6 +361,7 @@ namespace JKWatcher
             catch (Exception ecx)
             {
                 // Can't help it...
+                Helpers.logToFile(e.ToString());
                 return;
             }
         }
@@ -267,8 +371,12 @@ namespace JKWatcher
             Window wnd = (Window)sender;
             wnd.Closed -= Wnd_Closed;
             wnd.LocationChanged -= Wnd_LocationChanged;
-            int indexToRemove = registeredWindows[wnd];
-            registeredWindows.Remove(wnd);
+            int indexToRemove = -1;
+            lock (registeredWindows)
+            {
+                indexToRemove = registeredWindows[wnd];
+                registeredWindows.Remove(wnd);
+            }
             try
             {
                 using (new AccessorGetter())
@@ -285,6 +393,7 @@ namespace JKWatcher
             catch (Exception ecx)
             {
                 // Can't help it...
+                Helpers.logToFile(e.ToString());
                 return;
             }
         }

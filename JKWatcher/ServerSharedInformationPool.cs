@@ -200,6 +200,15 @@ namespace JKWatcher
                 return tmpDeaths == 0 ? 0 : (float)score / (float)tmpDeaths;
             }
         }
+        public float kdMod { 
+            get
+            {
+                // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example.
+                // We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay.
+                // Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
+                return (float)(Math.Pow((double)kills, 1.5) / Math.Max(1.0, (double)deaths));
+            }
+        }
         public volatile int scoreFlags;
         public volatile int powerUps;
         public volatile int accuracy;
@@ -215,7 +224,7 @@ namespace JKWatcher
         public DateTime? lastNonZeroPing;
         public volatile int pingUpdatesSinceLastNonZeroPing;
 
-        public volatile int deaths; // times he got killed. Some JKA mods and some MOH gametypes send this.
+        public int deaths { get; set; } // times he got killed. Some JKA mods and some MOH gametypes send this.
         public volatile bool deathsIsFilled; // Indicate if killed value was sent
 
         // Special values only MB II uses.

@@ -92,6 +92,8 @@
                     <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
                     <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
                     <DataGridTextColumn Header="S/D" Binding="{Binding score.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="KDm" Binding="{Binding score.kdMod, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="D" Binding="{Binding score.deaths}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>

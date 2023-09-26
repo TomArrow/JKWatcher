@@ -650,7 +650,7 @@ namespace JKWatcher
                 // Disconnect if "mapchange" disconnecttrigger is set.
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.MAPCHANGE) > 0 && mapChangeDetected)
                 {
-                    this.addToLog($"Disconnect trigger tripped: Map change (from {lastMapName} to {obj.MapName}). Disconnecting.");
+                    this.addToLog($"Disconnect trigger tripped: Map change (from {mapChangeFrom} to {obj.MapName}). Disconnecting.");
                     Dispatcher.BeginInvoke((Action)(() =>
                     { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
                         this.Close();
