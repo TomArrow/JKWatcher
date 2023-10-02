@@ -807,10 +807,6 @@ namespace JKWatcher
                 if (userinfoName != null)
                 {
                     connOpts = new ConnectedServerWindow.ConnectionOptions();
-                    if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
-                    {
-                        connOpts.LoadMOHDefaults(); // MOH needs different defaults.
-                    }
                     connOpts.userInfoName = userinfoName;
                 }
                 if (silent)
@@ -822,6 +818,10 @@ namespace JKWatcher
                     connOpts.silentMode = true;
                     connOpts.demoTimeColorNames = false;
                     connOpts.attachClientNumToName = false;
+                }
+                if (connOpts != null && serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
+                {
+                    connOpts.LoadMOHDefaults(); // MOH needs different defaults.
                 }
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
@@ -1104,7 +1104,9 @@ namespace JKWatcher
                 demoTimeColorNames = (config["demoTimeColorNames"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
                 silentMode = (config["silentMode"]?.Trim().Atoi()).GetValueOrDefault(0) > 0;
 
-                string[] gameTypesStrings = config["gameTypes"]?.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                gameTypes |= Connection.GameTypeStringToBitMask(config["gameTypes"]);
+
+                /*string[] gameTypesStrings = config["gameTypes"]?.Trim().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 if (gameTypesStrings != null)
                 {
                     foreach (string gameTypeString in gameTypesStrings)
@@ -1135,10 +1137,10 @@ namespace JKWatcher
                                 gameTypes |= (1 << (int)GameType.Siege);
                                 break;
                             case "cty":
-                                gameTypes |= (1 << (int)GameType.CTF);
+                                gameTypes |= (1 << (int)GameType.CTY);
                                 break;
                             case "ctf":
-                                gameTypes |= (1 << (int)GameType.CTY);
+                                gameTypes |= (1 << (int)GameType.CTF);
                                 break;
                             case "1flagctf":
                                 gameTypes |= (1 << (int)GameType.OneFlagCTF);
@@ -1164,7 +1166,7 @@ namespace JKWatcher
                         }
 
                     }
-                }
+                }*/
 
                 if(pollingInterval.HasValue && ip == null)
                 {
@@ -1202,7 +1204,10 @@ namespace JKWatcher
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
-                    lastFittingServerInfo = serverInfo;
+                    if(lastFittingServerInfo == null || !(lastFittingServerInfo.Address == ip))
+                    {
+                        lastFittingServerInfo = serverInfo;
+                    }
                     matchesButMightNotMeetRequirements = true;
                     if (!this.active) return false;
                     if (!dailyChanceTrueToday) return false;

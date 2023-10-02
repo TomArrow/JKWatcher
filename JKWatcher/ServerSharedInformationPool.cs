@@ -196,8 +196,9 @@ namespace JKWatcher
         public float scorePerDeaths { 
             get
             {
-                int tmpDeaths = deaths;// Due to multithreading. It might change from one line to the next.
-                return tmpDeaths == 0 ? 0 : (float)score / (float)tmpDeaths;
+                //int tmpDeaths = deaths;// Due to multithreading. It might change from one line to the next.
+                //return tmpDeaths == 0 ? 0 : (float)score / (float)tmpDeaths;
+                return (float)score / (float)Math.Max(1, deaths);
             }
         }
         public float kdMod { 
@@ -206,7 +207,8 @@ namespace JKWatcher
                 // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example.
                 // We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay.
                 // Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
-                return (float)(Math.Pow((double)kills, 1.5) / Math.Max(1.0, (double)deaths));
+                //return deaths == 0 ? 0 : (float)(Math.Pow((double)kills, 1.5) / Math.Max(1.0, (double)deaths));
+                return (float)(Math.Pow((double)kills, 1.5) / (double)Math.Max(1, deaths));
             }
         }
         public volatile int scoreFlags;

@@ -318,6 +318,7 @@ namespace JKWatcher
                 PLAYERCOUNT_UNDER = 1 << 2,
                 CONNECTEDTIME_OVER = 1 << 3,
                 MAPCHANGE = 1 << 4,
+                GAMETYPE_NOT = 1 << 5,
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -375,6 +376,28 @@ namespace JKWatcher
                                         }
                                     }
                                 }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("gametype_not", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    if(triggerTextParts.Length > 1)
+                                    {
+                                        int gameTypesBitMask = Connection.GameTypeStringToBitMask(triggerTextParts[1]);
+                                        if (gameTypesBitMask > 0)
+                                        {
+                                            disconnectTriggerGameTypeNotGameTypeRawString = triggerTextParts[1];
+                                            disconnectTriggerGameTypeNotGameTypeBitmask = gameTypesBitMask;
+                                            if (triggerTextParts.Length == 2)
+                                            {
+                                                disconnectTriggerGameTypeNotDelay = 0;
+                                                _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT;
+                                            }
+                                            else if (triggerTextParts.Length == 3)
+                                            {
+                                                disconnectTriggerGameTypeNotDelay = triggerTextParts[2].Atoi();
+                                                _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT;
+                                            }
+                                        }
+                                    }
+                                }
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("connectedtime_over", StringComparison.OrdinalIgnoreCase))
                                 {
                                     if(triggerTextParts.Length == 2)
@@ -421,6 +444,9 @@ namespace JKWatcher
             public int disconnectTriggerPlayerCountUnderPlayerCount { get; private set; } = 10;
             public int disconnectTriggerPlayerCountUnderDelay { get; private set; } = 60000;
             public int disconnectTriggerConnectedTimeOverDelayMinutes { get; private set; } = 60;
+            public string disconnectTriggerGameTypeNotGameTypeRawString { get; private set; } = null;
+            public int disconnectTriggerGameTypeNotGameTypeBitmask { get; private set; } = 0;
+            public int disconnectTriggerGameTypeNotDelay { get; private set; } = 0;
 
         }
 
@@ -600,6 +626,7 @@ namespace JKWatcher
 
         private object serverInfoChangedLock = new object();
         private DateTime? playerCountUnderDisconnectTriggerLastSatisfied = null;
+        private DateTime? gameTypeNotDisconnectTriggerLastSatisfied = null;
 
 
         private DateTime? connectedTimeOverDisconnectTriggerFirstConnected = null;
@@ -662,7 +689,7 @@ namespace JKWatcher
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && activeClientCount < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
                 {
                     double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
-                    if (playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
+                    if (_connectionOptions.disconnectTriggerPlayerCountUnderDelay == 0 || playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
                     {
                         /*Dispatcher.Invoke(() => {
                             this.Close();
@@ -682,6 +709,32 @@ namespace JKWatcher
                 else
                 {
                     playerCountUnderDisconnectTriggerLastSatisfied = null;
+                }
+                
+                // Disconnect if "gametype_not" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0 && ((1 << (int)obj.GameType) & _connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask) == 0)
+                {
+                    double millisecondsSatisfiedFor = gameTypeNotDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - gameTypeNotDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
+                    if (_connectionOptions.disconnectTriggerGameTypeNotDelay == 0 || gameTypeNotDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerGameTypeNotDelay)
+                    {
+                        /*Dispatcher.Invoke(() => {
+                            this.Close();
+                        });*/
+                        this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType} (index {(int)obj.GameType}, bitmask {1 << (int)obj.GameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}) for over {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
+                        Dispatcher.BeginInvoke((Action)(() =>
+                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                            this.Close();
+                        }));
+                        return;
+                    }
+                    else if (gameTypeNotDisconnectTriggerLastSatisfied == null)
+                    {
+                        gameTypeNotDisconnectTriggerLastSatisfied = DateTime.Now;
+                    }
+                }
+                else
+                {
+                    gameTypeNotDisconnectTriggerLastSatisfied = null;
                 }
                 
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.CONNECTEDTIME_OVER) > 0)

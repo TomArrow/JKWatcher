@@ -346,8 +346,8 @@ namespace JKWatcher
                         case "memes":
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            MemeRequest(pm, "!who !weaklegs !doomer", true, true, true, true);
+                            ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
+                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -357,66 +357,66 @@ namespace JKWatcher
                         case "!mock":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
-                            MemeRequest(pm, MockString(tmpString), true, true, false);
+                            ChatCommandAnswer(pm, MockString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!gaily":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
-                            MemeRequest(pm, GailyString(tmpString), true, true, false);
+                            ChatCommandAnswer(pm, GailyString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!reverse":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
-                            MemeRequest(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
+                            ChatCommandAnswer(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!ruski":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
-                            MemeRequest(pm, RuskiString(tmpString), true, true, false);
+                            ChatCommandAnswer(pm, RuskiString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
 
                         // Whatever
                         case "!saymyname":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            MemeRequest(pm, pm.playerName,true,true,true);
+                            ChatCommandAnswer(pm, pm.playerName,true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!agree":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            MemeRequest(pm, $"agreed, {pm.playerName}",true,true,true);
+                            ChatCommandAnswer(pm, $"agreed, {pm.playerName}",true,true,true);
                             notDemoCommand = true;
                             break;
                         case "!color":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if(numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
-                                MemeRequest(pm, "Call !color with a valid client number (see /clientlist)", true, true, true,true);
+                                ChatCommandAnswer(pm, "Call !color with a valid client number (see /clientlist)", true, true, true,true);
                                 return;
                             }
-                            MemeRequest(pm, StringShowQ3Color(infoPool.playerInfo[numberParams[0]].name), true, true, true);
+                            ChatCommandAnswer(pm, StringShowQ3Color(infoPool.playerInfo[numberParams[0]].name), true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!flipcoin":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             if (stringParams.Count < 2)
                             {
-                                MemeRequest(pm, "heads or tails?", true, true, false);
+                                ChatCommandAnswer(pm, "heads or tails?", true, true, false);
                             } else if(stringParams[1].ToLowerInvariant() != "heads" && stringParams[1].ToLowerInvariant() != "tails")
                             {
-                                MemeRequest(pm, $"{stringParams[1]}? what's that?", true, true, false);
+                                ChatCommandAnswer(pm, $"{stringParams[1]}? what's that?", true, true, false);
                             } else
                             {
                                 string result = getNiceRandom(0, 2) == 1 ? "tails" : "heads";
                                 if (result == stringParams[1].ToLowerInvariant())
                                 {
-                                    MemeRequest(pm, $"it's {result}, you win", true, true, false);
+                                    ChatCommandAnswer(pm, $"it's {result}, you win", true, true, false);
                                 } else
                                 {
-                                    MemeRequest(pm, $"it's {result}, you lose", true, true, false);
+                                    ChatCommandAnswer(pm, $"it's {result}, you lose", true, true, false);
                                 }
                             }
                             notDemoCommand = true;
@@ -433,24 +433,51 @@ namespace JKWatcher
                             {
                                 opinion = "no";
                             }
-                            MemeRequest(pm, opinion, true, true, true);
+                            ChatCommandAnswer(pm, opinion, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!roulette":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            MemeRequest(pm, getNiceRandom(0, 6) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
+                            ChatCommandAnswer(pm, getNiceRandom(0, 6) == 0 ? "you played russian roulette and died" : "you played russian roulette and survived", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!who":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, "who what?", true, true, true);
+                                ChatCommandAnswer(pm, "who what?", true, true, true);
                             } else
                             {
                                 int randomPlayer = PickRandomPlayer(maxClientsHere);
                                 if (randomPlayer == -1) return;
-                                MemeRequest(pm, $"{infoPool.playerInfo[randomPlayer].name} {demoNoteString}", true, true, true);
+                                ChatCommandAnswer(pm, $"{infoPool.playerInfo[randomPlayer].name} {demoNoteString}", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!choose":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (demoNoteString == null)
+                            {
+                                ChatCommandAnswer(pm, "choose between what?", true, true, true);
+                            } else
+                            {
+                                string[] options = demoNoteString.Split(new string[] { " or ", " OR ", " oR ", " Or " },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                                if(options.Length < 2)
+                                {
+                                    options = demoNoteString.Split(new string[] { "or", "OR", "oR", "Or" }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                                }
+                                if(options.Length == 1)
+                                {
+                                    ChatCommandAnswer(pm, $"choose between {options[0]} and what?", true, true, true);
+                                } else if(options.Length < 2)
+                                {
+                                    ChatCommandAnswer(pm, "choose between what?", true, true, true);
+                                } else
+                                {
+                                    string answer = options[getNiceRandom(0,options.Length)];
+                                    ChatCommandAnswer(pm, answer, true, true, true);
+                                }
+
                             }
                             notDemoCommand = true;
                             break;
@@ -470,11 +497,11 @@ namespace JKWatcher
                             }
                             if(highestFallsPlayer == null)
                             {
-                                MemeRequest(pm, $"Haven't seen anyone fall today.", true, true, true);
+                                ChatCommandAnswer(pm, $"Haven't seen anyone fall today.", true, true, true);
                             }
                             else
                             {
-                                MemeRequest(pm, $"{highestFallsPlayer.name} has the weakest legs with {highestFallsPerMinute.ToString("0.##")} falls per minute.", true, true, true);
+                                ChatCommandAnswer(pm, $"{highestFallsPlayer.name} has the weakest legs with {highestFallsPerMinute.ToString("0.##")} falls per minute.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -492,11 +519,11 @@ namespace JKWatcher
                             }
                             if(mostDoomsPlayer == null)
                             {
-                                MemeRequest(pm, $"Haven't seen any dooms yet.", true, true, true);
+                                ChatCommandAnswer(pm, $"Haven't seen any dooms yet.", true, true, true);
                             }
                             else
                             {
-                                MemeRequest(pm, $"{mostDoomsPlayer.name} is the biggest doomer with {mostDooms} dooms.", true, true, true);
+                                ChatCommandAnswer(pm, $"{mostDoomsPlayer.name} is the biggest doomer with {mostDooms} dooms.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -508,20 +535,20 @@ namespace JKWatcher
                         case "bot":
                         case "!bot":
                             if (!weHandleFightBotCommands || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
-                            MemeRequest(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
+                            ChatCommandAnswer(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
+                            ChatCommandAnswer(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
                             if (_connectionOptions.allowWayPointBotmode)
                             {  
                                 if (_connectionOptions.allowWayPointBotmodeCommands)
                                 {
-                                    MemeRequest(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
+                                    ChatCommandAnswer(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
                                 } else
                                 {
-                                    MemeRequest(pm, "!waypoint !clearwaypoints", true, true, true, true);
+                                    ChatCommandAnswer(pm, "!waypoint !clearwaypoints", true, true, true, true);
                                 }
-                                MemeRequest(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
+                                ChatCommandAnswer(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
                             }
-                            MemeRequest(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
+                            ChatCommandAnswer(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -543,7 +570,7 @@ namespace JKWatcher
                                         }
                                     }
                                 }
-                                MemeRequest(pm, cowardsb.ToString(), true, true, true);
+                                ChatCommandAnswer(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
                         case "!bigcowards":
@@ -565,7 +592,7 @@ namespace JKWatcher
                                         }
                                     }
                                 }
-                                MemeRequest(pm, cowardsb.ToString(), true, true, true);
+                                ChatCommandAnswer(pm, cowardsb.ToString(), true, true, true);
                             }
                             break;
                         case "!berserk":
@@ -576,17 +603,17 @@ namespace JKWatcher
                             else {
                                 if(infoPool.playerInfo[pm.playerNum].team == Team.Spectator)
                                 {
-                                    MemeRequest(pm, "Wtf, I'm not going berserk for a spectator.", true, true, true);
+                                    ChatCommandAnswer(pm, "Wtf, I'm not going berserk for a spectator.", true, true, true);
                                     return;
                                 }
                                 else if((DateTime.Now-infoPool.lastBerserkerStarted).TotalMinutes < 10)
                                 {
-                                    MemeRequest(pm, "Already going berserk.", true, true, true);
+                                    ChatCommandAnswer(pm, "Already going berserk.", true, true, true);
                                     return;
                                 }
                                 else if((DateTime.Now-infoPool.lastBerserkerStarted).TotalMinutes < 60)
                                 {
-                                    MemeRequest(pm, "Can't go berserk this soon after the last time. Try again later.", true, true, true);
+                                    ChatCommandAnswer(pm, "Can't go berserk this soon after the last time. Try again later.", true, true, true);
                                     return;
                                 }
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.berserkerVote = true;
@@ -610,10 +637,10 @@ namespace JKWatcher
                                 bool berserkStarted = false;
                                 if(countVotes < countVotesNeeded)
                                 {
-                                    MemeRequest(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk.", true, true, true);
+                                    ChatCommandAnswer(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk.", true, true, true);
                                 } else
                                 {
-                                    MemeRequest(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk, going berserk now for 10 minutes!", true, true, true);
+                                    ChatCommandAnswer(pm, $"{countVotes} out of {countVotesNeeded} votes to go berserk, going berserk now for 10 minutes!", true, true, true);
                                     berserkStarted = true;
                                     infoPool.lastBerserkerStarted = DateTime.Now;
                                 }
@@ -631,7 +658,7 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
-                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                ChatCommandAnswer(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
                                 return;
                             }
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
@@ -639,13 +666,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"Gotten a little braver, {pm.playerName}? I'm proud of you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Gotten a little braver, {pm.playerName}? I'm proud of you.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"Very good, {pm.playerName}. With time, you shall overcome your anxiety.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Very good, {pm.playerName}. With time, you shall overcome your anxiety.", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"Do I see a hint of courage, {pm.playerName}? A good first step.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Do I see a hint of courage, {pm.playerName}? A good first step.", true, true, true);
                                         break;
                                 }
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
@@ -657,13 +684,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"What is it, {pm.playerName}? I am already going easy on you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"What is it, {pm.playerName}? I am already going easy on you.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"Huh? Haven't I been soft enough on you, {pm.playerName}?", true, true, true);
+                                        ChatCommandAnswer(pm, $"Huh? Haven't I been soft enough on you, {pm.playerName}?", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"Pardon, {pm.playerName}? Have I hit you by accident? I apologize.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Pardon, {pm.playerName}? Have I hit you by accident? I apologize.", true, true, true);
                                         break;
                                 }
                             } else 
@@ -671,13 +698,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will spare you for this session.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Ok, {pm.playerName}, I will spare you for this session.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"Ok, {pm.playerName}, I will go easy on you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Ok, {pm.playerName}, I will go easy on you.", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"Ok, {pm.playerName}, your life shall be spared.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Ok, {pm.playerName}, your life shall be spared.", true, true, true);
                                         break;
                                 }
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
@@ -691,7 +718,7 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
-                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                ChatCommandAnswer(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
                                 return;
                             }
                             if (infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore)
@@ -699,13 +726,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"Come on now, {pm.playerName}. I'm as careful as can be around you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Come on now, {pm.playerName}. I'm as careful as can be around you.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"You're STILL scared, {pm.playerName}? How?!", true, true, true);
+                                        ChatCommandAnswer(pm, $"You're STILL scared, {pm.playerName}? How?!", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"You ran into that one on purpose, {pm.playerName}! Don't be so sensitive.", true, true, true);
+                                        ChatCommandAnswer(pm, $"You ran into that one on purpose, {pm.playerName}! Don't be so sensitive.", true, true, true);
                                         break;
                                 }
                             } else
@@ -713,13 +740,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"OK, {pm.playerName}, I'll walk on eggshells around you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"OK, {pm.playerName}, I'll walk on eggshells around you.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"'Fragile, Handle With Care' - {pm.playerName}. You got it.", true, true, true);
+                                        ChatCommandAnswer(pm, $"'Fragile, Handle With Care' - {pm.playerName}. You got it.", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"That's what she said, {pm.playerName}. Ok I'll be gentle.", true, true, true);
+                                        ChatCommandAnswer(pm, $"That's what she said, {pm.playerName}. Ok I'll be gentle.", true, true, true);
                                         break;
                                 }
                                 infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight = false;
@@ -733,7 +760,7 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands || pm.playerNum == myClientNum || commandComesFromJKWatcher) return;
                             if (_connectionOptions.noBotIgnore)
                             {
-                                MemeRequest(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
+                                ChatCommandAnswer(pm, $"Can't oblige right now, my maker set me to attack everyone.", true, true, true);
                                 return;
                             }
                             if (!infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotIgnore && !infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.fightBotStrongIgnore && infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.wantsBotFight)
@@ -741,13 +768,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"You are a ballsy one, {pm.playerName}, but I cannot prioritize you more.", true, true, true);
+                                        ChatCommandAnswer(pm, $"You are a ballsy one, {pm.playerName}, but I cannot prioritize you more.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"You have a stout heart, {pm.playerName}. But I treat each foe equally.", true, true, true);
+                                        ChatCommandAnswer(pm, $"You have a stout heart, {pm.playerName}. But I treat each foe equally.", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"You have true courage, {pm.playerName}. If you're really looking for a fight... come closer.", true, true, true);
+                                        ChatCommandAnswer(pm, $"You have true courage, {pm.playerName}. If you're really looking for a fight... come closer.", true, true, true);
                                         break;
                                 }
                             } else
@@ -758,13 +785,13 @@ namespace JKWatcher
                                 switch (getNiceRandom(0, 3))
                                 {
                                     case 0:
-                                        MemeRequest(pm, $"I will come after you, {pm.playerName}.", true, true, true);
+                                        ChatCommandAnswer(pm, $"I will come after you, {pm.playerName}.", true, true, true);
                                         break;
                                     case 1:
-                                        MemeRequest(pm, $"Putting you on my kill list, {pm.playerName}.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Putting you on my kill list, {pm.playerName}.", true, true, true);
                                         break;
                                     case 2:
-                                        MemeRequest(pm, $"We'll see about that, {pm.playerName}.", true, true, true);
+                                        ChatCommandAnswer(pm, $"We'll see about that, {pm.playerName}.", true, true, true);
                                         break;
                                 }
                             }
@@ -774,30 +801,30 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands && !amNotInSpec || pm.type == ChatType.PRIVATE) return;
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
+                                ChatCommandAnswer(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
                                 if (_connectionOptions.allowWayPointBotmode)
                                 {
-                                    MemeRequest(pm, "waypoints, speedabsorb, assassin", true, true, true);
+                                    ChatCommandAnswer(pm, "waypoints, speedabsorb, assassin", true, true, true);
                                 } else
                                 {
-                                    MemeRequest(pm, "speedabsorb, assassin", true, true, true);
+                                    ChatCommandAnswer(pm, "speedabsorb, assassin", true, true, true);
                                 }
                             } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin", "waypoints" }).Contains(stringParams[1].ToLower()))
                             {
-                                MemeRequest(pm, $"Unknown mode {stringParams[1]}", true, true, true);
+                                ChatCommandAnswer(pm, $"Unknown mode {stringParams[1]}", true, true, true);
                             }
                             else if (stringParams[1].ToLower() == "custom" && stringParams.Count < 3)
                             {
-                                MemeRequest(pm, $"For custom botmode please choose a command to execute near players. Example: !botmode custom amhug", true, true, true, true);
-                                MemeRequest(pm, $"You can also specify a skin as an extra parameter like: !botmode custom amhug reelo/default", true, true, true, true);
+                                ChatCommandAnswer(pm, $"For custom botmode please choose a command to execute near players. Example: !botmode custom amhug", true, true, true, true);
+                                ChatCommandAnswer(pm, $"You can also specify a skin as an extra parameter like: !botmode custom amhug reelo/default", true, true, true, true);
                             }
                             else if (stringParams[1].ToLower() == "custom" && !customSillyModeCommands.Contains(stringParams[2].ToLower()))
                             {
-                                MemeRequest(pm, $"{stringParams[2]} command is not whitelisted for custom botmode.", true, true, true);
+                                ChatCommandAnswer(pm, $"{stringParams[2]} command is not whitelisted for custom botmode.", true, true, true);
                             }
                             else if (stringParams[1].ToLower() == "custom" && stringParams.Count >= 4 && !validSkinRegex.Match(stringParams[3]).Success)
                             {
-                                MemeRequest(pm, $"{stringParams[3]} is not a valid skin name.", true, true, true);
+                                ChatCommandAnswer(pm, $"{stringParams[3]} is not a valid skin name.", true, true, true);
                             }
                             else
                             {
@@ -890,10 +917,10 @@ namespace JKWatcher
                                         leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT_QUEUED, 5, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                                     }
 
-                                    MemeRequest(pm, $"{demoNoteString} mode activated.", true, true, true);
+                                    ChatCommandAnswer(pm, $"{demoNoteString} mode activated.", true, true, true);
                                 } else
                                 {
-                                    MemeRequest(pm, $"{demoNoteString} mode not allowed.", true, true, true);
+                                    ChatCommandAnswer(pm, $"{demoNoteString} mode not allowed.", true, true, true);
                                 }
                             }
                             notDemoCommand = true;
@@ -903,7 +930,7 @@ namespace JKWatcher
                             if (!weHandleFightBotCommands && !amNotInSpec) return; // Bots that are ingame should always respond.
                             if (demoNoteString == null)
                             {
-                                MemeRequest(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
+                                ChatCommandAnswer(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
                             } 
                             else
                             {
@@ -924,10 +951,10 @@ namespace JKWatcher
                                 {
                                     if(pm.type == ChatType.PRIVATE)
                                     {
-                                        MemeRequest(pm, $"{pm.playerName} wants me to say: {demoNoteString}", true, true, true,false,ChatType.PUBLIC);
+                                        ChatCommandAnswer(pm, $"{pm.playerName} wants me to say: {demoNoteString}", true, true, true,false,ChatType.PUBLIC);
                                     } else
                                     {
-                                        MemeRequest(pm, demoNoteString, true, true, true);
+                                        ChatCommandAnswer(pm, demoNoteString, true, true, true);
                                     }
                                 }
                             }
@@ -942,7 +969,7 @@ namespace JKWatcher
                                 int dbsDist = numberParams[0];
                                 if(dbsDist < 32 || dbsDist > (128+16))
                                 {
-                                    MemeRequest(pm, (isBs? "" : "D")+"BS trigger distance can't be below 32 or above 144", true, true, true);
+                                    ChatCommandAnswer(pm, (isBs? "" : "D")+"BS trigger distance can't be below 32 or above 144", true, true, true);
                                 }
                                 else
                                 {
@@ -954,12 +981,12 @@ namespace JKWatcher
                                     {
                                         infoPool.dbsTriggerDistance = dbsDist;
                                     }
-                                    MemeRequest(pm, "Gotcha, triggering " + (isBs ? "" : "d") + $"bs at {dbsDist} now.", true, true, true);
+                                    ChatCommandAnswer(pm, "Gotcha, triggering " + (isBs ? "" : "d") + $"bs at {dbsDist} now.", true, true, true);
                                 }
                             }
                             else
                             {
-                                MemeRequest(pm, "What distance should "+ (isBs ? "" : "d") + "bs get triggered at?", true, true, true);
+                                ChatCommandAnswer(pm, "What distance should "+ (isBs ? "" : "d") + "bs get triggered at?", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -968,11 +995,11 @@ namespace JKWatcher
                             if (numberParams.Count > 0)
                             {
                                 infoPool.selfPredict = numberParams[0] > 0;
-                                MemeRequest(pm, $"Self-predict set to {infoPool.selfPredict}.", true, true, true);
+                                ChatCommandAnswer(pm, $"Self-predict set to {infoPool.selfPredict}.", true, true, true);
                             }
                             else
                             {
-                                MemeRequest(pm, $"Self-predict is currently {infoPool.selfPredict}. Use 1/0 to enable/disable.", true, true, true);
+                                ChatCommandAnswer(pm, $"Self-predict is currently {infoPool.selfPredict}. Use 1/0 to enable/disable.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -981,11 +1008,11 @@ namespace JKWatcher
                             if (numberParams.Count > 0)
                             {
                                 infoPool.fastDbs = numberParams[0] > 0;
-                                MemeRequest(pm, $"Fast DBS set to {infoPool.fastDbs}.", true, true, true);
+                                ChatCommandAnswer(pm, $"Fast DBS set to {infoPool.fastDbs}.", true, true, true);
                             }
                             else
                             {
-                                MemeRequest(pm, $"Fast DBS is currently {infoPool.fastDbs}. Use 1/0 to enable/disable.", true, true, true);
+                                ChatCommandAnswer(pm, $"Fast DBS is currently {infoPool.fastDbs}. Use 1/0 to enable/disable.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -994,11 +1021,11 @@ namespace JKWatcher
                                 if (!weHandleFightBotCommands) return;
                                 if (demoNoteString == null)
                                 {
-                                    MemeRequest(pm, "!waypointcommand requires a command to be excuted.", true, true, true, true);
+                                    ChatCommandAnswer(pm, "!waypointcommand requires a command to be excuted.", true, true, true, true);
                                 }
                                 else if (!customSillyModeCommands.Contains(demoNoteString.ToLower().Trim()))
                                 {
-                                    MemeRequest(pm, $"{demoNoteString} command is not whitelisted.", true, true, true, true);
+                                    ChatCommandAnswer(pm, $"{demoNoteString} command is not whitelisted.", true, true, true, true);
                                 }
                                 else
                                 {
@@ -1008,11 +1035,11 @@ namespace JKWatcher
                                         {
                                             infoPool.wayPoints.Add(new WayPoint() { command = demoNoteString });
                                         }
-                                        MemeRequest(pm, $"Waypoint added.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Waypoint added.", true, true, true);
                                     }
                                     else
                                     {
-                                        MemeRequest(pm, $"Can't set waypoint, I don't see you.", true, true, true);
+                                        ChatCommandAnswer(pm, $"Can't set waypoint, I don't see you.", true, true, true);
                                     }
                                     notDemoCommand = true; 
                                 }
@@ -1028,11 +1055,11 @@ namespace JKWatcher
                                     {
                                         infoPool.wayPoints.Add(new WayPoint {origin= newWp });
                                     }
-                                    MemeRequest(pm, $"Waypoint added.", true, true, true);
+                                    ChatCommandAnswer(pm, $"Waypoint added.", true, true, true);
                                 }
                                 else
                                 {
-                                    MemeRequest(pm, $"Can't set waypoint, I don't see you.", true, true, true);
+                                    ChatCommandAnswer(pm, $"Can't set waypoint, I don't see you.", true, true, true);
                                 }
                                 notDemoCommand = true;
                             }
@@ -1044,7 +1071,7 @@ namespace JKWatcher
                                 {
                                     infoPool.wayPoints.Clear();
                                 }
-                                MemeRequest(pm, $"Waypoints cleared.", true, true, true);
+                                ChatCommandAnswer(pm, $"Waypoints cleared.", true, true, true);
                                 notDemoCommand = true;
                             }
                             break;
@@ -1054,7 +1081,7 @@ namespace JKWatcher
                         case "tools":
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
-                            MemeRequest(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
+                            ChatCommandAnswer(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
                             notDemoCommand = true;
                             break;
 
@@ -1064,10 +1091,10 @@ namespace JKWatcher
                             {
                                 if(stringParams.Count > 1 && stringParams[1] == "all")
                                 {
-                                    MemeRequest(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                                    ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalDeaths}", true, true, true);
                                 } else
                                 {
-                                    MemeRequest(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    ChatCommandAnswer(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
                                 }
                                 return;
                             }
@@ -1075,13 +1102,13 @@ namespace JKWatcher
                             {
                                 if(numberParams[1] < 0 || numberParams[1] >= maxClientsHere || !infoPool.playerInfo[numberParams[1]].infoValid)
                                 {
-                                    MemeRequest(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    ChatCommandAnswer(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
                                     return;
                                 }
-                                MemeRequest(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackers[numberParams[1], numberParams[0]].kills}", true, true, true);
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackers[numberParams[1], numberParams[0]].kills}", true, true, true);
                             } else
                             {
-                                MemeRequest(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
                             }
                             
                             notDemoCommand = true;
@@ -1090,10 +1117,10 @@ namespace JKWatcher
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
-                                MemeRequest(pm, "Call !kd with a client number (see /clientlist)", true, true, true, true);
+                                ChatCommandAnswer(pm, "Call !kd with a client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
-                            MemeRequest(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                            ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
 
                             notDemoCommand = true;
                             break;
@@ -1101,12 +1128,12 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
-                                MemeRequest(pm, "Call !match with a valid client number (see /clientlist)", true, true, true, true);
+                                ChatCommandAnswer(pm, "Call !match with a valid client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
                             if(infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
                             {
-                                MemeRequest(pm, $"Already tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !resetmatch or !endmatch?", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Already tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !resetmatch or !endmatch?", true, true, true,true);
                             }
                             else
                             {
@@ -1116,7 +1143,7 @@ namespace JKWatcher
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = true;
                                 }
-                                MemeRequest(pm, $"Now tracking match against {infoPool.playerInfo[numberParams[0]].name}", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Now tracking match against {infoPool.playerInfo[numberParams[0]].name}", true, true, true,true);
                             }
                             notDemoCommand = true;
                             break;
@@ -1124,16 +1151,16 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
-                                MemeRequest(pm, "Call !matchstate with a valid client number (see /clientlist)", true, true, true, true);
+                                ChatCommandAnswer(pm, "Call !matchstate with a valid client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
                             if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
                             {
-                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
                             }
                             else
                             {
-                                MemeRequest(pm, $"Your match against {infoPool.playerInfo[numberParams[0]].name}: {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}", true, true, true);
+                                ChatCommandAnswer(pm, $"Your match against {infoPool.playerInfo[numberParams[0]].name}: {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -1141,12 +1168,12 @@ namespace JKWatcher
                             if (!this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
                             {
-                                MemeRequest(pm, "Call !resetmatch with a valid client number (see /clientlist)", true, true, true, true);
+                                ChatCommandAnswer(pm, "Call !resetmatch with a valid client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
                             if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
                             {
-                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
                             }
                             else
                             {
@@ -1155,7 +1182,7 @@ namespace JKWatcher
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
                                 }
-                                MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} reset to 0-0", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} reset to 0-0", true, true, true,true);
                             }
                             notDemoCommand = true;
                             break;
@@ -1179,24 +1206,24 @@ namespace JKWatcher
                                             }
                                         }
                                     }
-                                    MemeRequest(pm, $"Ended tracking of all matches. ({countEnded} affected)", true, true, true,true);
+                                    ChatCommandAnswer(pm, $"Ended tracking of all matches. ({countEnded} affected)", true, true, true,true);
                                 }
                                 else
                                 {
-                                    MemeRequest(pm, "Call !endmatch with a valid client number (see /clientlist) or 'all'", true, true, true, true);
+                                    ChatCommandAnswer(pm, "Call !endmatch with a valid client number (see /clientlist) or 'all'", true, true, true, true);
                                 }
                                 return;
                             }
                             if(!infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch)
                             {
-                                MemeRequest(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
+                                ChatCommandAnswer(pm, $"Not tracking match against {infoPool.playerInfo[numberParams[0]].name}. Want !match?", true, true, true,true);
                             }
                             else
                             {
                                 lock (infoPool.killTrackers)
                                 {
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackingMatch = false;
-                                    MemeRequest(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} ended at {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}.", true, true, true, true);
+                                    ChatCommandAnswer(pm, $"Match against {infoPool.playerInfo[numberParams[0]].name} ended at {infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills}-{infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths}.", true, true, true, true);
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchKills = 0;
                                     infoPool.killTrackers[pm.playerNum, numberParams[0]].trackedMatchDeaths = 0;
                                 }
@@ -1437,7 +1464,7 @@ namespace JKWatcher
 
 
         Regex multipleSlashRegex = new Regex("/{2,}", RegexOptions.Compiled);
-        void MemeRequest(ParsedChatMessage pm, string message, bool pub=true, bool team=true, bool priv=true, bool forcePrivateResponse = false, ChatType? chatTypeOverride = null)
+        void ChatCommandAnswer(ParsedChatMessage pm, string message, bool pub=true, bool team=true, bool priv=true, bool forcePrivateResponse = false, ChatType? chatTypeOverride = null)
         {
             ChatType chatType = chatTypeOverride.HasValue ? chatTypeOverride.Value : pm.type;
             if (_connectionOptions.silentMode) {

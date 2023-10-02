@@ -69,7 +69,7 @@ namespace JKWatcher
             // Kinda destructor..
             AppDomain.CurrentDomain.ProcessExit -= CurrentDomain_ProcessExit;
             backgroundThreadCancelTokenSource.Cancel();
-            if(backgroundThreadTask != null)
+            if(backgroundThreadTask != null && backgroundThreadTask.Status == TaskStatus.Running)
             {
                 backgroundThreadTask.Wait();
             }
@@ -93,6 +93,14 @@ namespace JKWatcher
         {
             while (true)
             {
+                /*for(int i = 0; i < 60; i++)
+                {
+                    System.Threading.Thread.Sleep(500);
+                    if (backgroundThreadCancelToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                }*/
                 System.Threading.Thread.Sleep(30000);
                 if (backgroundThreadCancelToken.IsCancellationRequested)
                 {

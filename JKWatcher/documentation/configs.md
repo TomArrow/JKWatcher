@@ -147,6 +147,7 @@ Comma-separated: Triggers for disconnecting from the server.
 Possible options: 
 
 - ```gameTypeNotCTF```: Disconnects when the gametype is not CTF or CTY.
+- ```gametype_not:ctf;cty:60000```: Disconnects when the gametype is not CTF or CTY for more than 1 minute (replace with numbers of your choice. game types can be - separated by semicolon: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester, teamrounds, objective, tow, liberation)
 - ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
 - ```playercount_under:8-10:60000```: Disconnects if player count falls under 8 to 10 for more than 1 minute (replace with numbers of your choice. player count can be range or single number without "-")
 - ```connectedtime_over:55-60```: Disconnects if we were connected for more than 55 to 60 minutes (random within that range, change numbers to what you desire or use single number without "-")

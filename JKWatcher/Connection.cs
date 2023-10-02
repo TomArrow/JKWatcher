@@ -336,6 +336,74 @@ namespace JKWatcher
             createPeriodicReconnecter();
         }
 
+        internal static int GameTypeStringToBitMask(string gameTypesString)
+        {
+            int gameTypes = 0;
+            string[] gameTypesStrings = gameTypesString?.Trim().Split(new char[] { ',' , ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (gameTypesStrings != null)
+            {
+                foreach (string gameTypeString in gameTypesStrings)
+                {
+                    switch (gameTypeString)
+                    {
+                        case "ffa":
+                            gameTypes |= (1 << (int)GameType.FFA);
+                            break;
+                        case "holocron":
+                            gameTypes |= (1 << (int)GameType.Holocron);
+                            break;
+                        case "jedimaster":
+                            gameTypes |= (1 << (int)GameType.JediMaster);
+                            break;
+                        case "duel":
+                            gameTypes |= (1 << (int)GameType.Duel);
+                            break;
+                        case "powerduel":
+                            gameTypes |= (1 << (int)GameType.PowerDuel);
+                            break;
+                        case "sp":
+                            gameTypes |= (1 << (int)GameType.SinglePlayer);
+                            break;
+                        case "tffa":
+                            gameTypes |= (1 << (int)GameType.Team);
+                            break;
+                        case "siege":
+                            gameTypes |= (1 << (int)GameType.Siege);
+                            break;
+                        case "cty":
+                            gameTypes |= (1 << (int)GameType.CTY);
+                            break;
+                        case "ctf":
+                            gameTypes |= (1 << (int)GameType.CTF);
+                            break;
+                        case "1flagctf":
+                            gameTypes |= (1 << (int)GameType.OneFlagCTF);
+                            break;
+                        case "obelisk":
+                            gameTypes |= (1 << (int)GameType.Obelisk);
+                            break;
+                        case "harvester":
+                            gameTypes |= (1 << (int)GameType.Harvester);
+                            break;
+                        case "teamrounds":
+                            gameTypes |= (1 << (int)GameType.TeamRounds);
+                            break;
+                        case "objective":
+                            gameTypes |= (1 << (int)GameType.Objective);
+                            break;
+                        case "tow":
+                            gameTypes |= (1 << (int)GameType.TOW);
+                            break;
+                        case "liberation":
+                            gameTypes |= (1 << (int)GameType.Liberation);
+                            break;
+                    }
+
+                }
+            }
+            return gameTypes;
+        }
+
         private void _connectionOptions_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if(e.PropertyName == "demoTimeColorNames" || e.PropertyName == "userInfoName" || e.PropertyName == "attachClientNumToName")
