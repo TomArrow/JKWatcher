@@ -21,6 +21,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Numerics;
 
 namespace JKWatcher
 {
@@ -113,6 +114,7 @@ namespace JKWatcher
         public bool LogColoredEnabled { get; set; } = true;
         public bool LogPlainEnabled { get; set; } = false;
         public bool DrawMiniMap { get; set; } = false;
+        public float MiniMapVelocityScale { get; set; } = 1.0f;
 
         //private ServerInfo serverInfo = null;
         //private string ip;
@@ -648,6 +650,7 @@ namespace JKWatcher
                         mapChangeFrom = lastMapName;
                     }
                     lastMapName = obj.MapName;
+                    miniMapResetBounds = true;
                 }
             }
 
@@ -1600,6 +1603,8 @@ namespace JKWatcher
 
         const float miniMapOutdatedDrawTime = 1; // in seconds.
 
+        bool miniMapResetBounds = false;
+
         private unsafe void miniMapUpdater(CancellationToken ct)
         {
             float minX = float.PositiveInfinity, maxX = float.NegativeInfinity, minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
@@ -1616,8 +1621,17 @@ namespace JKWatcher
 
                 if (imageWidth < 5 || imageHeight < 5) continue; // avoid crashes and shit
 
+                if (miniMapResetBounds)
+                {
+                    minX = float.PositiveInfinity;
+                    maxX = float.NegativeInfinity;
+                    minY = float.PositiveInfinity;
+                    maxY = float.NegativeInfinity;
+                    miniMapResetBounds = false;
+                }
+
                 // We flip imageHeight and imageWidth because it's more efficient to work on rows than on columns. We later rotate the image into the proper position
-                ByteImage miniMapImage = Helpers.BitmapToByteArray(new Bitmap(imageWidth, imageHeight, System.Drawing.Imaging.PixelFormat.Format24bppRgb));
+                    ByteImage miniMapImage = Helpers.BitmapToByteArray(new Bitmap(imageWidth, imageHeight, System.Drawing.Imaging.PixelFormat.Format24bppRgb));
                 int stride = miniMapImage.stride;
 
                 // Pass 1: Get bounds of all player entities
@@ -1637,40 +1651,131 @@ namespace JKWatcher
 
                 // Pass 2: Draw players as pixels
                 float xRange = maxX - minX, yRange = maxY-minY;
-                float x, y;
-                int imageX, imageY;
-                int byteOffset;
-                for (int i = 0; i < infoPool.playerInfo.Length; i++)
+                float x, y, dirX, dirY;
+                int imageX, imageY, imageXEnd, imageYEnd;
+                int xFrom, xTo, yFrom, yTo, pixY, yStep, yPixRange, xPixRange, yState, yStart;
+                float XYRatio = 1.0f, XYRatioHere;
+                //int byteOffset;
+                byte[] color = new byte[3];
+                Vector3 up = new Vector3();
+                Vector3 right = new Vector3();
+                Vector3 forward = new Vector3();
+                //fixed(byte* imgData = miniMapImage.imageData)
                 {
-                    if(infoPool.playerInfo[i].lastFullPositionUpdate == null)
+                    byte[] imgData = imgData = miniMapImage.imageData;
+                    for (int i = 0; i < infoPool.playerInfo.Length; i++)
                     {
-                        continue; // don't have any position data
-                    }
-                    if ((DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalSeconds > miniMapOutdatedDrawTime)
-                    {
-                        continue; // data too old (probably bc out of sight)
-                    }
-                    if(infoPool.playerInfo[i].lastClientInfoUpdate == null)
-                    {
-                        continue; // don't have any client info.
-                    }
-                    x = -infoPool.playerInfo[i].position.X;
-                    y = infoPool.playerInfo[i].position.Y;
-                    imageX = Math.Clamp((int)( (x - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
-                    imageY = Math.Clamp((int)((y - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
-                    byteOffset = imageY * stride + imageX * 3;
-                    if(infoPool.playerInfo[i].team == Team.Red)
-                    {
-                        byteOffset += 2; // red pixel. blue is just 0.
-                    } else if (infoPool.playerInfo[i].team != Team.Blue)
-                    {
-                        byteOffset += 1; // Just make it green then, not sure what it is.
-                    }
+                        if(infoPool.playerInfo[i].lastFullPositionUpdate == null)
+                        {
+                            continue; // don't have any position data
+                        }
+                        if ((DateTime.Now - infoPool.playerInfo[i].lastFullPositionUpdate.Value).TotalSeconds > miniMapOutdatedDrawTime)
+                        {
+                            continue; // data too old (probably bc out of sight)
+                        }
+                        if(infoPool.playerInfo[i].lastClientInfoUpdate == null)
+                        {
+                            continue; // don't have any client info.
+                        }
+                        x = -infoPool.playerInfo[i].position.X;
+                        y = infoPool.playerInfo[i].position.Y;
+                        //dirX = -infoPool.playerInfo[i].velocity.X;
+                        //dirY = infoPool.playerInfo[i].velocity.Y;
+                        Connection.AngleVectors(infoPool.playerInfo[i].angles, out forward, out right, out up);
+                        forward *= 100 * MiniMapVelocityScale;
+                        dirX = -forward.X;
+                        dirY = forward.Y;
+                        imageX = Math.Clamp((int)( (x - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
+                        imageY = Math.Clamp((int)((y - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
+                        imageXEnd = Math.Clamp((int)( (x + (dirX*MiniMapVelocityScale) - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
+                        imageYEnd = Math.Clamp((int)((y + (dirY* MiniMapVelocityScale) - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
 
-                    miniMapImage.imageData[byteOffset] = 255;
+                        if (infoPool.playerInfo[i].team == Team.Red)
+                        {
+                            color[0] = 128;
+                            color[1] = 128;
+                            color[2] = 255;
+                        }
+                        else if (infoPool.playerInfo[i].team == Team.Blue)
+                        {
+                            color[0] = 255;
+                            color[1] = 128;
+                            color[2] = 128;
+                        }
+                        else if (infoPool.playerInfo[i].team == Team.Spectator)
+                        {
+                            color[0] = 128;
+                            color[1] = 255;
+                            color[2] = 255;
+                        }
+                        else
+                        {
+                            color[0] = 0;
+                            color[1] = 255;
+                            color[2] = 0;
+                        }
+
+
+                        xFrom = Math.Min(imageX, imageXEnd);
+                        xTo = Math.Max(imageX, imageXEnd);
+                        yFrom = Math.Min(imageY, imageYEnd);
+                        yTo = Math.Max(imageY, imageYEnd);
+                        xPixRange = xTo - xFrom;
+                        yPixRange = yTo - yFrom;
+                        yState = 0;
+                        pixY = yFrom;
+                        XYRatio = xTo == xFrom ? 1.0f : Math.Abs((float)yPixRange / (float)xPixRange); // the ?: is just to avoid division by zero
+                        yStep = Math.Sign(imageXEnd-imageX) * Math.Sign(imageYEnd-imageY);
+                        yStep = yStep == 0 ? 1 : yStep;
+                        yStart = yStep < 0 ? yTo : yFrom;
+                        for (int pixX = xFrom; pixX <= xTo; pixX++ )
+                        {
+                            if (pixX == xTo)
+                            {
+                                while (yState <= yPixRange)
+                                {
+                                    pixY = yStart + yStep*yState;
+                                    imgData[pixY * stride + pixX * 3] = Math.Max(imgData[pixY * stride + pixX * 3], color[0]);
+                                    imgData[pixY * stride + pixX * 3 + 1] = Math.Max(imgData[pixY * stride + pixX * 3 + 1], color[1]);
+                                    imgData[pixY * stride + pixX * 3 + 2] = Math.Max(imgData[pixY * stride + pixX * 3 + 2], color[2]);
+                                    yState++;
+                                }
+                            } else if(yState < yPixRange && pixX > xFrom)
+                            {
+                                while (((float)yState / (float)(pixX - xFrom)) < XYRatio && yState <= yPixRange)
+                                {
+                                    pixY = yStart + yStep * yState;
+                                    imgData[pixY * stride + pixX * 3] = Math.Max(imgData[pixY * stride + pixX * 3], color[0]);
+                                    imgData[pixY * stride + pixX * 3 + 1] = Math.Max(imgData[pixY * stride + pixX * 3 + 1], color[1]);
+                                    imgData[pixY * stride + pixX * 3 + 2] = Math.Max(imgData[pixY * stride + pixX * 3 + 2], color[2]);
+                                    yState++;
+                                }
+                            }
+                            if(yState <= yPixRange)
+                            {
+                                pixY = yStart + yStep * yState;
+                                imgData[pixY * stride + pixX * 3] = Math.Max(imgData[pixY * stride + pixX * 3], color[0]);
+                                imgData[pixY * stride + pixX * 3 + 1] = Math.Max(imgData[pixY * stride + pixX * 3 + 1], color[1]);
+                                imgData[pixY * stride + pixX * 3 + 2] = Math.Max(imgData[pixY * stride + pixX * 3 + 2], color[2]);
+                            }
+                        }
+
+                        /*byteOffset = imageY * stride + imageX * 3;
+                        if(infoPool.playerInfo[i].team == Team.Red)
+                        {
+                            byteOffset += 2; // red pixel. blue is just 0.
+                        } else if (infoPool.playerInfo[i].team != Team.Blue)
+                        {
+                            byteOffset += 1; // Just make it green then, not sure what it is.
+                        }
+
+                        miniMapImage.imageData[byteOffset] = 255;*/
+
+
+                    }
                 }
 
-                
+
                 //statsImageBitmap.RotateFlip(RotateFlipType.Rotate270FlipNone);
                 Dispatcher.Invoke(()=> {
                     Bitmap miniMapImageBitmap = Helpers.ByteArrayToBitmap(miniMapImage);
@@ -2338,6 +2443,11 @@ namespace JKWatcher
             {
                 this.addToLog("Quick command value was null, wtf.", true);
             }
+        }
+
+        private void minimapVelocityScaleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            MiniMapVelocityScale = (float)minimapVelocityScaleSlider.Value;
         }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)

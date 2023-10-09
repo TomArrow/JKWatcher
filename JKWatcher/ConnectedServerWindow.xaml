@@ -303,7 +303,10 @@
         </DockPanel>
         <StackPanel Grid.Column="3" Grid.Row="2">
 
-            <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="False">Draw Minimap</CheckBox>
+            <WrapPanel>
+                <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="False">Draw Minimap</CheckBox>
+                <Slider Width="50" Minimum="1.0" Maximum="10.0" x:Name="minimapVelocityScaleSlider" ValueChanged="minimapVelocityScaleSlider_ValueChanged" Value="1.0"></Slider>
+            </WrapPanel>
             <Label>Password</Label><TextBox x:Name="passwordTxt"></TextBox>
             <WrapPanel>
                 <Button x:Name="btnSetPassword" Click="btnSetPassword_Click">Set</Button>
