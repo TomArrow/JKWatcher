@@ -77,7 +77,7 @@ namespace JKWatcher
                 else if (!loaded && !loading && loadable)
                 {
                     loading = true;
-                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    TaskManager.TaskRun(Load,$"BotRouteManager PathFinder Loader ({mapname})"); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
                     return null;
                 } else if(loaded && wayPoints != null)
                 {
@@ -105,7 +105,7 @@ namespace JKWatcher
                 else if (!loaded && !loading && loadable)
                 {
                     loading = true;
-                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    TaskManager.TaskRun(Load, $"BotRouteManager PathFinder Loader ({mapname})"); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
                     return null;
                 } else if(loaded && wayPoints != null)
                 {
@@ -153,7 +153,7 @@ namespace JKWatcher
                 else if (!loaded && !loading && loadable)
                 {
                     loading = true;
-                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    TaskManager.TaskRun(Load, $"BotRouteManager PathFinder Loader ({mapname})"); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
                     return null;
                 } else if(loaded && paths != null && wayPoints != null)
                 {
@@ -199,7 +199,7 @@ namespace JKWatcher
                 else if (!loaded && !loading && loadable)
                 {
                     loading = true;
-                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    TaskManager.TaskRun(Load, $"BotRouteManager PathFinder Loader ({mapname})"); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
                     return null;
                 } else if(loaded && paths != null && wayPoints != null)
                 {
@@ -265,7 +265,7 @@ namespace JKWatcher
                 else if (!loaded && !loading && loadable)
                 {
                     loading = true;
-                    Task.Run(Load); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
+                    TaskManager.TaskRun(Load, $"BotRouteManager PathFinder Loader ({mapname})"); // We don't wanna stop here while we load the data. Perfectly fine to return null until we have the data.
                 }
             }
         }

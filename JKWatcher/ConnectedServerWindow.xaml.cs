@@ -530,16 +530,16 @@ namespace JKWatcher
 
             var tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { miniMapUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { miniMapUpdater(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
                 addToLog(t.Exception.ToString(), true);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted),$"Minimap Updater ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { scoreBoardRequester(ct); }, ct, TaskCreationOptions.LongRunning,TaskScheduler.Default).ContinueWith((t) => {
                 addToLog(t.Exception.ToString(),true);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted), $"Scoreboard Requester ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
 
             startLogStringUpdater();
@@ -853,7 +853,7 @@ namespace JKWatcher
         {
             var tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { logStringUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 //addToLog(t.Exception.ToString(),true);
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
                 Helpers.logToFile(dequeuedStrings.ToArray());
@@ -863,7 +863,7 @@ namespace JKWatcher
                 stringsToForceWriteToLogFile.Clear();
                 stringsToWriteToMentionLog.Clear();
                 startLogStringUpdater();
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted), $"Log String Updater ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
         }
 
@@ -871,10 +871,10 @@ namespace JKWatcher
         {
             var tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { eventNotifier(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { eventNotifier(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 addToLog(t.Exception.ToString(), true);
                 //startEventNotifierUpdater();
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted), $"Event Notifier ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
         }
 
@@ -1256,6 +1256,7 @@ namespace JKWatcher
                                     {
                                         using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
                                         {
+                                            browser.InternalTaskStarted += Browser_InternalTaskStarted;
                                             browser.Start(async (JKClientException ex) => {
                                                 this.addToLog("Exception trying to get ServerInfo for calendar event: " + ex.ToString());
                                             });
@@ -1288,6 +1289,7 @@ namespace JKWatcher
                                             }
 
                                             browser.Stop();
+                                            browser.InternalTaskStarted -= Browser_InternalTaskStarted;
                                         }
                                     } else
                                     {
@@ -1343,6 +1345,10 @@ namespace JKWatcher
             
         }
 
+        private void Browser_InternalTaskStarted(object sender, in Task task, string description)
+        {
+            TaskManager.RegisterTask(task,$"ServerBrowser: {description}");
+        }
 
         private (string,string) humanReadableFutureDateTime(DateTime now, DateTime then)
         {

@@ -144,6 +144,22 @@
                     </DockPanel>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="Task Manager">
+                <DockPanel>
+
+                    <WrapPanel DockPanel.Dock="Bottom" Height="20" DataContext="{Binding ElementName=taskManagerList,Path=SelectedItem}">
+                    </WrapPanel>
+                    <DockPanel DockPanel.Dock="Top">
+                        <WrapPanel DockPanel.Dock="Top">
+                            <Button x:Name="taskManagerRefreshBtn" Click="taskManagerRefreshBtn_Click">Load/refresh list</Button>
+                        </WrapPanel>
+                        <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="taskManagerList" AutoGenerateColumns="True" SelectionChanged="delayedConnectsList_SelectionChanged">
+                        
+
+                        </DataGrid>
+                    </DockPanel>
+                </DockPanel>
+            </TabItem>
         </TabControl>
         
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">

@@ -37,12 +37,12 @@ namespace JKWatcher
             {
                 if (!isRunning)
                 {
-                    Task.Factory.StartNew(() => { Run(); }, TaskCreationOptions.LongRunning).ContinueWith((t) => {
+                    TaskManager.RegisterTask(Task.Factory.StartNew(() => { Run(); }, TaskCreationOptions.LongRunning).ContinueWith((t) => {
                         lock (isRunningMutex)
                         {
                             isRunning = false;
                         }
-                    });
+                    }),$"PakDownloader ({pakUrl},{hash})");
                     isRunning = true;
                 } else
                 {

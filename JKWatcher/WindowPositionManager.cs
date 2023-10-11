@@ -82,11 +82,12 @@ namespace JKWatcher
         {
             backgroundThreadTask = Task.Factory.StartNew(() => { backgroundThread(); }, backgroundThreadCancelToken, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
-                Task.Run(()=> {
+                TaskManager.TaskRun(()=> {
                     System.Threading.Thread.Sleep(30000);
                     SpawnBackgroundThread();
-                });
+                },"WindowPositionManager Background Thread Task Restarter");
             }, TaskContinuationOptions.OnlyOnFaulted);
+            TaskManager.RegisterTask(backgroundThreadTask,$"WindowPositionManager Background Thread Task");
         }
 
         static void backgroundThread()

@@ -330,7 +330,7 @@ namespace JKWatcher
             serverWindow = serverWindowA;
             //userInfoName = userInfoNameA;
             password = passwordA;
-            leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod); // Assuming default sv_floodcontrol 3, but will be adjusted once known
+            leakyBucketRequester = new LeakyBucketRequester<string, RequestCategory>(3, floodProtectPeriod, serverWindow.ServerName, addressA.ToString()); // Assuming default sv_floodcontrol 3, but will be adjusted once known
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
@@ -602,9 +602,9 @@ namespace JKWatcher
         {
             var tokenSource = new CancellationTokenSource();
             var ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { periodicReconnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { periodicReconnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                serverWindow.addToLog(t.Exception.ToString(), true);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted), $"Periodic reconnecter ({serverWindow.netAddress},{serverWindow.ServerName})");
             backgroundTasks.Add(tokenSource);
         }
 
@@ -756,6 +756,8 @@ namespace JKWatcher
                 }
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 disconnect();
+                leakyBucketRequester.Stop();
+                leakyBucketRequester = null;
             }
         }
 
@@ -871,7 +873,7 @@ namespace JKWatcher
                 //Task connectTask = client.Connect(ip, protocol);
                 Task connectTask = client.Connect(ip);
                 bool didConnect = false;
-                await Task.Run(()=> {
+                await TaskManager.TaskRun(()=> {
                     try
                     {
 
@@ -881,7 +883,7 @@ namespace JKWatcher
                         // Who cares.
                         didConnect = false;
                     }
-                });
+                },$"Connection Connecter ({ip},{serverWindow.ServerName})");
                 if (!didConnect)
                 {
                     Status = client.Status;
@@ -922,7 +924,7 @@ namespace JKWatcher
             {
                 ConfigStringMismatch info = (ConfigStringMismatch)e;
                 serverWindow.addToLog($"DEBUG: Config string mismatch: \"{info.intendedString}\" became \"{info.actualString}\"",true);
-                Task.Run(()=> {
+                TaskManager.TaskRun(()=> {
                     MemoryStream ms = new MemoryStream();
                     ms.Write(Encoding.UTF8.GetBytes($"{info.intendedString}\n{info.actualString}\n"));
                     if(info.oldGsStringData != null)
@@ -936,7 +938,7 @@ namespace JKWatcher
                         ms.Write(Encoding.UTF8.GetBytes($"\n"));
                     }
                     Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
-                });
+                },$"Configstring Mismatch Logger ({ip},{serverWindow.ServerName})");
             } else if(e is NetDebug)
             {
                 NetDebug nb = (NetDebug)e;
@@ -2733,7 +2735,7 @@ namespace JKWatcher
                 string lastKnownPakChecksumsCaptured = lastKnownPakChecksums;
                 if(mvHttpDownloadInfo == null || mvHttpDownloadInfo.Value.httpIsAvailable){
                     serverWindow.addToLog("Systeminfo: Referenced paks changed, trying to save to download list.");
-                    Task.Run(async () => {
+                    TaskManager.TaskRun(async () => {
                         string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ");
                         string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ");
                         if(pakNames.Length != pakChecksums.Length)
@@ -2751,6 +2753,7 @@ namespace JKWatcher
                             // Let's get server info packet.
                             using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(obj.Protocol)) { ForceStatus = true })
                             {
+                                browser.InternalTaskStarted += Browser_InternalTaskStarted;
                                 browser.Start(async (JKClientException ex)=> {
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes: "+ex.ToString());
                                 });
@@ -2792,6 +2795,7 @@ namespace JKWatcher
                                 mvHttpDownloadInfo = tmpDLInfo;
 
                                 browser.Stop();
+                                browser.InternalTaskStarted -= Browser_InternalTaskStarted;
                             }
                         }
 
@@ -2823,7 +2827,7 @@ namespace JKWatcher
                         }
 
 
-                    });
+                    }, $"Pak HTTP Downloader ({ip},{serverWindow.ServerName})");
                 } else
                 {
                     serverWindow.addToLog("Systeminfo: Referenced paks changed, but http downloads are disabled.");
@@ -3024,6 +3028,11 @@ namespace JKWatcher
             snapsEnforcementUpdate();
         }
 
+        private void Browser_InternalTaskStarted(object sender, in Task task, string description)
+        {
+            TaskManager.RegisterTask(task, $"ServerBrowser: {description}");
+        }
+
         public void disconnect()
         {
             // In very very rare cases (some bug?) a weird disconnect can happen
@@ -3104,19 +3113,22 @@ namespace JKWatcher
                     }
                     break;
                 case "droperror": // MOH servers sometimes send this with optionally a reason
-                    if (commandEventArgs.Command.Argc > 1 && (commandEventArgs.Command.Argv(1)?.Contains("kicked", StringComparison.OrdinalIgnoreCase) == true || commandEventArgs.Command.Argv(1)?.Contains("banned", StringComparison.OrdinalIgnoreCase) == true))
+                    if (commandEventArgs.Command.Argc > 1)
                     {
-
-                        // We have been kicked. Take note.
+                        // We're not sure if this was kick, but if it was, add this to kick log?
                         lock(kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
-                        LastTimeProbablyKicked = DateTime.Now;
 
-                        int validClientCount = 0;
-                        foreach (PlayerInfo pi in infoPool.playerInfo)
+                        if((commandEventArgs.Command.Argv(1)?.Contains("kicked", StringComparison.OrdinalIgnoreCase) == true || commandEventArgs.Command.Argv(1)?.Contains("banned", StringComparison.OrdinalIgnoreCase) == true))
                         {
-                            if (pi.infoValid) validClientCount++;
+                            // We have been kicked. Take note.
+                            LastTimeProbablyKicked = DateTime.Now;
+                            int validClientCount = 0;
+                            foreach (PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                if (pi.infoValid) validClientCount++;
+                            }
+                            serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
                         }
-                        serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
                     }
                     lastDropError = DateTime.Now; // MOH, connection was dropped serverside. This precedes possible kick messages which we wanna check for.
                     break;

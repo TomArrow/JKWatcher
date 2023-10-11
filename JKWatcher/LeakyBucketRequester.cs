@@ -145,16 +145,16 @@ namespace JKWatcher
         private CancellationTokenSource cts = null;
         private TaskCompletionSource<bool> loopEnded;
 
-        public LeakyBucketRequester(int burstA, int periodA)
+        public LeakyBucketRequester(int burstA, int periodA, string hostName = null, string ip = null)
         {
             burst = burstA;
             period = periodA;
 
             loopEnded = new TaskCompletionSource<bool>();
             cts = new CancellationTokenSource();
-            Task.Factory.StartNew(()=> { this.Run(cts.Token); }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t)=> {
+            TaskManager.RegisterTask(Task.Factory.StartNew(async ()=> { await this.Run(cts.Token); }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t)=> {
                 loopEnded.TrySetResult(true);
-            });
+            }), $"LeakyBucketRequester Loop ({hostName},{ip})");
         }
 
         public void changeParameters(int burstA, int periodA)
@@ -162,6 +162,9 @@ namespace JKWatcher
             burst = burstA;
             period = periodA;
         }
+
+        private object destroyLock = new object();
+        private bool isDestroyed = false;
 
         ~LeakyBucketRequester()
         {
@@ -172,15 +175,22 @@ namespace JKWatcher
 
         public void Stop()
         {
-            cts.Cancel();
-            loopEnded.Task.Wait();
-            sleepInterrupter.CancelAll();
-            //sleepInterruptor.Cancel();
-            //CancellationTokenSource tmpCts = sleepInterruptor;
-            //sleepInterruptor = new CancellationTokenSource();
-            //tmpCts.Dispose();
-            cts.Dispose(); 
-            cts = null;
+            lock (destroyLock)
+            {
+                if (!isDestroyed)
+                {
+                    cts.Cancel();
+                    loopEnded.Task.Wait();
+                    sleepInterrupter.CancelAll();
+                    //sleepInterruptor.Cancel();
+                    //CancellationTokenSource tmpCts = sleepInterruptor;
+                    //sleepInterruptor = new CancellationTokenSource();
+                    //tmpCts.Dispose();
+                    cts.Dispose();
+                    cts = null;
+                    isDestroyed = true;
+                }
+            }
         }
 
         //CancellationTokenSource sleepInterruptor = new CancellationTokenSource();
@@ -189,7 +199,7 @@ namespace JKWatcher
         const int defaultTimeOut = 1100;
         const int safetyPadding = 10;
 
-        private async void Run(CancellationToken ct)
+        private async Task Run(CancellationToken ct)
         {
             int soonestPredictedEvent = defaultTimeOut;
             while (true)

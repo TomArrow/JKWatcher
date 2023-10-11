@@ -125,16 +125,16 @@ namespace JKWatcher
 
             CancellationTokenSource tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { ctfAutoConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { ctfAutoConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted),"CTF Auto Connecter");
             backgroundTasks.Add(tokenSource);
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
-            Task.Factory.StartNew(() => { fastDelayedConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { fastDelayedConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
-            }, TaskContinuationOptions.OnlyOnFaulted);
+            }, TaskContinuationOptions.OnlyOnFaulted),"Fast Delayed Connecter");
             backgroundTasks.Add(tokenSource);
 
             //Timeline.DesiredFrameRateProperty.OverrideMetadata(
@@ -331,15 +331,17 @@ namespace JKWatcher
                         serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus = true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
                     }
 
+                    serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+
                     try
                     {
-
                         serverBrowser.Start(ExceptionCallback);
                         servers = await serverBrowser.GetNewList();
                         //servers = await serverBrowser.RefreshList();
                     }
                     catch (Exception e)
                     {
+                        serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                         // Just in case getting servers crashes or sth.
                         continue;
                     }
@@ -504,10 +506,16 @@ namespace JKWatcher
                     }
                     saveServerStats(baselineFilteredServers);
                     serverBrowser.Stop();
+                    serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                     serverBrowser.Dispose();
 
                 }
             }
+        }
+
+        private void ServerBrowser_InternalTaskStarted(object sender, in Task task, string description)
+        {
+            TaskManager.RegisterTask(task, $"ServerBrowser: {description}");
         }
 
         class DelayConnecterData
@@ -525,6 +533,9 @@ namespace JKWatcher
 
             ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true));
             ServerBrowser serverBrowserMOH = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true));
+
+            serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+            serverBrowserMOH.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
 
             try
             {
@@ -746,6 +757,8 @@ namespace JKWatcher
                 serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions)) { ForceStatus = true };
             }
 
+            serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+
             try
             {
 
@@ -754,6 +767,7 @@ namespace JKWatcher
                 //servers = await serverBrowser.RefreshList();
             } catch(Exception e)
             {
+                serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                 // Just in case getting servers crashes or sth.
                 return;
             }
@@ -780,6 +794,7 @@ namespace JKWatcher
 
 
             serverBrowser.Stop();
+            serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
             serverBrowser.Dispose();
             serverListDataGrid.ItemsSource = filteredServers;
             if(filteredServers.Count == 0)
@@ -1320,7 +1335,7 @@ namespace JKWatcher
                             if(delayHere > 0)
                             {
                                 bool localAutoRecord = serverToConnect.autoRecord;
-                                Task.Run(()=> { 
+                                TaskManager.TaskRun(()=> { 
                                     System.Threading.Thread.Sleep(delayHere);
                                     Dispatcher.Invoke(()=> {
                                         watcherCreate();
@@ -1329,7 +1344,7 @@ namespace JKWatcher
                                             newWindow.recordAll();
                                         }
                                     });
-                                });
+                                },$"Delayed Connecter Delayed Watcher Spawner ({camera},{serverInfo.HostName},{serverToConnect.sectionName},{serverInfo.Address})");
                             }
                             else
                             {
@@ -1447,7 +1462,7 @@ namespace JKWatcher
             {
                 int tries = 0;
 
-                Task.Run(async () => {
+                TaskManager.TaskRun(async () => {
 
                     while (serversToConnect.Count > 0)
                     {
@@ -1491,6 +1506,8 @@ namespace JKWatcher
                             serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L, ForceStatus = true }; 
                         }
 
+                        serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+
                         try
                         {
 
@@ -1501,6 +1518,7 @@ namespace JKWatcher
                         catch (Exception e)
                         {
                             // Just in case getting servers crashes or sth.
+                            serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                             continue;
                         }
 
@@ -1558,6 +1576,7 @@ namespace JKWatcher
 
                         saveServerStats(servers);
                         serverBrowser.Stop();
+                        serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                         serverBrowser.Dispose();
 
                         tries++;
@@ -1565,7 +1584,7 @@ namespace JKWatcher
                     executionInProgress = false;
 
 
-                });
+                },$"Config Executer"); // TODO Config name in task name
             }
         }
 
@@ -1662,6 +1681,7 @@ namespace JKWatcher
 
                         using (ServerBrowser browser = new ServerBrowser(bHandler))
                         {
+                            browser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
                             browser.Start(async (JKClientException ex) => {
                                 errorString = ("Exception trying to get ServerInfo for forced connect: " + ex.ToString());
                             });
@@ -1691,6 +1711,7 @@ namespace JKWatcher
                             }
 
                             browser.Stop();
+                            browser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                         }
                     }
                     catch (Exception ex)
@@ -1707,5 +1728,9 @@ namespace JKWatcher
             }
         }
 
+        private void taskManagerRefreshBtn_Click(object sender, RoutedEventArgs e)
+        {
+            taskManagerList.ItemsSource = TaskManager.GetRunningTasks();
+        }
     }
 }

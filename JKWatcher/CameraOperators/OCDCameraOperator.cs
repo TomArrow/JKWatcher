@@ -38,11 +38,12 @@ namespace JKWatcher.CameraOperators
             backgroundTask = Task.Factory.StartNew(() => { Run(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 HasErrored = true;
                 OnErrored(new ErroredEventArgs(t.Exception));
-                Task.Run(() => {
+                TaskManager.TaskRun(() => {
                     Thread.Sleep(5000);
                     startBackground(); // Try to recover.
-                });
+                }, $"OCDCameraOperator Background Restarter ({serverWindow.ServerName},{serverWindow.netAddress})");
             }, TaskContinuationOptions.OnlyOnFaulted);
+            TaskManager.RegisterTask(backgroundTask, $"OCDCameraOperator Loop ({serverWindow.ServerName},{serverWindow.netAddress})");
         }
 
         ~OCDCameraOperator()
