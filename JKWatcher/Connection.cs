@@ -757,7 +757,7 @@ namespace JKWatcher
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 disconnect();
                 leakyBucketRequester.Stop();
-                leakyBucketRequester = null;
+                //leakyBucketRequester = null;
             }
         }
 
@@ -861,6 +861,7 @@ namespace JKWatcher
             client.Disconnected += Client_Disconnected;
             client.UserCommandGenerated += Client_UserCommandGenerated;
             client.DebugEventHappened += Client_DebugEventHappened;
+            client.InternalTaskStarted += Client_InternalTaskStarted;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -916,6 +917,11 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void Client_InternalTaskStarted(object sender, in Task task, string description)
+        {
+            TaskManager.RegisterTask(task, $"JKClient (Connection {serverWindow.netAddress}, {serverWindow.ServerName}): {description}");
         }
 
         private void Client_DebugEventHappened(object sender, object e)
@@ -2637,7 +2643,7 @@ namespace JKWatcher
 
             serverFPS = obj.FPS;
 
-            serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
+            serverWindow.serverMaxClientsLimit = serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
 
             if (mohMode && (newGameState || obj.GameName != oldGameName || obj.MapName != oldMapName))
             {
@@ -2765,6 +2771,8 @@ namespace JKWatcher
                                 }
                                 catch (Exception e)
                                 {
+                                    browser.Stop();
+                                    browser.InternalTaskStarted -= Browser_InternalTaskStarted;
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes (during await): " + e.ToString());
                                     return;
                                 }
@@ -3030,7 +3038,7 @@ namespace JKWatcher
 
         private void Browser_InternalTaskStarted(object sender, in Task task, string description)
         {
-            TaskManager.RegisterTask(task, $"ServerBrowser: {description}");
+            TaskManager.RegisterTask(task, $"ServerBrowser (Connection {serverWindow.netAddress}, {serverWindow.ServerName}): {description}");
         }
 
         public void disconnect()
@@ -3070,6 +3078,7 @@ namespace JKWatcher
             client.EntityEvent -= Client_EntityEvent;
             client.UserCommandGenerated -= Client_UserCommandGenerated;
             client.DebugEventHappened -= Client_DebugEventHappened;
+            client.InternalTaskStarted -= Client_InternalTaskStarted;
             clientStatistics = null;
         }
 

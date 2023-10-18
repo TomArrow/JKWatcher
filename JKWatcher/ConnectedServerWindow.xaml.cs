@@ -461,6 +461,8 @@ namespace JKWatcher
         private string chatCommandTeam = "say_team";
 
 
+        public int serverMaxClientsLimit = 0;
+
         public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {
             bool connectionOptionsWereProvided = true;
@@ -1347,7 +1349,7 @@ namespace JKWatcher
 
         private void Browser_InternalTaskStarted(object sender, in Task task, string description)
         {
-            TaskManager.RegisterTask(task,$"ServerBrowser: {description}");
+            TaskManager.RegisterTask(task,$"ServerBrowser (ConnectedServerWindow {netAddress}, {ServerName}): {description}");
         }
 
         private (string,string) humanReadableFutureDateTime(DateTime now, DateTime then)
@@ -1682,6 +1684,10 @@ namespace JKWatcher
                         if(infoPool.playerInfo[i].lastClientInfoUpdate == null)
                         {
                             continue; // don't have any client info.
+                        }
+                        if(mohMode && i >= serverMaxClientsLimit)
+                        {
+                            continue;
                         }
                         x = -infoPool.playerInfo[i].position.X;
                         y = infoPool.playerInfo[i].position.Y;

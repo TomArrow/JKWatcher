@@ -515,7 +515,7 @@ namespace JKWatcher
 
         private void ServerBrowser_InternalTaskStarted(object sender, in Task task, string description)
         {
-            TaskManager.RegisterTask(task, $"ServerBrowser: {description}");
+            TaskManager.RegisterTask(task, $"ServerBrowser (MainWindow): {description}");
         }
 
         class DelayConnecterData
