@@ -1029,6 +1029,7 @@ namespace JKWatcher
             public string quickCommands { get; init; } = null;
             public string conditionalCommands { get; init; } = null;
             public string disconnectTriggers { get; init; } = null;
+            public string demoMeta { get; init; } = null;
             public int gameTypes { get; init; } = 0;
             public bool attachClientNumToName { get; init; } = true;
             public bool demoTimeColorNames { get; init; } = true;
@@ -1086,6 +1087,7 @@ namespace JKWatcher
                 mapChangeCommands = config["mapChangeCommands"]?.Trim();
                 quickCommands = config["quickCommands"]?.Trim();
                 conditionalCommands = config["conditionalCommands"]?.Trim();
+                demoMeta = config["demoMeta"]?.Trim();
                 disconnectTriggers = config["disconnectTriggers"]?.Trim();
                 autoRecord = config["autoRecord"]?.Trim().Atoi()>0;
                 mohProtocol = config["mohProtocol"]?.Trim().Atoi()>0;
@@ -1288,7 +1290,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;

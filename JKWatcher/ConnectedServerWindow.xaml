@@ -174,10 +174,23 @@
                 </TabItem>
                 <TabItem Header="Advanced Settings">
                     <StackPanel x:Name="advancedSettingsControls">
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"></ColumnDefinition>
+                                <ColumnDefinition></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <Label>Quick commands (show above log), separate with ";":</Label>
+                                <TextBox Text="{Binding quickCommands,Mode=TwoWay}"></TextBox>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <Label ToolTip="key-value pairs like: key1:value1,key2:value2">Extra demo metadata:</Label>
+                                <TextBox Text="{Binding extraDemoMeta,Mode=TwoWay}"></TextBox>
+                            </StackPanel>
+                        </Grid>
                         <Label ToolTip="'wait' command is in milliseconds, not frames, and does not block, just sets the delay for a command.">Commands on map change, separate with ";", "wait" command is in milliseconds:</Label>
                         <TextBox Text="{Binding mapChangeCommands,Mode=TwoWay}"></TextBox>
-                        <Label>Quick commands (show above log), separate with ";":</Label>
-                        <TextBox Text="{Binding quickCommands,Mode=TwoWay}"></TextBox>
                         <Label ToolTip="Available: gameTypeNotCTF, kicked, playercount_under:10:60000 (example for the latter)">Disconnect triggers (separate with ,):</Label>
                         <TextBox Text="{Binding disconnectTriggers,Mode=TwoWay}"></TextBox>
                         <Label>

@@ -225,6 +225,21 @@ namespace JKWatcher
                     }
                 } 
             }
+            private string _extraDemoMeta = null;
+            public string extraDemoMeta { 
+                get {
+                    return _extraDemoMeta;
+                }
+                set { 
+                    if(value != _extraDemoMeta)
+                    {
+                        _extraDemoMeta = value;
+                        parseExtraDemoMeta();
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("extraDemoMeta"));
+                        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs("extraDemoMetaParsed"));
+                    }
+                } 
+            }
             public bool conditionalCommandsContainErrors { get; set; } = false;
             private void parseConditionalCommmands()
             {
@@ -289,6 +304,33 @@ namespace JKWatcher
                 get
                 {
                     lock (_conditionalCommandsParsed) return _conditionalCommandsParsed.ToArray();
+                }
+            }
+            private void parseExtraDemoMeta()
+            {
+                lock (_extraDemoMetaParsed)
+                {
+                    _extraDemoMetaParsed.Clear();
+                    string[] extraDemoMetaSplit = _extraDemoMeta?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (extraDemoMetaSplit != null)
+                    {
+                        foreach (string dmRaw in extraDemoMetaSplit)
+                        {
+                            string[] parts = dmRaw.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            if(parts.Length == 2)
+                            {
+                                _extraDemoMetaParsed[parts[0]] = parts[1];
+                            } // else who cares
+                        }
+                    }
+                }
+            }
+            private Dictionary<string,string> _extraDemoMetaParsed = new Dictionary<string, string>();
+            public Dictionary<string, string> extraDemoMetaParsed
+            {
+                get
+                {
+                    lock (_extraDemoMetaParsed) return new Dictionary<string, string>(_extraDemoMetaParsed);
                 }
             }
 

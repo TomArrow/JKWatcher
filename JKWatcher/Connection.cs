@@ -807,6 +807,9 @@ namespace JKWatcher
             }
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
             client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine }; // Todo make more flexible
+
+            client.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
+
             //client.Name = "Padawan";
             client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
             if (jkaMode) // TODO Detect mods and proceed accordingly
@@ -3095,7 +3098,7 @@ namespace JKWatcher
             switch (command)
             {
                 case "disconnect":
-                    if(LastTimeProbablyKicked.HasValue && (DateTime.Now-LastTimeProbablyKicked.Value).TotalMilliseconds < 2000)
+                    if(LastTimeProbablyKicked.HasValue && (DateTime.Now-LastTimeProbablyKicked.Value).TotalMilliseconds < 5000)
                     {
                         LastTimeConfirmedKicked = DateTime.Now;
                         serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
@@ -4261,6 +4264,7 @@ namespace JKWatcher
 
         public async void startDemoRecord(int iterator=0)
         {
+            client.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
             shouldBeRecordingADemo = true;
             if(client.Status != ConnectionStatus.Active)
             {
