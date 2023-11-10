@@ -1095,7 +1095,7 @@ namespace JKWatcher
                 retries = (config["retries"]?.Trim().Atoi()).GetValueOrDefault(5);
                 delayPerWatcher = (config["delayPerWatcher"]?.Trim().Atoi()).GetValueOrDefault(0);
                 dailyChance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
-                chance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
+                chance = (config["chance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();

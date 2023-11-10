@@ -1420,11 +1420,24 @@ namespace JKWatcher
                         if (reframeRequested)
                         {
                             string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
-                            demoCutCommand.Append("DemoReframer ");
-                            demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
-                            demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
-                            demoCutCommand.Append(reframeClientNum);
-                            demoCutCommand.Append("\n");
+                            
+                            if(this.CameraOperator is CameraOperators.StrobeCameraOperator)
+                            {
+                                // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
+                                demoCutCommand.Append("DemoMerger ");
+                                demoCutCommand.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
+                                demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
+                                demoCutCommand.Append($" -r{reframeClientNum} -p -s"); // -p option for persisting other entities. -s option for skipping dead frames of main player. Not great still, but better than a normal reframe.
+                                demoCutCommand.Append("\n");
+                            } else
+                            {
+
+                                demoCutCommand.Append("DemoReframer ");
+                                demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
+                                demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
+                                demoCutCommand.Append(reframeClientNum);
+                                demoCutCommand.Append("\n");
+                            }
                         }
 
                         Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
