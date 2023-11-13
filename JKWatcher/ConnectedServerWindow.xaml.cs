@@ -1640,12 +1640,15 @@ namespace JKWatcher
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
 
-                foreach (Connection connection in connections)
+                lock (connectionsCameraOperatorsMutex)
                 {
-                    if(connection.client?.Status == ConnectionStatus.Active)
+                    foreach (Connection connection in connections)
                     {
-                        //connection.client.ExecuteCommand("score");
-                        connection.leakyBucketRequester.requestExecution("score",RequestCategory.SCOREBOARD,0,2000,LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        if (connection.client?.Status == ConnectionStatus.Active)
+                        {
+                            //connection.client.ExecuteCommand("score");
+                            connection.leakyBucketRequester.requestExecution("score", RequestCategory.SCOREBOARD, 0, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                        }
                     }
                 }
             }
@@ -1908,17 +1911,18 @@ namespace JKWatcher
         {
             List<Connection> retVal = new List<Connection>();
 
-            foreach(Connection connection in connections)
+            // TODO: Put lock (connectionsCameraOperatorsMutex) here?            
+            foreach (Connection connection in connections)
             {
-                if(connection.CameraOperator == null && !connection.GhostPeer)
+                if (connection.CameraOperator == null && !connection.GhostPeer)
                 {
                     retVal.Add(connection);
-                    if(retVal.Count == count)
+                    if (retVal.Count == count)
                     {
                         break;
                     }
                 }
-            }
+            }            
 
             while(retVal.Count < count)
             {
@@ -1935,6 +1939,11 @@ namespace JKWatcher
             }
 
             return retVal.ToArray();
+        }
+        
+        public Connection[] getAllConnections()
+        {
+            lock (connectionsCameraOperatorsMutex)  return this.connections.ToArray();
         }
 
         private void Con_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -1974,6 +1983,7 @@ namespace JKWatcher
 
                 //if (connections.Count == 0) return; // doesnt really matter.
 
+                // TOdo put lock (connectionsCameraOperatorsMutex) here?
                 foreach (CameraOperator op in cameraOperators)
                 {
                     lock (connectionsCameraOperatorsMutex)

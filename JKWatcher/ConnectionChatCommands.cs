@@ -228,6 +228,14 @@ namespace JKWatcher
             customSillyModeCommands = customCommandDataString.Split(new char[] { '\n', '\r', ' ', ',' },StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
+        struct ConnectionDemoState
+        {
+            public string demoName;
+            public int demoTime;
+            public int myClientNum;
+            public bool isStrobeOperator;
+        }
+
         void EvaluateChat(CommandEventArgs commandEventArgs)
         {
             try
@@ -1345,13 +1353,30 @@ namespace JKWatcher
                     }
 
                     //int demoTime = (client?.DemoCurrentTime).GetValueOrDefault(0);
-                    int demoTime = (client?.DemoCurrentTimeApproximate).GetValueOrDefault(0);
+                    //int demoTime = (client?.DemoCurrentTimeApproximate).GetValueOrDefault(0);
 
                     string rateLimited = "";
                     string asClientNum = reframeClientNum != pm.playerNum ? $"(as {reframeClientNum})" : "";
                     string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
+                    int cutDemosCount = 0;
+                    List<int> demoCutsTimes = new List<int>();
                     if (markRequested)
                     {
+                        List<ConnectionDemoState> demoStates = new List<ConnectionDemoState>();
+                        Connection[] allConns = serverWindow.getAllConnections();
+                        Connection firstActiveConnection = null;
+                        foreach(Connection oneConn in allConns)
+                        {
+                            if(firstActiveConnection == null && oneConn.client?.Status == ConnectionStatus.Active) firstActiveConnection = oneConn; 
+                            ConnectionDemoState demoState = new ConnectionDemoState() { demoName = oneConn.client?.AbsoluteDemoName, demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0), myClientNum=(oneConn.client?.clientNum).GetValueOrDefault(-1),isStrobeOperator=(oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) };
+                            if (demoState.demoName != null && demoState.demoTime != 0) // Even if it's truly 0, what could someone possibly get out of a mark when the demo recording literally just started?
+                            {
+                                demoStates.Add(demoState);
+                            }
+                        }
+
+                        if (firstActiveConnection == null || this != firstActiveConnection) return; // We only want to process demo requests from the first connection in the array that is active and connected, to deduplicate. we don't wanna use the mainchatconnection thing just for safety, in case the main chat connection happens to not be properly connected for whatever reason, cuz then it would never receive this demo request and mark would be totally lost.
+
                         ServerInfo thisServerInfo = client?.ServerInfo;
                         if (thisServerInfo == null)
                         {
@@ -1389,55 +1414,89 @@ namespace JKWatcher
                         }
                         demoRateLimiters[pm.playerNum].lastRequest = DateTime.Now;
 
+
                         demoCutCommand.Append($"# demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past {rateLimited}\n");
+                        
                         string demoNoteStringFilenamePart = "";
                         if (demoNoteString != null)
                         {
                             demoCutCommand.Append($"# demo note: {demoNoteString}\n");
                             demoNoteStringFilenamePart = $"_{demoNoteString}";
                         }
-                        demoCutCommand.Append("DemoCutter ");
-                        string demoPath = client?.AbsoluteDemoName;
-                        if (demoPath == null)
-                        {
-                            return;
-                        }
-                        string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath);
-                        demoCutCommand.Append($"\"{relativeDemoPath}\" ");
-                        string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{myClientNum}{demoNoteStringFilenamePart}";
-                        if (filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
-                        {
-                            filename = filename.Substring(0, 150);
-                        }
-                        filename = Helpers.MakeValidFileName(filename);
-                        filename = Helpers.DemoCuttersanitizeFilename(filename, false);
-                        demoCutCommand.Append($"\"{filename}\" ");
-                        demoCutCommand.Append(Math.Max(0, demoTime - markMinutes * 60000).ToString());
-                        demoCutCommand.Append(" ");
-                        demoCutCommand.Append((demoTime + 60000).ToString());
-                        demoCutCommand.Append("\n");
 
-                        if (reframeRequested)
+                        List<Tuple<string,int>> cutDemoNames = new List<Tuple<string, int>>();
+
+                        foreach(ConnectionDemoState demoState in demoStates) 
+                        {
+                            cutDemosCount++;
+                            demoCutsTimes.Add(demoState.demoTime);
+                            demoCutCommand.Append("DemoCutter ");
+                            string demoPath = demoState.demoName;// client?.AbsoluteDemoName;
+                            if (demoPath == null)
+                            {
+                                return;
+                            }
+                            string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath);
+                            demoCutCommand.Append($"\"{relativeDemoPath}\" ");
+                            string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{demoState.myClientNum}{demoNoteStringFilenamePart}";
+                            if (filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
+                            {
+                                filename = filename.Substring(0, 150);
+                            }
+                            filename = Helpers.MakeValidFileName(filename);
+                            filename = Helpers.DemoCuttersanitizeFilename(filename, false);
+                            demoCutCommand.Append($"\"{filename}\" ");
+                            demoCutCommand.Append(Math.Max(0, demoState.demoTime - markMinutes * 60000).ToString());
+                            demoCutCommand.Append(" ");
+                            demoCutCommand.Append((demoState.demoTime + 60000).ToString());
+                            demoCutCommand.Append("\n");
+
+                            if (reframeRequested)
+                            {
+                                string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
+
+                                cutDemoNames.Add(new Tuple<string,int>( filename, demoState.myClientNum));
+
+                                if (demoState.isStrobeOperator
+                                    /*this.CameraOperator is CameraOperators.StrobeCameraOperator*/)
+                                {
+                                    // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
+                                    demoCutCommand.Append("DemoMerger ");
+                                    demoCutCommand.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
+                                    demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
+                                    demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                                    demoCutCommand.Append("\n");
+                                } else
+                                {
+
+                                    demoCutCommand.Append("DemoReframer ");
+                                    demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
+                                    demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
+                                    demoCutCommand.Append(reframeClientNum);
+                                    demoCutCommand.Append("\n");
+                                }
+                            }
+                        }
+
+                        if (reframeRequested && cutDemoNames.Count > 1) // Make a merged demo out of all with the reframed angle :)
                         {
                             string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
-                            
-                            if(this.CameraOperator is CameraOperators.StrobeCameraOperator)
-                            {
-                                // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
-                                demoCutCommand.Append("DemoMerger ");
-                                demoCutCommand.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
-                                demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
-                                demoCutCommand.Append($" -r{reframeClientNum} -p -s"); // -p option for persisting other entities. -s option for skipping dead frames of main player. Not great still, but better than a normal reframe.
-                                demoCutCommand.Append("\n");
-                            } else
-                            {
 
-                                demoCutCommand.Append("DemoReframer ");
-                                demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
-                                demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
-                                demoCutCommand.Append(reframeClientNum);
-                                demoCutCommand.Append("\n");
+                            StringBuilder numbersString = new StringBuilder();
+                            foreach(Tuple<string,int> cutDemoName in cutDemoNames)
+                            {
+                                numbersString.Append($"_{cutDemoName.Item2}");
                             }
+
+                            string filenameGeneric = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}{numbersString.ToString()}{demoNoteStringFilenamePart}";
+                            demoCutCommand.Append("DemoMerger ");
+                            demoCutCommand.Append($"\"{filenameGeneric}_reframedMERGE{reframeClientNum}{demoExtension}\" ");
+                            foreach (Tuple<string, int> cutDemoName in cutDemoNames)
+                            {
+                                demoCutCommand.Append($"\"{cutDemoName.Item1}{demoExtension}\" ");
+                            }
+                            demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                            demoCutCommand.Append("\n");
                         }
 
                         Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
@@ -1446,9 +1505,14 @@ namespace JKWatcher
                     {
                         return;
                     }
-                    if (!_connectionOptions.silentMode)
+                    if (!_connectionOptions.silentMode && cutDemosCount > 1)
                     {
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {demoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        string currentDemoTime = demoCutsTimes.Count > 0 ? string.Join(",", demoCutsTimes) : "UNKNOWN WTF";
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe} from {cutDemosCount} demos, {markMinutes} min into past. Times {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                    } else if (!_connectionOptions.silentMode && cutDemosCount > 0)
+                    {
+                        string currentDemoTime = demoCutsTimes.Count > 0 ? demoCutsTimes[0].ToString() : "UNKNOWN WTF";
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                     }
                     serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past {rateLimited}\n");
                     return;
