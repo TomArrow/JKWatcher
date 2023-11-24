@@ -104,6 +104,53 @@ namespace JKWatcher
         }
     }
 
+    public class VisiblePlayersTracker
+    {
+        object dataLock = new object();
+        const int averageTotal = 500;
+        //byte[] sampleBuffer = new byte[averageTotal];
+        //Int64 sampleBufferIndex = 0;
+        double visiblePlayersSum = 0;
+        int sampleCount = 0;
+        float visiblePlayersAvg = -1;
+        public float VisiblePlayersAvg
+        {
+            get
+            {
+                return visiblePlayersAvg;
+            }
+        }
+        byte visiblePlayers = 0;
+        public byte VisiblePlayers
+        {
+            get
+            {
+                return visiblePlayers;
+            }
+            set
+            {
+                lock (dataLock) { 
+                    visiblePlayers = value;
+                    visiblePlayersSum += value;
+                    sampleCount++;  
+                    if(sampleCount >= averageTotal)
+                    { // Store average and reset
+                        visiblePlayersAvg = (float)(visiblePlayersSum / (double)sampleCount);
+                        sampleCount = 0;
+                        visiblePlayersSum = 0;
+                    }
+                }
+            }
+        }
+        public string VisiblePlayersString
+        {
+            get
+            {
+                return $"{visiblePlayers}/{visiblePlayersAvg}";
+            }
+        }
+    }
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
@@ -151,6 +198,7 @@ namespace JKWatcher
         {
             chatCommandTrackingStuff = new ChatCommandTrackingStuff();
         }
+        public VisiblePlayersTracker VisiblePlayers { get; init; } = new VisiblePlayersTracker(); // For vis check debug?
 
         #region score
         public PlayerScore score { get; set; } = new PlayerScore();

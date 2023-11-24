@@ -31,7 +31,9 @@ namespace JKWatcher
 		NONE,
 		SILLY,
 		DBS,
+		BLUBS,
 		GRIPKICKDBS,
+		GRIPKICKBLUBS,
 		LOVER,
 		CUSTOM,
 		ABSORBSPEED,
@@ -369,6 +371,7 @@ namespace JKWatcher
 				return;
 			}
 
+			bool gripkickMode = sillyMode == SillyMode.GRIPKICKDBS || sillyMode == SillyMode.GRIPKICKBLUBS;
 			bool bsModeActive = sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEEDRAGEBS; // Use BS instead of dbs
 			bool speedRageModeActive = infoPool.gripDbsModeOneOf(GripKickDBSMode.SPEEDRAGE, GripKickDBSMode.SPEEDRAGEBS);
 
@@ -679,6 +682,7 @@ namespace JKWatcher
 
 			int genCmdSaberAttackCycle = jkaMode ? 26 : 20;
 			int bsLSMove = jkaMode ? 12 : 12;
+			int blubsLSMove = jkaMode ? 11 : 11; // Double check jka value?
 			int dbsLSMove = jkaMode ? 13 : 13;
 			int parryLower = jkaMode ? 152 : 108;
 			int parryUpper = jkaMode ? 156 : 112;
@@ -749,7 +753,7 @@ namespace JKWatcher
 			//float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
 			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
 
-			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove;
+			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove || lastPlayerState.SaberMove == blubsLSMove;
 			bool amInParry = lastPlayerState.SaberMove >= parryLower && lastPlayerState.SaberMove <= parryUpper;
 
 			bool gripForcePitchUp = false;
@@ -1008,7 +1012,7 @@ namespace JKWatcher
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
-			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && ((lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1) || (infoPool.fastDbs && lastFrameWasJumpCommand)) )
+			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS,SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && ((lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1) || (infoPool.fastDbs && lastFrameWasJumpCommand)) )
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
@@ -1017,16 +1021,16 @@ namespace JKWatcher
 			{
 				forceKick = true;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
+			else if (gripkickMode && gripPossible)
 			{
 				moveVector = viewHeightMoveVector;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && pullPossible && closestDistance < 400 && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
+			else if (gripkickMode && pullPossible && closestDistance < 400 && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
 			{
 				doPull = true;
 				//moveVector = closestPlayer.position - myself.position;
 			}
-			else if (sillyMode == SillyMode.GRIPKICKDBS && grippingSomebody)
+			else if (gripkickMode && grippingSomebody)
 			{
 				// This has a few stages. First we need to look up until the person is above us. Then we need to look down until he stands on our head.
 				if(vecToClosestPlayer2D.Length() >= 15 || closestPlayer.position.Z < (myself.position.Z+myMax+hisMin-1.0f)) // -1.0f to give some leniency to floating point precision?
@@ -1110,7 +1114,7 @@ namespace JKWatcher
                 }
             }
 
-			if((DateTime.Now- lastSaberAttackCycleSent).TotalMilliseconds > 1000 && this.saberDrawAnimLevel != 3 && this.saberDrawAnimLevel != -1 && myself.curWeapon == infoPool.saberWeaponNum)
+			if((DateTime.Now- lastSaberAttackCycleSent).TotalMilliseconds > 1000 && this.saberDrawAnimLevel != (infoPool.sillyModeOneOf(SillyMode.BLUBS,SillyMode.GRIPKICKBLUBS) ? 1 : 3) && this.saberDrawAnimLevel != -1 && myself.curWeapon == infoPool.saberWeaponNum)
             {
 				userCmd.GenericCmd = (byte)genCmdSaberAttackCycle;
             }
@@ -1211,7 +1215,7 @@ namespace JKWatcher
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
-			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS,SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED))
+			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS, SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED))
             {
 
                 if (!amStrafing)
@@ -1285,13 +1289,13 @@ namespace JKWatcher
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 						}
-					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForcePitchUp) // Look up
+					} else if (gripkickMode && gripForcePitchUp) // Look up
 					{
 						userCmd.ForwardMove = 0;
 						amGripping = true;
 						userCmd.Upmove = -128; // Crouch
 						pitchAngle = -89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
-					} else if (sillyMode == SillyMode.GRIPKICKDBS && gripForcePitchDown) // Look down
+					} else if (gripkickMode && gripForcePitchDown) // Look down
 					{
 						userCmd.ForwardMove = 0;
 						amGripping = true;
@@ -1308,7 +1312,7 @@ namespace JKWatcher
 							userCmd.Upmove = -128; // Crouch
 						}
 						amGripping = false;
-					} else if (sillyMode == SillyMode.GRIPKICKDBS && releaseGrip) // Release him and then we can dbs
+					} else if (gripkickMode && releaseGrip) // Release him and then we can dbs
 					{
 						userCmd.ForwardMove = 127;
                         if (sillyAttack) // On off quickly
@@ -1323,7 +1327,7 @@ namespace JKWatcher
 						userCmd.Upmove = -128;
 						amGripping = false;
 					}
-					else if(sillyMode == SillyMode.GRIPKICKDBS && gripPossible)
+					else if(gripkickMode && gripPossible)
 					{
 						personImTryingToGrip = closestPlayer.clientNum;
 
@@ -1355,7 +1359,7 @@ namespace JKWatcher
 							amGripping = true;
 						}
 
-					} else if(sillyMode == SillyMode.GRIPKICKDBS && doPull)
+					} else if(gripkickMode && doPull)
 					{
 						personImTryingToGrip = closestPlayer.clientNum;
 						amGripping = false;
@@ -1368,22 +1372,30 @@ namespace JKWatcher
 				}
 				else if(amCurrentlyDbsing) 
 				{
-					float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
-					float maxRotationPerMillisecond = 160.0f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
-					float maxVertRotationPerMillisecond = 3.5f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
-					float thisCommandDuration = userCmd.ServerTime - lastUserCmdTime;
-					float rotationBy = thisCommandDuration * maxRotationPerMillisecond + dbsLastRotationOffset;
-					float vertRotationBy = thisCommandDuration * maxVertRotationPerMillisecond + dbsLastVertRotationOffset;
+					if(infoPool.sillyModeOneOf(SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS))
+                    {
+						// Blue bs we just aim back
+						yawAngle += 180;
+						//pitchAngle -= 180; // Eh..
+						pitchAngle += (-angles.X) - angles.X; // Reverse the angle? Not sure if logically consistent. Wanna aim at the person
+					} else { 
+						float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
+						float maxRotationPerMillisecond = 160.0f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
+						float maxVertRotationPerMillisecond = 3.5f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
+						float thisCommandDuration = userCmd.ServerTime - lastUserCmdTime;
+						float rotationBy = thisCommandDuration * maxRotationPerMillisecond + dbsLastRotationOffset;
+						float vertRotationBy = thisCommandDuration * maxVertRotationPerMillisecond + dbsLastVertRotationOffset;
 
-					vertRotationBy = vertRotationBy % 20.0f; // just a +- 10 overall
+						vertRotationBy = vertRotationBy % 20.0f; // just a +- 10 overall
 
-					yawAngle += rotationBy;
-					pitchAngle += vertRotationBy - 10.0f + 50.0f; // +50 to look more down
+						yawAngle += rotationBy;
+						pitchAngle += vertRotationBy - 10.0f + 50.0f; // +50 to look more down
 
-					//pitchAngle = Math.Clamp(pitchAngle, -89 -this.delta_angles.X, 89 - this.delta_angles.X);
+						//pitchAngle = Math.Clamp(pitchAngle, -89 -this.delta_angles.X, 89 - this.delta_angles.X);
 
-					dbsLastRotationOffset = rotationBy;
-					dbsLastVertRotationOffset = vertRotationBy;
+						dbsLastRotationOffset = rotationBy;
+						dbsLastVertRotationOffset = vertRotationBy;
+					}
 					amGripping = false;
 				} else
 				{
@@ -1465,7 +1477,7 @@ namespace JKWatcher
 				}
 			}
 			// Conservative speed usage.
-			else if ((sillyMode == SillyMode.GRIPKICKDBS && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
+			else if ((gripkickMode && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
             {
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
@@ -1493,7 +1505,7 @@ namespace JKWatcher
 				}
 			}
 			// Hardcore rage+speed mode.
-			else if(sillyMode == SillyMode.GRIPKICKDBS && speedRageModeActive)
+			else if(gripkickMode && speedRageModeActive)
             {
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{

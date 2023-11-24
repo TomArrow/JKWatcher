@@ -812,12 +812,12 @@ namespace JKWatcher
                                 ChatCommandAnswer(pm, "Available modes: silly, dbs, grip, speed, speedrage, speedragebs, lover, custom,", true, true, true);
                                 if (_connectionOptions.allowWayPointBotmode)
                                 {
-                                    ChatCommandAnswer(pm, "waypoints, speedabsorb, assassin", true, true, true);
+                                    ChatCommandAnswer(pm, "bluebs, gripbluebs, waypoints, speedabsorb, assassin", true, true, true);
                                 } else
                                 {
-                                    ChatCommandAnswer(pm, "speedabsorb, assassin", true, true, true);
+                                    ChatCommandAnswer(pm, "bluebs, gripbluebs, speedabsorb, assassin", true, true, true);
                                 }
-                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin", "waypoints" }).Contains(stringParams[1].ToLower()))
+                            } else if (stringParams.Count < 2 || !(new string[] { "silly", "grip", "dbs", "speed", "speedrage", "speedragebs", "lover", "custom", "speedabsorb", "assassin", "waypoints", "bluebs", "gripbluebs" }).Contains(stringParams[1].ToLower()))
                             {
                                 ChatCommandAnswer(pm, $"Unknown mode {stringParams[1]}", true, true, true);
                             }
@@ -846,6 +846,9 @@ namespace JKWatcher
                                         break;
                                     case "dbs":
                                         infoPool.sillyMode = SillyMode.DBS;
+                                        break;
+                                    case "bluebs":
+                                        infoPool.sillyMode = SillyMode.BLUBS;
                                         break;
                                     case "waypoints":
                                     case "walkwaypoints":
@@ -885,6 +888,10 @@ namespace JKWatcher
                                         break;
                                     case "grip":
                                         infoPool.sillyMode = SillyMode.GRIPKICKDBS;
+                                        infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
+                                        break;
+                                    case "gripbluebs":
+                                        infoPool.sillyMode = SillyMode.GRIPKICKBLUBS;
                                         infoPool.gripDbsMode = GripKickDBSMode.VANILLA;
                                         break;
                                     case "speed":

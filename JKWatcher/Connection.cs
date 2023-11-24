@@ -1801,6 +1801,8 @@ namespace JKWatcher
 
             bool teamChangesDetected = false;
 
+            int visibleOtherPlayers = 0;
+
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
@@ -2044,6 +2046,9 @@ namespace JKWatcher
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
                     }
+
+                    visibleOtherPlayers++;
+
                 } else
                 {
                     //if(((DateTime.Now-infoPool.playerInfo[i].lastFullPositionUpdate)?.TotalMilliseconds).GetValueOrDefault(5000) > 200)
@@ -2081,6 +2086,8 @@ namespace JKWatcher
                     infoPool.playerInfo[i].chatCommandTrackingStuff.falls++;
                 }
             }
+
+            infoPool.playerInfo[snap.PlayerState.ClientNum].VisiblePlayers.VisiblePlayers = (byte)visibleOtherPlayers;
 
             if (mohMode && oldSpectatedPlayer != SpectatedPlayer) // Since we have to derive this from entity positions in MOH, we have to do the check here.
             {
@@ -3107,9 +3114,18 @@ namespace JKWatcher
 
                             lock (kickInfo)
                             {
+                                int validClientCount = 0;
+                                foreach (PlayerInfo pi in infoPool.playerInfo)
+                                {
+                                    if (pi.infoValid) validClientCount++;
+                                }
+                                string status = $"Status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).";
+
+
                                 List<string> kickDebugInfo = new List<string>();
                                 kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                                 kickDebugInfo.Add(serverWindow.Title);
+                                kickDebugInfo.Add(status);
                                 kickDebugInfo.AddRange(kickInfo);
                                 kickDebugInfo.Add("\n");
                                 Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
@@ -3499,7 +3515,7 @@ namespace JKWatcher
 
                 } else if ( mohMode && /*lastDropError.HasValue &&(DateTime.Now- lastDropError.Value).TotalMilliseconds < 2000  &&*/ ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).Length >= (2+(tmpInt=infoPool.playerInfo[ClientNum.Value].name.Length)) && 
                     (commandEventArgs.Command.Argv(1).Substring(0, tmpInt).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase) ||
-                    commandEventArgs.Command.Argv(1).Substring(1, tmpInt + 1).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
+                    commandEventArgs.Command.Argv(1).Substring(1, tmpInt).Equals(infoPool.playerInfo[ClientNum.Value].name, StringComparison.OrdinalIgnoreCase)) && 
                     (commandEventArgs.Command.Argv(1).Substring(tmpInt).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase) ||
                     commandEventArgs.Command.Argv(1).Substring(tmpInt + 1).StartsWith(" was kicked", StringComparison.OrdinalIgnoreCase)||
                     commandEventArgs.Command.Argv(1).Substring(tmpInt + 1).StartsWith(" has been kicked", StringComparison.OrdinalIgnoreCase)||
@@ -4139,6 +4155,8 @@ namespace JKWatcher
                 }
             }
 
+            bool anyRetCounts = false;
+
             for (i = 0; i < readScores; i++)
             {
                 //
@@ -4165,7 +4183,7 @@ namespace JKWatcher
 
                     if (infoPool.playerInfo[clientNum].score.impressiveCount > 0)
                     {
-                        infoPool.serverSeemsToSupportRetsCountScoreboard = true;
+                        anyRetCounts = true;
                     }
 
                     infoPool.playerInfo[clientNum].score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
@@ -4246,6 +4264,9 @@ namespace JKWatcher
 
 
             }
+
+            infoPool.serverSeemsToSupportRetsCountScoreboard = anyRetCounts; // I had it before in such a way that it would only turn on but not off, but I think it can cause issues (when scoreboard gets parsed wrong or when server sends some other random impressivecount?). Just do it dynamically?
+
             if (!anyNonBotPlayerActive && anyPlayersActive)
             {
                 infoPool.lastBotOnlyConfirmed = DateTime.Now;
