@@ -504,6 +504,7 @@ namespace JKWatcher
 
 
         public int serverMaxClientsLimit = 0;
+        public int serverPrivateClientsSetting = 0;
 
         public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {

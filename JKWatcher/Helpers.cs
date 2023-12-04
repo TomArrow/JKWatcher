@@ -387,7 +387,7 @@ namespace JKWatcher
                     lastDot = output;
                 }
                 if ((*input == 32) // Don't allow ! exclamation mark. Linux doesn't like that.
-                    || (*input >= 34 && *input < 42)
+                    || (*input >= 35 && *input < 42)
                     || (*input >= 43 && *input < 46)
                     || (*input >= 48 && *input < 58)
                     || (*input >= 59 && *input < 60)

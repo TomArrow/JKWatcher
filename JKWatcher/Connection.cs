@@ -2641,6 +2641,7 @@ namespace JKWatcher
         }
 
         int serverMaxClientsLimit = 0;
+        int serverPrivateClientsSetting = 0;
         ClientInfo[] oldClientInfo = new ClientInfo[64];
 
         int serverFPS = 0;
@@ -2654,6 +2655,10 @@ namespace JKWatcher
             serverFPS = obj.FPS;
 
             serverWindow.serverMaxClientsLimit = serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
+            if (obj.PrivateClients.HasValue)
+            {
+                serverWindow.serverPrivateClientsSetting = serverPrivateClientsSetting = obj.PrivateClients.GetValueOrDefault(0);
+            }
 
             if (mohMode && (newGameState || obj.GameName != oldGameName || obj.MapName != oldMapName))
             {
@@ -3115,11 +3120,19 @@ namespace JKWatcher
                             lock (kickInfo)
                             {
                                 int validClientCount = 0;
+                                int privateClientCount = 0;
                                 foreach (PlayerInfo pi in infoPool.playerInfo)
                                 {
-                                    if (pi.infoValid) validClientCount++;
+                                    if (pi.infoValid)
+                                    {
+                                        if (pi.clientNum < serverPrivateClientsSetting)
+                                        {
+                                            privateClientCount++;
+                                        }
+                                        validClientCount++;
+                                    }
                                 }
-                                string status = $"Status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).";
+                                string status = $"Status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).";
 
 
                                 List<string> kickDebugInfo = new List<string>();
@@ -3151,11 +3164,19 @@ namespace JKWatcher
                             // We have been kicked. Take note.
                             LastTimeProbablyKicked = DateTime.Now;
                             int validClientCount = 0;
+                            int privateClientCount = 0;
                             foreach (PlayerInfo pi in infoPool.playerInfo)
                             {
-                                if (pi.infoValid) validClientCount++;
+                                if (pi.infoValid)
+                                {
+                                    if (pi.clientNum < serverPrivateClientsSetting)
+                                    {
+                                        privateClientCount++;
+                                    }
+                                    validClientCount++;
+                                }
                             }
-                            serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
+                            serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).");
                         }
                     }
                     lastDropError = DateTime.Now; // MOH, connection was dropped serverside. This precedes possible kick messages which we wanna check for.
@@ -3528,23 +3549,38 @@ namespace JKWatcher
                     // We have been kicked. Take note.
                     lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
-                    int validClientCount = 0;
+                    int validClientCount = 0; 
+                    int privateClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)
                     {
-                        if (pi.infoValid) validClientCount++;
+                        if (pi.infoValid)
+                        {
+                            if (pi.clientNum < serverPrivateClientsSetting)
+                            {
+                                privateClientCount++;
+                            }
+                            validClientCount++;
+                        }
                     }
-                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).");
                 } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
                     lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
+                    int privateClientCount = 0;
                     foreach (PlayerInfo pi in infoPool.playerInfo)
                     {
-                        if (pi.infoValid) validClientCount++;
+                        if (pi.infoValid) {
+                            if (pi.clientNum < serverPrivateClientsSetting)
+                            {
+                                privateClientCount++;
+                            }
+                            validClientCount++; 
+                        }
                     }
-                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit).");
+                    serverWindow.addToLog($"KICK DETECTION: Seems we were kicked (status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).");
                 }/* else if ( mohMode && commandEventArgs.Command.Argv(1).Length > disconnectedString.Length 
                     && commandEventArgs.Command.Argv(1).Substring(commandEventArgs.Command.Argv(1).Length- disconnectedString.Length).Equals(disconnectedString,StringComparison.OrdinalIgnoreCase)
                     )

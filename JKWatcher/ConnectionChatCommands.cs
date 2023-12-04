@@ -943,6 +943,7 @@ namespace JKWatcher
                         case "!botsay":
                         case "!botsaycalm":
                             if (!weHandleFightBotCommands && !amNotInSpec) return; // Bots that are ingame should always respond.
+                            if (pm.playerNum == myClientNum) return; // Avoid long loops lol.
                             if (demoNoteString == null)
                             {
                                 ChatCommandAnswer(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
@@ -1382,7 +1383,10 @@ namespace JKWatcher
                             }
                         }
 
-                        if (firstActiveConnection == null || this != firstActiveConnection) return; // We only want to process demo requests from the first connection in the array that is active and connected, to deduplicate. we don't wanna use the mainchatconnection thing just for safety, in case the main chat connection happens to not be properly connected for whatever reason, cuz then it would never receive this demo request and mark would be totally lost.
+                        // We only want to process demo requests from the first connection in the array that is active and connected, to deduplicate.
+                        // we don't wanna use the mainchatconnection thing just for safety, in case the main chat connection happens to not be properly connected for whatever reason, cuz then it would never receive this demo request and mark would be totally lost.
+                        // Exception for needing this to be the main connection: It's a private message. Then just process it whenever.
+                        if (pm.type != ChatType.PRIVATE && ( firstActiveConnection == null || this != firstActiveConnection)) return; 
 
                         ServerInfo thisServerInfo = client?.ServerInfo;
                         if (thisServerInfo == null)
@@ -1421,13 +1425,14 @@ namespace JKWatcher
                         }
                         demoRateLimiters[pm.playerNum].lastRequest = DateTime.Now;
 
-
-                        demoCutCommand.Append($"# demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past {rateLimited}\n");
+                        string safePlayerName = Helpers.DemoCuttersanitizeFilename(pm.playerName,false);
+                        demoCutCommand.Append($"# demo cut{withReframe} requested by \"{safePlayerName}\" (clientNum {pm.playerNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past {rateLimited}\n");
                         
                         string demoNoteStringFilenamePart = "";
                         if (demoNoteString != null)
                         {
-                            demoCutCommand.Append($"# demo note: {demoNoteString}\n");
+                            string demoNoteStringSafe = Helpers.DemoCuttersanitizeFilename(demoNoteString, false);
+                            demoCutCommand.Append($"# demo note: {demoNoteStringSafe}\n");
                             demoNoteStringFilenamePart = $"_{demoNoteString}";
                         }
 
@@ -1496,6 +1501,12 @@ namespace JKWatcher
                             }
 
                             string filenameGeneric = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}{numbersString.ToString()}{demoNoteStringFilenamePart}";
+                            filenameGeneric = Helpers.MakeValidFileName(filenameGeneric);
+                            filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false);
+                            if (filenameGeneric.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
+                            {
+                                filenameGeneric = filenameGeneric.Substring(0, 150);
+                            }
                             demoCutCommand.Append("DemoMerger ");
                             demoCutCommand.Append($"\"{filenameGeneric}_reframedMERGE{reframeClientNum}{demoExtension}\" ");
                             foreach (Tuple<string, int> cutDemoName in cutDemoNames)

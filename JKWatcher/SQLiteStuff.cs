@@ -26,6 +26,7 @@ namespace JKWatcher
 		public int Clients { get; set; }
 		public int ClientsIncludingBots { get; set; }
 		public int MaxClients { get; set; }
+		public int? PrivateClients { get; set; }
 		public int MinPing { get; set; }
 		public int MaxPing { get; set; }
 		public int FPS { get; set; }

@@ -23,6 +23,7 @@ using Salaros.Configuration;
 using System.Windows.Threading;
 using System.ComponentModel;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -229,6 +230,7 @@ namespace JKWatcher
 
         List<NetAddress> autoConnectRecentlyClosedBlockList = new List<NetAddress>(); // When we close a window, we don't wanna reconnect to it immediately (because the auto connecter might have requested the server info before we closed the window and thus think players are still on there, meaning our own connection that we just closed)
 
+        Regex ipv4Regex = new Regex(@"^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}(?<port>:\d+)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private async void ctfAutoConnecter(CancellationToken ct)
         {
             bool nextCheckFast = false;
@@ -461,10 +463,23 @@ namespace JKWatcher
                                             bool serverIsExcluded = false;
                                             foreach(string excludeString in ffaAutoJoinExcludeList)
                                             {
+                                                Match ipv4match;
                                                 if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     serverIsExcluded = true;
                                                     break;
+                                                } else if ((ipv4match = ipv4Regex.Match(excludeString)).Success)
+                                                {
+                                                    NetAddress addr = NetAddress.FromString(excludeString);
+                                                    if (!ipv4match.Groups["port"].Success)
+                                                    {
+                                                        addr = new NetAddress(addr.IP, serverInfo.Address.Port);
+                                                    }
+                                                    if(addr == serverInfo.Address)
+                                                    {
+                                                        serverIsExcluded = true;
+                                                        break;
+                                                    }
                                                 }
                                             }
                                             if (serverIsExcluded) continue; // Skip this one.
