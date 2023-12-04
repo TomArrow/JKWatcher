@@ -50,7 +50,12 @@
                         </WrapPanel>
                         <WrapPanel>
 
-                            <CheckBox x:Name="delayedConnecterActiveCheck" Padding="2" Margin="1" FontSize="10" ToolTip="" IsChecked="True">delayed connecter active</CheckBox>
+                            <CheckBox x:Name="delayedConnecterActiveCheck" Padding="2" Margin="1" FontSize="10" IsChecked="True" ToolTip="Delayed connecter active. Don't turn off unless you know what you're doing.">delay connect</CheckBox>
+                            <CheckBox x:Name="ffaAutoJoinKickableCheck" ToolTip="Let the FFA autoconnecter make the connection kickable">FFAkick</CheckBox>
+                            <Label  Padding="2" Margin="1" FontSize="10" ToolTip="kickReconnectDelay">re</Label>
+                            <TextBox x:Name="ffaAutoJoinKickReconnectDelayTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
+                                0
+                            </TextBox>
                         </WrapPanel>
                     </StackPanel>
                 </GroupBox>

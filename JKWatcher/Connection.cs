@@ -3149,7 +3149,7 @@ namespace JKWatcher
                         if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
                         {
                             serverWindow.addToLog("KICK DISCONNECT TRIGGER: Kick detected. Disconnecting.");
-                            serverWindow.requestClose();
+                            serverWindow.requestClose(true);
                         }
                     }
                     break;

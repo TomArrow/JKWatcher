@@ -30,6 +30,14 @@ General settings for this instance of JKWatcher. Keys, meaning and possible valu
 
 Comma-separated list of search strings for servers to exclude from ffa auto connect.
 
+#### ffaAutoConnectKickable
+
+0 or 1. When auto-connecting to FFA, allow ourselves to be kicked.
+
+#### ffaAutoConnectKickReconnectDelay
+
+Number of minutes to wait before FFA auto-connecting to a server again after being kicked
+
 #### autoJoinCheckInterval
 
 Interval (in minutes) in which to check for new servers for auto join/delayed connecter.

@@ -664,8 +664,18 @@ namespace JKWatcher
             }
         }
 
-        public void requestClose()
+        private object gotKickedLock = new object();
+        private bool gotKicked = false;
+
+        public void requestClose(bool kicked)
         {
+            if (kicked)
+            {
+                lock (gotKickedLock)
+                {
+                    kicked = true;
+                }
+            }
             Dispatcher.Invoke(() => {
                 this.Close();
             });
@@ -2009,7 +2019,13 @@ namespace JKWatcher
                 }
 
                 MainWindow.setServerLastDisconnectedNow(this.netAddress);
-
+                lock (gotKickedLock)
+                {
+                    if (gotKicked)
+                    {
+                        MainWindow.setServerLastKickedNow(this.netAddress);
+                    }
+                }
             }
         }
 

@@ -42,7 +42,9 @@ namespace JKWatcher
 
 
         static Dictionary<NetAddress,Tuple<DateTime,double>> lastTimeDisconnected = new Dictionary<NetAddress, Tuple<DateTime, double>>(new NetAddressComparer());
+        static Dictionary<NetAddress,Tuple<DateTime,double>> lastTimeKicked = new Dictionary<NetAddress, Tuple<DateTime, double>>(new NetAddressComparer());
         static Random timeFromDisconnectedTimeRangeModifierRandom = new Random();
+        static Random timeFromKickedTimeRangeModifierRandom = new Random();
 
         public static void setServerLastDisconnectedNow(NetAddress address)
         {
@@ -56,6 +58,18 @@ namespace JKWatcher
                 lastTimeDisconnected[address] = new Tuple<DateTime, double>(DateTime.Now, timeFromDisconnectedTimeRangeModifierRandom.NextDouble());
             }
         }
+        public static void setServerLastKickedNow(NetAddress address)
+        {
+            if (address == null)
+            {
+                // idk how it would happen but whatever
+                return;
+            }
+            lock (lastTimeKicked)
+            {
+                lastTimeKicked[address] = new Tuple<DateTime, double>(DateTime.Now, timeFromKickedTimeRangeModifierRandom.NextDouble());
+            }
+        }
         public static (DateTime?,double?) getServerLastDisconnected(NetAddress address)
         {
             if (address == null)
@@ -67,6 +81,23 @@ namespace JKWatcher
                 if (lastTimeDisconnected.ContainsKey(address))
                 {
                     return (lastTimeDisconnected[address].Item1, lastTimeDisconnected[address].Item2);
+                } else
+                {
+                    return (null, null);
+                }
+            }
+        }
+        public static (DateTime?,double?) getServerLastKicked(NetAddress address)
+        {
+            if (address == null)
+            {
+                return (null,null);
+            }
+            lock (lastTimeKicked)
+            {
+                if (lastTimeKicked.ContainsKey(address))
+                {
+                    return (lastTimeKicked[address].Item1, lastTimeKicked[address].Item2);
                 } else
                 {
                     return (null, null);
@@ -263,9 +294,11 @@ namespace JKWatcher
                 bool ctfAutoJoinWithStrobeActive = false;
                 bool ffaAutoJoinActive = false;
                 bool ffaAutoJoinSilentActive = false;
+                bool ffaAutoJoinKickable = false;
                 string ffaAutoJoinExclude = null;
                 int ctfMinPlayersForJoin = 4;
                 int ffaMinPlayersForJoin = 2;
+                int ffaKickReconnectDelay = 0;
                 bool jkaMode = false;
                 bool mohMode = false;
                 bool allJK2Versions = false;
@@ -275,6 +308,7 @@ namespace JKWatcher
                     ctfAutoJoinWithStrobeActive = ctfAutoJoinWithStrobe.IsChecked == true;
                     ffaAutoJoinActive = ffaAutoJoin.IsChecked == true;
                     ffaAutoJoinSilentActive = ffaAutoJoinSilent.IsChecked == true;
+                    ffaAutoJoinKickable = ffaAutoJoinKickableCheck.IsChecked == true;
                     ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
                     mohMode = mohModeCheck.IsChecked == true;
@@ -288,9 +322,35 @@ namespace JKWatcher
                     {
                         ffaMinPlayersForJoin = 4;
                     }
+                    if (!int.TryParse(ffaAutoJoinKickReconnectDelayTxt.Text, out ffaKickReconnectDelay))
+                    {
+                        ffaKickReconnectDelay = 0;
+                    }
                 });
 
                 string[] ffaAutoJoinExcludeList = ffaAutoJoinExclude == null ? null : ffaAutoJoinExclude.Split(",",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+
+                List<Tuple<NetAddress, bool>> ffaAutoJoinIPExludeList = new List<Tuple<NetAddress, bool>>(); // The bool is there to say whether port is specified.
+
+                if (ffaAutoJoinExcludeList != null)
+                {
+                    foreach (string excludeString in ffaAutoJoinExcludeList)
+                    {
+                        Match ipv4match;
+                        if ((ipv4match = ipv4Regex.Match(excludeString)).Success)
+                        {
+                            NetAddress addr = NetAddress.FromString(excludeString);
+                            if (!ipv4match.Groups["port"].Success)
+                            {
+                                ffaAutoJoinIPExludeList.Add(new Tuple<NetAddress, bool>(addr, false));
+                            } else {
+                                ffaAutoJoinIPExludeList.Add(new Tuple<NetAddress, bool>(addr, true));
+                            }
+                        }
+                    }
+                }
+
+
 
                 NetAddress[] manualServers = getManualServers();
                 List<NetAddress> hiddenServersAll = new List<NetAddress>();
@@ -463,12 +523,12 @@ namespace JKWatcher
                                             bool serverIsExcluded = false;
                                             foreach(string excludeString in ffaAutoJoinExcludeList)
                                             {
-                                                Match ipv4match;
+                                                //Match ipv4match;
                                                 if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     serverIsExcluded = true;
                                                     break;
-                                                } else if ((ipv4match = ipv4Regex.Match(excludeString)).Success)
+                                                } /*else if ((ipv4match = ipv4Regex.Match(excludeString)).Success)
                                                 {
                                                     NetAddress addr = NetAddress.FromString(excludeString);
                                                     if (!ipv4match.Groups["port"].Success)
@@ -480,9 +540,39 @@ namespace JKWatcher
                                                         serverIsExcluded = true;
                                                         break;
                                                     }
+                                                }*/
+                                            }
+                                            foreach(Tuple<NetAddress,bool> excludedIP in ffaAutoJoinIPExludeList)
+                                            {
+                                                if (excludedIP.Item2 && excludedIP.Item1 == serverInfo.Address)
+                                                {
+                                                    serverIsExcluded = true;
+                                                    break;
+                                                } else if (!excludedIP.Item2)
+                                                {
+                                                    NetAddress addr = new NetAddress(excludedIP.Item1.IP, serverInfo.Address.Port);
+                                                    if (addr == serverInfo.Address)
+                                                    {
+                                                        serverIsExcluded = true;
+                                                        break;
+                                                    }
                                                 }
                                             }
                                             if (serverIsExcluded) continue; // Skip this one.
+                                        }
+
+                                        // If we got kicked recently and we have an ffa kick reconnect delay configured,
+                                        // only connect if we are past the delay.
+                                        if(ffaKickReconnectDelay > 0)
+                                        {
+                                            (DateTime? time,_) = getServerLastKicked(serverInfo.Address);
+                                            if (time.HasValue)
+                                            {
+                                                if ((DateTime.Now-time.Value).TotalMinutes < ffaKickReconnectDelay)
+                                                {
+                                                    continue;
+                                                }
+                                            }
                                         }
 
                                         if (serverInfo.RealClients >= ffaMinPlayersForJoin && statusReceived && !serverInfo.NoBots)
@@ -492,7 +582,7 @@ namespace JKWatcher
 
                                                 lock (connectedServerWindows)
                                                 {
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive });
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked" : null });
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
@@ -1398,14 +1488,24 @@ namespace JKWatcher
             {
                 ffaAutoJoinSilent.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "ffaAutoConnectKickable", 0) == 1)
+            {
+                ffaAutoJoinKickableCheck.IsChecked = true;
+            }
             string ffaAutoConnectExclude = cp.GetValue("__general__", "ffaAutoConnectExclude", "");
-            if (ffaAutoConnectExclude != null)
+            if (!string.IsNullOrWhiteSpace(ffaAutoConnectExclude))
             {
                 ffaAutoConnectExclude = ffaAutoConnectExclude.Trim();
                 ffaAutoJoinExcludeTxt.Text = ffaAutoConnectExclude;
             }
+            string ffaAutoConnectKickReconnectDelay = cp.GetValue("__general__", "ffaAutoConnectKickReconnectDelay", "");
+            if (!string.IsNullOrWhiteSpace(ffaAutoConnectKickReconnectDelay))
+            {
+                ffaAutoConnectKickReconnectDelay = ffaAutoConnectKickReconnectDelay.Trim();
+                ffaAutoJoinKickReconnectDelayTxt.Text = ffaAutoConnectKickReconnectDelay;
+            }
             string autoJoinCheckInterval = cp.GetValue("__general__", "autoJoinCheckInterval", "");
-            if (autoJoinCheckInterval != null)
+            if (!string.IsNullOrWhiteSpace(autoJoinCheckInterval))
             {
                 autoJoinCheckInterval = autoJoinCheckInterval.Trim();
                 autoJoinCheckIntervalTxt.Text = autoJoinCheckInterval;
