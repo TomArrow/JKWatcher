@@ -101,14 +101,44 @@ namespace JKWatcher.CameraOperators
 
                 string priorityPlayer = this.GetOption("priorityPlayer") as string;
 
+                // TODO If we are not currently in ctf or if the player in question is in spec, just continue as usual instead of ending up doing nothing due to the return;
                 if(priorityPlayer == null)
                 {
                     priorityPlayerClientNum = -1; 
                 } else
                 {
-                    priorityPlayerClientNum = infoPool.FindClientNumFromString(priorityPlayer);
+                    priorityPlayerClientNum = infoPool.FindClientNumFromString(priorityPlayer, (1 << (int)Team.Red) | (1 << (int)Team.Blue));
                 }
                 priorityPlayerClientNumTeam = priorityPlayerClientNum >= 0 && priorityPlayerClientNum < infoPool.playerInfo.Length ? infoPool.playerInfo[priorityPlayerClientNum].team : (Team)(-1);
+
+                // If target player is in spec, don't count
+                if(priorityPlayerClientNumTeam == Team.Spectator)
+                {
+                    priorityPlayerClientNum = -1; 
+                    priorityPlayerClientNumTeam = (Team)(-1);
+                }
+
+                // If we aren't in any teamed mode like ctf (check based on if anyone is in blue/red), 
+                // don't do this. Shouldn't really happen anyway since FindClientNumFromString is instructed to only search Red/Blue teams
+                // But whatever.
+                if(priorityPlayerClientNumTeam == Team.Free)
+                {
+                    bool anyTeamedPlayers = false;
+                    // Check if anyone is on team red or blue at all
+                    foreach(PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if(pi.infoValid && (pi.team == Team.Blue || pi.team == Team.Red))
+                        {
+                            anyTeamedPlayers = true;
+                            break;
+                        }
+                    }
+                    if (!anyTeamedPlayers)
+                    {
+                        priorityPlayerClientNum = -1;
+                        priorityPlayerClientNumTeam = (Team)(-1);
+                    }
+                }
 
                 if(priorityPlayerClientNum != -1)
                 {

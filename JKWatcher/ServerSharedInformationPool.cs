@@ -539,7 +539,7 @@ namespace JKWatcher
 
         Regex numberRegex = new Regex(@"^\d+$",RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
 
-        public int FindClientNumFromString(string searchString, bool tryInterpretAsNumbers = false)
+        public int FindClientNumFromString(string searchString, int teamBitMask = ~(1<<(int)Team.Spectator), bool tryInterpretAsNumbers = false)
         {
             if (searchString == null) return -1;
             searchString = searchString.Trim();
@@ -566,7 +566,7 @@ namespace JKWatcher
 
             foreach (PlayerInfo pi in playerInfo)
             {
-                if (pi.infoValid)
+                if (pi.infoValid && ((1 << (int)pi.team) & teamBitMask)>0)
                 {
                     string compareLowerCaseName = pi.name.ToLower();
                     string compareNoColorName = Q3ColorFormatter.cleanupString(pi.name);
