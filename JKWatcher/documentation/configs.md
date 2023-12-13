@@ -143,6 +143,13 @@ Number of retries of connecting initially after executing the script. It's a lit
 #### watchers
 
 List of watchers to spawn, comma-separated. Options: ocd,ctf,strobe,ffa
+Optionally, you can attach extra options to watchers, example:
+ 
+```ctf{priorityPlayer:playername;otheroption:optionvalue2},strobe{otheroption2:optionvalue3}```
+
+Currently available options are:
+
+- ctf: priorityPlayer: Player search string. In case one of the 2 ctf connections fails, the remaining connection will be used to follow the team that this player is on.
 
 #### delayPerWatcher
 

@@ -11,7 +11,7 @@ using JKWatcher.GenericDialogBoxes;
 
 namespace JKWatcher.CameraOperators
 {
-    class SpectatorCameraOperator : CameraOperator
+    internal class SpectatorCameraOperator : CameraOperator
     {
         CancellationTokenSource cts = null;
 
@@ -203,6 +203,10 @@ namespace JKWatcher.CameraOperators
         public override string getTypeDisplayName()
         {
             return "Spec";
+        }
+        public override string[] getAvailableOptions()
+        {
+            return null;
         }
     }
 }

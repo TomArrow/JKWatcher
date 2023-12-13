@@ -57,5 +57,9 @@ namespace JKWatcher.CameraOperators
             }
 
         }
+        public override string[] getAvailableOptions()
+        {
+            return null;
+        }
     }
 }

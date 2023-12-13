@@ -1415,24 +1415,49 @@ namespace JKWatcher
                         foreach (string camera in serverToConnect.watchers)
                         {
                             string cameraLocal = camera;
+                            string[] cameraDataParts = camera.Split('{',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                            Dictionary<string,string> optionsToSetForCamera = new Dictionary<string, string>();
+                            if(cameraDataParts.Length > 1)
+                            {
+                                cameraLocal = cameraDataParts[0];
+                                string[] optionsStrings = cameraDataParts[1].TrimEnd('}').Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                                foreach(string optionsString in optionsStrings)
+                                {
+                                    string[] keyValueParts = optionsString.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                                    if(keyValueParts.Length != 2)
+                                    {
+                                        Helpers.logToFile($"Camera Operator option {optionsString} has the wrong format. Full camera operator string: {camera}");
+                                    } else
+                                    {
+                                        optionsToSetForCamera[keyValueParts[0]] = keyValueParts[1];
+                                    }
+                                }
+                            }
                             Action watcherCreate = new Action(()=> {
+                                CameraOperator cameraOperator = null;
                                 switch (cameraLocal)
                                 {
                                     case "defrag":
                                     case "ocd":
-                                        newWindow.createOCDefragOperator();
+                                        cameraOperator = newWindow.createOCDefragOperator();
                                         break;
                                     case "ctf":
-                                        newWindow.createCTFOperator();
+                                        cameraOperator = newWindow.createCTFOperator();
                                         break;
                                     case "strobe":
-                                        newWindow.createStrobeOperator();
+                                        cameraOperator = newWindow.createStrobeOperator();
                                         break;
                                     case "ffa":
-                                        newWindow.createFFAOperator();
+                                        cameraOperator = newWindow.createFFAOperator();
                                         break;
                                     default:
                                         break;
+                                }
+                                if (cameraOperator != null) { 
+                                    foreach (var optionToSet in optionsToSetForCamera)
+                                    {
+                                        cameraOperator.SetOption(optionToSet.Key, optionToSet.Value);
+                                    }
                                 }
                             });
 

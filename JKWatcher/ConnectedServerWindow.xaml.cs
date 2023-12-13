@@ -673,7 +673,7 @@ namespace JKWatcher
             {
                 lock (gotKickedLock)
                 {
-                    kicked = true;
+                    gotKicked = true;
                 }
             }
             Dispatcher.Invoke(() => {
@@ -1853,53 +1853,58 @@ namespace JKWatcher
             }
         }
 
-        public void createCTFOperator()
+        internal CameraOperators.CTFCameraOperatorRedBlue createCTFOperator()
         {
             lock (destructionMutex)
             {
                 if (!isDestroyed)
                 {
-                    createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
+                    return createCameraOperator<CameraOperators.CTFCameraOperatorRedBlue>();
                 }
             }
+            return null;
         }
-        public void createOCDefragOperator()
+        internal CameraOperators.OCDCameraOperator createOCDefragOperator()
         {
             lock (destructionMutex)
             {
                 if (!isDestroyed)
                 {
-                    createCameraOperator<CameraOperators.OCDCameraOperator>();
+                    return createCameraOperator<CameraOperators.OCDCameraOperator>();
                 }
             }
+            return null;
         }
-        public void createStrobeOperator()
+        internal CameraOperators.StrobeCameraOperator createStrobeOperator()
         {
             lock (destructionMutex)
             {
                 if (!isDestroyed)
                 {
-                    createCameraOperator<CameraOperators.StrobeCameraOperator>();
+                    return createCameraOperator<CameraOperators.StrobeCameraOperator>();
                 }
             }
+            return null;
         }
-        public void createFFAOperator()
+        internal CameraOperators.FFACameraOperator createFFAOperator()
         {
             lock (destructionMutex)
             {
                 if (!isDestroyed)
                 {
-                    createCameraOperator<CameraOperators.FFACameraOperator>();
+                    return createCameraOperator<CameraOperators.FFACameraOperator>();
                 }
             }
+            return null;
         }
 
-        private void createCameraOperator<T>() where T:CameraOperator, new()
+        private T createCameraOperator<T>() where T:CameraOperator, new()
         {
-            
+
+            T camOperator = null;
             lock (connectionsCameraOperatorsMutex)
             {
-                T camOperator = new T();
+                camOperator = new T();
                 camOperator.Errored += CamOperator_Errored;
                 int requiredConnectionCount = camOperator.getRequiredConnectionCount();
                 Connection[] connectionsForCamOperator = getUnboundConnections(requiredConnectionCount);
@@ -1911,6 +1916,7 @@ namespace JKWatcher
                 cameraOperators.Add(camOperator);
                 updateIndices();
             }
+            return camOperator;
         }
 
         private void CamOperator_Errored(object sender, CameraOperator.ErroredEventArgs e)

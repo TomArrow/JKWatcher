@@ -19,7 +19,7 @@ namespace JKWatcher.CameraOperators
     // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
 
     // TODO If we are forced to be in game and can't spectate, at least try to put ourselves across both teams?
-    class CTFCameraOperatorRedBlue : CameraOperator
+    internal class CTFCameraOperatorRedBlue : CameraOperator
     {
 
         CancellationTokenSource cts = null;
@@ -82,6 +82,10 @@ namespace JKWatcher.CameraOperators
             
         }
 
+        int priorityPlayerClientNum = -1;
+        Team priorityPlayerClientNumTeam = (Team)(-1);
+        Connection theOneActiveConnection = null;
+
         // first connection [0] follows red flag
         // second connection [1] follows blue flag
         private void Run(CancellationToken ct)
@@ -94,6 +98,40 @@ namespace JKWatcher.CameraOperators
                 System.Threading.Thread.Sleep(100);
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
+
+                string priorityPlayer = this.GetOption("priorityPlayer") as string;
+
+                if(priorityPlayer == null)
+                {
+                    priorityPlayerClientNum = -1; 
+                } else
+                {
+                    priorityPlayerClientNum = infoPool.FindClientNumFromString(priorityPlayer);
+                }
+                priorityPlayerClientNumTeam = priorityPlayerClientNum >= 0 && priorityPlayerClientNum < infoPool.playerInfo.Length ? infoPool.playerInfo[priorityPlayerClientNum].team : (Team)(-1);
+
+                if(priorityPlayerClientNum != -1)
+                {
+                    Connection activeConnectionTmp = null;
+                    bool inactiveConnectionsFound = false;
+                    foreach (Connection conn in connections)
+                    {
+                        if (conn.Status == ConnectionStatus.Active)
+                        {
+                            activeConnectionTmp = conn;
+                        }
+                        else
+                        {
+                            inactiveConnectionsFound = true;
+                        }
+                    }
+
+                    theOneActiveConnection = inactiveConnectionsFound ? activeConnectionTmp : null;
+                } else
+                {
+                    theOneActiveConnection = null;
+                }
+
 
                 if (!infoPool.isIntermission) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
                     foreach (Team team in teams)
@@ -154,6 +192,19 @@ namespace JKWatcher.CameraOperators
                 default:
                     return; // Only red blue team support atm
             }
+
+            if (priorityPlayerClientNum != -1 && theOneActiveConnection != null)
+            {
+                // Only one connection is active. Make it pursue the team of the priority player.
+                if(flagTeam != priorityPlayerClientNumTeam)
+                {
+                    return; // Right now in the loop of calling the function we are not at the team of the priority player so just return.
+                } else
+                {
+                    connection = theOneActiveConnection;
+                }
+            }
+
 
             int currentlySpectatedPlayer = connection.client.playerStateClientNum;
             int teamInt = (int)flagTeam;
@@ -542,6 +593,20 @@ namespace JKWatcher.CameraOperators
                 default:
                     return; // Only red blue team support atm
             }
+
+            if (priorityPlayerClientNum != -1 && theOneActiveConnection != null)
+            {
+                // Only one connection is active. Make it pursue the team of the priority player.
+                if (flagTeam != priorityPlayerClientNumTeam)
+                {
+                    return; // Right now in the loop of calling the function we are not at the team of the priority player so just return.
+                }
+                else
+                {
+                    connection = theOneActiveConnection;
+                }
+            }
+
             int opposingTeamInt = (int)opposingTeam;
 
             int currentlySpectatedPlayer = connection.client.playerStateClientNum;
@@ -1002,6 +1067,19 @@ namespace JKWatcher.CameraOperators
                     break;
                 default:
                     return; // Only red blue team support atm
+            }
+
+            if (priorityPlayerClientNum != -1 && theOneActiveConnection != null)
+            {
+                // Only one connection is active. Make it pursue the team of the priority player.
+                if (flagTeam != priorityPlayerClientNumTeam)
+                {
+                    return; // Right now in the loop of calling the function we are not at the team of the priority player so just return.
+                }
+                else
+                {
+                    connection = theOneActiveConnection;
+                }
             }
 
             int currentlySpectatedPlayer = connection.client.playerStateClientNum;
@@ -1635,6 +1713,11 @@ namespace JKWatcher.CameraOperators
         public override string getTypeDisplayName()
         {
             return "CTFRedBlue";
+        }
+
+        public override string[] getAvailableOptions()
+        {
+            return new string[] { "priorityPlayer" };
         }
     }
 

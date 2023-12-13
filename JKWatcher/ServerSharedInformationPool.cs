@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static JKWatcher.ConnectedServerWindow;
 
@@ -535,6 +536,77 @@ namespace JKWatcher
                 this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
             }
         }*/
+
+        Regex numberRegex = new Regex(@"^\d+$",RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
+
+        public int FindClientNumFromString(string searchString, bool tryInterpretAsNumbers = false)
+        {
+            if (searchString == null) return -1;
+            searchString = searchString.Trim();
+            if (tryInterpretAsNumbers && numberRegex.Match(searchString).Success)
+            {
+                int match = -1;
+                if(int.TryParse(searchString, out match))
+                {
+                    if(match >= 0 && match < playerInfo.Length)
+                    {
+                        return match;
+                    }
+                }
+            }
+
+            List<int> clientNumsMatch = new List<int>();
+            List<int> clientNumsCaseInsensitiveMatch = new List<int>();
+            List<int> clientNumsNoColorMatch = new List<int>();
+            List<int> clientNumsNoColorCaseInsensitiveMatch = new List<int>();
+
+            string lowerCaseName = searchString.ToLower();
+            string noColorName = Q3ColorFormatter.cleanupString(searchString);
+            string noColorLowercaseName = noColorName.ToLower();
+
+            foreach (PlayerInfo pi in playerInfo)
+            {
+                if (pi.infoValid)
+                {
+                    string compareLowerCaseName = pi.name.ToLower();
+                    string compareNoColorName = Q3ColorFormatter.cleanupString(pi.name);
+                    string compareNoColorLowercaseName = compareNoColorName.ToLower();
+
+                    if (pi.name.Contains(searchString))
+                    {
+                        clientNumsMatch.Add(pi.clientNum);
+                    }
+                    if (compareLowerCaseName.Contains(lowerCaseName))
+                    {
+                        clientNumsCaseInsensitiveMatch.Add(pi.clientNum);
+                    }
+                    if (compareNoColorName.Contains(noColorName))
+                    {
+                        clientNumsNoColorMatch.Add(pi.clientNum);
+                    }
+                    if (compareNoColorLowercaseName.Contains(noColorLowercaseName))
+                    {
+                        clientNumsNoColorCaseInsensitiveMatch.Add(pi.clientNum);
+                    }
+
+                    if (clientNumsMatch.Count > 0)
+                    {
+                        return clientNumsMatch[0];
+                    } else if (clientNumsCaseInsensitiveMatch.Count > 0)
+                    {
+                        return clientNumsCaseInsensitiveMatch[0];
+                    } else if (clientNumsNoColorMatch.Count > 0)
+                    {
+                        return clientNumsNoColorMatch[0];
+                    } else if (clientNumsNoColorCaseInsensitiveMatch.Count > 0)
+                    {
+                        return clientNumsNoColorCaseInsensitiveMatch[0];
+                    }
+                }
+            }
+            return -1;
+
+        }
     }
 
     public enum FlagStatus : int

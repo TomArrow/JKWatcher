@@ -26,6 +26,9 @@ namespace JKWatcher
         protected ConnectedServerWindow serverWindow = null;
         protected ConnectionProvider connectionProvider = null;
 
+        private Dictionary<string,object> options = new Dictionary<string, object>(StringComparer.InvariantCultureIgnoreCase);
+        private HashSet<string> availableOptions = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+
         public bool HasErrored {get;protected set;} = false;
 
         public event EventHandler<ErroredEventArgs> Errored;
@@ -66,6 +69,7 @@ namespace JKWatcher
         public CameraOperator() { }
 
         abstract public int getRequiredConnectionCount();
+        abstract public string[] getAvailableOptions();
 
         abstract public string getTypeDisplayName();
 
@@ -191,6 +195,13 @@ namespace JKWatcher
             {
                 throw new Exception("Cannot initialize CameraOperator before providing ConnectionProvider.");
             }
+            string[] possibleOptions = getAvailableOptions();
+            if(possibleOptions != null) { 
+                foreach(string possibleOption in possibleOptions)
+                {
+                    availableOptions.Add(possibleOption);
+                }
+            }
             initialized = true;
         }
 
@@ -219,6 +230,25 @@ namespace JKWatcher
         {
             // Camera Operators can implement this if they want, but they don't have to.
             // They can use it to show some kind of dialogue for configuration.
+        }
+
+        // Allow settings to be set for camera operators.
+        // It's on the camera operators to use or not use those.
+        public void SetOption(string key, object data)
+        {
+            if (!availableOptions.Contains(key))
+            {
+                Helpers.logToFile($"Error, cannot set {key} on {this.GetType().ToString()}, key does not exist.");
+            }
+            options[key] = data;
+        }
+        public object GetOption(string key)
+        {
+            if (!availableOptions.Contains(key))
+            {
+                Helpers.logToFile($"Error, should not get {key} on {this.GetType().ToString()}, key is not registered.");
+            }
+            return options.ContainsKey(key) ? options[key] : null;
         }
 
         // Use this at the start of any function that requires everything to be initialized.

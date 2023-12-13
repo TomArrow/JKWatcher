@@ -17,7 +17,7 @@ namespace JKWatcher.CameraOperators
     // If a flag is not visible, check if the other connection sees it. And maybe that can help find a better match.
     // If the other connection sees it, we may not have to give chances to recently died players
     // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
-    class FFACameraOperator : CameraOperator
+    internal class FFACameraOperator : CameraOperator
     {
 
         CancellationTokenSource cts = null;
@@ -262,6 +262,11 @@ namespace JKWatcher.CameraOperators
         public override string getTypeDisplayName()
         {
             return "FFA";
+        }
+
+        public override string[] getAvailableOptions()
+        {
+            return null;
         }
     }
 
