@@ -151,7 +151,7 @@ namespace JKWatcher
                 // Don't care.
             }
 
-
+            SunsNotificationClient.sunsNotificationReceived += SunsNotificationClient_sunsNotificationReceived;
 
 
 
@@ -180,6 +180,22 @@ namespace JKWatcher
             SpawnArchiveScript();
         }
 
+        private void SunsNotificationClient_sunsNotificationReceived(object sender, NotificationEventArgs e)
+        {
+            ServerToConnect[] serversToTest = null;
+            lock (serversToConnectDelayed)
+            {
+                serversToTest = serversToConnectDelayed.ToArray();
+            }
+            foreach(ServerToConnect server in serversToTest)
+            {
+                if (server.sunsNotificationServer == e.Address && server.sunsNotificationKey == e.Key)
+                {
+                    delayedForceConnect(server,true);
+                }
+            }
+        }
+
         ~MainWindow()
         {
             CloseDown();
@@ -187,6 +203,7 @@ namespace JKWatcher
 
         private void CloseDown()
         {
+            SunsNotificationClient.sunsNotificationReceived -= SunsNotificationClient_sunsNotificationReceived;
             foreach (CancellationTokenSource backgroundTask in backgroundTasks)
             {
                 backgroundTask.Cancel();
@@ -1084,6 +1101,8 @@ namespace JKWatcher
 
         class ServerToConnect
         {
+            private static Regex specialCharacterReplacer = new Regex(@"(?<!\\)\\x(?<number>[0-9a-f]{1,2})", RegexOptions.IgnoreCase|RegexOptions.CultureInvariant|RegexOptions.Compiled);
+
             public string sectionName { get; init; } = null;
             public NetAddress ip { get; init; } = null;
             public string hostName { get; init; } = null;
@@ -1147,6 +1166,11 @@ namespace JKWatcher
 
             public bool dailyChanceTrueToday { get; private set; } = true;
             public int lastTodaySeed { get; private set; } = 0;
+            public string sunsConnectSubscribe { get; init; } = null;
+
+            public NetAddress sunsNotificationServer = null;
+            public string sunsNotificationKey = null;
+
             private void UpdateDailyChance()
             {
                 if(dailyChance == 100)
@@ -1207,6 +1231,28 @@ namespace JKWatcher
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 mapNames = config["maps"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
+                sunsConnectSubscribe = config["sunsConnectSubscribe"]?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(sunsConnectSubscribe))
+                {
+                    string[] parts = sunsConnectSubscribe.Split(';');
+                    if(parts.Length == 2)
+                    {
+                        sunsNotificationServer = NetAddress.FromString(parts[0]);
+                        sunsNotificationKey = specialCharacterReplacer.Replace(parts[1], (Match a) => {
+                            if(a.Groups.ContainsKey("number") && a.Groups["number"].Success)
+                            {
+                                string retVal = ((char)Convert.ToByte(a.Groups["number"].Value, 16)).ToString();
+                                return retVal;
+                            }
+                            return a.Value;
+                        });
+                    } else
+                    {
+                        throw new Exception($"sunsConnectSubscribe is in wrong format. What was given is {sunsConnectSubscribe}, but required format is: ip:port;key");
+                    }
+                }
+
                 string timeFromDisconnectString = config["timeFromDisconnect"];
                 if (timeFromDisconnectString != null)
                 {
@@ -1313,6 +1359,10 @@ namespace JKWatcher
 
             public bool FitsRequirements(ServerInfo serverInfo, ref bool matchesButMightNotMeetRequirements)
             {
+                if(sunsNotificationServer != null && sunsNotificationKey != null)
+                {
+                    SunsNotificationClient.Subscribe(sunsNotificationServer, sunsNotificationKey);
+                }
                 UpdateDailyChance();
                 if(lastMapName != serverInfo.MapName)
                 {
@@ -1787,20 +1837,38 @@ namespace JKWatcher
             }
         }
 
-        private async void delayedForceConnectBtn_Click(object sender, RoutedEventArgs e)
+        private async Task delayedForceConnect(ServerToConnect serverToConnect, bool checkAlreadyConnected = false)
         {
-            ServerToConnect serverToConnect = (ServerToConnect)delayedConnectsList.SelectedItem;
             string errorString = null;
-            if(serverToConnect != null)
+            if (serverToConnect != null)
             {
                 NetAddress ip = serverToConnect.ip;
                 if (serverToConnect.lastFittingServerInfo != null)
                 {
-                    ConnectFromConfig(serverToConnect.lastFittingServerInfo, serverToConnect);
-                } else if (ip == null)
+                    bool alreadyConnected = false;
+                    if (checkAlreadyConnected)
+                    {
+                        lock (connectedServerWindows)
+                        {
+                            foreach (ConnectedServerWindow window in connectedServerWindows)
+                            {
+                                if (window.netAddress == serverToConnect.lastFittingServerInfo.Address && window.protocol == serverToConnect.lastFittingServerInfo.Protocol)
+                                {
+                                    alreadyConnected = true;
+                                }
+                            }
+                        }
+                    }
+                    if (!alreadyConnected)
+                    {
+                        ConnectFromConfig(serverToConnect.lastFittingServerInfo, serverToConnect);
+                    }
+                }
+                else if (ip == null)
                 {
                     errorString = ("Cannot force connect to a server without IP. Not implemented.");
-                } else
+                }
+                else
                 {
                     try
                     {
@@ -1835,15 +1903,32 @@ namespace JKWatcher
                             }
                             catch (Exception ex2)
                             {
-                                errorString = ("Exception trying to get ServerInfo for forced connect (during await): " + e.ToString());
+                                errorString = ("Exception trying to get ServerInfo for forced connect (during await): " + ex2.ToString());
                                 //continue;
                             }
 
                             if (serverInfo != null && (serverInfo.StatusResponseReceived || serverInfo.InfoPacketReceived))
                             {
-
-                                ConnectFromConfig(serverInfo, serverToConnect);
-                            } else if (serverInfo == null)
+                                bool alreadyConnected = false;
+                                if (checkAlreadyConnected)
+                                {
+                                    lock (connectedServerWindows)
+                                    {
+                                        foreach (ConnectedServerWindow window in connectedServerWindows)
+                                        {
+                                            if (window.netAddress == serverInfo.Address && window.protocol == serverInfo.Protocol)
+                                            {
+                                                alreadyConnected = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                if (!alreadyConnected)
+                                {
+                                    ConnectFromConfig(serverInfo, serverToConnect);
+                                }
+                            }
+                            else if (serverInfo == null)
                             {
                                 errorString = ("Unknown error trying to get ServerInfo for forced connect. serverInfo is null");
                             }
@@ -1863,11 +1948,17 @@ namespace JKWatcher
                 }
             }
 
-            if(errorString != null)
+            if (errorString != null)
             {
                 MessageBox.Show(errorString);
                 Helpers.logToFile(errorString);
             }
+        }
+
+        private async void delayedForceConnectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerToConnect serverToConnect = (ServerToConnect)delayedConnectsList.SelectedItem;
+            await delayedForceConnect(serverToConnect);
         }
 
         private void taskManagerRefreshBtn_Click(object sender, RoutedEventArgs e)

@@ -199,3 +199,13 @@ Additional meta data to always write into demos for this server.
 
 Syntax:
 ```key1:value1,key2:value2,blahkey:blahvalue```
+
+#### sunsConnectSubscribe
+
+This lets you subscribe to a SUNS UDP notification server. If a notification is received, you are force connected to this server.
+
+Example:
+
+```sunsConnectSubscribe=127.0.0.1:52476;subscriptionKey```
+
+You can set specific byte values in the subscription key by writing them as for example \x1 = byte value of 1 or \xff = byte value of 255
