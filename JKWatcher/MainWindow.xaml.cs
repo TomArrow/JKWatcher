@@ -1354,29 +1354,35 @@ namespace JKWatcher
                 UpdateDailyChance();
             }
 
-            private DateTime? lastMapChange = null;
-            private string lastMapName = null;
+            //private DateTime? lastMapChange = null;
+            //private string lastMapName = null;
+
+            private DateTime? lastSunsSubscriptionSent = null;
+
+            private Dictionary<NetAddress, string> lastMapNames = new Dictionary<NetAddress, string>(NetAddressComparer.Default); // These are now dictionaries because sometimes you get multiple servers that fit an entry (if only because someone is trolling and making servers with an identical name)
+            private Dictionary<NetAddress, DateTime> lastMapChanges = new Dictionary<NetAddress, DateTime>(NetAddressComparer.Default);
 
             public bool FitsRequirements(ServerInfo serverInfo, ref bool matchesButMightNotMeetRequirements)
             {
-                if(sunsNotificationServer != null && sunsNotificationKey != null)
+                if(sunsNotificationServer != null && sunsNotificationKey != null && (!lastSunsSubscriptionSent.HasValue || (DateTime.Now- lastSunsSubscriptionSent.Value).TotalMilliseconds > 5000))
                 {
                     SunsNotificationClient.Subscribe(sunsNotificationServer, sunsNotificationKey);
+                    lastSunsSubscriptionSent = DateTime.Now;
                 }
                 UpdateDailyChance();
-                if(lastMapName != serverInfo.MapName)
-                {
-                    if(lastMapName != null)
-                    {
-                        lastMapChange = DateTime.Now;
-                    }
-                    lastMapName = serverInfo.MapName;
-                }
                 matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
                 if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
-                    if(lastFittingServerInfo == null || !(lastFittingServerInfo.Address == ip))
+                    if (!lastMapNames.ContainsKey(serverInfo.Address) || lastMapNames[serverInfo.Address] != serverInfo.MapName)
+                    {
+                        if (lastMapNames.ContainsKey(serverInfo.Address) && lastMapNames[serverInfo.Address] != null)
+                        {
+                            lastMapChanges[serverInfo.Address] = DateTime.Now;
+                        }
+                        lastMapNames[serverInfo.Address] = serverInfo.MapName;
+                    }
+                    if (lastFittingServerInfo == null || !(lastFittingServerInfo.Address == ip))
                     {
                         lastFittingServerInfo = serverInfo;
                     }
@@ -1384,7 +1390,8 @@ namespace JKWatcher
                     if (!this.active) return false;
                     if (!dailyChanceTrueToday) return false;
                     if (chance < 100 && Connection.getNiceRandom(1,101) > chance) return false;
-                    if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
+                    //if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
+                    if (maxTimeSinceMapChange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && (DateTime.Now - lastMapChanges[serverInfo.Address]).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.

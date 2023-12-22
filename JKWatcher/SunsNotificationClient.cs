@@ -144,7 +144,7 @@ namespace JKWatcher
             CancellationToken ct = tokenSource.Token;
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { sunsMessageChecker(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
-            }, TaskContinuationOptions.OnlyOnFaulted), "CTF Auto Connecter");
+            }, TaskContinuationOptions.OnlyOnFaulted), "SUNS notification client loop");
         }
 
         static void sunsMessageChecker(CancellationToken ct)
