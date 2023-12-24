@@ -1643,6 +1643,7 @@ namespace JKWatcher
                 client.ClientForceSnaps = false;
                 client.DesiredSnaps = 1000;
             }
+            client.PingAdjust = snapsSettings.pingAdjustActive ? snapsSettings.pingAdjust : 0;
         }
 
         protected void OnPropertyChanged(PropertyChangedEventArgs eventArgs)

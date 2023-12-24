@@ -334,35 +334,49 @@
                 <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
             </WrapPanel>
             <StackPanel x:Name="connectionSettingsControls">
-                <!--<CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
+                <TabControl>
+                    <TabItem Header="Settings">
+                        <StackPanel>
+                            <!--<CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
                 <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>-->
-                <WrapPanel>
+                            <WrapPanel>
 
-                    <CheckBox IsChecked="{Binding silentMode,Mode=TwoWay}">Silent</CheckBox>
-                    <CheckBox IsChecked="{Binding noBotIgnore,Mode=TwoWay}">NoBotIgnore</CheckBox>
-                </WrapPanel>
-                <CheckBox IsChecked="{Binding demoTimeColorNames,Mode=TwoWay}">Demotime name colors</CheckBox>
-                <CheckBox IsChecked="{Binding attachClientNumToName,Mode=TwoWay}">Attach clientNum</CheckBox>
-                <WrapPanel>
-                    <CheckBox IsChecked="{Binding autoUpgradeToCTF,Mode=TwoWay}">CTF auto-upgr.</CheckBox>
-                    <CheckBox IsChecked="{Binding autoUpgradeToCTFWithStrobe,Mode=TwoWay}">str</CheckBox>
-                </WrapPanel>
+                                <CheckBox IsChecked="{Binding silentMode,Mode=TwoWay}">Silent</CheckBox>
+                                <CheckBox IsChecked="{Binding noBotIgnore,Mode=TwoWay}">NoBotIgnore</CheckBox>
+                            </WrapPanel>
+                            <CheckBox IsChecked="{Binding demoTimeColorNames,Mode=TwoWay}">Demotime name colors</CheckBox>
+                            <CheckBox IsChecked="{Binding attachClientNumToName,Mode=TwoWay}">Attach clientNum</CheckBox>
+                            <WrapPanel>
+                                <CheckBox IsChecked="{Binding autoUpgradeToCTF,Mode=TwoWay}">CTF auto-upgr.</CheckBox>
+                                <CheckBox IsChecked="{Binding autoUpgradeToCTFWithStrobe,Mode=TwoWay}">str</CheckBox>
+                            </WrapPanel>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Network">
+                        <StackPanel x:Name="snapsSettingsControls">
+                            <WrapPanel>
+                                <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
+                                <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
+                                <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <CheckBox IsChecked="{Binding forceAFKSnapDrop,Mode=TwoWay}">AFK maxsnaps</CheckBox>
+                                <TextBox Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding afkMaxSnaps,Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <CheckBox IsChecked="{Binding pingAdjustActive,Mode=TwoWay}">Ping adjust</CheckBox>
+                                <TextBox Width="40" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding pingAdjust,Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>
+                        </StackPanel>
+                    </TabItem>
+                </TabControl>
+                
             </StackPanel>
-            <StackPanel x:Name="snapsSettingsControls">
-                <WrapPanel>
-                    <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
-                    <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
-                </WrapPanel>
-                <WrapPanel>
-                    <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
-                    <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
-                </WrapPanel>
-                <WrapPanel>
-                    <CheckBox IsChecked="{Binding forceAFKSnapDrop,Mode=TwoWay}">AFK maxsnaps</CheckBox>
-                    <TextBox Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding afkMaxSnaps,Mode=TwoWay}"></TextBox>
-                </WrapPanel>
-            </StackPanel>
-            <CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>
+            
         </StackPanel>
     </Grid>
 </Window>

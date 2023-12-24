@@ -1119,6 +1119,7 @@ namespace JKWatcher
             public int timeFromDisconnect { get; init; } = 0;
             public int timeFromDisconnectUpperRange { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
+            public int? pingAdjust { get; init; } = null;
             public string[] watchers { get; init; } = null;
             public string[] mapNames { get; init; } = null;
             public string watchersDisp
@@ -1226,6 +1227,7 @@ namespace JKWatcher
                 dailyChance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 chance = (config["chance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
+                pingAdjust = config["pingAdjust"]?.Trim().Atoi();
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
@@ -1465,6 +1467,14 @@ namespace JKWatcher
                     if (serverToConnect.botSnaps != null)
                     {
                         newWindow.snapsSettings.botOnlySnaps = serverToConnect.botSnaps.Value;
+                    }
+                    if (serverToConnect.pingAdjust != null)
+                    {
+                        newWindow.snapsSettings.pingAdjust = serverToConnect.pingAdjust.Value;
+                        if(newWindow.snapsSettings.pingAdjust != 0)
+                        {
+                            newWindow.snapsSettings.pingAdjustActive = true;
+                        }
                     }
                     if (serverToConnect.watchers != null)
                     {

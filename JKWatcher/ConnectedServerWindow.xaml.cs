@@ -32,6 +32,9 @@ namespace JKWatcher
         private int _botOnlySnaps = 5;
         private int _emptySnaps = 2;
         private int _afkMaxSnaps = 2;
+        private int _pingAdjust = 0;
+
+        public bool pingAdjustActive { get; set; } = false;
 
         public bool forceBotOnlySnaps { get; set; } = true;
         public int botOnlySnaps { 
@@ -78,6 +81,23 @@ namespace JKWatcher
                 if (fixedValue != _afkMaxSnaps)
                 {
                     _afkMaxSnaps = fixedValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int pingAdjust
+        {
+            get
+            {
+                return _pingAdjust;
+            }
+            set
+            {
+                int fixedValue = Math.Clamp(value,-1000,1000);
+                if (fixedValue != _pingAdjust)
+                {
+                    _pingAdjust = fixedValue;
                     OnPropertyChanged();
                 }
             }

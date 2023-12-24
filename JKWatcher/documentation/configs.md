@@ -84,6 +84,10 @@ If required, password to connect to the server.
 
 Snaps value to use if all active players are bots. (discards other packets)
 
+#### pingAdjust
+
+Adjusts your visible ping value. Potentially unstable, especially with unstable internet, use at your own risk. Can be positive/negative values.
+
 #### attachClientNumToName
 
 0 or 1. Whether to force attach client number to playername.
