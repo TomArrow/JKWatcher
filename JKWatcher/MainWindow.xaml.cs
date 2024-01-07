@@ -941,10 +941,13 @@ namespace JKWatcher
             lock (connectedServerWindows)
             {
                 ConnectedServerWindow.ConnectionOptions connOpts = null;
-                if (userinfoName != null)
+                if (serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
                 {
-                    connOpts = new ConnectedServerWindow.ConnectionOptions();
-                    connOpts.userInfoName = userinfoName;
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.LoadMOHDefaults(); // MOH needs different defaults.
                 }
                 if (silent)
                 {
@@ -956,9 +959,13 @@ namespace JKWatcher
                     connOpts.demoTimeColorNames = false;
                     connOpts.attachClientNumToName = false;
                 }
-                if (connOpts != null && serverInfo.Protocol >= ProtocolVersion.Protocol6 && serverInfo.Protocol <= ProtocolVersion.Protocol8 || serverInfo.Protocol == ProtocolVersion.Protocol17) // TODO Support 15,16?
+                if (userinfoName != null)
                 {
-                    connOpts.LoadMOHDefaults(); // MOH needs different defaults.
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.userInfoName = userinfoName;
                 }
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);

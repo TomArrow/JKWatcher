@@ -113,7 +113,11 @@
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Unskipped (time):</Label>
                 <TextBox Text="{Binding messagesNotSkippedTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
-            
+
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Snaps with deltaNum 0 that actually are deltas">Fake Non-Delta:</Label>
+                <TextBox Text="{Binding fakeNonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
         </StackPanel>
         <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">
 
@@ -146,6 +150,10 @@
                 <TextBox Text="{Binding demoCurrentTimeSyncFix,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
 
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Has sent over a value as delta that hasn't actually changed">Corrupt Delta:</Label>
+                <TextBox Text="{Binding corruptDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
         </StackPanel>
         <StackPanel Grid.Row="2" Grid.Column="3" x:Name="clientStatsPanel4" >
             <WrapPanel>

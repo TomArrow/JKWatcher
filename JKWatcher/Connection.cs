@@ -3158,7 +3158,7 @@ namespace JKWatcher
                     if (commandEventArgs.Command.Argc > 1)
                     {
                         // We're not sure if this was kick, but if it was, add this to kick log?
-                        lock(kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
+                        lock(kickInfo) kickInfo.Add(commandEventArgs.Command.RawStringOrConcatenated());
 
                         if((commandEventArgs.Command.Argv(1)?.Contains("kicked", StringComparison.OrdinalIgnoreCase) == true || commandEventArgs.Command.Argv(1)?.Contains("banned", StringComparison.OrdinalIgnoreCase) == true))
                         {
@@ -3548,7 +3548,7 @@ namespace JKWatcher
                     )
                 {
                     // We have been kicked. Take note.
-                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
+                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawStringOrConcatenated());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0; 
                     int privateClientCount = 0;
@@ -3567,7 +3567,7 @@ namespace JKWatcher
                 } else if (ClientNum.HasValue && infoPool.playerInfo[ClientNum.Value].name != null && commandEventArgs.Command.Argv(1).EndsWithReturnStart("^7 @@@WAS_KICKED\n") == infoPool.playerInfo[ClientNum.Value].name)
                 {
                     // We have been kicked. Take note.
-                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawString());
+                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawStringOrConcatenated());
                     LastTimeProbablyKicked = DateTime.Now;
                     int validClientCount = 0;
                     int privateClientCount = 0;
