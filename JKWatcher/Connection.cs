@@ -2587,7 +2587,10 @@ namespace JKWatcher
 
         private bool playerIsLikelyBot(int clientNumber)
         {
-            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && (infoPool.playerInfo[clientNumber].confirmedBot || !infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10;
+            return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
+                (infoPool.playerInfo[clientNumber].confirmedBot || 
+                (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) 
+                && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10);
         }
         private bool playerIsVeryAfk(int clientNumber, bool followed = false)
         {
