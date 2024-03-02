@@ -92,6 +92,7 @@ namespace JKWatcher
         FIGHTBOT_WAYPOINTCOMMAND,
         BOTSAY,
         FIGHTBOTSPAWNRELATED, // Going to spec, going into free team etc.
+        FIGHTBOTSPAWNAFKCHECK,
         CALENDAREVENT_ANNOUNCE,
         MAPCHANGECOMMAND,
         CONDITIONALCOMMAND,

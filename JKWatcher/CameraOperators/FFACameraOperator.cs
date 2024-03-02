@@ -17,6 +17,8 @@ namespace JKWatcher.CameraOperators
     // If a flag is not visible, check if the other connection sees it. And maybe that can help find a better match.
     // If the other connection sees it, we may not have to give chances to recently died players
     // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
+
+    // TODO: Despawn bot wwhen all its summoners are afk
     internal class FFACameraOperator : CameraOperator
     {
 
@@ -50,6 +52,8 @@ namespace JKWatcher.CameraOperators
         {
             Destroy();
         }
+
+        private Random rnd = new Random();
 
         public override void Destroy()
         {
@@ -120,6 +124,9 @@ namespace JKWatcher.CameraOperators
             int neededConnectionsCount = 1;
 
             bool needFightBot = false;
+            bool needFightBotInGame = false;
+
+            List<int> afkFightbotSummoners = new List<int>();
 
             FightBotTargetingMode mode = FightBotTargetingMode.OPTIN;
 
@@ -136,6 +143,14 @@ namespace JKWatcher.CameraOperators
                             if(!pi.chatCommandTrackingStuff.fightBotBlacklist || pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave)
                             {
                                 needFightBot = true;
+                                if ((DateTime.Now-pi.lastMovementDirChange).TotalMinutes < 3)
+                                {
+                                    // TODO Make this smarter? What if we're watching someone in a private dimension and the bot can't even know?
+                                    needFightBotInGame = true;
+                                } else
+                                {
+                                    afkFightbotSummoners.Add(pi.clientNum);
+                                }
                             }
                         }
                     }
@@ -228,14 +243,14 @@ namespace JKWatcher.CameraOperators
                 int clientNum = extraConnection.ClientNum.GetValueOrDefault(-1);
                 if(clientNum >=0 && clientNum < 32)
                 {
-                    if (needFightBot && infoPool.playerInfo[clientNum].team == Team.Spectator)
+                    if (needFightBotInGame && infoPool.playerInfo[clientNum].team == Team.Spectator)
                     {
                         extraConnection.AlwaysFollowSomeone = false;
                         extraConnection.AllowBotFight = true;
                         extraConnection.HandlesFightBotChatCommands = true;
                         extraConnection.HandleAutoCommands = false;
                         extraConnection.leakyBucketRequester.requestExecution("team f",RequestCategory.FIGHTBOTSPAWNRELATED,5,2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
-                    } else if (!needFightBot && infoPool.playerInfo[clientNum].team != Team.Spectator)
+                    } else if (!needFightBotInGame && infoPool.playerInfo[clientNum].team != Team.Spectator)
                     {
                         // Go back to spec
                         extraConnection.AlwaysFollowSomeone = true;
@@ -243,6 +258,29 @@ namespace JKWatcher.CameraOperators
                         extraConnection.HandlesFightBotChatCommands = false;
                         extraConnection.HandleAutoCommands = true;
                         extraConnection.leakyBucketRequester.requestExecution("team s",RequestCategory.FIGHTBOTSPAWNRELATED,5,2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    } else if (needFightBot && !needFightBotInGame && afkFightbotSummoners.Count > 0)
+                    {
+                        // All callers are afk.
+                        // Check on them every now and then.
+                        List<int> summonersThatNeedChecked = new List<int>();
+                        foreach(int afkFightbotSummoner in afkFightbotSummoners)
+                        {
+                            DateTime? lastFullPositionUpdate = infoPool.playerInfo[afkFightbotSummoner].lastFullPositionUpdate;
+                            if (!lastFullPositionUpdate.HasValue || (DateTime.Now-lastFullPositionUpdate.Value).TotalMinutes > 5) // Check on them every 5 minutes
+                            {
+                                summonersThatNeedChecked.Add(afkFightbotSummoner);
+                            }
+                        }
+                        if (summonersThatNeedChecked.Count > 0)
+                        {
+                            int whoToCheckOn = 0;
+                            lock (rnd)
+                            {
+                                whoToCheckOn = rnd.Next(0, summonersThatNeedChecked.Count);
+                            }
+                            extraConnection.leakyBucketRequester.requestExecution($"follow {whoToCheckOn}", RequestCategory.FIGHTBOTSPAWNAFKCHECK, 5, 120000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+
+                        }
                     }
                 }
 
