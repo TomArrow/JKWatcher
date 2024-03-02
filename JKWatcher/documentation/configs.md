@@ -166,7 +166,7 @@ Comma-separated: Triggers for disconnecting from the server.
 Possible options: 
 
 - ```gameTypeNotCTF```: Disconnects when the gametype is not CTF or CTY.
-- ```gametype_not:ctf;cty:60000```: Disconnects when the gametype is not CTF or CTY for more than 1 minute (replace with numbers of your choice. game types can be - separated by semicolon: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester, teamrounds, objective, tow, liberation)
+- ```gametype_not:ctf;cty:60000:10```: Disconnects when the gametype is not CTF or CTY for more than 1 minute (replace with numbers of your choice or 0 for immediately. game types can be - separated by semicolon: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester, teamrounds, objective, tow, liberation). Last optional parameter can be number of times that the gametypes need to match the played ones before the disconnect trrigger works. This can be useful when you connect in anticipation of a certain gametype but want to disconnect afterwards. The count is increased each time something config-stringy changes. You don't want it to be just 1 in case you have multiple connections that aren't perfectly in sync.
 - ```kicked```: Disconnects when we were kicked (not exhaustively supported yet).
 - ```playercount_under:8-10:60000```: Disconnects if player count falls under 8 to 10 for more than 1 minute (replace with numbers of your choice. player count can be range or single number without "-")
 - ```connectedtime_over:55-60```: Disconnects if we were connected for more than 55 to 60 minutes (random within that range, change numbers to what you desire or use single number without "-")

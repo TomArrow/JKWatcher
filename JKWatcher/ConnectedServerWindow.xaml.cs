@@ -452,11 +452,19 @@ namespace JKWatcher
                                             if (triggerTextParts.Length == 2)
                                             {
                                                 disconnectTriggerGameTypeNotDelay = 0;
+                                                disconnectTriggerGameTypeNotOnlyIfMatchBefore = 0;
                                                 _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT;
                                             }
                                             else if (triggerTextParts.Length == 3)
                                             {
                                                 disconnectTriggerGameTypeNotDelay = triggerTextParts[2].Atoi();
+                                                disconnectTriggerGameTypeNotOnlyIfMatchBefore = 0;
+                                                _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT;
+                                            }
+                                            else if (triggerTextParts.Length == 4)
+                                            {
+                                                disconnectTriggerGameTypeNotDelay = triggerTextParts[2].Atoi();
+                                                disconnectTriggerGameTypeNotOnlyIfMatchBefore = triggerTextParts[3].Atoi();
                                                 _disconnectTriggersParsed |= DisconnectTriggers.GAMETYPE_NOT;
                                             }
                                         }
@@ -511,6 +519,7 @@ namespace JKWatcher
             public string disconnectTriggerGameTypeNotGameTypeRawString { get; private set; } = null;
             public int disconnectTriggerGameTypeNotGameTypeBitmask { get; private set; } = 0;
             public int disconnectTriggerGameTypeNotDelay { get; private set; } = 0;
+            public int disconnectTriggerGameTypeNotOnlyIfMatchBefore { get; private set; } = 0;
 
         }
 
@@ -704,6 +713,7 @@ namespace JKWatcher
         private object serverInfoChangedLock = new object();
         private DateTime? playerCountUnderDisconnectTriggerLastSatisfied = null;
         private DateTime? gameTypeNotDisconnectTriggerLastSatisfied = null;
+        private int gameTypeNotDisconnectTriggerUnsatisfiedHowOften = 0;
 
 
         private DateTime? connectedTimeOverDisconnectTriggerFirstConnected = null;
@@ -795,15 +805,20 @@ namespace JKWatcher
                     double millisecondsSatisfiedFor = gameTypeNotDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - gameTypeNotDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
                     if (_connectionOptions.disconnectTriggerGameTypeNotDelay == 0 || gameTypeNotDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerGameTypeNotDelay)
                     {
-                        /*Dispatcher.Invoke(() => {
-                            this.Close();
-                        });*/
-                        this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType} (index {(int)obj.GameType}, bitmask {1 << (int)obj.GameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}) for over {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
-                        Dispatcher.BeginInvoke((Action)(() =>
-                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
-                            this.Close();
-                        }));
-                        return;
+                        // With the "OnlyIfMatchBefore" option we only disconnect if the gametype has actually been one of the non-disconnect trigger ones for X amount of times.
+                        // So that we don't disconnect immediately on connect.
+                        if (_connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore == 0 || gameTypeNotDisconnectTriggerUnsatisfiedHowOften >= _connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore) { 
+
+                            /*Dispatcher.Invoke(() => {
+                                this.Close();
+                            });*/
+                            this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType} (index {(int)obj.GameType}, bitmask {1 << (int)obj.GameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}) for over {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
+                            Dispatcher.BeginInvoke((Action)(() =>
+                            { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                                this.Close();
+                            }));
+                            return;
+                        }
                     }
                     else if (gameTypeNotDisconnectTriggerLastSatisfied == null)
                     {
@@ -812,6 +827,13 @@ namespace JKWatcher
                 }
                 else
                 {
+                    if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0)
+                    {
+                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften++;
+                    } else
+                    {
+                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften = 0;
+                    }
                     gameTypeNotDisconnectTriggerLastSatisfied = null;
                 }
                 
