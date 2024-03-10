@@ -158,6 +158,7 @@ namespace JKWatcher.CameraOperators
                 if ((DateTime.Now - infoPool.lastBerserkerStarted).TotalMinutes < 10.0)
                 {
                     needFightBot = true;
+                    needFightBotInGame = true;
                     mode = FightBotTargetingMode.BERSERK;
                 }
 

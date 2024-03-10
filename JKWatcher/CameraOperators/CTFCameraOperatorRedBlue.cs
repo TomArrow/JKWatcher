@@ -19,6 +19,8 @@ namespace JKWatcher.CameraOperators
     // Also maybe de-prioritize players who are already being specced by the other connection, to avoid duplicating of info?
 
     // TODO If we are forced to be in game and can't spectate, at least try to put ourselves across both teams?
+
+    // handle "could not find client '13'" error
     internal class CTFCameraOperatorRedBlue : CameraOperator
     {
 

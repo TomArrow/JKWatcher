@@ -2240,13 +2240,14 @@ namespace JKWatcher
 
             if (teamChangesDetected)
             {
-                serverWindow.Dispatcher.Invoke(() => {
-                    lock (serverWindow.playerListDataGrid)
-                    {
-                        serverWindow.playerListDataGrid.ItemsSource = null;
-                        serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
-                    }
-                });
+                serverWindow.requestPlayersRefresh();
+                //serverWindow.Dispatcher.Invoke(() => {
+                    //lock (serverWindow.playerListDataGrid)
+                    //{
+                    //    serverWindow.playerListDataGrid.ItemsSource = null;
+                    //    serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
+                    //}
+                //});
             }
 
             /*if (amNotInSpec) // Maybe in the future I will
@@ -3020,13 +3021,14 @@ namespace JKWatcher
             }
             infoPool.botOnlyGuaranteed = !anyNonBotActivePlayers;
             infoPool.NoActivePlayers = noActivePlayers;
-            serverWindow.Dispatcher.Invoke(() => {
-                lock (serverWindow.playerListDataGrid)
-                {
-                    serverWindow.playerListDataGrid.ItemsSource = null;
-                    serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
-                }
-            });
+            serverWindow.requestPlayersRefresh();
+            //serverWindow.Dispatcher.Invoke(() => {
+            //    lock (serverWindow.playerListDataGrid)
+            //    {
+            //        serverWindow.playerListDataGrid.ItemsSource = null;
+            //        serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
+            //    }
+            //});
 
 
             // Any reason to have this here when it's already in snapshotparsed?

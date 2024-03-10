@@ -616,6 +616,7 @@ namespace JKWatcher
             }, TaskContinuationOptions.OnlyOnFaulted), $"Scoreboard Requester ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
 
+            startPlayerDisplayUpdater();
             startLogStringUpdater();
             startEventNotifierUpdater();
 
@@ -972,6 +973,17 @@ namespace JKWatcher
                 addToLog(t.Exception.ToString(), true);
                 //startEventNotifierUpdater();
             }, TaskContinuationOptions.OnlyOnFaulted), $"Event Notifier ({netAddress},{ServerName})");
+            backgroundTasks.Add(tokenSource);
+        }
+
+        private void startPlayerDisplayUpdater()
+        {
+            var tokenSource = new CancellationTokenSource();
+            CancellationToken ct = tokenSource.Token;
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { playerDisplayUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                addToLog(t.Exception.ToString(), true);
+                startPlayerDisplayUpdater();
+            }, TaskContinuationOptions.OnlyOnFaulted), $"Player Display Updater ({netAddress},{ServerName})");
             backgroundTasks.Add(tokenSource);
         }
 
@@ -1468,6 +1480,51 @@ namespace JKWatcher
                 dayString = then.ToString("MMMM dd", CultureInfo.CreateSpecificCulture("en-US"));
             }
             return (dayString,then.ToString("HH:mm"));
+        }
+
+        bool playerRefreshRequested = false;
+        DateTime lastPlayerRefresh = DateTime.Now;
+        object playerRefreshStatusLock = new object();
+
+        public void requestPlayersRefresh()
+        {
+            lock (playerRefreshStatusLock)
+            {
+                playerRefreshRequested = true;
+            }
+        }
+
+        private void playerDisplayUpdater(CancellationToken ct)
+        {
+            while (true)
+            {
+                System.Threading.Thread.Sleep(500);
+                //ct.ThrowIfCancellationRequested();
+                if (ct.IsCancellationRequested && logQueue.IsEmpty) return;
+
+                bool needrefresh = false;
+                lock (playerRefreshStatusLock)
+                {
+                    needrefresh = playerRefreshRequested && (DateTime.Now- lastPlayerRefresh).TotalSeconds >= 5.0;
+                    if (needrefresh)
+                    {
+                        playerRefreshRequested = false;
+                        lastPlayerRefresh = DateTime.Now;
+                    }
+                }
+
+                if (needrefresh)
+                {
+                    Dispatcher.Invoke(()=> {
+                        lock (playerListDataGrid)
+                        {
+                            playerListDataGrid.ItemsSource = null;
+                            playerListDataGrid.ItemsSource = infoPool.playerInfo;
+                        }
+                    });
+                }
+            }
+            
         }
         
         private void logStringUpdater(CancellationToken ct)
@@ -2536,11 +2593,12 @@ namespace JKWatcher
 
         private void refreshPlayersBtn_Click(object sender, RoutedEventArgs e)
         {
-            lock (playerListDataGrid)
-            {
-                playerListDataGrid.ItemsSource = null;
-                playerListDataGrid.ItemsSource = infoPool.playerInfo;
-            }
+            requestPlayersRefresh();
+            //lock (playerListDataGrid)
+            //{
+            //    playerListDataGrid.ItemsSource = null;
+            //    playerListDataGrid.ItemsSource = infoPool.playerInfo;
+            //}
         }
 
         private void addSillyWatcherBtn_Click(object sender, RoutedEventArgs e)
