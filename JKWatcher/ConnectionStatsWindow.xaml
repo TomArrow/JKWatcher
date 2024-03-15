@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
-        Title="ConnectionStats" Height="450" Width="800">
+        Title="ConnectionStats" Height="500" Width="800">
     <Window.Resources>
         <Style x:Key="activeKeyStyle" TargetType="TextBox">
             <Style.Triggers>
@@ -118,13 +118,14 @@
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Snaps with deltaNum 0 that actually are deltas">Fake Non-Delta:</Label>
                 <TextBox Text="{Binding fakeNonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
-        </StackPanel>
-        <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">
-
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Delta snap max delay:</Label>
                 <TextBox Text="{Binding deltaSnapMaxDelay,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
+        </StackPanel>
+        <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">
+
+            
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">Client FPS:</Label>
                 <TextBox Text="{Binding lastFrameDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
@@ -132,6 +133,14 @@
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserCMD FPS:</Label>
                 <TextBox Text="{Binding lastUserCommandDeltaFPS,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserCMD Culling %:</Label>
+                <TextBox Text="{Binding userCmdCullingPercentage,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserPacket Culling %:</Label>
+                <TextBox Text="{Binding userPacketCullingPercentage,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">UserPacket FPS:</Label>

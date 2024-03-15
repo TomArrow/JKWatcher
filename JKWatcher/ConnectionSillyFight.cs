@@ -330,6 +330,8 @@ namespace JKWatcher
 			int myNum = ClientNum.GetValueOrDefault(-1);
 			if (myNum < 0 || myNum > infoPool.playerInfo.Length) return;
 
+			userCmd.forceWriteThisCmd = true;
+
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
 			float closestDistance = float.PositiveInfinity;
