@@ -1312,7 +1312,7 @@ namespace JKWatcher
                         {
                             infoPool.killTrackers[attacker, target].trackedMatchKills++;
                             if(!killTrackersSynced && !_connectionOptions.silentMode) { 
-                                leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
+                                leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
                             }
                         }
                         if (infoPool.killTrackers[target, attacker].trackingMatch)
@@ -1320,14 +1320,14 @@ namespace JKWatcher
                             infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
                             if (!killTrackersSynced && !_connectionOptions.silentMode)
                             {
-                                leakyBucketRequester.requestExecution($"tell {attacker} ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                                leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
                             }
                         }
                         if(killTrackersSynced && !_connectionOptions.silentMode)
                         {
                             int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
                             int biggerClientNum = Math.Max(attacker, target);
-                            leakyBucketRequester.requestExecution($"say ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                            leakyBucketRequester.requestExecution($"say \"   ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
                         }
                     }
                 }
@@ -4397,7 +4397,7 @@ namespace JKWatcher
                 {
                     // Tell some info about the server... to myself
                     // Convenience feature.
-                    leakyBucketRequester.requestExecution("tell " + client.clientNum + " \""+ serverInfoPart + "\"", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("tell " + client.clientNum + " \"   "+ serverInfoPart + "\"", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
                 }
 
                 // NWH / CTFMod (?)

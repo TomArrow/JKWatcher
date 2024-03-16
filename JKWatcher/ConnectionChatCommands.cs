@@ -49,6 +49,7 @@ namespace JKWatcher
             public int playerNum;
             public ChatType type;
             public string message;
+            public bool commandComesFromJKWatcher;
         }
         Regex validSkinRegex = new Regex(@"^[a-zA-z0-9\^]+(?:\/[a-zA-z0-9\^]+)?$", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
         enum ChatType
@@ -202,7 +203,12 @@ namespace JKWatcher
                 return null;
             }
 
-            return new ParsedChatMessage() { message = nameChatSegment.Substring(playerName.Length + separatorLength).Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType };
+            string messageRaw = nameChatSegment.Substring(playerName.Length + separatorLength);
+
+            int[] ourClientNums = serverWindow.getJKWatcherClientNums();
+            bool commandComesFromJKWatcher = ourClientNums.Contains(playerNum) || (messageRaw.StartsWith("   ") && detectedChatType == ChatType.PRIVATE);
+
+            return new ParsedChatMessage() { message = messageRaw.Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType, commandComesFromJKWatcher= commandComesFromJKWatcher };
         }
 
         bool isNumber(string str)
@@ -330,11 +336,12 @@ namespace JKWatcher
                     if (stringParams.Count == 0) return;
 
 
-                    int[] ourClientNums = serverWindow.getJKWatcherClientNums();
+                    //int[] ourClientNums = serverWindow.getJKWatcherClientNums();
                     bool fightBotChatHandlersExist = serverWindow.dedicatedFightBotChatHandlersExist();
                     bool weHandleFightBotCommands = (fightBotChatHandlersExist && this.HandlesFightBotChatCommands) || (!fightBotChatHandlersExist && this.IsMainChatConnection);
 
-                    bool commandComesFromJKWatcher = ourClientNums.Contains(pm.playerNum);
+                    //bool commandComesFromJKWatcher = ourClientNums.Contains(pm.playerNum);
+                    bool commandComesFromJKWatcher = pm.commandComesFromJKWatcher;
 
                     //StringBuilder response = new StringBuilder();
                     bool markRequested = false;
@@ -1252,12 +1259,12 @@ namespace JKWatcher
                         default:
                             if (pm.type == ChatType.PRIVATE)
                             {
-                                if (!_connectionOptions.silentMode && pm.playerNum != myClientNum)
+                                if (!_connectionOptions.silentMode && pm.playerNum != myClientNum && !pm.commandComesFromJKWatcher)
                                 {
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"!demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                    /*leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);*/
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    /*leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);*/
                                 }
                                 return;
                             } else if(pm.type == ChatType.PUBLIC && pm.message.Trim().Length > 0)
@@ -1274,9 +1281,9 @@ namespace JKWatcher
                         case "help":
                             if (pm.type == ChatType.PRIVATE)
                             {
-                                if (!_connectionOptions.silentMode && pm.playerNum != myClientNum)
+                                if (!_connectionOptions.silentMode && pm.playerNum != myClientNum && !pm.commandComesFromJKWatcher)
                                 {
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"!demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                 }
                             }
                             break;
@@ -1348,14 +1355,14 @@ namespace JKWatcher
                         return;
                     }
 
-                    if (helpRequested)
+                    if (helpRequested && !pm.commandComesFromJKWatcher)
                     {
                         serverWindow.addToLog($"help requested by \"{pm.playerName}\" (clientNum {pm.playerNum})\n");
-                        if (!_connectionOptions.silentMode)
+                        if (!_connectionOptions.silentMode && this.IsMainChatConnection)
                         {
-                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
-                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Here is your help: Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                            leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                         }
                         return;
                     }
@@ -1526,11 +1533,11 @@ namespace JKWatcher
                     if (!_connectionOptions.silentMode && cutDemosCount > 1)
                     {
                         string currentDemoTime = demoCutsTimes.Count > 0 ? string.Join(",", demoCutsTimes) : "UNKNOWN WTF";
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe} from {cutDemosCount} demos, {markMinutes} min into past. Times {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Time was marked for demo cut{withReframe} from {cutDemosCount} demos, {markMinutes} min into past. Times {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                     } else if (!_connectionOptions.silentMode && cutDemosCount > 0)
                     {
                         string currentDemoTime = demoCutsTimes.Count > 0 ? demoCutsTimes[0].ToString() : "UNKNOWN WTF";
-                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                     }
                     serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past {rateLimited}\n");
                     return;
@@ -1574,7 +1581,11 @@ namespace JKWatcher
                 message = multipleSlashRegex.Replace(message, "/"); // Idk why this is needed. double // seems to cut off messages.
             }
             bool forcingPrivateResponse = false;
-            if (chatType == ChatType.TEAM && team)
+            if (pm.commandComesFromJKWatcher)
+            {
+                serverWindow.addToLog($"Silent response due to message coming from ourselves: In response to {pm.type} from {pm.playerName} ({pm.playerNum}): {message}");
+            }
+            else if (chatType == ChatType.TEAM && team)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
                 else leakyBucketRequester.requestExecution($"say_team \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
@@ -1586,7 +1597,8 @@ namespace JKWatcher
             }
             if ((chatType == ChatType.PRIVATE && priv) || forcingPrivateResponse)
             {
-                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                // In case of private messages, append 3 spaces before the message so we can safely recognize this message as coming from a demobot to avoid creating endless loops
+                leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   {message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
             }
         }
 

@@ -299,7 +299,8 @@ namespace JKWatcher
                 {
                     // Interpret color as base jk2 color instead
                     length = 1;
-                    return g_color_table[ColorIndex_Extended(inputString[startIndex])];
+                    //return g_color_table[ColorIndex_Extended(inputString[startIndex])];
+                    return g_color_table[ColorIndex(inputString[startIndex])];
                 }
 
                 Vector4 color = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -338,13 +339,17 @@ namespace JKWatcher
             {
                 // Normal JK2 color
                 length = 1;
-                return g_color_table[ColorIndex_Extended(inputString[startIndex])];
+                //return g_color_table[ColorIndex_Extended(inputString[startIndex])];
+                return g_color_table[ColorIndex(inputString[startIndex])];
             }
         }
 
         const int COLOR_EXT_AMOUNT = 16;
         private static int ColorIndex_Extended(char c) {
             return ((c) - '0') & (COLOR_EXT_AMOUNT - 1); // compatible with 1.02, 'a' & 15 = 1
+        }
+        private static int ColorIndex(char c) {
+            return ((c) - '0') & 7;
         }
 
 
