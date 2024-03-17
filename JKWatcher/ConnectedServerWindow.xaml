@@ -224,8 +224,14 @@
                                 </Style>
                             </TextBox.Style>
                         </TextBox>
-                        <CheckBox IsChecked="{Binding allowWayPointBotmode,Mode=TwoWay}">Allow waypoint botmode</CheckBox>
-                        <CheckBox IsChecked="{Binding allowWayPointBotmodeCommands,Mode=TwoWay}">Allow waypoint commands</CheckBox>
+                        <WrapPanel>
+                            <CheckBox IsChecked="{Binding allowWayPointBotmode,Mode=TwoWay}">Allow waypoint botmode</CheckBox>
+                            <CheckBox IsChecked="{Binding allowWayPointBotmodeCommands,Mode=TwoWay}">Allow waypoint commands</CheckBox>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <CheckBox IsChecked="{Binding ignoreQuietMode,Mode=TwoWay}">Ignore Quiet Mode</CheckBox>
+                            <Button x:Name="resetQuietModeBtn" Click="resetQuietModeBtn_Click">Reset Quiet Mode</Button>
+                        </WrapPanel>
                         <WrapPanel>
 
                             <CheckBox IsChecked="{Binding mohFastSwitchFollow,Mode=TwoWay}">MOH fast switch follow</CheckBox>
@@ -249,6 +255,7 @@
                 <Button x:Name="delBtn" Click="delBtn_Click" IsEnabled="False">Del</Button>
                 <Button x:Name="reconBtn" Click="reconBtn_Click" IsEnabled="False">Recon</Button>
                 <Button x:Name="statsBtn" Click="statsBtn_Click" IsEnabled="False">Stats</Button>
+                <Button x:Name="unselectBtn" Click="unselectBtn_Click" IsEnabled="False">/</Button>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="connectionsDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="connectionsDataGrid_SelectionChanged">
                 <DataGrid.RowStyle>
@@ -256,6 +263,9 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding GhostPeer}" Value="True">
                                 <Setter Property="Background" Value="PaleVioletRed"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding QuietMode}" Value="True">
+                                <Setter Property="Background" Value="Cyan"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
@@ -285,6 +295,7 @@
                             </Style>
                         </DataGridTextColumn.CellStyle>
                     </DataGridTextColumn>
+                    <DataGridTextColumn Header="Quiet" Binding="{Binding QuietModeTimeOut}" Width="30"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>

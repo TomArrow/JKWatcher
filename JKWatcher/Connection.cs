@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 using JKClient;
+using PropertyChanged;
 using Client = JKClient.JKClient;
 using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
 
@@ -664,6 +665,20 @@ namespace JKWatcher
             // Technically the below won't turn into a say but will give an error which isnt nice either.
             "give", "god" ,"notarget" ,"noclip" ,"kill" ,"teamtask" ,"levelshot" ,"follow", "follownext", "followprev", "team", "forcechanged", "where", "callvote", "vote", "callteamvote", "teamvote", "gc", "setviewpos", "stats"
         };
+
+        public bool CurrentTimeSecondEven { get; set; } = (DateTime.Now.Second % 2) > 0; // Really shitty lol. Just wanna be updating this value once per second so some values can get updated.
+        public DateTime beQuietUntil { get; set; } = DateTime.Now - new TimeSpan(999, 0, 0);
+
+        [DependsOn("beQuietUntil", "CurrentTimeSecondEven")]
+        public bool QuietMode { get {
+                return beQuietUntil > DateTime.Now;
+            }
+        }
+        [DependsOn("beQuietUntil", "CurrentTimeSecondEven")]
+        public int QuietModeTimeOut { get {
+                return beQuietUntil > DateTime.Now ? (int)(beQuietUntil-DateTime.Now).TotalSeconds : 0;
+            } }
+
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
         {
             // Check if the command is supported by server (it's just a crude array that gets elements added if server responds that a command is unsupported. Don't waste time, burst allowance, bandwidth and demo size sending useless commands).
@@ -719,7 +734,21 @@ namespace JKWatcher
                 if(unacked < 5)
                 {
 
-                    client.ExecuteCommand(e.Command);
+                    if (beQuietUntil > DateTime.Now && !_connectionOptions.ignoreQuietMode) // Server requested us to be quiet for a bit.
+                    {
+                        if (e.RequestBehavior == LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE)
+                        {
+                            e.Discard = true; // It's a queued command. We might accrue a LOT of queued commands over the beQuietUntil timespan (10 minutes default). Let's just discard them so we don't spam them all once we can send again.
+                        }
+                        else
+                        {
+                            e.Cancel = true; // Just try again later.
+                        }
+                    }
+                    else
+                    {
+                        client.ExecuteCommand(e.Command);
+                    }
                 }
                 else
                 {
@@ -1008,6 +1037,15 @@ namespace JKWatcher
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand, ref List<UserCommand> insertCommands)
         {
+
+            // If we haven't gotten any response from the server in the last 10 seconds or so, stop doing any of these. 
+            // Because generating these commands can force the client to send usercommands at 142-ish fps and if the server went down or something,
+            // we don't wanna spam it.
+            if ((DateTime.Now-lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10)
+            {
+                return;
+            }
+
             if (durationButtonPress > 0) // For example in MOH not every button press is processed for spectator change. Instead button presses are processed once per server frame. So the only thing we can do to speed things up is to just alternate the button for a duration that in combination with a known sv_fps will give us the amount of changes we need. This is not a precise science or anything and kinda fucked.
             {
                 int durationButtonPressRealButtons = (int)(durationButtonPress & ((1L << 31) - 1)); // Only bits 0 to 30. We reserve higher ones for fake buttons like jump.
@@ -1724,8 +1762,12 @@ namespace JKWatcher
 
         public DateTime lastAnyMovementDirChange = DateTime.Now; // Last time the player position or angle changed
 
+        public DateTime lastSnapshotParsedOrServerInfoChange = DateTime.Now;
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
+            lastSnapshotParsedOrServerInfoChange = DateTime.Now;
+            CurrentTimeSecondEven = (DateTime.Now.Second % 2) > 0; // So we can update some values once per second LOL.
 
             snapsEnforcementUpdate();
 
@@ -2655,6 +2697,7 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
+            lastSnapshotParsedOrServerInfoChange = DateTime.Now;
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
 
@@ -3114,7 +3157,7 @@ namespace JKWatcher
         {
             string command = commandEventArgs.Command.Argv(0);
 
-            switch (command)
+            switch (command.ToLower())
             {
                 case "disconnect":
                     if(LastTimeProbablyKicked.HasValue && (DateTime.Now-LastTimeProbablyKicked.Value).TotalMilliseconds < 5000)
@@ -3207,6 +3250,9 @@ namespace JKWatcher
                 case "chat":
                 case "tchat":
                     EvaluateChat(commandEventArgs);
+                    break;
+                case "bequietplease":
+                    this.beQuietUntil = DateTime.Now + new TimeSpan(0,10,0); // Server owner requested us to be quiet for a while. Maybe he wants to debug things. Stop sending commands for 10 minutes.
                     break;
                 case "map_restart":
                     if (this.HandleAutoCommands) ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);

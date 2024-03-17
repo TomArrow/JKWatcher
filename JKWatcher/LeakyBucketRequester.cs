@@ -75,6 +75,7 @@ namespace JKWatcher
             public int priority { get; init; }
             public DateTime? earliestExecution { get; init; }
             public TaskCompletionSource<bool> tcs { get; init; }
+            public RequestBehavior behavior { get; init; }
 
             public Request(Request source, DateTime? earliestExecutionA = null)
             {
@@ -83,6 +84,7 @@ namespace JKWatcher
                 type = source.type;
                 minimumDelayFromSameType = source.minimumDelayFromSameType;
                 priority = source.priority;
+                behavior = source.behavior;
                 if(earliestExecutionA != null)
                 {
                     earliestExecution = earliestExecutionA;
@@ -281,7 +283,7 @@ namespace JKWatcher
                                 timeUntilNextRequestAllowed = whenCanIRequest(true);
                                 if (timeUntilNextRequestAllowed == 0)
                                 {
-                                    CommandExecutingEventArgs args = new CommandExecutingEventArgs(requestQueue[i].command);
+                                    CommandExecutingEventArgs args = new CommandExecutingEventArgs(requestQueue[i].command, requestQueue[i].behavior, requestQueue[i].type);
                                     OnCommandExecuting(args);
                                     if (args.Delay) { // Allow the event receivers to cancel the execution for whatever reason and tell us when we can continue.
                                         Request modifiedRequest = new Request(requestQueue[i], (DateTime.Now + new TimeSpan(0, 0, 0,0, args.NextTryAllowedIfDelayed)));
@@ -369,6 +371,7 @@ namespace JKWatcher
                 type = kind,
                 minimumDelayFromSameType = minimumDelayFromSameType,
                 priority = priority,
+                behavior = requestBehavior,
                 earliestExecution = delayFromNow.HasValue ? (DateTime.Now + new TimeSpan(0, 0, 0, 0, delayFromNow.Value)) : null,
                 tcs = new TaskCompletionSource<bool>()
             };
@@ -525,6 +528,8 @@ namespace JKWatcher
             public bool Cancel = false; // If you want to cancel/halt execution of commands for a bit and continue later
             public bool Discard = false; // If you want to discard this one
             public bool Delay = false; // If you want to delay this one particular command
+            public RequestBehavior RequestBehavior { get; private set; }
+            public TKind Kind { get; private set; }
             private int _nextTryAllowedIfDelayed = 100; // We set 100 as default when we can retry after delaying a command.
             private int _nextRequestAllowedIfCancelled = 100; // We set 100 as default when we can continue if cancelled.
             public int NextRequestAllowedIfCancelled // If you cancel, tell us when we can continue pls.
@@ -549,9 +554,11 @@ namespace JKWatcher
                     _nextTryAllowedIfDelayed = Math.Max(_nextTryAllowedIfDelayed, value);
                 }
             }
-            public CommandExecutingEventArgs(TCommand commandA)
+            public CommandExecutingEventArgs(TCommand commandA, RequestBehavior requestBehaviorA, TKind kindA)
             {
                 Command = commandA;
+                RequestBehavior = requestBehaviorA;
+                Kind = kindA;
             }
         }
     }

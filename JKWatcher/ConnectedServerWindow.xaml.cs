@@ -210,6 +210,7 @@ namespace JKWatcher
             public bool noBotIgnore { get; set; } = false;
             public bool allowWayPointBotmode { get; set; } = false;
             public bool allowWayPointBotmodeCommands { get; set; } = false;
+            public bool ignoreQuietMode { get; set; } = false;
             public bool mohFastSwitchFollow { get; set; } = true;
             public bool mohVeryFastSwitchFollow { get; set; } = true;
             public int mohVeryFastSwitchFollowManualCount { get; set; } = 2;
@@ -2236,6 +2237,7 @@ namespace JKWatcher
             delBtn.IsEnabled = connectionsSelected;
             reconBtn.IsEnabled = connectionsSelected;
             statsBtn.IsEnabled = connectionsSelected;
+            unselectBtn.IsEnabled = connectionsSelected;
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
             commandSendBtn.IsEnabled = connectionsSelected;
@@ -2635,6 +2637,31 @@ namespace JKWatcher
         private void minimapVelocityScaleSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             MiniMapVelocityScale = (float)minimapVelocityScaleSlider.Value;
+        }
+
+        private void resetQuietModeBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Connection[] conns = null;
+            lock (connectionsCameraOperatorsMutex)
+            {
+                conns = connections.ToArray();
+            }
+            if(conns != null && conns.Length > 0)
+            {
+                foreach(Connection conn in conns)
+                {
+                    conn.beQuietUntil = DateTime.Now - new TimeSpan(999,0,0);
+                }
+            }
+        }
+
+        private void unselectBtn_Click(object sender, RoutedEventArgs e)
+        {
+            DataGrid dataGrid = connectionsDataGrid;
+            if (dataGrid != null)
+            {
+                connectionsDataGrid.SelectedItem = null;
+            }
         }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
