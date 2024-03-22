@@ -350,10 +350,11 @@ namespace JKWatcher
         public FightBotTargetingMode fightBotTargetingMode = FightBotTargetingMode.NONE;
         public SillyMode sillyMode = SillyMode.DBS;
         public GripKickDBSMode gripDbsMode = GripKickDBSMode.VANILLA;
-        public float dbsTriggerDistance = 128;
+        public float dbsTriggerDistance = 90; // 128
         public float bsTriggerDistance = 64;
         public bool fastDbs = true; // Assume we are in the air if the last user command had jump in it.
         public bool selfPredict = true; // Predict the bots own position with ping value
+        public float deluxePredict = 1.0f;
         public string sillyModeCustomCommand = null;
         public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);
         public DateTime lastBodyguardStarted = DateTime.Now - new TimeSpan(10, 0, 0);

@@ -343,10 +343,21 @@ namespace JKWatcher
 			float closestWayPointBotPathAfkDistance = float.PositiveInfinity;
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
 
+			Vector3 myPosition = myself.position;
+
+            if (infoPool.deluxePredict > 0.0f)
+            {
+				DateTime? lastFullPosUpdate = myself.lastFullPositionUpdate;
+				if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
+				{
+					myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping* infoPool.deluxePredict) * 0.001f;
+				}
+			}
+
 			if (ourLastAttacker != lastPlayerState.Persistant[6] || ourLastHitCount != lastPlayerState.Persistant[1])
 			{
 				// Disable stuck detection during fights
-				//stuckDetectReset(myself.position);
+				//stuckDetectReset(myPosition);
 				smallRangeStuckDetector.stuckDetectReset(myself.position);
 				bigRangeStuckDetector.stuckDetectReset(myself.position);
 			}
@@ -378,8 +389,8 @@ namespace JKWatcher
 			bool speedRageModeActive = infoPool.gripDbsModeOneOf(GripKickDBSMode.SPEEDRAGE, GripKickDBSMode.SPEEDRAGEBS);
 
 			int timeDelta = lastPlayerState.CommandTime - sillyLastCommandTime;
-			//Vector3 ourMoveDelta = myself.position - sillyOurLastPosition;
-			Vector2 myPosition2D = new Vector2() { X = myself.position.X, Y = myself.position.Y };
+			//Vector3 ourMoveDelta = myPosition - sillyOurLastPosition;
+			Vector2 myPosition2D = new Vector2() { X = myPosition.X, Y = myPosition.Y };
 			Vector2 ourMoveDelta2D = myPosition2D - sillyOurLastPosition2D;
 			float realDeltaSpeed = timeDelta == 0 ? float.PositiveInfinity : ourMoveDelta2D.Length() / ((float)timeDelta / 1000.0f); // Our speed per second
 
@@ -428,7 +439,7 @@ namespace JKWatcher
 			
 
 			sillyLastCommandTime = lastPlayerState.CommandTime;
-			sillyOurLastPosition = myself.position;
+			sillyOurLastPosition = myPosition;
 			sillyOurLastPosition2D = myPosition2D;
 
 			bool isLightsideMode = infoPool.sillyModeOneOf(SillyMode.ABSORBSPEED,SillyMode.MINDTRICKSPEED);
@@ -464,7 +475,7 @@ namespace JKWatcher
 			if (!findShortestBotPathWalkDistance && !amInAttack)
 			{
 				bool tmp = false;
-				weAreStuck = smallRangeStuckDetector.areWeStuck(myself.position, ref weAreVeryStuck) || bigRangeStuckDetector.areWeStuck(myself.position, ref tmp);
+				weAreStuck = smallRangeStuckDetector.areWeStuck(myself.position, ref weAreVeryStuck) || bigRangeStuckDetector.areWeStuck(myself.position, ref tmp); // Using unpredicted position for this.
 				weAreVeryStuck = weAreVeryStuck || tmp;
 				if (weAreStuck && (DateTime.Now- lastStuckDetectReset).TotalMilliseconds > 4000) // give it 4 seconds before resetting again or we will end up resetting every frame which makes the waypoint discarding concept useless...
 				{
@@ -486,7 +497,7 @@ namespace JKWatcher
 				}
 			}
 
-			WayPoint myClosestWayPoint = findShortestBotPathWalkDistance ? ( this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myself.position,((movingVerySlowly|| weAreStuck) && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(10, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null) : null;
+			WayPoint myClosestWayPoint = findShortestBotPathWalkDistance ? ( this.pathFinder != null ? this.pathFinder.findClosestWayPoint(myPosition,((movingVerySlowly|| weAreStuck) && wayPointsToWalk.Count > 0) ? wayPointsToWalk.GetRange(0,Math.Min(10, wayPointsToWalk.Count)) : null,myself.groundEntityNum == Common.MaxGEntities-2) : null) : null;
 
 
 
@@ -497,7 +508,7 @@ namespace JKWatcher
 					//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
 					if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
 					{
-						float curdistance = (pi.position - myself.position).Length();
+						float curdistance = (pi.position - myPosition).Length();
 						if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
 						{
 							grippingPlayers.Add(pi);
@@ -667,18 +678,29 @@ namespace JKWatcher
 						lastTimeAnyPlayerSeen = DateTime.Now;//Reset or we will get thrown out here all the time.
 					}
 					closestPlayer = dummyPlayerInfo;
-					closestDistance = (dummyPlayerInfo.position - myself.position).Length();
+					closestDistance = (dummyPlayerInfo.position - myPosition).Length();
 				}
 			} else if (closestDistance < 2000)
             {
 				lastTimeAnyPlayerSeen = DateTime.Now;
 			}
 
+			Vector3 closestPlayerPosition = closestPlayer.position;
+            if (infoPool.deluxePredict > 0.0f)
+            {
+				DateTime? lastFullPosUpdate = closestPlayer.lastFullPositionUpdate;
+                if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
+				{
+					closestPlayerPosition = closestPlayer.position + closestPlayer.velocity * ((float)(DateTime.Now-lastFullPosUpdate.Value).TotalMilliseconds+(float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					closestDistance = (closestPlayerPosition - myPosition).Length();
+				}
 
-			bool enemyLikelyOnSamePlane = closestDistance < 300 && Math.Abs(closestPlayer.position.Z - myself.position.Z) < 10.0f && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && closestPlayer.groundEntityNum == Common.MaxGEntities - 2;
+			}
+
+			bool enemyLikelyOnSamePlane = closestDistance < 300 && Math.Abs(closestPlayerPosition.Z - myPosition.Z) < 10.0f && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && closestPlayer.groundEntityNum == Common.MaxGEntities - 2;
 
 
-			Vector3 myViewHeightPos = myself.position;
+			Vector3 myViewHeightPos = myPosition;
 			myViewHeightPos.Z += lastPlayerState.ViewHeight;
 
 
@@ -696,7 +718,7 @@ namespace JKWatcher
 			bool drainPossible = closestDistance < maxDrainDistance;//&& grippedEntity == -1;
 			bool pullPossibleDistanceWise = closestDistance < maxPullDistance;//&& grippedEntity == -1;
 			bool pullPossible = pullPossibleDistanceWise && (heInAttack || (closestPlayer.groundEntityNum == Common.MaxGEntities-1));
-			Vector3 viewHeightMoveVector = closestPlayer.position- myViewHeightPos;
+			Vector3 viewHeightMoveVector = closestPlayerPosition - myViewHeightPos;
 			float viewHeightToEnemyDistance = viewHeightMoveVector.Length();
 			bool kissPossibleDistanceWise = viewHeightToEnemyDistance < 40.0f || closestDistance < 40.0f;//&& grippedEntity == -1;
 			bool kissPossible = kissPossibleDistanceWise && lastPlayerState.Stats[0] > 0 && myself.groundEntityNum == Common.MaxGEntities-2 && closestPlayer.groundEntityNum == Common.MaxGEntities-2;// && lastPlayerState.Stats[0] > 0; Technically, dont do if we're dead but who knows. doing it always might reveal funny game glitches due to forgotten checks
@@ -710,9 +732,9 @@ namespace JKWatcher
 			//float mySpeed = this.baseSpeed == 0 ? (myself.speed == 0 ? 250: myself.speed) : this.baseSpeed; // We only walk so walk speed is our speed.
 			float mySpeed = myself.speed == 0 ? (this.baseSpeed == 0 ? 250: this.baseSpeed) : myself.speed; // We only walk so walk speed is our speed.
 			float hisSpeed = closestPlayer.velocity.Length();
-			Vector3 vecToClosestPlayer = closestPlayer.position - myself.position;
+			Vector3 vecToClosestPlayer = closestPlayerPosition - myPosition;
 			Vector2 vecToClosestPlayer2D = new Vector2() { X=vecToClosestPlayer.X,Y=vecToClosestPlayer.Y};
-			Vector2 enemyPosition2D = new Vector2() { X= closestPlayer.position.X,Y= closestPlayer.position.Y};
+			Vector2 enemyPosition2D = new Vector2() { X= closestPlayerPosition.X,Y= closestPlayerPosition.Y};
 			Vector2 enemyVelocity2D = new Vector2() { X= closestPlayer.velocity.X,Y= closestPlayer.velocity.Y};
 			// Predict where other player is going and how I can get there.
 			// The problem is, I can't just predict 1 second into the future.
@@ -747,12 +769,12 @@ namespace JKWatcher
 
 			float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
 			float halfPingInSeconds = pingInSeconds / 2.0f;
-			Vector3 myPredictedPosition = myself.position + myself.velocity * halfPingInSeconds;
+			Vector3 myPredictedPosition = myPosition + myself.velocity * halfPingInSeconds;
 			Vector2 myPredictedPosition2D = new Vector2() { X= myPredictedPosition.X, Y= myPredictedPosition.Y};
-			Vector3 myPositionMaybePredicted = infoPool.selfPredict ? myPredictedPosition : myself.position;
-			Vector2 myPosition2DMaybePredicted = infoPool.selfPredict ? myPredictedPosition2D : myPosition2D;
+			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f < infoPool.deluxePredict) ? myPredictedPosition : myPosition;
+			Vector2 myPosition2DMaybePredicted = (infoPool.selfPredict && 0.0f < infoPool.deluxePredict) ? myPredictedPosition2D : myPosition2D;
 
-			//float verticalDistance = Math.Abs(closestPlayer.position.Z - myself.position.Z);
+			//float verticalDistance = Math.Abs(closestPlayerPosition.Z - myPosition.Z);
 			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
 
 			bool amCurrentlyDbsing = lastPlayerState.SaberMove == dbsLSMove || lastPlayerState.SaberMove == bsLSMove || lastPlayerState.SaberMove == blubsLSMove;
@@ -764,10 +786,10 @@ namespace JKWatcher
 			bool releaseGrip = false;
 			bool doPull = false;
 
-			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayer.position.Z <= (myself.position.Z + myMax + hisMin + 10.0f) && closestPlayer.position.Z > (myself.position.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
-			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z > (closestPlayer.position.Z - hisMin) && myself.position.Z < (closestPlayer.position.Z + hisMax);
+			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + myMax + hisMin + 10.0f) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
+			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z > (closestPlayerPosition.Z - hisMin) && myPosition.Z < (closestPlayerPosition.Z + hisMax);
 			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody && !amGripped; // Don't dbs while gripped. Is it even possible?
-			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myself.position.Z < (closestPlayer.position.Z - hisMin) && (myself.position.Z + 96) > (closestPlayer.position.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
+			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z < (closestPlayerPosition.Z - hisMin) && (myPosition.Z + 96) > (closestPlayerPosition.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
 			bool dbsPossibleWithJump = dbsPossibleWithJumpPositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
 
 			bool doingGripDefense = false;
@@ -793,7 +815,7 @@ namespace JKWatcher
 				}
 
 				hadWayPoints = wayPointsToWalk.Count > 0;
-				if (wayPointsToWalk.Count > 0 && (wayPointsToWalk[0].origin - myself.position).LengthXY() < 32 && wayPointsToWalk[0].origin.Z<myself.position.Z-64 && lastPlayerState.GroundEntityNum == Common.MaxGEntities-2)
+				if (wayPointsToWalk.Count > 0 && (wayPointsToWalk[0].origin - myPosition).LengthXY() < 32 && wayPointsToWalk[0].origin.Z<myPosition.Z-64 && lastPlayerState.GroundEntityNum == Common.MaxGEntities-2)
                 {
 					// Special case: We have reached the waypoint horizontally but we are way above it and we are standing on ground. We likely got lost/stuck.
 					wayPointsToWalk.Clear();
@@ -801,7 +823,7 @@ namespace JKWatcher
 
 				bool weAreOverjumping = false;
 				// Remove points that we have already hit
-				while (wayPointsToWalk.Count > 0 && (/*(wayPointsToWalk[0].origin - myself.position).Length() > 500.0f ||*/ ((wayPointsToWalk[0].origin - myself.position).LengthXY() < 32 && (wayPointsToWalk[0].origin - myself.position).Length() < 96 && wayPointsToWalk[0].origin.Z < myself.position.Z + 1.0f)))
+				while (wayPointsToWalk.Count > 0 && (/*(wayPointsToWalk[0].origin - myPosition).Length() > 500.0f ||*/ ((wayPointsToWalk[0].origin - myPosition).LengthXY() < 32 && (wayPointsToWalk[0].origin - myPosition).Length() < 96 && wayPointsToWalk[0].origin.Z < myPosition.Z + 1.0f)))
 				{
 					// Check if we are going the right angle or overjumping
 					if(lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1)
@@ -831,7 +853,7 @@ namespace JKWatcher
 						wayPointsToWalk.RemoveAt(0);
 					}
 				}
-				/*while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myself.position).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myself.position.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
+				/*while (wayPointsToWalk.Count > 1 && (wayPointsToWalk[1].origin - myPosition).Length() < (wayPointsToWalk[1].origin - wayPointsToWalk[0].origin).Length() && myPosition.DistanceToLine(wayPointsToWalk[1].origin, wayPointsToWalk[0].origin) < 32)
 				{
 					// Check if we walked past the next point and are on our way to the following point.
 					// To make sure, check that on the line from this to next one, we are no more than 32 units removed from the line
@@ -848,11 +870,11 @@ namespace JKWatcher
 					{
 						Debug.WriteLine($"{wayPointsToWalk.Count},{i}\n");
 						float distanceToLastWayPoint = (wayPointsToWalk[i].origin - wayPointsToWalk[i - 1].origin).Length();
-						if (myself.position.DistanceToLineXY(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 32 && // Horizontal distance to line < 32
-							myself.position.DistanceToLine(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 96 && // Total distance to line < 96 (max level 1 force jump height)
-							(/*wayPointsToWalk[i-1].origin.Z < (myself.position.Z + 1.0f) ||*/ wayPointsToWalk[i].origin.Z < (myself.position.Z + 1.0f)) && // previous or current waypoint is below us.
-							(wayPointsToWalk[i].origin-myself.position).Length() < distanceToLastWayPoint &&  // These two conditions combined mean we are somewhere between the two points
-							(wayPointsToWalk[i-1].origin-myself.position).Length() < distanceToLastWayPoint)
+						if (myPosition.DistanceToLineXY(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 32 && // Horizontal distance to line < 32
+							myPosition.DistanceToLine(wayPointsToWalk[i].origin, wayPointsToWalk[i - 1].origin) < 96 && // Total distance to line < 96 (max level 1 force jump height)
+							(/*wayPointsToWalk[i-1].origin.Z < (myPosition.Z + 1.0f) ||*/ wayPointsToWalk[i].origin.Z < (myPosition.Z + 1.0f)) && // previous or current waypoint is below us.
+							(wayPointsToWalk[i].origin-myPosition).Length() < distanceToLastWayPoint &&  // These two conditions combined mean we are somewhere between the two points
+							(wayPointsToWalk[i-1].origin-myPosition).Length() < distanceToLastWayPoint)
                         {
 							highestMatchIndex = i;
 
@@ -868,9 +890,9 @@ namespace JKWatcher
 				{
 					// If some future point is on the same line and we're heading that direction, remove intermediate points
 					// Basically: Optimize straight lines for better strafing
-                    if (wayPointsToWalk[0].origin.Z < (myself.position.Z + 30.0f) &&
-						wayPointsToWalk[0].origin.DistanceToLineXY(myself.position, myself.position + myself.velocity) < 32 && wayPointsToWalk[0].origin.DistanceToLine(myself.position, myself.position + myself.velocity) < 96.0f && // I'm heading towards the next waypoint
-						myself.position.DistanceToLineXY(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 32 && myself.position.DistanceToLine(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 96 // Next path segment is pointing at me
+                    if (wayPointsToWalk[0].origin.Z < (myPosition.Z + 30.0f) &&
+						wayPointsToWalk[0].origin.DistanceToLineXY(myPosition, myPosition + myself.velocity) < 32 && wayPointsToWalk[0].origin.DistanceToLine(myPosition, myPosition + myself.velocity) < 96.0f && // I'm heading towards the next waypoint
+						myPosition.DistanceToLineXY(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 32 && myPosition.DistanceToLine(wayPointsToWalk[0].origin, wayPointsToWalk[1].origin) < 96 // Next path segment is pointing at me
 						)
                     {
 						int index = 2;
@@ -885,15 +907,15 @@ namespace JKWatcher
 				// Check if next segment is a sharp turn.
 				if (wayPointsToWalk.Count > 1)
 				{
-					Vector3 meToNextWPVector = wayPointsToWalk[0].origin - myself.position;
+					Vector3 meToNextWPVector = wayPointsToWalk[0].origin - myPosition;
 					Vector3 nextWpToNextAfterWpVector = wayPointsToWalk[1].origin - wayPointsToWalk[0].origin;
                     if (Math.Abs(AngleSubtract(vectoyaw(meToNextWPVector), vectoyaw(nextWpToNextAfterWpVector))) > 25){
-						nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).LengthXY();
+						nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myPosition).LengthXY();
 					}
 
 				} else if (wayPointsToWalk.Count == 1)
                 {
-					nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myself.position).LengthXY();
+					nextSharpTurnOrEnd = (wayPointsToWalk[0].origin - myPosition).LengthXY();
 				}
 
 				// This is bad: what if we need to walk around a corner and the points on the other side are closer?
@@ -901,11 +923,11 @@ namespace JKWatcher
 				{
 					// Check if a following waypoint among future 3 is closer than current
 					int closestIndex = 0;
-					float closestWayPointDistance = (wayPointsToWalk[0].origin - myself.position).Length();
+					float closestWayPointDistance = (wayPointsToWalk[0].origin - myPosition).Length();
 					int maxCount = Math.Min(3, wayPointsToWalk.Count);
 					for (int i = 1; i < maxCount; i++)
 					{
-						float distanceHere = (wayPointsToWalk[i].origin - myself.position).Length();
+						float distanceHere = (wayPointsToWalk[i].origin - myPosition).Length();
 						if (distanceHere < closestWayPointDistance)
 						{
 							closestWayPointDistance = distanceHere;
@@ -935,7 +957,7 @@ namespace JKWatcher
 			{
                 if (strafe && sillyMode != SillyMode.SILLY)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(veryStuckRandomDirection+myself.position, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(veryStuckRandomDirection+myPosition, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 				}
                 else
                 {
@@ -947,7 +969,7 @@ namespace JKWatcher
                 if (strafe && sillyMode != SillyMode.SILLY)
                 {
 					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, in prevCmd, ref amStrafing);
-					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myself.position;
+					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myPosition;
 					float targetAngle = vectoyaw(targetDirection);
 					float velocityAngle = vectoyaw(myself.velocity);
 					float angleDiff = AngleSubtract(targetAngle, velocityAngle);
@@ -990,15 +1012,15 @@ namespace JKWatcher
 				}
                 else
                 {
-					moveVector = wayPointsToWalk[0].origin - myself.position;
+					moveVector = wayPointsToWalk[0].origin - myPosition;
 				}
-				if (lastPlayerState.GroundEntityNum!=Common.MaxGEntities-1 && (wayPointsToWalk[0].origin.Z > (myself.position.Z + myMin + 16)) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
+				if (lastPlayerState.GroundEntityNum!=Common.MaxGEntities-1 && (wayPointsToWalk[0].origin.Z > (myPosition.Z + myMin + 16)) || movingVerySlowly) // Check if we need a jump to get here. Aka if it is higher up than our lowest possible height. Meaning we couldn't duck under it or such. Else it's likely just a staircase. If we do get stuck, do jump.
 				{
 					if (CheckWaypointJumpDirection(myself.velocity, /*strafeTarget*/moveVector, mySpeed))
                     {
 						mustJumpToReachWayPoint = true;
 					}
-				} else if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1 && myself.velocity.Z > 0 && (wayPointsToWalk[0].origin.Z > (myself.position.Z-20.0f)))
+				} else if (lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1 && myself.velocity.Z > 0 && (wayPointsToWalk[0].origin.Z > (myPosition.Z-20.0f)))
 				{
 					// Already in air. Jump a bit higher than needed to get over potential obstacles.
 					mustJumpToReachWayPoint = true;
@@ -1030,16 +1052,16 @@ namespace JKWatcher
 			else if (gripkickMode && pullPossible && closestDistance < 400 && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
 			{
 				doPull = true;
-				//moveVector = closestPlayer.position - myself.position;
+				//moveVector = closestPlayerPosition - myPosition;
 			}
 			else if (gripkickMode && grippingSomebody)
 			{
 				// This has a few stages. First we need to look up until the person is above us. Then we need to look down until he stands on our head.
-				if(vecToClosestPlayer2D.Length() >= 15 || closestPlayer.position.Z < (myself.position.Z+myMax+hisMin-1.0f)) // -1.0f to give some leniency to floating point precision?
+				if(vecToClosestPlayer2D.Length() >= 15 || closestPlayerPosition.Z < (myPosition.Z+myMax+hisMin-1.0f)) // -1.0f to give some leniency to floating point precision?
                 {
 					gripForcePitchUp = true;
 				//} else if (closestPlayer.groundEntityNum != myself.clientNum)
-				} else if (closestPlayer.position.Z > (myself.position.Z + myMax + hisMin + 10.0f))
+				} else if (closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin + 10.0f))
                 {
 					gripForcePitchDown = true;
 				//} else if (!enemyIsKnockedDown)
@@ -1065,10 +1087,10 @@ namespace JKWatcher
 				// Just predict his position in 1 second and move there.
 				if(strafe && !dbsPossible)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayer.position + closestPlayer.velocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayerPosition + closestPlayer.velocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 				} else
                 {
-					moveVector = (closestPlayer.position + closestPlayer.velocity) - myPositionMaybePredicted;
+					moveVector = (closestPlayerPosition + closestPlayer.velocity) - myPositionMaybePredicted;
 				}
 			} else
             {
@@ -1082,7 +1104,7 @@ namespace JKWatcher
                 {
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
-					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ halfPingInSeconds);
+					Vector2 hisPosThen = enemyPosition2D + enemyVelocity2D * (interceptTime+ (0.0f < infoPool.deluxePredict? 0.0f : halfPingInSeconds));
 					interceptPos = hisPosThen + Vector2.Normalize(enemyVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
 					moveVector2d = (interceptPos - myPosition2DMaybePredicted);
 					if (moveVector2d.Length() <= mySpeed * interceptTime)
@@ -1094,7 +1116,7 @@ namespace JKWatcher
 				}
                 if (!foundSolution)
                 {
-					Vector3 targetPos = closestPlayer.position + closestPlayer.velocity;
+					Vector3 targetPos = closestPlayerPosition + closestPlayer.velocity;
                     // Sad. ok just fall back to the usual.
                     if (strafe && !dbsPossible)
                     {
@@ -1108,7 +1130,7 @@ namespace JKWatcher
                 {
 					if(strafe && !dbsPossible)
 					{
-						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayer.position.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayerPosition.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 					} else
                     {
 						moveVector = new Vector3() { X = moveVector2d.X, Y = moveVector2d.Y, Z = moveVector.Z };
@@ -1262,7 +1284,7 @@ namespace JKWatcher
 						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 						float myVelocity2DAbs = myVelocity2D.Length();
 						float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
-						if (dot < maxSpeed && dot > (150*moveSpeedMultiplier) && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayer.position.Z > (myself.position.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+						if (dot < maxSpeed && dot > (150*moveSpeedMultiplier) && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayerPosition.Z > (myPosition.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
@@ -1346,10 +1368,10 @@ namespace JKWatcher
 								|| (pi.chatCommandTrackingStuff.fightBotBlacklist && !(pi.chatCommandTrackingStuff.fightBotBlacklistAllowBrave && pi.chatCommandTrackingStuff.wantsBotFight)))
 								)
                             {
-								float myDistanceToTargetedPlayer = (myViewHeightPos - closestPlayer.position).Length();
-								if (pi.position.DistanceToLine(myViewHeightPos,closestPlayer.position) < 64
+								float myDistanceToTargetedPlayer = (myViewHeightPos - closestPlayerPosition).Length();
+								if (pi.position.DistanceToLine(myViewHeightPos,closestPlayerPosition) < 64
 									&& (pi.position- myViewHeightPos).Length() < myDistanceToTargetedPlayer
-									&& (pi.position- closestPlayer.position).Length() < myDistanceToTargetedPlayer
+									&& (pi.position- closestPlayerPosition).Length() < myDistanceToTargetedPlayer
 									)
                                 {
 									someoneIsInTheWay = true;
@@ -1612,7 +1634,7 @@ namespace JKWatcher
             if (amStrafing)
             {
 				bool wouldOverjump = false;
-				if(Vector3.Dot(Vector3.Normalize(strafeTarget-myself.position), approximateStrafeJumpAirtimeInSeconds * myself.velocity) > nextSharpTurnOrEnd + 32)
+				if(Vector3.Dot(Vector3.Normalize(strafeTarget-myPosition), approximateStrafeJumpAirtimeInSeconds * myself.velocity) > nextSharpTurnOrEnd + 32)
                 {
 					wouldOverjump = true;
 				} 
@@ -2005,10 +2027,21 @@ namespace JKWatcher
 
 		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, in UserCommand prevCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
 		{
+			Vector3 myPosition = myself.position;
+
+			if (infoPool.deluxePredict > 0.0f)
+			{
+				DateTime? lastFullPosUpdate = myself.lastFullPositionUpdate;
+				if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
+				{
+					myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+				}
+			}
+
 			float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
 			float halfPingInSeconds = pingInSeconds/2.0f;
-			Vector3 myPredictedPosition = myself.position + myself.velocity * halfPingInSeconds;
-			Vector3 myPositionMaybePredicted = infoPool.selfPredict ? myPredictedPosition : myself.position;
+			Vector3 myPredictedPosition = myPosition + myself.velocity * halfPingInSeconds;
+			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f< infoPool.deluxePredict) ? myPredictedPosition : myPosition;
 
 			strafeTarget = targetPoint;
 			Vector3 targetDirection = targetPoint - myPositionMaybePredicted;

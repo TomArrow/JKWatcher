@@ -295,6 +295,7 @@ namespace JKWatcher
                     }
 
                     List<int> numberParams = new List<int>();
+                    List<float> floatParams = new List<float>();
                     List<string> stringParams = new List<string>();
 
                     string demoNoteString = null;
@@ -312,6 +313,12 @@ namespace JKWatcher
                                 if (int.TryParse(bit, out tmp)) // dunno why it wouldnt be true but lets be safe
                                 {
                                     numberParams.Add(tmp);
+                                    continue;
+                                }
+                                float tmp2;
+                                if (float.TryParse(bit, out tmp2)) // dunno why it wouldnt be true but lets be safe
+                                {
+                                    floatParams.Add(tmp2);
                                     continue;
                                 }
                             }
@@ -563,7 +570,7 @@ namespace JKWatcher
                                 }
                                 ChatCommandAnswer(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
                             }
-                            ChatCommandAnswer(pm, "!selfpredict !fastdbs !bsdist !dbsdist", true, true, true, true);
+                            ChatCommandAnswer(pm, "!selfpredict !deluxepredict !fastdbs !bsdist !dbsdist", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -1023,6 +1030,19 @@ namespace JKWatcher
                             else
                             {
                                 ChatCommandAnswer(pm, $"Self-predict is currently {infoPool.selfPredict}. Use 1/0 to enable/disable.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!deluxepredict":
+                            if (!weHandleFightBotCommands) return;
+                            if (floatParams.Count > 0 && floatParams[0] >= 0.0f && floatParams[0] <= 1.0f)
+                            {
+                                infoPool.deluxePredict = floatParams[0];
+                                ChatCommandAnswer(pm, $"Deluxe predict set to {infoPool.deluxePredict}.", true, true, true);
+                            }
+                            else
+                            {
+                                ChatCommandAnswer(pm, $"Deluxe predict is currently {infoPool.deluxePredict}. Use number from 0.0 to 1.0 to enable/disable.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
