@@ -1401,6 +1401,7 @@ namespace JKWatcher
                             return;
                         }
                         StringBuilder demoCutCommand = new StringBuilder();
+                        StringBuilder demoCutCommandReframes = new StringBuilder();
                         DateTime now = DateTime.Now;
 
                         // Rate limit multiple overlapping demos. It might not help against an informed griefer who understands the system
@@ -1443,6 +1444,8 @@ namespace JKWatcher
                             demoNoteStringFilenamePart = $"_{demoNoteString}";
                         }
 
+                        demoCutCommand.Append("wait\n");
+
                         List<Tuple<string,int>> cutDemoNames = new List<Tuple<string, int>>();
 
                         foreach(ConnectionDemoState demoState in demoStates) 
@@ -1468,7 +1471,7 @@ namespace JKWatcher
                             demoCutCommand.Append(Math.Max(0, demoState.demoTime - markMinutes * 60000).ToString());
                             demoCutCommand.Append(" ");
                             demoCutCommand.Append((demoState.demoTime + 60000).ToString());
-                            demoCutCommand.Append("\n");
+                            demoCutCommand.Append(" & \n");
 
                             if (reframeRequested)
                             {
@@ -1480,22 +1483,25 @@ namespace JKWatcher
                                     /*this.CameraOperator is CameraOperators.StrobeCameraOperator*/)
                                 {
                                     // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
-                                    demoCutCommand.Append("DemoMerger ");
-                                    demoCutCommand.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
-                                    demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
-                                    demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
-                                    demoCutCommand.Append("\n");
+                                    demoCutCommandReframes.Append("DemoMerger ");
+                                    demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
+                                    demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
+                                    demoCutCommandReframes.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                                    demoCutCommandReframes.Append(" & \n");
                                 } else
                                 {
 
-                                    demoCutCommand.Append("DemoReframer ");
-                                    demoCutCommand.Append($"\"{filename}{demoExtension}\" ");
-                                    demoCutCommand.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
-                                    demoCutCommand.Append(reframeClientNum);
-                                    demoCutCommand.Append("\n");
+                                    demoCutCommandReframes.Append("DemoReframer ");
+                                    demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
+                                    demoCutCommandReframes.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
+                                    demoCutCommandReframes.Append(reframeClientNum);
+                                    demoCutCommandReframes.Append(" & \n");
                                 }
                             }
                         }
+
+                        demoCutCommand.Append("wait\n");
+                        demoCutCommand.Append(demoCutCommandReframes);
 
                         if (reframeRequested && cutDemoNames.Count > 1) // Make a merged demo out of all with the reframed angle :)
                         {
@@ -1521,8 +1527,10 @@ namespace JKWatcher
                                 demoCutCommand.Append($"\"{cutDemoName.Item1}{demoExtension}\" ");
                             }
                             demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
-                            demoCutCommand.Append("\n");
+                            demoCutCommand.Append(" & \n");
                         }
+
+                        demoCutCommand.Append("wait\n");
 
                         Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
                     }
