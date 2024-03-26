@@ -1338,34 +1338,91 @@ namespace JKWatcher
                 int target = e.Entity.CurrentState.OtherEntityNum;
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
 
-                if(attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target && this.IsMainChatConnection) // Kill tracking, only do on one connection to keep things consistent.
+                bool targetWasFlagCarrier = false;
+                foreach (TeamInfo teamInfo in infoPool.teamInfo)
                 {
+                    if(teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == target)
+                    {
+                        targetWasFlagCarrier = true;
+                        break;
+                    }
+                }
+
+                MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
+
+                if (attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target) // Kill tracking, only do on one connection to keep things consistent.
+                {
+
                     lock (infoPool.killTrackers) { // Just in case unlucky timing and mainchatconnection changes :) 
-                        infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
-                        infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
-                        infoPool.killTrackers[attacker, target].kills++;
-                        infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
-                        bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
-                        if (infoPool.killTrackers[attacker, target].trackingMatch)
+                        
+                        if(mod == MeansOfDeath.MOD_SABER)
                         {
-                            infoPool.killTrackers[attacker, target].trackedMatchKills++;
-                            if(!killTrackersSynced && !_connectionOptions.silentMode) { 
-                                leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
-                            }
-                        }
-                        if (infoPool.killTrackers[target, attacker].trackingMatch)
-                        {
-                            infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
-                            if (!killTrackersSynced && !_connectionOptions.silentMode)
+                            if (entityOrPSVisible[attacker])
                             {
-                                leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+
+                                int saberMoveAttacker = saberMove[attacker];
+                                SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(saberMoveAttacker,jkaMode);
+
+                                //string killType = Enum.GetName(typeof(SaberMovesGeneral), generalized);
+                                string killType = RandomArraysAndStuff.saberMoveNamesGeneral.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneral[generalized] : "WEIRDSABER";
+                                if (killType.StartsWith("_"))
+                                {
+                                    killType = killType.Substring(1);
+                                }
+                                if(killType == "")
+                                {
+                                    killType = "SABER";
+                                }
+                                UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
+                                infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             }
-                        }
-                        if(killTrackersSynced && !_connectionOptions.silentMode)
+                        } else
                         {
-                            int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
-                            int biggerClientNum = Math.Max(attacker, target);
-                            leakyBucketRequester.requestExecution($"say \"   ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                            string killType = Enum.GetName(typeof(MeansOfDeath), mod);
+                            if (killType.StartsWith("MOD_"))
+                            {
+                                killType = killType.Substring(4);
+                            }
+                            UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                        }
+
+                        if (this.IsMainChatConnection) {  // Avoid dupes.
+
+                            if (targetWasFlagCarrier)
+                            {
+                               // infoPool.playerInfo[attacker].chatCommandTrackingStuff.returns++; // tracking elsewhere already
+                                infoPool.playerInfo[target].chatCommandTrackingStuff.returned++;
+                                infoPool.killTrackers[attacker, target].returns++;
+                            }
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
+                            infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
+                            infoPool.killTrackers[attacker, target].kills++;
+                            infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
+                            bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
+                            if (infoPool.killTrackers[attacker, target].trackingMatch)
+                            {
+                                infoPool.killTrackers[attacker, target].trackedMatchKills++;
+                                if(!killTrackersSynced && !_connectionOptions.silentMode) { 
+                                    leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
+                                }
+                            }
+                            if (infoPool.killTrackers[target, attacker].trackingMatch)
+                            {
+                                infoPool.killTrackers[target, attacker].trackedMatchDeaths++;
+                                if (!killTrackersSynced && !_connectionOptions.silentMode)
+                                {
+                                    leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^7^7Match against {infoPool.playerInfo[target].name}^7^7^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                                }
+                            }
+                            if(killTrackersSynced && !_connectionOptions.silentMode)
+                            {
+                                int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
+                                int biggerClientNum = Math.Max(attacker, target);
+                                leakyBucketRequester.requestExecution($"say \"   ^7^7^7Match {infoPool.playerInfo[smallerClientNum].name} ^7^7^7vs. {infoPool.playerInfo[biggerClientNum].name}^7^7^7: {infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchKills}-{infoPool.killTrackers[smallerClientNum, biggerClientNum].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                            }
                         }
                     }
                 }
@@ -1375,7 +1432,6 @@ namespace JKWatcher
                 locationOfDeath.X = copyOfEntity.CurrentState.Position.Base[0];
                 locationOfDeath.Y = copyOfEntity.CurrentState.Position.Base[1];
                 locationOfDeath.Z = copyOfEntity.CurrentState.Position.Base[2];
-                MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
                 if (target < 0 || target >= client.ClientHandler.MaxClients)
                 {
                     serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
@@ -1743,6 +1799,7 @@ namespace JKWatcher
         };
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
+        public int[] saberMove = new int[64];
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
@@ -1807,6 +1864,7 @@ namespace JKWatcher
                 snapEntityMapping[e.snap.Entities[i].Number] = i;
             }
             entityOrPSVisible[snap.PlayerState.ClientNum] = true;
+            saberMove[snap.PlayerState.ClientNum] = snap.PlayerState.SaberMove;
             //ClientEntity[] entities = client.Entities;
             //if (entities == null)
             //{
@@ -1934,6 +1992,7 @@ namespace JKWatcher
 
                     if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i,snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -1941,6 +2000,7 @@ namespace JKWatcher
                     }
                     else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -1951,6 +2011,7 @@ namespace JKWatcher
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
+                        saberMove[i] = snap.PlayerState.SaberMove;
                     }
 
                     if (mohMode)
@@ -2073,12 +2134,14 @@ namespace JKWatcher
                     
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     } else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -2089,6 +2152,7 @@ namespace JKWatcher
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
+                        saberMove[i] = snap.Entities[snapEntityNum].SaberMove;
                     }
 
                     visibleOtherPlayers++;

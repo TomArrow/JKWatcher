@@ -40,6 +40,33 @@ namespace JKWatcher
 
         Queue<string> calmSayQueue = new Queue<string>();
 
+        private string MakeKillTypesString(Dictionary<string,int> killTypes)
+        {
+            List<KeyValuePair<string, int>> killTypesData = killTypes.ToList();
+            killTypesData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
+
+            StringBuilder killTypesString = new StringBuilder();
+            int killTypeIndex = 0;
+            foreach (KeyValuePair<string, int> killTypeInfo in killTypesData)
+            {
+                if (killTypeInfo.Value <= 0)
+                {
+                    continue;
+                }
+                if ((killTypesString.Length + killTypeInfo.Key.Length) > 150)
+                {
+                    break;
+                }
+                if (killTypeIndex != 0)
+                {
+                    killTypesString.Append(", ");
+                }
+                killTypesString.Append($"{killTypeInfo.Value}x{killTypeInfo.Key}");
+                killTypeIndex++;
+            }
+            return killTypesString.ToString();
+        }
+
         public bool IsMainChatConnection { get; set; }= false;
         public int ChatMemeCommandsDelay { get; set; } = 4000;
 
@@ -304,7 +331,13 @@ namespace JKWatcher
                         if (messageBits.Length == 0) return;
                         StringBuilder demoNote = new StringBuilder();
 
-                        int possibleNumbers = messageBits.Length > 0 && (messageBits[0].ToLowerInvariant().Contains("markas") || messageBits[0].ToLowerInvariant().Contains("kills")) ? 2 : 1;
+                        int possibleNumbers = messageBits.Length > 0 && (messageBits[0].ToLowerInvariant().Contains("markas")
+                            || messageBits[0].ToLowerInvariant().Contains("kills")
+                            || messageBits[0].ToLowerInvariant().Contains("rets")
+                            || messageBits[0].ToLowerInvariant().Contains("killtypes")
+                            || messageBits[0].ToLowerInvariant().Contains("rettypes")
+                            ) ? 
+                            2 : 1;
                         foreach (string bit in messageBits)
                         {
                             if (stringParams.Count == 1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
@@ -1125,6 +1158,7 @@ namespace JKWatcher
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
+                            ChatCommandAnswer(pm, "!rets !retRatio !killTypes !retTypes", true, true, true, true);
                             notDemoCommand = true;
                             break;
 
@@ -1156,6 +1190,34 @@ namespace JKWatcher
                             
                             notDemoCommand = true;
                             break;
+                        case "!rets":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                if(stringParams.Count > 1 && stringParams[1] == "all")
+                                {
+                                    ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returned}", true, true, true);
+                                } else
+                                {
+                                    ChatCommandAnswer(pm, "Call !rets with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                }
+                                return;
+                            }
+                            if(numberParams.Count == 2)
+                            {
+                                if(numberParams[1] < 0 || numberParams[1] >= maxClientsHere || !infoPool.playerInfo[numberParams[1]].infoValid)
+                                {
+                                    ChatCommandAnswer(pm, "Call !rets with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    return;
+                                }
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].returns}-{infoPool.killTrackers[numberParams[1], numberParams[0]].returns}", true, true, true);
+                            } else
+                            {
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].returns}-{infoPool.killTrackers[numberParams[0], pm.playerNum].returns}", true, true, true);
+                            }
+                            
+                            notDemoCommand = true;
+                            break;
                         case "!kd":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
@@ -1164,6 +1226,71 @@ namespace JKWatcher
                                 return;
                             }
                             ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!retratio":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !retRatio with a client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returned}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!killtypes":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !killTypes with one or two valid client numbers (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            if (numberParams.Count == 2)
+                            {
+                                if (numberParams[1] < 0 || numberParams[1] >= maxClientsHere || !infoPool.playerInfo[numberParams[1]].infoValid)
+                                {
+                                    ChatCommandAnswer(pm, "Call !killTypes with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    return;
+                                }
+
+                                string killTypesString = MakeKillTypesString(infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypes());
+
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kill types: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7on {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {killTypesString}", true, true, true);
+                            }
+                            else
+                            {
+                                string killTypesString = MakeKillTypesString(infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypes());
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kill types for {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {killTypesString}", true, true, true);
+                            }
+
+                            notDemoCommand = true;
+                            break;
+                        case "!rettypes":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !retTypes with one or two valid client numbers (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            if (numberParams.Count == 2)
+                            {
+                                if (numberParams[1] < 0 || numberParams[1] >= maxClientsHere || !infoPool.playerInfo[numberParams[1]].infoValid)
+                                {
+                                    ChatCommandAnswer(pm, "Call !retTypes with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
+                                    return;
+                                }
+
+                                string killTypesString = MakeKillTypesString(infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypesReturns());
+
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed return types: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7on {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {killTypesString}", true, true, true);
+                            }
+                            else
+                            {
+                                string killTypesString = MakeKillTypesString(infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypesReturns());
+                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed return types for {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {killTypesString}", true, true, true);
+                            }
 
                             notDemoCommand = true;
                             break;

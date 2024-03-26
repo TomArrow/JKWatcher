@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -47,13 +48,50 @@ namespace JKWatcher
         }
     }
 
-    public struct ChatCommandTrackingStuff
+
+    public static unsafe class EntityStateExtensionMethods {
+        public static UInt64 GetKillHash(this EntityState es, ServerSharedInformationPool infoPool)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            int target = es.OtherEntityNum;
+            int attacker = es.OtherEntityNum2;
+            MeansOfDeath mod = (MeansOfDeath)es.EventParm;
+            Vector3 locationOfDeath;
+            locationOfDeath.X = es.Position.Base[0];
+            locationOfDeath.Y = es.Position.Base[1];
+            locationOfDeath.Z = es.Position.Base[2];
+            string playerName = attacker >= 0 && attacker < infoPool.playerInfo.Length ? infoPool.playerInfo[attacker].name : "WEIRDATTACKER";
+            string victimname = target >= 0 && target < infoPool.playerInfo.Length ? infoPool.playerInfo[target].name : "WEIRDVICTIM";
+            sb.Append(playerName);
+            sb.Append("_");
+            sb.Append(victimname);
+            sb.Append("_");
+            sb.Append(attacker);
+            sb.Append("_");
+            sb.Append(target);
+            sb.Append("_");
+            sb.Append(mod);
+            sb.Append("_");
+            sb.Append(locationOfDeath.X);
+            sb.Append("_");
+            sb.Append(locationOfDeath.Y);
+            sb.Append("_");
+            sb.Append(locationOfDeath.Z);
+            SHA512 sha512 = new SHA512Managed();
+            return BitConverter.ToUInt64(sha512.ComputeHash(Encoding.Latin1.GetBytes(sb.ToString())));
+        }
+    }
+
+
+    public class ChatCommandTrackingStuff
     {
         public float maxDbsSpeed;
         public int kickDeaths;
         public int falls;
         public int doomkills;
         public int returns;
+        public int returned;
         public int totalKills;
         public int totalDeaths;
         public bool fightBotIgnore;
@@ -66,6 +104,52 @@ namespace JKWatcher
         public DateTime onlineSince;
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
+
+        private object trackedKillsLock = new object();
+        private HashSet<UInt64> trackedKills = new HashSet<ulong>();
+        private Dictionary<string,int> killTypes = new Dictionary<string, int>();
+        private Dictionary<string,int> killTypesReturns = new Dictionary<string, int>();
+        public void TrackKill(string killType, UInt64 killHash, bool isReturn)
+        {
+            lock (trackedKillsLock)
+            {
+                if (trackedKills.Add(killHash))
+                {
+                    if (!killTypes.ContainsKey(killType))
+                    {
+                        killTypes[killType] = 1;
+                    } else
+                    {
+                        killTypes[killType]++;
+                    }
+                    if (isReturn)
+                    {
+                        if (!killTypesReturns.ContainsKey(killType))
+                        {
+                            killTypesReturns[killType] = 1;
+                        }
+                        else
+                        {
+                            killTypesReturns[killType]++;
+                        }
+                    }
+                }
+            }
+        }
+        public Dictionary<string, int> GetKillTypes()
+        {
+            lock (trackedKillsLock)
+            {
+                return killTypes.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
+            }
+        }
+        public Dictionary<string, int> GetKillTypesReturns()
+        {
+            lock (trackedKillsLock)
+            {
+                return killTypesReturns.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
+            }
+        }
     }
 
     public struct PlayerIdentification
@@ -289,9 +373,40 @@ namespace JKWatcher
     }
 
 
+    public class ReliableFlagCarrierTracker { // To track flag carriers across multiple connections :/
+        private int flagCarrier = -1;
+        private int infoServerTime = -9999;
+        private object infoLock = new object();
+        public void Reset()
+        {
+            lock (infoLock)
+            {
+                flagCarrier = -1;
+                infoServerTime = -9999;
+            }
+        }
+        public void setFlagCarrier(int flagCarrierA, int serverTime)
+        {
+            lock (infoLock)
+            {
+                if(serverTime > infoServerTime || (serverTime + 10000) < infoServerTime) // Overwrite info if it's newer or (safety check) it's likely that serverTime was reset.
+                {
+                    flagCarrier = flagCarrierA;
+                    infoServerTime = serverTime;
+                }
+            }
+        }
+        public int getFlagCarrier()
+        {
+            lock (infoLock)
+            {
+                return flagCarrier;
+            }
+        }
+    }
 
 
-    public struct TeamInfo
+    public class TeamInfo
     {
 
         public volatile int teamScore;
@@ -302,6 +417,8 @@ namespace JKWatcher
 
         // The following infos are all related to the flag of the team this struct is for
         public volatile int flagItemNumber;
+
+        public ReliableFlagCarrierTracker reliableFlagCarrierTracker = new ReliableFlagCarrierTracker();
 
         public volatile int lastFlagCarrier;
         public volatile bool lastFlagCarrierValid; // We set this to false if the flag is dropped or goes back to base. Or we might assume the wrong carrier when the flag is taken again if the proper carrier hasn't been set yet.
@@ -332,7 +449,7 @@ namespace JKWatcher
     }
 
 
-    public struct KillTracker
+    public class KillTracker
     {
         public int returns; // Not currently used.
         public int kills;
@@ -340,6 +457,53 @@ namespace JKWatcher
         public bool trackingMatch;
         public int trackedMatchKills;
         public int trackedMatchDeaths;
+
+        private object trackedKillsLock = new object();
+        private HashSet<UInt64> trackedKills = new HashSet<ulong>();
+        private Dictionary<string, int> killTypes = new Dictionary<string, int>();
+        private Dictionary<string, int> killTypesReturns = new Dictionary<string, int>();
+        public void TrackKill(string killType, UInt64 killHash, bool isReturn)
+        {
+            lock (trackedKillsLock)
+            {
+                if (trackedKills.Add(killHash))
+                {
+                    if (!killTypes.ContainsKey(killType))
+                    {
+                        killTypes[killType] = 1;
+                    }
+                    else
+                    {
+                        killTypes[killType]++;
+                    }
+                    if (isReturn)
+                    {
+                        if (!killTypesReturns.ContainsKey(killType))
+                        {
+                            killTypesReturns[killType] = 1;
+                        }
+                        else
+                        {
+                            killTypesReturns[killType]++;
+                        }
+                    }
+                }
+            }
+        }
+        public Dictionary<string, int> GetKillTypes()
+        {
+            lock (trackedKillsLock)
+            {
+                return killTypes.ToDictionary(blah => blah.Key, blah => blah.Value); // Make a copy for thread safety.
+            }
+        }
+        public Dictionary<string, int> GetKillTypesReturns()
+        {
+            lock (trackedKillsLock)
+            {
+                return killTypesReturns.ToDictionary(blah => blah.Key, blah => blah.Value); // Make a copy for thread safety.
+            }
+        }
     }
 
     // Todo reset stuff on level restart and especially map change
@@ -482,7 +646,20 @@ namespace JKWatcher
             _maxClients = maxClients;
             playerInfo = new PlayerInfo[maxClients];
             teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
+
+            for (int i = 0; i < teamInfo.Length; i++)
+            {
+                teamInfo[i] = new TeamInfo();
+            }
+
             killTrackers = new KillTracker[maxClients, maxClients];
+            for(int i = 0; i < maxClients; i++)
+            {
+                for (int a = 0; a < maxClients; a++)
+                {
+                    killTrackers[i,a] = new KillTracker();
+                }
+            }
 
             lastConfirmedVisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);
             lastConfirmedInvisible = new ArbitraryOrder2DArray<DateTime?>(Common.MaxGEntities);
