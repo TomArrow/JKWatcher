@@ -316,7 +316,20 @@ namespace JKWatcher
     public class PlayerScore
     {
         public volatile int client;
-        public int score { get; set; }
+        private volatile int _score = -9999;
+        public DateTime lastScoreValueChanged = DateTime.Now - new TimeSpan(1,0,0);
+        public int score { 
+            get {
+                return _score;
+            }
+            set {
+                if (_score != value)
+                {
+                    lastScoreValueChanged = DateTime.Now;
+                }
+                _score = value;
+            }
+        }
         public int ping { get; set; }
         public int time { get; set; }
         public float scorePerMinute { 
@@ -549,6 +562,7 @@ namespace JKWatcher
 
         private volatile int gameTime = 0;
         public string GameTime { get; private set; }
+        public int GameSeconds => gameTime;
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }

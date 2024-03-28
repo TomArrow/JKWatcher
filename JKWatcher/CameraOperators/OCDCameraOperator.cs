@@ -110,6 +110,8 @@ namespace JKWatcher.CameraOperators
         private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 60.0; // 60 minutes
         private DateTime destructionDelayStartTime = DateTime.Now;
 
+        private DateTime[] clientNumsWereOurs = new DateTime[64];
+
         private void MainLoopFunction()
         {
             // First, let's figure out the current count of players.
@@ -117,12 +119,22 @@ namespace JKWatcher.CameraOperators
             List<int> myOwnConnections = new List<int>();
             foreach(Connection conn in connections)
             {
-                myOwnConnections.Add(conn.client.clientNum);
+                int thisClientNum = conn.client.clientNum;
+                myOwnConnections.Add(thisClientNum);
+                if (thisClientNum >= 0 && thisClientNum < 64)
+                {
+                    clientNumsWereOurs[thisClientNum] = DateTime.Now;
+                }
             }
             int maxClients = connections[0].client.ClientHandler != null ? connections[0].client.ClientHandler.MaxClients : 32;
+            if (maxClients > 64) maxClients = 64;
             for (int i=0;i< maxClients; i++)
             {
-                if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].team != Team.Spectator && !myOwnConnections.Contains(i)) activePlayers.Add(i); // Don't count myself. Don't count spectators.
+                if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].team != Team.Spectator && !myOwnConnections.Contains(i) && ((DateTime.Now-clientNumsWereOurs[i]).TotalSeconds > 5 || infoPool.GameSeconds > 5)){  // clientNumsWereOurs & GameSeconds: I'm trying this to avoid spawning useless connections after server crashes/restarts
+                    
+                    activePlayers.Add(i); // Don't count myself. Don't count spectators.
+                                                                                                                                                               
+                }
             }
 
             bool activePlayerPoolChanged = !Enumerable.SequenceEqual(activePlayers, lastActivePlayers);
@@ -171,7 +183,7 @@ namespace JKWatcher.CameraOperators
                             if (b != i && connections[b].client.playerStateClientNum == currentlySpeccedPlayer) othersFollowingSamePlayer++;
                         }
 
-                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && othersFollowingSamePlayer > 0))
+                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].score.lastScoreValueChanged).TotalSeconds > 10 && othersFollowingSamePlayer > 0))
                         {
                             // We destroy the connection if there are no active players OR if it isn't spectating anyone anyway OR:
                             // Explanation for the velocity part:
@@ -271,10 +283,20 @@ namespace JKWatcher.CameraOperators
                     if (activeButUnfollowedPlayers.Count == 0 && !isIndex0 && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds)
                     {
                         // Safe to destroy. Don't destroy in middle of run.
-                        if (activePlayers.Count() == 0 || conn.client.playerStateClientNum == conn.ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0)) {
+                        if (activePlayers.Count() == 0 || conn.client.playerStateClientNum == conn.ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex || (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].score.lastScoreValueChanged).TotalSeconds > 10))) {
                             
                             connectionsToDestroyList.Enqueue(conn);
                         }
+                    }
+                }
+
+                // Is following himself
+                if (myClientNum == currentlySpeccedPlayer)
+                {
+                    if (activeButUnfollowedPlayers.Count == 0 && !isIndex0 && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds)
+                    {
+                        // Safe to destroy. Don't destroy in middle of run.
+                        connectionsToDestroyList.Enqueue(conn);
                     }
                 }
 

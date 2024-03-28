@@ -2341,6 +2341,7 @@ namespace JKWatcher
 
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+            bool isDefragCameraOperator = this.CameraOperator is CameraOperators.OCDCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
 
 
@@ -2629,7 +2630,7 @@ namespace JKWatcher
                         {
                             bool afkCriteriaSatisfied = !playerIsVeryAfk(player.clientNum, false) || (player.confirmedAfk ? (allowAfkLevel >= 2) : (allowAfkLevel >= 1)); // Only allow confirmed afk ppl in the last stage.
 
-                            if ((myClientNums & (1L << player.clientNum)) == 0 // Don't follow ourselves or someone another connection of ours is already following
+                            if (((myClientNums & (1L << player.clientNum)) == 0 /*|| isDefragCameraOperator*/) // Don't follow ourselves or someone another connection of ours is already following;// strike this: except in Defrag since defrag is weird and otherwise extra connections don't despawn quickly enough
                                 && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
                                 && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
                                 && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
