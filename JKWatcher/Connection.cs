@@ -1986,9 +1986,9 @@ namespace JKWatcher
 
 
                     float xyVelocity = (float)Math.Sqrt(snap.PlayerState.Velocity[0] * snap.PlayerState.Velocity[0] + snap.PlayerState.Velocity[1] * snap.PlayerState.Velocity[1]);
-                    if (wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    if (snap.PlayerState.GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
                     {
-                        // We accelerated!
+                        // We accelerated in air!
                         // What keys did we use to accelerate?
                         int hereMovementDir = snap.PlayerState.MovementDirection;
                         if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
@@ -2128,9 +2128,9 @@ namespace JKWatcher
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
                     float xyVelocity = (float)Math.Sqrt(snap.Entities[snapEntityNum].Position.Delta[0] * snap.Entities[snapEntityNum].Position.Delta[0] + snap.Entities[snapEntityNum].Position.Delta[1] * snap.Entities[snapEntityNum].Position.Delta[1]);
-                    if (wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    if (snap.Entities[snapEntityNum].GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
                     {
-                        // We accelerated!
+                        // We accelerated in air!
                         // What keys did we use to accelerate?
                         int hereMovementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW];
                         if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
