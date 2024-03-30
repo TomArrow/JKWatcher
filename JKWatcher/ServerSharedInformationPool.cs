@@ -104,6 +104,7 @@ namespace JKWatcher
         public DateTime onlineSince;
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
+        public UInt64[] strafeStyleSamples = new UInt64[8];
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -279,9 +280,15 @@ namespace JKWatcher
         public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
         public DateTime? lastSeenValid = null;
         public ChatCommandTrackingStuff chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
         public void ResetChatCommandTrackingStuff()
         {
             chatCommandTrackingStuff = new ChatCommandTrackingStuff();
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
+        }
+        public void ResetChatCommandTrackingStuffThisGame()
+        {
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
         }
         public VisiblePlayersTracker VisiblePlayers { get; init; } = new VisiblePlayersTracker(); // For vis check debug?
 
@@ -569,6 +576,7 @@ namespace JKWatcher
         public List<WayPoint> wayPoints = new List<WayPoint>();
 
         public KillTracker[,] killTrackers;
+        public KillTracker[,] killTrackersThisGame;
 
         public int getProbableRetCount(int clientNum)
         {
@@ -667,11 +675,13 @@ namespace JKWatcher
             }
 
             killTrackers = new KillTracker[maxClients, maxClients];
+            killTrackersThisGame = new KillTracker[maxClients, maxClients];
             for(int i = 0; i < maxClients; i++)
             {
                 for (int a = 0; a < maxClients; a++)
                 {
                     killTrackers[i,a] = new KillTracker();
+                    killTrackersThisGame[i,a] = new KillTracker();
                 }
             }
 

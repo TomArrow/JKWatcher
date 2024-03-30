@@ -298,6 +298,12 @@ namespace JKWatcher.CameraOperators
                         // Safe to destroy. Don't destroy in middle of run.
                         connectionsToDestroyList.Enqueue(conn);
                     }
+                    else if (isIndex0 && activePlayers.Count() > 0 && activeButUnfollowedPlayers.Count == 0)
+                    {
+                        // Always have the main connection follow someone because we can never despawn it and if it's following nobody, we can not despawn others either.
+                        int randomGuyToFollow = activePlayers[0];
+                        conn.leakyBucketRequester.requestExecution("follow " + randomGuyToFollow, RequestCategory.FOLLOW, 5, 1000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE, new RequestCategory[] { RequestCategory.SCOREBOARD });
+                    }
                 }
 
                 //if (currentlySpectatedPlayers.Contains(currentlySpeccedPlayer))

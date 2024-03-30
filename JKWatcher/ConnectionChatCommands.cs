@@ -66,6 +66,45 @@ namespace JKWatcher
             }
             return killTypesString.ToString();
         }
+        private string MakeStrafeStyleString(UInt64[] strafeStyles)
+        {
+
+            List<KeyValuePair<MovementDir, UInt64>> strafeStylesData = new List<KeyValuePair<MovementDir, ulong>>();
+
+            UInt64 totalDivider = 0;
+            for (int i =0;i<strafeStyles.Length;i++)
+            {
+                totalDivider += strafeStyles[i];
+                strafeStylesData.Add(new KeyValuePair<MovementDir, ulong>((MovementDir)i,strafeStyles[i]));
+            }
+
+            if (totalDivider == 0) return "";
+
+            strafeStylesData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
+
+            StringBuilder strafeStylesString = new StringBuilder();
+            int strafeStyleIndex = 0;
+            foreach (KeyValuePair<MovementDir, UInt64> strafeStyleInfo in strafeStylesData)
+            {
+                if (strafeStyleInfo.Value <= 0)
+                {
+                    continue;
+                }
+                string movementName = Enum.GetName(typeof(MovementDir), strafeStyleInfo.Key);
+                if ((strafeStylesString.Length + movementName.Length) > 150)
+                {
+                    break;
+                }
+                if (strafeStyleIndex != 0)
+                {
+                    strafeStylesString.Append(", ");
+                }
+                string percentageString = ((int)Math.Round((100.0 * (double)strafeStyleInfo.Value / (double)totalDivider)+0.5)).ToString();
+                strafeStylesString.Append($"{percentageString}*/. {movementName}");
+                strafeStyleIndex++;
+            }
+            return strafeStylesString.ToString();
+        }
 
         public bool IsMainChatConnection { get; set; }= false;
         public int ChatMemeCommandsDelay { get; set; } = 4000;
@@ -325,6 +364,8 @@ namespace JKWatcher
                     List<float> floatParams = new List<float>();
                     List<string> stringParams = new List<string>();
 
+                    bool thisGameParamFound = false;
+
                     string demoNoteString = null;
                     { // Just putting this in its own scope to isolate the variables.
                         string[] messageBits = pm.message.Split(new string[] { " " }, StringSplitOptions.RemoveEmptyEntries);
@@ -357,6 +398,10 @@ namespace JKWatcher
                             }
                             else if (stringParams.Count >= 1)
                             {
+                                if (bit.Equals("thisGame", StringComparison.InvariantCultureIgnoreCase))
+                                {
+                                    thisGameParamFound = true;
+                                }
                                 stringParams.Add(bit);
                                 demoNote.Append(bit);
                                 demoNote.Append(" ");
@@ -1158,7 +1203,8 @@ namespace JKWatcher
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
-                            ChatCommandAnswer(pm, "!rets !retRatio !killTypes !retTypes", true, true, true, true);
+                            ChatCommandAnswer(pm, "!rets !retRatio !killTypes !retTypes !strafeStyle", true, true, true, true);
+                            ChatCommandAnswer(pm, "(add 'thisgame' at end to get stats for current game)", true, true, true, true);
                             notDemoCommand = true;
                             break;
 
@@ -1168,7 +1214,13 @@ namespace JKWatcher
                             {
                                 if(stringParams.Count > 1 && stringParams[1] == "all")
                                 {
-                                    ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                                    if (thisGameParamFound)
+                                    {
+                                        ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuffThisGame.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuffThisGame.totalDeaths}", true, true, true);
+                                    } else
+                                    {
+                                        ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                                    }
                                 } else
                                 {
                                     ChatCommandAnswer(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
@@ -1182,10 +1234,23 @@ namespace JKWatcher
                                     ChatCommandAnswer(pm, "Call !kills with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
                                     return;
                                 }
-                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackers[numberParams[1], numberParams[0]].kills}", true, true, true);
+                                if (thisGameParamFound)
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackersThisGame[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackersThisGame[numberParams[1], numberParams[0]].kills}", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].kills}-{infoPool.killTrackers[numberParams[1], numberParams[0]].kills}", true, true, true);
+                                }
                             } else
                             {
-                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
+                                if (thisGameParamFound)
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackersThisGame[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackersThisGame[numberParams[0], pm.playerNum].kills}", true, true, true);
+                                } else
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
+                                }
                             }
                             
                             notDemoCommand = true;
@@ -1196,7 +1261,14 @@ namespace JKWatcher
                             {
                                 if(stringParams.Count > 1 && stringParams[1] == "all")
                                 {
-                                    ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returned}", true, true, true);
+                                    if (thisGameParamFound)
+                                    {
+                                        ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuffThisGame.returns}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuffThisGame.returned}", true, true, true);
+                                    }
+                                    else
+                                    {
+                                        ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[pm.playerNum].name}: {infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[pm.playerNum].chatCommandTrackingStuff.returned}", true, true, true);
+                                    }
                                 } else
                                 {
                                     ChatCommandAnswer(pm, "Call !rets with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
@@ -1210,10 +1282,24 @@ namespace JKWatcher
                                     ChatCommandAnswer(pm, "Call !rets with 1 or 2 valid client numbers (see /clientlist) or 'all' (for your K/D)", true, true, true, true);
                                     return;
                                 }
-                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].returns}-{infoPool.killTrackers[numberParams[1], numberParams[0]].returns}", true, true, true);
+                                if (thisGameParamFound)
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackersThisGame[numberParams[0], numberParams[1]].returns}-{infoPool.killTrackersThisGame[numberParams[1], numberParams[0]].returns}", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {infoPool.killTrackers[numberParams[0], numberParams[1]].returns}-{infoPool.killTrackers[numberParams[1], numberParams[0]].returns}", true, true, true);
+                                }
                             } else
                             {
-                                ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].returns}-{infoPool.killTrackers[numberParams[0], pm.playerNum].returns}", true, true, true);
+                                if (thisGameParamFound)
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackersThisGame[pm.playerNum, numberParams[0]].returns}-{infoPool.killTrackersThisGame[numberParams[0], pm.playerNum].returns}", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, $"^7^7^7Total witnessed returns: {infoPool.playerInfo[pm.playerNum].name} ^7^7^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].returns}-{infoPool.killTrackers[numberParams[0], pm.playerNum].returns}", true, true, true);
+                                }
                             }
                             
                             notDemoCommand = true;
@@ -1225,7 +1311,13 @@ namespace JKWatcher
                                 ChatCommandAnswer(pm, "Call !kd with a client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
-                            ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                            if (thisGameParamFound)
+                            {
+                                ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.totalDeaths}", true, true, true);
+                            } else
+                            {
+                                ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
+                            }
 
                             notDemoCommand = true;
                             break;
@@ -1236,7 +1328,27 @@ namespace JKWatcher
                                 ChatCommandAnswer(pm, "Call !retRatio with a client number (see /clientlist)", true, true, true, true);
                                 return;
                             }
-                            ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returned}", true, true, true);
+                            if (thisGameParamFound)
+                            {
+                                ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.returns}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.returned}", true, true, true);
+                            }
+                            else
+                            {
+                                ChatCommandAnswer(pm, $"Total witnessed returns/returneds for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returns}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.returned}", true, true, true);
+                            }
+
+                            notDemoCommand = true;
+                            break;
+                        case "!strafestyle":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !strafeStyle with a client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            string strafeStylesString = MakeStrafeStyleString(thisGameParamFound ? (UInt64[])infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.strafeStyleSamples.Clone() : (UInt64[])infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.strafeStyleSamples.Clone());
+
+                            ChatCommandAnswer(pm, $"^7^7^7Witnessed strafe style for {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {strafeStylesString}", true, true, true);
 
                             notDemoCommand = true;
                             break;
@@ -1255,13 +1367,13 @@ namespace JKWatcher
                                     return;
                                 }
 
-                                string killTypesString = MakeKillTypesString(infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypes());
+                                string killTypesString = MakeKillTypesString(thisGameParamFound ? infoPool.killTrackersThisGame[numberParams[0], numberParams[1]].GetKillTypes() : infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypes());
 
                                 ChatCommandAnswer(pm, $"^7^7^7Total witnessed kill types: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7on {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {killTypesString}", true, true, true);
                             }
                             else
                             {
-                                string killTypesString = MakeKillTypesString(infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypes());
+                                string killTypesString = MakeKillTypesString(thisGameParamFound ? infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.GetKillTypes() : infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypes());
                                 ChatCommandAnswer(pm, $"^7^7^7Total witnessed kill types for {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {killTypesString}", true, true, true);
                             }
 
@@ -1282,13 +1394,13 @@ namespace JKWatcher
                                     return;
                                 }
 
-                                string killTypesString = MakeKillTypesString(infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypesReturns());
+                                string killTypesString = MakeKillTypesString(thisGameParamFound ? infoPool.killTrackersThisGame[numberParams[0], numberParams[1]].GetKillTypesReturns()  : infoPool.killTrackers[numberParams[0], numberParams[1]].GetKillTypesReturns());
 
                                 ChatCommandAnswer(pm, $"^7^7^7Total witnessed return types: {infoPool.playerInfo[numberParams[0]].name} ^7^7^7on {infoPool.playerInfo[numberParams[1]].name}^7^7^7: {killTypesString}", true, true, true);
                             }
                             else
                             {
-                                string killTypesString = MakeKillTypesString(infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypesReturns());
+                                string killTypesString = MakeKillTypesString(thisGameParamFound ? infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.GetKillTypesReturns() : infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypesReturns());
                                 ChatCommandAnswer(pm, $"^7^7^7Total witnessed return types for {infoPool.playerInfo[numberParams[0]].name}^7^7^7: {killTypesString}", true, true, true);
                             }
 

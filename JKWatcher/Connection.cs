@@ -106,6 +106,19 @@ namespace JKWatcher
         public string urlPrefix;
     }
 
+    public enum MovementDir
+    {
+        W,
+        WA,
+        A,
+        AS,
+        S,
+        SD,
+        D,
+        DW,
+        CountDirs
+    }
+
     public class SnapStatusInfo {
         const int averageWindow = 30; // Max samples
         const int averageWindowTime = 2000; // Max time window
@@ -1375,7 +1388,9 @@ namespace JKWatcher
                                 }
                                 UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
                                 infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                                 infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.killTrackersThisGame[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             }
                         } else
                         {
@@ -1386,7 +1401,9 @@ namespace JKWatcher
                             }
                             UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackersThisGame[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                         }
 
                         if (this.IsMainChatConnection) {  // Avoid dupes.
@@ -1395,12 +1412,18 @@ namespace JKWatcher
                             {
                                // infoPool.playerInfo[attacker].chatCommandTrackingStuff.returns++; // tracking elsewhere already
                                 infoPool.playerInfo[target].chatCommandTrackingStuff.returned++;
+                                infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
                                 infoPool.killTrackers[attacker, target].returns++;
+                                infoPool.killTrackersThisGame[attacker, target].returns++;
                             }
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
                             infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.totalKills++;
+                            infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.totalDeaths++;
                             infoPool.killTrackers[attacker, target].kills++;
                             infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
+                            infoPool.killTrackersThisGame[attacker, target].kills++;
+                            infoPool.killTrackersThisGame[attacker, target].lastKillTime = DateTime.Now;
                             bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
                             if (infoPool.killTrackers[attacker, target].trackingMatch)
                             {
@@ -1476,6 +1499,7 @@ namespace JKWatcher
                 if (this.IsMainChatConnection && MeansOfDeath.MOD_FALLING == mod && attacker!=target && attacker>=0 && attacker< client.ClientHandler.MaxClients)
                 {
                     infoPool.playerInfo[attacker].chatCommandTrackingStuff.doomkills++;
+                    infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.doomkills++;
                 }
 
                 string killString = null;
@@ -1661,6 +1685,7 @@ namespace JKWatcher
                     if (this.IsMainChatConnection)
                     {
                         infoPool.playerInfo[playerNum].chatCommandTrackingStuff.returns++; // Our own tracking of rets in case server doesn't send them.
+                        infoPool.playerInfo[playerNum].chatCommandTrackingStuffThisGame.returns++; // Our own tracking of rets in case server doesn't send them.
                     }
 
                 } else if (messageType == CtfMessageType.FlagReturned)
@@ -1800,6 +1825,7 @@ namespace JKWatcher
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
+        public float[] lastXYVelocity = new float[64];
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
@@ -1958,6 +1984,21 @@ namespace JKWatcher
                     this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
                     this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
 
+
+                    float xyVelocity = (float)Math.Sqrt(snap.PlayerState.Velocity[0] * snap.PlayerState.Velocity[0] + snap.PlayerState.Velocity[1] * snap.PlayerState.Velocity[1]);
+                    if (wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    {
+                        // We accelerated!
+                        // What keys did we use to accelerate?
+                        int hereMovementDir = snap.PlayerState.MovementDirection;
+                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
+                        }
+                    }
+                    lastXYVelocity[i] = xyVelocity;
+
                     if (mohMode && !mohExpansion)
                     {
                         int playerTeam = snap.PlayerState.Stats[20];
@@ -2086,6 +2127,20 @@ namespace JKWatcher
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
+                    float xyVelocity = (float)Math.Sqrt(snap.Entities[snapEntityNum].Position.Delta[0] * snap.Entities[snapEntityNum].Position.Delta[0] + snap.Entities[snapEntityNum].Position.Delta[1] * snap.Entities[snapEntityNum].Position.Delta[1]);
+                    if (wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    {
+                        // We accelerated!
+                        // What keys did we use to accelerate?
+                        int hereMovementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW];
+                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
+                        }
+                    }
+                    lastXYVelocity[i] = xyVelocity;
+
                     if (mohMode && !mohExpansion)
                     {
                         Team entityTeam =  ((snap.Entities[snapEntityNum].EntityFlags & EF_ANY_TEAM_MOH) > 0) ? (((snap.Entities[snapEntityNum].EntityFlags & EF_AXIS_MOH) > 0) ? Team.Red : Team.Blue) : Team.Free;
@@ -2192,6 +2247,7 @@ namespace JKWatcher
                 if (infoPool.playerInfo[i].knockedDown && !oldKnockedDown)
                 {
                     infoPool.playerInfo[i].chatCommandTrackingStuff.falls++;
+                    infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.falls++;
                 }
             }
 
@@ -2745,6 +2801,20 @@ namespace JKWatcher
             }
         }
 
+        private void resetThisGameStats()
+        {
+            int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
+            for (int i=0;i< maxClients; i++)
+            {
+                for (int p = 0; p < maxClients; p++)
+                {
+                    infoPool.killTrackersThisGame[i, p] = new KillTracker();
+                    infoPool.killTrackersThisGame[p, i] = new KillTracker();
+                }
+                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
+            }
+        }
+
         private void resetAllFrozenStatus()
         {
             foreach(PlayerInfo pi in infoPool.playerInfo)
@@ -2839,6 +2909,7 @@ namespace JKWatcher
             if(obj.MapName != oldMapName)
             {
                 resetAllFrozenStatus();
+                resetThisGameStats();
                 executeMapChangeCommands = true;
                 string mapNameRaw = obj.MapName;
                 int lastSlashIndex = mapNameRaw.LastIndexOf('/');
@@ -3040,8 +3111,11 @@ namespace JKWatcher
                                 {
                                     infoPool.killTrackers[i, p] = new KillTracker();
                                     infoPool.killTrackers[p, i] = new KillTracker();
+                                    infoPool.killTrackersThisGame[i, p] = new KillTracker();
+                                    infoPool.killTrackersThisGame[p, i] = new KillTracker();
                                 }
                                 infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
                             }
                             else
                             {
@@ -3321,6 +3395,7 @@ namespace JKWatcher
                     break;
                 case "map_restart":
                     if (this.HandleAutoCommands) ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
+                    resetThisGameStats();
                     break;
                 default:
                     break;
