@@ -84,10 +84,76 @@ namespace JKWatcher
     }
 
 
+    public class BlocksTracker
+    {
+        public int blocks { get; private set; } = 0;
+        public int blockeds { get; private set; } = 0;
+        private object ourLock = new object();
+        public DateTime lastBlockRegistered { get; private set; } = DateTime.Now;
+        public DateTime lastBlockedRegistered { get; private set; } = DateTime.Now;
+        public bool CountBlock(bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!rateLimit || (DateTime.Now-lastBlockRegistered).TotalMilliseconds > 500)
+                {
+                    blocks++;
+                    lastBlockRegistered = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+        public bool CountBlocked(bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!rateLimit || (DateTime.Now-lastBlockedRegistered).TotalMilliseconds > 500)
+                {
+                    blockeds++;
+                    lastBlockedRegistered = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+    
+    public class RateLimitedTracker
+    {
+        public int value { get; private set; } = 0;
+        private object ourLock = new object();
+        public DateTime lastChange { get; private set; } = DateTime.Now;
+        private double _rateLimit = 500.0;
+        public bool Count(bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!rateLimit || (DateTime.Now- lastChange).TotalMilliseconds > _rateLimit)
+                {
+                    value++;
+                    lastChange = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+        public RateLimitedTracker(int rateLimit = 500)
+        {
+            _rateLimit = (double)rateLimit;
+        }
+    }
+
     public class ChatCommandTrackingStuff
     {
         public float maxDbsSpeed;
         public int kickDeaths;
+        public RateLimitedTracker rolls = new RateLimitedTracker();
+        public RateLimitedTracker rollsWithFlag = new RateLimitedTracker();
+        public int blocksFlagCarrierFriendly;
+        public int blocksFlagCarrierEnemy;
+        public int blocksFriendly;
+        public int blocksEnemy;
         public int falls;
         public int doomkills;
         public int returns;
@@ -105,6 +171,8 @@ namespace JKWatcher
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];
+
+        public BlocksTracker blocksTracker = new BlocksTracker();
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -151,6 +219,7 @@ namespace JKWatcher
                 return killTypesReturns.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
             }
         }
+
     }
 
     public struct PlayerIdentification
@@ -477,6 +546,8 @@ namespace JKWatcher
         public bool trackingMatch;
         public int trackedMatchKills;
         public int trackedMatchDeaths;
+
+        public BlocksTracker blocksTracker = new BlocksTracker();
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();

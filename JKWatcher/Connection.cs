@@ -1825,7 +1825,11 @@ namespace JKWatcher
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
+        public Vector3[] lastVelocity = new Vector3[64];
+        public Vector3[] lastPosition = new Vector3[64];
+        public int[] lastLegsAnim = new int[64];
         public float[] lastXYVelocity = new float[64];
+        public bool[] playerHasFlag = new bool[64];
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
@@ -1931,6 +1935,8 @@ namespace JKWatcher
 
             int visibleOtherPlayers = 0;
 
+            Dictionary<int, Vector3> possiblyBlockedPlayers = new Dictionary<int, Vector3>();
+
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
             {
 
@@ -1984,20 +1990,7 @@ namespace JKWatcher
                     this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
                     this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
 
-
-                    float xyVelocity = (float)Math.Sqrt(snap.PlayerState.Velocity[0] * snap.PlayerState.Velocity[0] + snap.PlayerState.Velocity[1] * snap.PlayerState.Velocity[1]);
-                    if (snap.PlayerState.GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
-                    {
-                        // We accelerated in air!
-                        // What keys did we use to accelerate?
-                        int hereMovementDir = snap.PlayerState.MovementDirection;
-                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
-                        {
-                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
-                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
-                        }
-                    }
-                    lastXYVelocity[i] = xyVelocity;
+                    
 
                     if (mohMode && !mohExpansion)
                     {
@@ -2031,6 +2024,8 @@ namespace JKWatcher
                     }
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
+                    bool hasFlag = false;
+
                     if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i,snap.ServerTime);
@@ -2038,6 +2033,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
+                        hasFlag = true;
                     }
                     else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
@@ -2046,7 +2042,55 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
+                        hasFlag = true;
                     }
+
+                    playerHasFlag[i] = hasFlag;
+
+                    int legsAnim = snap.PlayerState.LegsAnimation & ~2048;
+                    if (legsAnim != lastLegsAnim[i])
+                    {
+                        if (legsAnim >= 781 && legsAnim <= 784 && !(lastLegsAnim[i] >= 781 && lastLegsAnim[i] <= 784)) // Is in roll. TODO Make work with JKA and 1.04
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.rolls.Count(true);
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rolls.Count(true);
+                            if (hasFlag)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.rollsWithFlag.Count(true);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rollsWithFlag.Count(true);
+                            }
+                        }
+                    }
+                    lastLegsAnim[i] = legsAnim;
+
+                    float xyVelocity = (float)Math.Sqrt(snap.PlayerState.Velocity[0] * snap.PlayerState.Velocity[0] + snap.PlayerState.Velocity[1] * snap.PlayerState.Velocity[1]);
+                    if (snap.PlayerState.GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    {
+                        // We accelerated in air!
+                        // What keys did we use to accelerate?
+                        int hereMovementDir = snap.PlayerState.MovementDirection;
+                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
+                        }
+                    }
+                    else if (wasVisibleLastFrame && xyVelocity < lastXYVelocity[i] - 200)
+                    {
+                        possiblyBlockedPlayers.Add(i, Vector3.Normalize(lastVelocity[i] - new Vector3()
+                        {
+                            X = snap.PlayerState.Velocity[0],
+                            Y = snap.PlayerState.Velocity[1],
+                            Z = snap.PlayerState.Velocity[2]
+                        })); // Save a guess of where the block came from
+                    }
+                    lastXYVelocity[i] = xyVelocity;
+                    lastPosition[i].X = snap.PlayerState.Origin[0];
+                    lastPosition[i].Y = snap.PlayerState.Origin[1];
+                    lastPosition[i].Z = snap.PlayerState.Origin[2];
+                    lastVelocity[i].X = snap.PlayerState.Velocity[0];
+                    lastVelocity[i].Y = snap.PlayerState.Velocity[1];
+                    lastVelocity[i].Z = snap.PlayerState.Velocity[2];
 
                     if (SpectatedPlayer.HasValue)
                     {
@@ -2127,19 +2171,6 @@ namespace JKWatcher
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
-                    float xyVelocity = (float)Math.Sqrt(snap.Entities[snapEntityNum].Position.Delta[0] * snap.Entities[snapEntityNum].Position.Delta[0] + snap.Entities[snapEntityNum].Position.Delta[1] * snap.Entities[snapEntityNum].Position.Delta[1]);
-                    if (snap.Entities[snapEntityNum].GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
-                    {
-                        // We accelerated in air!
-                        // What keys did we use to accelerate?
-                        int hereMovementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW];
-                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
-                        {
-                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
-                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
-                        }
-                    }
-                    lastXYVelocity[i] = xyVelocity;
 
                     if (mohMode && !mohExpansion)
                     {
@@ -2186,7 +2217,9 @@ namespace JKWatcher
                             }
                         } 
                     }
-                    
+
+                    bool hasFlag = false;
+
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
@@ -2194,6 +2227,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
+                        hasFlag = true;
                     } else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
@@ -2201,6 +2235,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
+                        hasFlag = true;
                     }
 
                     if (SpectatedPlayer.HasValue)
@@ -2211,6 +2246,54 @@ namespace JKWatcher
                     }
 
                     visibleOtherPlayers++;
+
+                    playerHasFlag[i] = hasFlag;
+
+                    int legsAnim = snap.Entities[snapEntityNum].LegsAnimation & ~2048;
+                    if (legsAnim != lastLegsAnim[i])
+                    {
+                        if (legsAnim >= 781 && legsAnim <= 784 && !(lastLegsAnim[i] >= 781 && lastLegsAnim[i] <= 784)) // Is in roll. TODO Make work with JKA and 1.04
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.rolls.Count(true);
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rolls.Count(true);
+                            if (hasFlag)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.rollsWithFlag.Count(true);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rollsWithFlag.Count(true);
+                            }
+                        }
+                    }
+                    lastLegsAnim[i] = legsAnim;
+
+
+                    float xyVelocity = (float)Math.Sqrt(snap.Entities[snapEntityNum].Position.Delta[0] * snap.Entities[snapEntityNum].Position.Delta[0] + snap.Entities[snapEntityNum].Position.Delta[1] * snap.Entities[snapEntityNum].Position.Delta[1]);
+                    if (snap.Entities[snapEntityNum].GroundEntityNum == (Common.MaxGEntities - 1) && wasVisibleLastFrame && xyVelocity > lastXYVelocity[i])
+                    {
+                        // We accelerated in air!
+                        // What keys did we use to accelerate?
+                        int hereMovementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW];
+                        if (hereMovementDir >= 0 && hereMovementDir < (int)MovementDir.CountDirs)
+                        {
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.strafeStyleSamples[hereMovementDir]++;
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.strafeStyleSamples[hereMovementDir]++;
+                        }
+                    }
+                    else if (wasVisibleLastFrame && xyVelocity < lastXYVelocity[i] - 200)
+                    {
+                        possiblyBlockedPlayers.Add(i, Vector3.Normalize(lastVelocity[i] - new Vector3()
+                        {
+                            X = snap.Entities[snapEntityNum].Position.Delta[0],
+                            Y = snap.Entities[snapEntityNum].Position.Delta[1],
+                            Z = snap.Entities[snapEntityNum].Position.Delta[2]
+                        })); // Save a guess of where the block came from
+                    }
+                    lastXYVelocity[i] = xyVelocity;
+                    lastPosition[i].X = snap.Entities[snapEntityNum].Position.Base[0];
+                    lastPosition[i].Y = snap.Entities[snapEntityNum].Position.Base[1];
+                    lastPosition[i].Z = snap.Entities[snapEntityNum].Position.Base[2];
+                    lastVelocity[i].X = snap.Entities[snapEntityNum].Position.Delta[0];
+                    lastVelocity[i].Y = snap.Entities[snapEntityNum].Position.Delta[1];
+                    lastVelocity[i].Z = snap.Entities[snapEntityNum].Position.Delta[2];
 
                 } else
                 {
@@ -2265,6 +2348,74 @@ namespace JKWatcher
             {
                 // Update the followed player's score in realtime.
                 infoPool.playerInfo[currentPs.ClientNum].score.score = currentPs.Persistant[(int)PersistantEnum.PERS_SCORE];
+            }
+
+
+            foreach(var pbp in possiblyBlockedPlayers)
+            {
+                for (int i = 0; i < client.ClientHandler.MaxClients; i++)
+                {
+                    if ((DateTime.Now-infoPool.playerInfo[i].chatCommandTrackingStuff.blocksTracker.lastBlockedRegistered).TotalSeconds < 1.0)
+                    {
+                        // Don't count cascading blocks. Aka, if someone was already blocked recently, don't count him blocking someone else.
+                        continue;
+                    }
+                    //16 down 40 up
+                    if(entityOrPSVisible[i] && i != pbp.Key && lastPosition[i].Z+40 > lastPosition[pbp.Key].Z-24 && lastPosition[i].Z-24 < lastPosition[pbp.Key].Z+40) // was he likely blocked by this player? More of a rough check than a 100% safe calculation but oh well, it's just a guess
+                    {
+                        Vector2 blockedPos = new Vector2() { X= lastPosition[pbp.Key].X, Y= lastPosition[pbp.Key].Y};
+                        Vector2 blockerPos = new Vector2() { X= lastPosition[i].X, Y= lastPosition[i].Y};
+                        if (Vector2.Distance(blockerPos, blockedPos) < 50 && Vector3.Dot(lastPosition[i] - lastPosition[pbp.Key], pbp.Value) > 0)
+                        {
+                            if (infoPool.killTrackersThisGame[i, pbp.Key].blocksTracker.CountBlock(true))
+                            {
+                                // that function also checks whether we already registered a block between these 2 in the last 500 ms, to avoid dupes. Returns true if it doesn't seem to be a dupe
+                                infoPool.killTrackers[i, pbp.Key].blocksTracker.CountBlock(true);
+
+                                // Not ratelimited since already checked.
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.blocksTracker.CountBlock(false);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.blocksTracker.CountBlock(false);
+                                infoPool.playerInfo[pbp.Key].chatCommandTrackingStuff.blocksTracker.CountBlocked(false);
+                                infoPool.playerInfo[pbp.Key].chatCommandTrackingStuffThisGame.blocksTracker.CountBlocked(false);
+
+                                if (infoPool.playerInfo[i].team == infoPool.playerInfo[pbp.Key].team && currentGameType >= GameType.Team)
+                                {
+                                    infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.blocksFriendly++;
+                                    infoPool.playerInfo[i].chatCommandTrackingStuff.blocksFriendly++;
+                                } else
+                                {
+                                    infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.blocksEnemy++;
+                                    infoPool.playerInfo[i].chatCommandTrackingStuff.blocksEnemy++;
+                                }
+
+                                if (playerHasFlag[pbp.Key])
+                                {
+                                    if (infoPool.playerInfo[i].team == infoPool.playerInfo[pbp.Key].team && currentGameType >= GameType.Team)
+                                    {
+                                        infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.blocksFlagCarrierFriendly++;
+                                        infoPool.playerInfo[i].chatCommandTrackingStuff.blocksFlagCarrierFriendly++;
+                                    } else
+                                    {
+                                        infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.blocksFlagCarrierEnemy++;
+                                        infoPool.playerInfo[i].chatCommandTrackingStuff.blocksFlagCarrierEnemy++;
+                                    }
+                                }
+                            }
+                        }
+                        // Just debug:
+                        //else
+                        //{
+                        //    Debug.WriteLine($"Vector2.Distance(blockerPos, blockedPos) < 50 : {Vector2.Distance(blockerPos, blockedPos) < 50}");
+                         //   Debug.WriteLine($"Vector3.Dot(lastPosition[i] - lastPosition[pbp.Key], pbp.Value) > 0 : {Vector3.Dot(lastPosition[i] - lastPosition[pbp.Key], pbp.Value) > 0}");
+                        //}
+                    } 
+                    // Just debug:
+                    //else if (entityOrPSVisible[i])
+                    //{
+                    //    Debug.WriteLine($"lastPosition[i].Z+40 > lastPosition[pbp.Key].Z-16 : {lastPosition[i].Z+40 > lastPosition[pbp.Key].Z-16}");
+                     //   Debug.WriteLine($" lastPosition[i].Z-16 < lastPosition[pbp.Key].Z+40 : { lastPosition[i].Z - 16 < lastPosition[pbp.Key].Z + 40}");
+                   // }
+                }
             }
 
             // Save flag positions. 

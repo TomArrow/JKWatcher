@@ -447,7 +447,7 @@ namespace JKWatcher
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer", true, true, true, true);
+                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -589,6 +589,10 @@ namespace JKWatcher
                             {
                                 if (!pi.infoValid) continue;
                                 double fallsPerMinute = (double)pi.chatCommandTrackingStuff.falls / (DateTime.Now - pi.chatCommandTrackingStuff.onlineSince).TotalMinutes;
+                                if (thisGameParamFound)
+                                {
+                                    fallsPerMinute = (double)pi.chatCommandTrackingStuffThisGame.falls / (DateTime.Now - pi.chatCommandTrackingStuffThisGame.onlineSince).TotalMinutes;
+                                }
                                 if (fallsPerMinute > highestFallsPerMinute)
                                 {
                                     highestFallsPerMinute = fallsPerMinute;
@@ -611,9 +615,10 @@ namespace JKWatcher
                             PlayerInfo mostDoomsPlayer = null;
                             foreach(PlayerInfo pi in infoPool.playerInfo)
                             {
-                                if (pi.infoValid && pi.chatCommandTrackingStuff.doomkills > mostDooms)
+                                int doomKills = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.doomkills : pi.chatCommandTrackingStuff.doomkills;
+                                if (pi.infoValid && doomKills > mostDooms)
                                 {
-                                    mostDooms = pi.chatCommandTrackingStuff.doomkills;
+                                    mostDooms = doomKills;
                                     mostDoomsPlayer = pi;
                                 }
                             }
@@ -624,6 +629,140 @@ namespace JKWatcher
                             else
                             {
                                 ChatCommandAnswer(pm, $"{mostDoomsPlayer.name} is the biggest doomer with {mostDooms} dooms.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!chicken":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            int mostChickenRolls = 0;
+                            PlayerInfo mostChickenRollsPlayer = null;
+                            bool isCTF = currentGameType >= GameType.CTF && currentGameType <= GameType.CTY;
+                            foreach (PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int chickenrolls;
+                                if (isCTF)
+                                {
+                                    chickenrolls = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.rollsWithFlag.value : pi.chatCommandTrackingStuff.rollsWithFlag.value;
+                                } else
+                                {
+                                    chickenrolls = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.rolls.value : pi.chatCommandTrackingStuff.rolls.value;
+                                }
+                                if (pi.infoValid && chickenrolls > mostChickenRolls)
+                                {
+                                    mostChickenRolls = chickenrolls;
+                                    mostChickenRollsPlayer = pi;
+                                }
+                            }
+                            if(mostChickenRollsPlayer == null)
+                            {
+                                ChatCommandAnswer(pm, $"Haven't seen any chicken rolls yet.", true, true, true);
+                            }
+                            else if(isCTF)
+                            {
+                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRolls} chicken rolls with flag.", true, true, true);
+                            }
+                            else 
+                            {
+                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRolls} chicken rolls.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!blocker":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            int mostTeamBlocks = 0;
+                            int mostTeamCapperBlocks = 0;
+                            int mostEnemyBlocks = 0;
+                            int mostEnemyCapperBlocks = 0;
+                            PlayerInfo mostFriendlyBlocksPlayer = null;
+                            PlayerInfo mostEnemyBlocksPlayer = null;
+                            PlayerInfo mostFriendlyCapperBlocksPlayer = null;
+                            PlayerInfo mostEnemyCapperBlocksPlayer = null;
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int blocks = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.blocksEnemy : pi.chatCommandTrackingStuff.blocksEnemy;
+                                if (pi.infoValid && blocks > mostEnemyBlocks)
+                                {
+                                    mostEnemyBlocks = blocks;
+                                    mostEnemyBlocksPlayer = pi;
+                                }
+                            }
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int blocks = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.blocksFriendly : pi.chatCommandTrackingStuff.blocksFriendly;
+                                if (pi.infoValid && blocks > mostTeamBlocks)
+                                {
+                                    mostTeamBlocks = blocks;
+                                    mostFriendlyBlocksPlayer = pi;
+                                }
+                            }
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int blocks = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.blocksFlagCarrierFriendly : pi.chatCommandTrackingStuff.blocksFlagCarrierFriendly;
+                                if (pi.infoValid && blocks > mostTeamCapperBlocks)
+                                {
+                                    mostTeamCapperBlocks = blocks;
+                                    mostFriendlyCapperBlocksPlayer = pi;
+                                }
+                            }
+                            foreach(PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int blocks = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.blocksFlagCarrierEnemy : pi.chatCommandTrackingStuff.blocksFlagCarrierEnemy;
+                                if (pi.infoValid && blocks > mostEnemyCapperBlocks)
+                                {
+                                    mostEnemyCapperBlocks = blocks;
+                                    mostEnemyCapperBlocksPlayer = pi;
+                                }
+                            }
+
+                            if (
+                                 mostFriendlyBlocksPlayer == null &&
+                                 mostEnemyBlocksPlayer == null &&
+                                 mostFriendlyCapperBlocksPlayer == null &&
+                                 mostEnemyCapperBlocksPlayer == null)
+                            {
+                                ChatCommandAnswer(pm, $"Haven't seen any blocks yet.", true, true, true);
+                            }
+                            else
+                            {
+                                StringBuilder sb = new StringBuilder();
+                                bool hadOne = false;
+                                if (mostFriendlyCapperBlocksPlayer != null)
+                                {
+                                    if (hadOne)
+                                    {
+                                        sb.Append(", ^7^0^7");
+                                    }
+                                    sb.Append($"own capper: {mostFriendlyCapperBlocksPlayer.name} ({mostTeamCapperBlocks})");
+                                    hadOne = true;
+                                }
+                                if (mostFriendlyBlocksPlayer != null)
+                                {
+                                    if (hadOne)
+                                    {
+                                        sb.Append(", ^7^0^7");
+                                    }
+                                    sb.Append($"team: {mostFriendlyBlocksPlayer.name} ({mostTeamBlocks})");
+                                    hadOne = true;
+                                }
+                                if (mostEnemyCapperBlocksPlayer != null)
+                                {
+                                    if (hadOne)
+                                    {
+                                        sb.Append(", ^7^0^7");
+                                    }
+                                    sb.Append($"enemy capper: {mostEnemyCapperBlocksPlayer.name} ({mostEnemyCapperBlocks})");
+                                    hadOne = true;
+                                }
+                                if (mostEnemyBlocksPlayer != null)
+                                {
+                                    if (hadOne)
+                                    {
+                                        sb.Append(", ^7^0^7");
+                                    }
+                                    sb.Append($"enemy: {mostEnemyBlocksPlayer.name} ({mostEnemyBlocks})");
+                                    hadOne = true;
+                                }
+                                ChatCommandAnswer(pm, $"^7^0^7Blockers: {sb.ToString()}", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
