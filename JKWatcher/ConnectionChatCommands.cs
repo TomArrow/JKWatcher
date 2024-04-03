@@ -1781,7 +1781,12 @@ namespace JKWatcher
                         foreach(Connection oneConn in allConns)
                         {
                             if(firstActiveConnection == null && oneConn.client?.Status == ConnectionStatus.Active) firstActiveConnection = oneConn; 
-                            ConnectionDemoState demoState = new ConnectionDemoState() { demoName = oneConn.client?.AbsoluteDemoName, demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0), myClientNum=(oneConn.client?.clientNum).GetValueOrDefault(-1),isStrobeOperator=(oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) };
+                            ConnectionDemoState demoState = new ConnectionDemoState() { 
+                                demoName = oneConn.client?.AbsoluteDemoName, 
+                                demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0), 
+                                myClientNum=(oneConn.client?.clientNum).GetValueOrDefault(-1),
+                                isStrobeOperator=(oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) ||(oneConn.CameraOperator as CameraOperators.CTFCameraOperatorRedBlue)?.StrobeConnection == oneConn 
+                            };
                             if (demoState.demoName != null && demoState.demoTime != 0) // Even if it's truly 0, what could someone possibly get out of a mark when the demo recording literally just started?
                             {
                                 demoStates.Add(demoState);

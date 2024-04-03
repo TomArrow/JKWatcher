@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using JKClient;
+using JKWatcher.GenericDialogBoxes;
 
 namespace JKWatcher.CameraOperators
 {
@@ -66,6 +67,10 @@ namespace JKWatcher.CameraOperators
             {
                 if (isDestroyed) return;
                 cts.Cancel();
+                foreach(Connection conn in connections)
+                {
+                    conn.ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
+                }
                 if (backgroundTask != null)
                 {
                     try
@@ -84,9 +89,156 @@ namespace JKWatcher.CameraOperators
             
         }
 
+
+
+        bool dialogIsOpen = false;
+
+        public override void OpenDialog()
+        {
+            if (!dialogIsOpen)
+            {
+                dialogIsOpen = true;
+                BooleanInput spectatorClientNumInputBox = new BooleanInput(new string[] { "With Strobe","Keep Free Spot" }, (bool[] result) => {
+
+                    this.SetOption("withStrobe",result[0] ? "1":"0");
+                    this.SetOption("keepFreeSpot",result[1] ? "1":"0");
+                    dialogIsOpen = false;
+                });
+                spectatorClientNumInputBox.Show();
+            }
+        }
+
+        const int maxAllowedServerConnectionsUpperLimit = 3;
+        public int MaxAllowedServerConnections { get; set; } = maxAllowedServerConnectionsUpperLimit;
+        private DateTime lastMaxAllowedServerConnectionsChange = DateTime.Now;
+        private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 15.0; // 15 minutes
+
+        private void HandleStrobe()
+        {
+            string withStrobeString = this.GetOption("withStrobe") as string;
+            bool withStrobe = withStrobeString.Atoi() > 0;
+            string keepFreeSpotString = this.GetOption("keepFreeSpot") as string;
+            bool keepFreeSpot = keepFreeSpotString.Atoi() > 0;
+            int neededConnectionsCount = 2;
+
+            int freeSlotsOnServer = infoPool.MaxServerClients;
+            if (!infoPool.connectionOptions.silentMode)
+            {
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if (pi.infoValid)
+                    {
+                        freeSlotsOnServer--;
+                    }
+                }
+            }
+            if (withStrobe) neededConnectionsCount++;
+
+            // TODO what about that reserved slots thingie? how to check for that?
+            // Don't ever fill up the server with the fight bot.
+            if (freeSlotsOnServer == 0 && connections.Count > 2 || freeSlotsOnServer == 1 && connections.Count == 2)
+            {
+                if (keepFreeSpot)
+                {
+                    neededConnectionsCount = 2;
+                }
+            }
+
+
+            if (neededConnectionsCount > connections.Count && connections.Count < MaxAllowedServerConnections)
+            {
+                getMoreConnections(Math.Min(neededConnectionsCount - connections.Count, MaxAllowedServerConnections - connections.Count));
+                if(connections.Count >= 3)
+                {
+                    this.connections[2].ClientUserCommandGenerated += StrobeCameraOperator_ClientUserCommandGenerated;
+                }
+            }
+            //if(activePlayers.Count() <= 1 && connections.Count() > 1) // If only 1 player here, get rid of extra connections.
+            if (neededConnectionsCount < connections.Count && connections.Count > 2) // Get rid of extra connections if too many
+            {
+                //if ((DateTime.Now - destructionDelayStartTime).TotalMilliseconds > destructionDelayMs || (freeSlotsOnServer == 0 && keepFreeSpot)) // Don't destroy immediately. Wait 10 minutes. Maybe a player went spec and will come back to play. Or maybe another player connects. Too many connects/disconnects are annoying and result in a lot of tiny demo files.
+                {
+                    int connectionsToDestroy = Math.Min(connections.Count - 1, connections.Count - neededConnectionsCount);
+                    for (int i = connections.Count - 1; i > 1; i--)
+                    {
+                        if (connectionsToDestroy == 0) break;
+
+                        //if (neededConnectionsCount == 0)
+                        //{
+                        this.connections[i].ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
+                        destroyConnection(connections[i]);
+                        connectionsToDestroy--;
+                        //}
+                    }
+                }
+            }
+            //else
+            //{
+            //    // Connection count is fine. Reset destruction delay start time.
+            //    destructionDelayStartTime = DateTime.Now;
+            //}
+
+
+            // Check if there are any connections that are too much. ("Connection limit reached")
+            for (int i = connections.Count - 1; i > 0; i--)
+            {
+                if (connections[i].ConnectionLimitReached && connections.Count > 2 && MaxAllowedServerConnections > 2) // Can't destroy the last 2 connections
+                {
+                    //MaxAllowedServerConnections = connections.Count - 1; // Think about this some more
+                    this.connections[i].ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
+                    destroyConnection(connections[i]);
+                    MaxAllowedServerConnections--; // Lower our number here.
+                    lastMaxAllowedServerConnectionsChange = DateTime.Now;
+                }
+            }
+
+            if ((DateTime.Now - lastMaxAllowedServerConnectionsChange).TotalMilliseconds > retryMoreConnectionsDelay && MaxAllowedServerConnections < maxAllowedServerConnectionsUpperLimit)
+            {
+                // After a certain time, let's try more again.
+                MaxAllowedServerConnections++;
+                lastMaxAllowedServerConnectionsChange = DateTime.Now;
+            }
+
+            /*if (connections.Count >= 3)
+            {
+                Connection extraConnection = connections[2];
+                if (!infoPool.connectionOptions.silentMode)
+                {
+                    extraConnection.NameOverride = "Strober";
+                }
+                else
+                {
+                    extraConnection.NameOverride = null;
+                }
+
+            }*/
+
+
+        }
+
+        bool pressAttack = false; 
+        // Copy paste lol
+        private void StrobeCameraOperator_ClientUserCommandGenerated(object sender, ref JKClient.UserCommand modifiableCommand, in JKClient.UserCommand previousCommand, ref List<JKClient.UserCommand> insertCommands)
+        {
+            if (activeConnectionsCount < 3) return;
+            if (pressAttack) // Just turn it on and off as quick as possible.
+            {
+                modifiableCommand.Buttons |= (int)JKClient.UserCommand.Button.Attack;
+                modifiableCommand.Buttons |= (int)JKClient.UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+            }
+            pressAttack = !pressAttack;
+        }
+
+
         int priorityPlayerClientNum = -1;
         Team priorityPlayerClientNumTeam = (Team)(-1);
         Connection theOneActiveConnection = null;
+
+        int activeConnectionsCount = 0;
+
+        List<Connection> connectionsToUse = new List<Connection>();
+
+        public Connection StrobeConnection { get; private set; } = null;
 
         // first connection [0] follows red flag
         // second connection [1] follows blue flag
@@ -100,6 +252,21 @@ namespace JKWatcher.CameraOperators
                 System.Threading.Thread.Sleep(100);
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
+
+                connectionsToUse.Clear();
+
+                HandleStrobe();
+
+                int activeCount = 0;
+                foreach (Connection conn in connections)
+                {
+                    if (conn.Status == ConnectionStatus.Active)
+                    {
+                        activeCount++;
+                        connectionsToUse.Add(conn);
+                    }
+                }
+                activeConnectionsCount = activeCount;
 
                 string priorityPlayer = this.GetOption("priorityPlayer") as string;
 
@@ -142,9 +309,9 @@ namespace JKWatcher.CameraOperators
                     }
                 }
 
-                if(priorityPlayerClientNum != -1)
+                if(priorityPlayerClientNum != -1 && connectionsToUse.Count == 1)
                 {
-                    Connection activeConnectionTmp = null;
+                    /*Connection activeConnectionTmp = null;
                     bool inactiveConnectionsFound = false;
                     foreach (Connection conn in connections)
                     {
@@ -158,12 +325,27 @@ namespace JKWatcher.CameraOperators
                         }
                     }
 
-                    theOneActiveConnection = inactiveConnectionsFound ? activeConnectionTmp : null;
-                } else
+                    theOneActiveConnection = inactiveConnectionsFound ? activeConnectionTmp : null;*/
+                    theOneActiveConnection = connectionsToUse[0];
+                }
+                else
                 {
                     theOneActiveConnection = null;
                 }
 
+                if (connectionsToUse.Count >= 3)
+                {
+                    StrobeConnection = connectionsToUse[2];
+                } else
+                {
+                    StrobeConnection = null;
+                }
+
+                if(connectionsToUse.Count < 2)
+                {
+                    connectionsToUse.Clear();
+                    connectionsToUse.AddRange(connections); // we must have 2 in there or else the handler functions get confused.
+                }
 
                 if (!infoPool.isIntermission) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
                     foreach (Team team in teams)
@@ -216,10 +398,10 @@ namespace JKWatcher.CameraOperators
             switch (flagTeam)
             {
                 case Team.Red:
-                    connection = connections[0];
+                    connection = connectionsToUse[0];
                     break;
                 case Team.Blue:
-                    connection = connections[1];
+                    connection = connectionsToUse[1];
                     break;
                 default:
                     return; // Only red blue team support atm
@@ -616,11 +798,11 @@ namespace JKWatcher.CameraOperators
             switch (flagTeam)
             {
                 case Team.Red:
-                    connection = connections[0];
+                    connection = connectionsToUse[0];
                     opposingTeam = Team.Blue;
                     break;
                 case Team.Blue:
-                    connection = connections[1];
+                    connection = connectionsToUse[1];
                     opposingTeam = Team.Red;
                     break;
                 default:
@@ -1096,10 +1278,10 @@ namespace JKWatcher.CameraOperators
             switch (flagTeam)
             {
                 case Team.Red:
-                    connection = connections[0];
+                    connection = connectionsToUse[0];
                     break;
                 case Team.Blue:
-                    connection = connections[1];
+                    connection = connectionsToUse[1];
                     break;
                 default:
                     return; // Only red blue team support atm
@@ -1775,7 +1957,7 @@ namespace JKWatcher.CameraOperators
 
         public override string[] getAvailableOptions()
         {
-            return new string[] { "priorityPlayer" };
+            return new string[] { "priorityPlayer","withStrobe","keepFreeSpot" };
         }
     }
 

@@ -465,7 +465,7 @@ namespace JKWatcher
                             }
                             // We want to be speccing/recording this.
                             // Check if we are already connected. If so, do nothing.
-                            if(!alreadyConnected && !serverInfo.NeedPassword) {
+                            if(!alreadyConnected) {
 
                                 bool configgedRequirementsExplicitlyNotMet = false;
                                 if (delayedConnectServersCount > 0 && delayedConnecterActive)
@@ -518,10 +518,16 @@ namespace JKWatcher
                                                     newWindow.Closed += NewWindow_Closed;
                                                     newWindow.ShowActivated = false;
                                                     newWindow.Show();
-                                                    newWindow.createCTFOperator();
+                                                    var ctfOperator = newWindow.createCTFOperator();
                                                     if (ctfAutoJoinWithStrobeActive)
                                                     {
-                                                        newWindow.createStrobeOperator();
+                                                        if(ctfOperator != null)
+                                                        {
+                                                            ctfOperator.SetOption("withStrobe","1");
+                                                        } else
+                                                        {
+                                                            newWindow.createStrobeOperator(); // Dunno how that'd ever happen tbh but oh well
+                                                        }
                                                     }
                                                     newWindow.recordAll();
                                                 }
@@ -532,7 +538,7 @@ namespace JKWatcher
                                             // arrive for some reason
                                             nextCheckFast = true;
                                         }
-                                    } else if (ffaAutoJoinActive && !(serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY))
+                                    } else if (ffaAutoJoinActive && !(serverInfo.GameType == GameType.CTF || serverInfo.GameType == GameType.CTY) && !serverInfo.NeedPassword)
                                     {
                                         // Check for exclude filter
                                         if(ffaAutoJoinExcludeList != null)

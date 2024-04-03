@@ -1,0 +1,17 @@
+﻿<Window x:Class="JKWatcher.GenericDialogBoxes.BooleanInput"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:JKWatcher.GenericDialogBoxes"
+        mc:Ignorable="d"
+        Title="BooleanInput" Height="150" Width="400">
+    <Grid>
+        <StackPanel>
+            <StackPanel x:Name="elementsPanel">
+                
+            </StackPanel>
+            <Button x:Name="btnOk" Click="btnOk_Click">Ok</Button>
+        </StackPanel>
+    </Grid>
+</Window>
