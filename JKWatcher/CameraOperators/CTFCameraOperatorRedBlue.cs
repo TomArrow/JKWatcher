@@ -324,7 +324,7 @@ namespace JKWatcher.CameraOperators
                     for (int i = 0; i < infoPool.playerInfo.Length; i++)
                     {
                         // Is valid player?
-                        if (infoPool.playerInfo[i].infoValid && (infoPool.playerInfo[i].team == Team.Blue || infoPool.playerInfo[i].team == Team.Red)) { // Make sure it's a valid active player
+                        if (infoPool.playerInfo[i].infoValid && ((DateTime.Now-infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(float.PositiveInfinity) > 15.0f && (infoPool.playerInfo[i].team == Team.Blue || infoPool.playerInfo[i].team == Team.Red)) { // Make sure it's a valid active player
 
                             foundAtLeastOneValidPlayer = true;
 
@@ -518,6 +518,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             visibilityMultiplier = flagItemNumber == -1 ? 1.0f: infoPool.getVisibilityMultiplier(i, flagItemNumber),
+                            secondsSinceFoundInvalidClient = (float)((DateTime.Now-infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagAtBase(flagTeam, !flagVisible);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -731,6 +732,7 @@ namespace JKWatcher.CameraOperators
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
+                            secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagTakenUnknownPlayer(flagTeam);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -875,6 +877,7 @@ namespace JKWatcher.CameraOperators
                                             distance = playerDistance,
                                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i, flagCarrier, 1000),
+                                            secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                                         };
                                         tmp.gradeForFlagTakenAndInvisible(flagTeam);
                                         possiblePlayers.Add(tmp);
@@ -988,7 +991,7 @@ namespace JKWatcher.CameraOperators
 
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
-                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
+                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity, secondsSinceFoundInvalidClient=float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
                 for (int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
@@ -1026,6 +1029,7 @@ namespace JKWatcher.CameraOperators
                             retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             isCarryingTheOtherTeamsFlag = (infoPool.teamInfo[opposingTeamInt].flag == FlagStatus.FLAG_TAKEN && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierUpdate != null && infoPool.teamInfo[opposingTeamInt].lastFlagCarrierValid) ? infoPool.teamInfo[opposingTeamInt].lastFlagCarrier == i : false,
                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagCarrier),
+                            secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagTakenAndVisible(flagTeam, currentlyFollowingFlagCarrier);
                         possibleNextPlayers.Add(tmp);
@@ -1226,7 +1230,8 @@ namespace JKWatcher.CameraOperators
                             clientNum = i,
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
-                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount // Will only be filled on nwh but won't hurt anything otherwise. TODO : Do our own counting?
+                            retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount // Will only be filled on nwh but won't hurt anything otherwise. TODO : Do our own counting?,
+                            secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagDroppedUnknownPosition(flagTeam, timeSinceAtBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -1346,7 +1351,7 @@ namespace JKWatcher.CameraOperators
 
                 // Assemble list of players we'd consider watching
                 List<PossiblePlayerDecision> possibleNextPlayers = new List<PossiblePlayerDecision>();
-                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
+                PossiblePlayerDecision stayWithCurrentPlayerDecision = new PossiblePlayerDecision() { decisionsLogger = decisionsLogger, grade = float.PositiveInfinity, secondsSinceFoundInvalidClient = float.PositiveInfinity }, tmp; // We set grade to positive infinity in case the currently spectated player isn't found. (for example if we're not spectating anyone)
                 for (int i = 0; i < infoPool.playerInfo.Length; i++)
                 {
                     if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].lastFullPositionUpdate != null && infoPool.playerInfo[i].team != Team.Spectator)
@@ -1364,6 +1369,7 @@ namespace JKWatcher.CameraOperators
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
                             visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagItemNumber),
+                            secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagDroppedWithKnownPosition(flagTeam,flagVisible,flagDistanceFromBase);
                         if (lastGradings[teamInt].ContainsKey(i) && playersCycled[teamInt].Contains(i) && tmp.grade * 3f < lastGradings[teamInt][i])
@@ -1474,9 +1480,19 @@ namespace JKWatcher.CameraOperators
             public bool isCarryingTheFlag;
             public bool isVisible;
             public float visibilityMultiplier;
+            public float secondsSinceFoundInvalidClient;
 
             public float grade { get; set; }
             public string gradeMethod { get; set; }
+
+            private float getInactiveClientMultiplier()
+            {
+                if(secondsSinceFoundInvalidClient > 0.0f && informationAge > 0 && (secondsSinceFoundInvalidClient*1000.0f) < informationAge && secondsSinceFoundInvalidClient < 60.0f)
+                {
+                    return 1.0f/(60.0f-secondsSinceFoundInvalidClient);
+                }
+                return 1.0f;
+            }
 
             public float gradeForFlagTakenUnknownPlayer(Team team)
             {
@@ -1484,9 +1500,12 @@ namespace JKWatcher.CameraOperators
 
                 grade = 1;
 
+                grade *= getInactiveClientMultiplier();
+
                 if (isOnSameTeamAsFlag) { 
                     // Retter likely to be near capper/flag
-                    grade /= this.retCount > 0 ? (float)this.retCount : 1f;
+                    //grade /= this.retCount > 0 ? (float)this.retCount : 1f;
+                    grade /= this.retCount > 0 ? (float)Math.Pow((double)this.retCount, 1.0 / 3.0) : 1f; // It's now the cubic root. So 8 rets vs 1 will roughly double probability, 27 vs 1 will 3 fold probability. It was just too strong before with linear. 9 rets vs 1 ret would surpass the impact of 2000  units of distance or being dead. Ridiculous.
                 }
 
                 grade *= isOnSameTeamAsFlag ? 4f : 1f; // We want to find the flag carrier (he is unknown). Can only be an opposite team player
@@ -1513,6 +1532,7 @@ namespace JKWatcher.CameraOperators
                 gradeMethod = "gradeForFlagDroppedUnknownPosition(" + timeSinceInBase.ToString() + ")";
 
                 grade = 1;
+                grade *= getInactiveClientMultiplier();
                 grade *= this.isOnSameTeamAsFlag ? 1.0f : 5.2f; // Being on opposing team is 9 times worse. The next best team member would have to be 1500 units away to justify following an opposite team member. (5.2 is roughly 3^1.5). It's cooler to watch retters than supporters.
                 
                 // Depending on whether it's been a long time since the flag was in the base or not,
@@ -1520,7 +1540,8 @@ namespace JKWatcher.CameraOperators
                 if (this.isOnSameTeamAsFlag)
                 {
                     // Retter likely to be near capper/flag
-                    grade /= this.retCount > 0 ? (float)this.retCount : 1f;
+                    //grade /= this.retCount > 0 ? (float)this.retCount : 1f;
+                    grade /= this.retCount > 0 ? (float)Math.Pow((double)this.retCount, 1.0 / 3.0) : 1f; // It's now the cubic root. So 8 rets vs 1 will roughly double probability, 27 vs 1 will 3 fold probability. It was just too strong before with linear. 9 rets vs 1 ret would surpass the impact of 2000  units of distance or being dead. Ridiculous.
 
                     //float effectOfDeathTime = (float)Math.Pow(2.0, 4f - timeSinceInBase / 1000.0f);
                     float recentDeathAdvantageFactor = (float)Math.Pow(1.5, Math.Abs(this.lastDeath - 1500) / 1000); // This will count the more recently flag was seen at base
@@ -1545,7 +1566,8 @@ namespace JKWatcher.CameraOperators
                 {
                     // Enemy retter unlikely to concern himself with his capper
                     // TODO If enemy flag is not taken, give enemy retter a little rating boost if timesinceinbase is high, since he's likely to be at his own base
-                    grade *= this.retCount > 0 ? (float)this.retCount : 1f;
+                    //grade *= this.retCount > 0 ? (float)this.retCount : 1f; 
+                    grade *= this.retCount > 0 ? (float)Math.Pow((double)this.retCount, 1.0 / 3.0) : 1f; // It's now the cubic root. So 8 rets vs 1 will roughly double probability, 27 vs 1 will 3 fold probability. It was just too strong before with linear. 9 rets vs 1 ret would surpass the impact of 2000  units of distance or being dead. Ridiculous.
 
                     // Opposite treatment for other team
                     float recentDeathAdvantageFactor = (float)Math.Pow(1.3, Math.Abs(this.lastDeath - 1500) / 1000); // This will count the more recently flag was seen at base
@@ -1583,6 +1605,7 @@ namespace JKWatcher.CameraOperators
                 gradeMethod = "gradeForFlagAtBase(" + flagInvisibleDeathBonus.ToString() +  ")";
 
                 grade = 1;
+                grade *= getInactiveClientMultiplier();
                 if (flagInvisibleDeathBonus && 
                     this.isOnSameTeamAsFlag && // Enemy players dying just puts them in their own base. Information age bc need no guessing if we KNOW
                     (informationAge > 2000 || // Only make guesses if our information is either outdated or from before the player died 
@@ -1639,6 +1662,7 @@ namespace JKWatcher.CameraOperators
 
                  //First try:
                 grade = 1;
+                grade *= getInactiveClientMultiplier();
                 if (!flagIsVisible && this.isOnSameTeamAsFlag && flagDistanceFromBase<2000) { // Flag is still near base, so give recently died players on team a bonus
                     if(this.lastDeath < 4000) 
                     {
@@ -1689,6 +1713,7 @@ namespace JKWatcher.CameraOperators
                 gradeMethod = "gradeForFlagTakenAndVisible(" + currentlyFollowingFlagCarrier.ToString()+ ")";
 
                 grade = 1;
+                grade *= getInactiveClientMultiplier();
 
                 if (isOnSameTeamAsFlag/* && this.isAlive*/) // Don't give ret bonus if dead maybe? Nonsensical. Or make longer time dead -> less buff?
                 {
@@ -1727,6 +1752,7 @@ namespace JKWatcher.CameraOperators
                 // We were previously only looking at distance. Now take visibility or invisibility into account.
                 gradeMethod = "gradeForFlagTakenAndInvisible()"; 
                 grade = 1;
+                grade *= getInactiveClientMultiplier();
                 grade *= (float)Math.Pow(3, this.distance / 1000); // 1000 units away is 3 times worse. 2000 units away is 9 times worse.
                 grade *= this.visibilityMultiplier;
 #if LOGDECISIONS

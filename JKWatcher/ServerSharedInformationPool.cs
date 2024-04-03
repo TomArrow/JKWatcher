@@ -329,6 +329,7 @@ namespace JKWatcher
         //public DateTime? lastNotVisible; // Last time we confirmed this player to not be visible on any connecttion
         //public DateTime? lastConfirmedAfk; // Last time we kinda confirmed this player to be afk
         public DateTime? lastFullPositionUpdate; // Last time all the info above was updated from entities
+        public DateTime? lastTimeClientInvalid; // Not on server (bugged served) or connecting.
         public float speed;
         public int groundEntityNum;
         public int torsoAnim;

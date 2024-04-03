@@ -3693,6 +3693,10 @@ namespace JKWatcher
 
         private DateTime lastClientDoesNotWishToBeSpectated = DateTime.Now.AddYears(-1);
 
+        //private DateTime lastInvalidPassword = DateTime.Now.AddYears(-1);
+        private DateTime lastNewPasswordTried = DateTime.Now.AddYears(-1);
+        private int nextNewPasswordToTryIndex = 0;
+
         // Parse specs sent through NWH "specs" command.
         // [1] = clientNumSpectator
         // [2] = nameSpectator (with trailing whitespaces)
@@ -3704,6 +3708,8 @@ namespace JKWatcher
         Regex unknownCmdRegex = new Regex(@"^unknown (?:cmd|command) ([^\n]+?)\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex unknownCmdRegexMOH = new Regex(@"^Command '([^\n]+?)' not available from console.\n\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex clientInactiveRegex = new Regex(@"Client '?(\d+)'? is not active", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex couldNotFindClientRegex = new Regex(@"Could not find client '?(\d+)'?", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex badClientSlotRegex = new Regex(@"Bad client slot: '?(\d+)'?", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         Regex mohPlayerFrozenRegex = new Regex(@"^\x03(?<team>\w+) player \((?<playerName>.*?)\) frozen. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex mohPlayerMeltedRegex = new Regex(@"^\x01(?<team>\w+) player \((?<playerName>.*?)\) melted by (?<melterName>.*?)\. \[(?<location>.*?)\](?:$|\n)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -3740,7 +3746,63 @@ namespace JKWatcher
                     }
                 }
 
-                if((commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client is currently on another map^1.^7") || commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7")) && commandEventArgs.Command.Argv(0) == "print")
+                if (printText != null && printText.Contains("@@@INVALID_PASSWORD")) {
+
+                    if ((DateTime.Now - lastNewPasswordTried).TotalSeconds > 5) {
+                        string passwordsString = Helpers.cachedFileRead("passwords.txt");
+                        string[] passwords = passwordsString.Split(new char[] { '\n','\r' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                        if(nextNewPasswordToTryIndex >= passwords.Length)
+                        {
+                            nextNewPasswordToTryIndex = 0;
+                        }
+                        if (passwords.Length > 0)
+                        {
+                            int passwordsConsidered = 0;
+                            string passwordToActuallyTry = null;
+                            while(passwordsConsidered < passwords.Length)
+                            {
+                                string passwordToTry = passwords[nextNewPasswordToTryIndex];
+                                lastNewPasswordTried = DateTime.Now;
+
+                                string[] parts = passwordToTry.Split('\\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                                if (parts.Length > 1)
+                                {
+                                    NetAddress referenceIP = null;
+                                    try
+                                    {
+                                        referenceIP = NetAddress.FromString(parts[0],default,false);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        serverWindow.addToLog($"Invalid Password Handler, cannot resolve IP {parts[0]}: {e.ToString()}", true);
+                                    }
+                                    if(referenceIP == serverWindow.netAddress)
+                                    {
+                                        passwordToActuallyTry = passwordToTry;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    passwordToActuallyTry = passwordToTry;
+                                    break;
+                                }
+
+                                nextNewPasswordToTryIndex++;
+                                passwordsConsidered++;
+                            }
+
+                            if(passwordToActuallyTry != null)
+                            {
+                                serverWindow.addToLog($"Trying password {nextNewPasswordToTryIndex}", true);
+                                this.SetPassword(passwordToActuallyTry);
+                                nextNewPasswordToTryIndex++;
+                            }
+                        }
+                    }
+                }
+                else if((commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client is currently on another map^1.^7") || commandEventArgs.Command.Argv(1).Contains("^7Error^1:^7 The client does not wish to be spectated^1.^7")) && commandEventArgs.Command.Argv(0) == "print")
                 {
                     if(lastRequestedAlwaysFollowSpecClientNum >= 0 && lastRequestedAlwaysFollowSpecClientNum<32)
                     {
@@ -3784,7 +3846,7 @@ namespace JKWatcher
                             infoPool.playerInfo[spectatingPlayer].nwhSpectatedPlayerLastUpdate = DateTime.Now;
                         }
                     }
-                } if ((specMatch = clientInactiveRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                } if ((specMatch = badClientSlotRegex.Match(commandEventArgs.Command.Argv(1))).Success)
                 {
                     // Is this info about who is spectating who?
                     if (specMatch.Groups.Count < 2) return;
@@ -3795,6 +3857,33 @@ namespace JKWatcher
                     if(inactiveClientNum >= 0 && inactiveClientNum < 32)
                     {
                         clientsWhoDontWantTOrCannotoBeSpectated[inactiveClientNum] = DateTime.Now;
+                        infoPool.playerInfo[inactiveClientNum].lastTimeClientInvalid = DateTime.Now;
+                    }
+                } else if ((specMatch = couldNotFindClientRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (specMatch.Groups.Count < 2) return;
+
+                    int inactiveClientNum = -1;
+                    int.TryParse(specMatch.Groups[1].Value, out inactiveClientNum);
+
+                    if(inactiveClientNum >= 0 && inactiveClientNum < 32)
+                    {
+                        clientsWhoDontWantTOrCannotoBeSpectated[inactiveClientNum] = DateTime.Now;
+                        infoPool.playerInfo[inactiveClientNum].lastTimeClientInvalid = DateTime.Now;
+                    }
+                } else if ((specMatch = clientInactiveRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (specMatch.Groups.Count < 2) return;
+
+                    int inactiveClientNum = -1;
+                    int.TryParse(specMatch.Groups[1].Value, out inactiveClientNum);
+
+                    if(inactiveClientNum >= 0 && inactiveClientNum < 32)
+                    {
+                        clientsWhoDontWantTOrCannotoBeSpectated[inactiveClientNum] = DateTime.Now;
+                        infoPool.playerInfo[inactiveClientNum].lastTimeClientInvalid = DateTime.Now;
                     }
                 } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)
                 {
