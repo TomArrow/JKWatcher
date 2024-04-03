@@ -90,8 +90,12 @@ namespace JKWatcher
                 {
                     continue;
                 }
-                string movementName = Enum.GetName(typeof(MovementDir), strafeStyleInfo.Key);
-                if ((strafeStylesString.Length + movementName.Length) > 150)
+                string movementName = Enum.GetName(typeof(MovementDir), strafeStyleInfo.Key); 
+                if (movementName == null)
+                {
+                    movementName = "WEIRD";
+                }
+                else if ((strafeStylesString.Length + movementName.Length) > 150)
                 {
                     break;
                 }

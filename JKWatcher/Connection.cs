@@ -1395,7 +1395,9 @@ namespace JKWatcher
                         } else
                         {
                             string killType = Enum.GetName(typeof(MeansOfDeath), mod);
-                            if (killType.StartsWith("MOD_"))
+                            if (killType == null) {
+                                killType = "WEIRD_UNKNOWN";
+                            } else if (killType.StartsWith("MOD_"))
                             {
                                 killType = killType.Substring(4);
                             }
