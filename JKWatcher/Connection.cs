@@ -1750,7 +1750,7 @@ namespace JKWatcher
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.emptySnaps;
-                } else if (snapsSettings.forceBotOnlySnaps && (infoPool.lastBotOnlyConfirmed != null && (DateTime.Now-infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000 || infoPool.botOnlyGuaranteed) )
+                } else if (snapsSettings.forceBotOnlySnaps && (((DateTime.Now-infoPool.lastBotOnlyConfirmed)?.TotalMilliseconds).GetValueOrDefault(double.PositiveInfinity) < 10000 || infoPool.botOnlyGuaranteed) )
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.botOnlySnaps;
@@ -2800,7 +2800,7 @@ namespace JKWatcher
 
                 bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
                 bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
-                bool onlyBotsActive = (infoPool.lastBotOnlyConfirmed.HasValue && (DateTime.Now - infoPool.lastBotOnlyConfirmed.Value).TotalMilliseconds < 10000) || infoPool.botOnlyGuaranteed;
+                bool onlyBotsActive = (((DateTime.Now - infoPool.lastBotOnlyConfirmed)?.TotalMilliseconds).GetValueOrDefault(double.PositiveInfinity) < 10000) || infoPool.botOnlyGuaranteed;
                 Int64 myClientNums = serverWindow.getJKWatcherClientOrFollowedNumsBitMask();
                 if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
                     maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
