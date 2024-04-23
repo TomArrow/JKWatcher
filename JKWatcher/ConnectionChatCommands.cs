@@ -436,6 +436,8 @@ namespace JKWatcher
                     bool markRequested = false;
                     bool helpRequested = false;
                     bool reframeRequested = false;
+                    bool reframeAborted = false;
+                    const int maxReframeMinutes = 20;
                     int markMinutes = 1;
                     int reframeClientNum = pm.playerNum;
                     int requiredCommandNumbers = 0;
@@ -1774,6 +1776,10 @@ namespace JKWatcher
 
                     string rateLimited = "";
                     string asClientNum = reframeClientNum != pm.playerNum ? $"(as {reframeClientNum})" : "";
+                    if(reframeRequested && markMinutes > maxReframeMinutes)
+                    {
+                        reframeAborted = true;
+                    }
                     string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
                     int cutDemosCount = 0;
                     List<int> demoCutsTimes = new List<int>();
@@ -1890,6 +1896,10 @@ namespace JKWatcher
                                     /*this.CameraOperator is CameraOperators.StrobeCameraOperator*/)
                                 {
                                     // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
+                                    if (reframeAborted)
+                                    {
+                                        demoCutCommandReframes.Append("//");
+                                    }
                                     demoCutCommandReframes.Append("DemoMerger ");
                                     demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
                                     demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
@@ -1897,7 +1907,10 @@ namespace JKWatcher
                                     demoCutCommandReframes.Append(" & \n");
                                 } else
                                 {
-
+                                    if (reframeAborted)
+                                    {
+                                        demoCutCommandReframes.Append("//");
+                                    }
                                     demoCutCommandReframes.Append("DemoReframer ");
                                     demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
                                     demoCutCommandReframes.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
@@ -1927,6 +1940,10 @@ namespace JKWatcher
                             {
                                 filenameGeneric = filenameGeneric.Substring(0, 150);
                             }
+                            if (reframeAborted)
+                            {
+                                demoCutCommand.Append("//");
+                            }
                             demoCutCommand.Append("DemoMerger ");
                             demoCutCommand.Append($"\"{filenameGeneric}_reframedMERGE{reframeClientNum}{demoExtension}\" ");
                             foreach (Tuple<string, int> cutDemoName in cutDemoNames)
@@ -1953,6 +1970,10 @@ namespace JKWatcher
                     {
                         string currentDemoTime = demoCutsTimes.Count > 0 ? demoCutsTimes[0].ToString() : "UNKNOWN WTF";
                         leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Time was marked for demo cut{withReframe}, {markMinutes} min into past. Current demo time is {currentDemoTime}.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                    }
+                    if (reframeAborted)
+                    {
+                        leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Reframe will NOT be automatically made due to demo cut being more than {maxReframeMinutes} minutes long.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                     }
                     serverWindow.addToLog($"^1NOTE ({myClientNum}): demo cut{withReframe} requested by \"{pm.playerName}\" (clientNum {pm.playerNum}), {markMinutes} minute(s) into the past {rateLimited}\n");
                     return;

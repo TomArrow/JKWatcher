@@ -663,6 +663,7 @@ namespace JKWatcher
 
         public bool NoActivePlayers { get; set; }
         public bool serverSeemsToSupportRetsCountScoreboard = false;
+        public bool serverSendsAllEntities = false;
 
         public DateTime? lastBotOnlyConfirmed = null;
         public DateTime? lastScoreboardReceived = null;

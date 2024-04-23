@@ -32,6 +32,7 @@ namespace JKWatcher
 		public int FPS { get; set; }
 		public int Ping { get; set; }
 		public bool Visibile { get; set; }
+		public bool SendsAllEntities { get; set; }
 		public bool NeedPassword { get; set; }
 		public bool TrueJedi { get; set; }
 		public bool WeaponDisable { get; set; }

@@ -113,6 +113,8 @@ namespace JKWatcher.CameraOperators
         private DateTime lastMaxAllowedServerConnectionsChange = DateTime.Now;
         private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 15.0; // 15 minutes
 
+        private DateTime lastConnectionCountChange = DateTime.Now-new TimeSpan(10,0,0); // have a slight delay before spawning/deleting connections
+        const double connectionCountChangeDelaySeconds = 30;
         private void HandleStrobe()
         {
             string withStrobeString = this.GetOption("withStrobe") as string;
@@ -132,7 +134,10 @@ namespace JKWatcher.CameraOperators
                     }
                 }
             }
-            if (withStrobe) neededConnectionsCount++;
+            if (withStrobe && !infoPool.serverSendsAllEntities)
+            {
+                neededConnectionsCount++;
+            }
 
             // TODO what about that reserved slots thingie? how to check for that?
             // Don't ever fill up the server with the fight bot.
@@ -145,16 +150,17 @@ namespace JKWatcher.CameraOperators
             }
 
 
-            if (neededConnectionsCount > connections.Count && connections.Count < MaxAllowedServerConnections)
+            if (neededConnectionsCount > connections.Count && connections.Count < MaxAllowedServerConnections &&  (DateTime.Now - lastConnectionCountChange).TotalSeconds > connectionCountChangeDelaySeconds)
             {
                 getMoreConnections(Math.Min(neededConnectionsCount - connections.Count, MaxAllowedServerConnections - connections.Count));
                 if(connections.Count >= 3)
                 {
                     this.connections[2].ClientUserCommandGenerated += StrobeCameraOperator_ClientUserCommandGenerated;
                 }
+                lastConnectionCountChange = DateTime.Now;
             }
             //if(activePlayers.Count() <= 1 && connections.Count() > 1) // If only 1 player here, get rid of extra connections.
-            if (neededConnectionsCount < connections.Count && connections.Count > 2) // Get rid of extra connections if too many
+            if (neededConnectionsCount < connections.Count && connections.Count > 2 && (DateTime.Now- lastConnectionCountChange).TotalSeconds > connectionCountChangeDelaySeconds) // Get rid of extra connections if too many
             {
                 //if ((DateTime.Now - destructionDelayStartTime).TotalMilliseconds > destructionDelayMs || (freeSlotsOnServer == 0 && keepFreeSpot)) // Don't destroy immediately. Wait 10 minutes. Maybe a player went spec and will come back to play. Or maybe another player connects. Too many connects/disconnects are annoying and result in a lot of tiny demo files.
                 {
@@ -167,6 +173,7 @@ namespace JKWatcher.CameraOperators
                         //{
                         this.connections[i].ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
                         destroyConnection(connections[i]);
+                        lastConnectionCountChange = DateTime.Now;
                         connectionsToDestroy--;
                         //}
                     }
@@ -180,17 +187,22 @@ namespace JKWatcher.CameraOperators
 
 
             // Check if there are any connections that are too much. ("Connection limit reached")
-            for (int i = connections.Count - 1; i > 0; i--)
-            {
-                if (connections[i].ConnectionLimitReached && connections.Count > 2 && MaxAllowedServerConnections > 2) // Can't destroy the last 2 connections
+            //if((DateTime.Now - lastConnectionCountChange).TotalSeconds > connectionCountChangeDelaySeconds)
+            //{
+
+                for (int i = connections.Count - 1; i > 0; i--)
                 {
-                    //MaxAllowedServerConnections = connections.Count - 1; // Think about this some more
-                    this.connections[i].ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
-                    destroyConnection(connections[i]);
-                    MaxAllowedServerConnections--; // Lower our number here.
-                    lastMaxAllowedServerConnectionsChange = DateTime.Now;
+                    if (connections[i].ConnectionLimitReached && connections.Count > 2 && MaxAllowedServerConnections > 2) // Can't destroy the last 2 connections
+                    {
+                        //MaxAllowedServerConnections = connections.Count - 1; // Think about this some more
+                        this.connections[i].ClientUserCommandGenerated -= StrobeCameraOperator_ClientUserCommandGenerated;
+                        destroyConnection(connections[i]);
+                        MaxAllowedServerConnections--; // Lower our number here.
+                        lastMaxAllowedServerConnectionsChange = DateTime.Now;
+                        //lastConnectionCountChange = DateTime.Now;
+                    }
                 }
-            }
+            //}
 
             if ((DateTime.Now - lastMaxAllowedServerConnectionsChange).TotalMilliseconds > retryMoreConnectionsDelay && MaxAllowedServerConnections < maxAllowedServerConnectionsUpperLimit)
             {

@@ -2985,6 +2985,12 @@ namespace JKWatcher
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
+            if (obj.SendsAllEntities && !infoPool.serverSendsAllEntities)
+            {
+                serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES ACTIVATED!", false, 5000);
+            }
+            infoPool.serverSendsAllEntities = obj.SendsAllEntities;
+
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
             lastServerInfoChange = DateTime.Now;
             OnServerInfoChanged(obj);
