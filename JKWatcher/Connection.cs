@@ -3315,9 +3315,12 @@ namespace JKWatcher
                             ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                             foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                             {
-                                if (cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                                if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
                                 {
-                                    string commands = cmd.commands.Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase);
+                                    string commands = cmd.commands
+                                        .Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase)
+                                        .Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase)
+                                        .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
                                     ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
                                 }
                             }
@@ -3747,9 +3750,11 @@ namespace JKWatcher
                     ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                     foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                     {
-                        if (cmd.type == ConditionalCommand.ConditionType.PRINT_CONTAINS && (cmd.conditionVariable1.Match(printText).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(printText)).Success))
+                        if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PRINT_CONTAINS && (cmd.conditionVariable1.Match(printText).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(printText)).Success))
                         {
-                            ExecuteCommandList(cmd.commands, RequestCategory.CONDITIONALCOMMAND);
+                            string commands = cmd.commands
+                                    .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
+                            ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
                         }
                     }
                 }

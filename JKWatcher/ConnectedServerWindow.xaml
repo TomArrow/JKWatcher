@@ -205,7 +205,7 @@
                                         <LineBreak></LineBreak>The second value is a regular expression that works in combination with the condition type. For print_contains, it must match a print output. For chat_contains, it must match a chat message. For playeractive_matchname it must match a player who has become active (joined as non-spectator).
                                         <LineBreak></LineBreak>The third value is commands to execute, separated by semicolon. You can use "wait" as a special command with a number that says how many milliseconds should be waited until this command is executed. This is non-blocking and just adds a delay to the execution. The actual execution time can be even longer to avoid getting rate-limited by the server.
                                         <LineBreak></LineBreak>
-                                        <LineBreak></LineBreak>For chat_contains and playeractive_matchname, you can use placeholders in the commands: $name and $clientnum. They correspond to the matched message/player.
+                                        <LineBreak></LineBreak>For chat_contains and playeractive_matchname, you can use placeholders in the commands: $name and $clientnum. They correspond to the matched message/player. And $myclientnum (our clientnum)
                                     </TextBlock>
                                 </StackPanel>
                             </Label.ToolTip>

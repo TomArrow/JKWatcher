@@ -356,9 +356,12 @@ namespace JKWatcher
                         ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                         foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                         {
-                            if (cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
+                            if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
                             {
-                                string commands = cmd.commands.Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase).Replace("$clientnum", pm.playerNum.ToString(), StringComparison.OrdinalIgnoreCase);
+                                string commands = cmd.commands
+                                    .Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase)
+                                    .Replace("$clientnum", pm.playerNum.ToString(), StringComparison.OrdinalIgnoreCase)
+                                    .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
                                 ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
                             }
                         }

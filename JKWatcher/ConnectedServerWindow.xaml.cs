@@ -199,6 +199,7 @@ namespace JKWatcher
                 public ConditionType type;
                 public Regex conditionVariable1;
                 public string commands;
+                public bool mainConnectionOnly = false;
             }
 
             public bool autoUpgradeToCTF { get; set; } = false;
@@ -279,6 +280,12 @@ namespace JKWatcher
                         foreach(string ccRaw in conditionalCommandsSplit)
                         {
                             string[] parts = ccRaw.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                            bool single = false;
+                            if(parts.Length > 0 && parts[0].ToLower() == "single")
+                            {
+                                parts = parts.Skip(1).ToArray();
+                                single = true;
+                            }
                             if(parts.Length < 3)
                             {
                                 // Invalid
@@ -312,6 +319,7 @@ namespace JKWatcher
                                     anyErrors = true;
                                 }
                                 newCmd.commands = parts[2];
+                                newCmd.mainConnectionOnly = single;
                                 _conditionalCommandsParsed.Add(newCmd);
                             }
                         }

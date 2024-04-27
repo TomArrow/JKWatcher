@@ -185,17 +185,19 @@ Commands that are shown in the GUI to allow you to quickly and comfortably send 
 Special conditional commands that are set when specific conditions are met. 
 
 Syntax:
-```condition_type:condition:command;command2;command3,condition_type2:condition:command4;command5```
+```(single:)condition_type:condition:command;command2;command3,condition_type2:condition:command4;command5```
 
-First the condition type (see below), then some kind of condition for that condition type (see below), then commands to execute, separated by semicolon ```;```. ```wait``` can be used same as in mapChangeCommands. Multiple conditional statements like this can be used, separated by comma ```,```.
+First, optionally, "single:" to only execute the command on a single connection (main chat connection is automatically chosen and used from the available connections). Otherwise, each connection executes the command.
+
+First (or second) the condition type (see below), then some kind of condition for that condition type (see below), then commands to execute, separated by semicolon ```;```. ```wait``` can be used same as in mapChangeCommands. Multiple conditional statements like this can be used, separated by comma ```,```.
 
 Some condition types allow you to use placeholders in the commands (see below).
 
 Condition types:
 
-- ```chat_contains```: Matches chat contents. Condition is a regular expression (C# Regex object) - if it matches the chat string, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player who sent the matching chat) and ```$clientnum``` (his client number).
-- ```playeractive_matchname```: Matches playernames of players who become active (join a non-spectator team). Condition is a regular expression (C# Regex object) - if it matches the player name, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player whose name matched) and ```$clientnum``` (his client number).
-- ```print_contains_```: Matches print outputs sent by the server. Condition is a regular expression (C# Regex object) - if it matches the printed string, the commands are executed. No placeholders available.
+- ```chat_contains```: Matches chat contents. Condition is a regular expression (C# Regex object) - if it matches the chat string, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player who sent the matching chat) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number).
+- ```playeractive_matchname```: Matches playernames of players who become active (join a non-spectator team). Condition is a regular expression (C# Regex object) - if it matches the player name, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player whose name matched) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number).
+- ```print_contains```: Matches print outputs sent by the server. Condition is a regular expression (C# Regex object) - if it matches the printed string, the commands are executed. No placeholders available. Usable placeholders in commands are ```$myclientnum``` (our own client number).
 
 #### demoMeta
 
