@@ -196,6 +196,12 @@ namespace JKWatcher
             this.ClientUserCommandGenerated?.Invoke(this, ref cmd, in previousCommand, ref insertCommands);
         }
 
+        public event Action<CommandEventArgs> ServerCommandRan;
+        void RunServerCommand(CommandEventArgs eventArgs)
+        {
+            this.ServerCommandRan?.Invoke(eventArgs);
+        }
+
         public JKClient.Statistics clientStatistics { get; private set; }
         public bool GhostPeer { get; private set; } = false;
 
@@ -3606,6 +3612,8 @@ namespace JKWatcher
             }
             //addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
             Debug.WriteLine(commandEventArgs.Command.Argv(0));
+
+            RunServerCommand(commandEventArgs);
         }
 
         void EvaluateFlagStatus(string str)

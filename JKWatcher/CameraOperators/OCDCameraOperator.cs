@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using JKClient;
@@ -29,6 +30,48 @@ namespace JKWatcher.CameraOperators
         {
             base.Initialize();
             startBackground();
+            this.connections[0].ServerCommandRan += OCDCameraOperator_ServerCommandRan;
+        }
+
+        Regex ocDefrag = new Regex(@"\^2\[\^7OC-System\^2\]: (.*?)\^7 has finished in \[\^2(\d+):(\d+.\d+)\^7\]( which is his personal best time)?.( \^2Top10 time!\^7)? Difference to best: \[((\^200:00.000\^7)|(\^2(\d+):(\d+.\d+)\^7))\]\.",RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
+
+        private void OCDCameraOperator_ServerCommandRan(CommandEventArgs obj)
+        {
+            if(obj.Command.Argc < 2 || !obj.Command.Argv(0).Equals("print",StringComparison.InvariantCultureIgnoreCase))
+            {
+                return;
+            }
+            Match match = ocDefrag.Match(obj.Command.Argv(1));
+
+            if (!match.Success)
+            {
+                return;
+            }
+
+            string playerName = match.Groups[1].Value;
+            int minutes = match.Groups[2].Value.Atoi();
+            //std::string secondString = vec_num[matchNum][3];
+            float seconds = match.Groups[3].Value.Atof();
+            int milliSeconds = (int)((1000.0f * seconds) + 0.5f);
+            int pureMilliseconds = milliSeconds % 1000;
+            int pureSeconds = milliSeconds / 1000;
+
+            int milliseconds = milliSeconds + minutes * 60 * 1000;
+            bool isLogged = match.Groups[5].Value.Length > 0;
+            bool isNumber1 = match.Groups[7].Value.Length > 0;
+            bool isPersonalBest = match.Groups[4].Value.Length > 0;
+
+            int allMinutes = milliseconds / 1000 / 60 + 1;
+
+            if((allMinutes * 1000 * 60- milliSeconds) < 10000)
+            {
+                allMinutes++;
+            }
+
+            if (isNumber1)
+            {
+                this.connections[0].MarkDemoManual(allMinutes,false,-1,playerName,"World Record Run");
+            }
         }
 
         private void startBackground()
@@ -56,6 +99,7 @@ namespace JKWatcher.CameraOperators
             lock (destructionMutex)
             {
                 if (isDestroyed) return;
+                this.connections[0].ServerCommandRan -= OCDCameraOperator_ServerCommandRan;
                 cts.Cancel();
                 if (backgroundTask != null)
                 {

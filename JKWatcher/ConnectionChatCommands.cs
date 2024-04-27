@@ -1998,8 +1998,163 @@ namespace JKWatcher
         }
 
 
+        // Should kinda merge it with the above because cringe.. oh well
+        public void MarkDemoManual(int markMinutes, bool reframeRequested, int reframeClientNum = -1, string playernameOverride=null, string demoNoteString = null)
+        {
+            bool reframeAborted = false;
+            ServerInfo thisServerInfo = client?.ServerInfo;
+            if (thisServerInfo == null)
+            {
+                return;
+            }
+
+            if(reframeClientNum < 0 || reframeClientNum >= Math.Max(this.serverMaxClientsLimit, 32))
+            {
+                reframeRequested = false;
+            }
+
+            string asClientNum = $"(as {reframeClientNum})";
+            string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
+            int cutDemosCount = 0;
+            List<int> demoCutsTimes = new List<int>();
+
+            StringBuilder demoCutCommand = new StringBuilder();
+            StringBuilder demoCutCommandReframes = new StringBuilder();
+            DateTime now = DateTime.Now;
 
 
+            string safePlayerName = playernameOverride == null? "null": Helpers.DemoCuttersanitizeFilename(playernameOverride, false);
+            demoCutCommand.Append($"# demo cut{withReframe} manually added (\"{safePlayerName}\") (clientNum {reframeClientNum}) on {thisServerInfo.HostName} ({thisServerInfo.Address.ToString()}) at {now}, {markMinutes} minute(s) into the past\n");
+
+            string demoNoteStringFilenamePart = "";
+            if (demoNoteString != null)
+            {
+                string demoNoteStringSafe = Helpers.DemoCuttersanitizeFilename(demoNoteString, false);
+                demoCutCommand.Append($"# demo note: {demoNoteStringSafe}\n");
+                demoNoteStringFilenamePart = $"_{demoNoteString}";
+            }
+
+            demoCutCommand.Append("wait\n");
+
+            List<Tuple<string, int>> cutDemoNames = new List<Tuple<string, int>>();
+            List<ConnectionDemoState> demoStates = new List<ConnectionDemoState>();
+
+            Connection[] allConns = serverWindow.getAllConnections();
+
+            foreach (Connection oneConn in allConns)
+            {
+                ConnectionDemoState demoState = new ConnectionDemoState()
+                {
+                    demoName = oneConn.client?.AbsoluteDemoName,
+                    demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0),
+                    myClientNum = (oneConn.client?.clientNum).GetValueOrDefault(-1),
+                    isStrobeOperator = (oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) || (oneConn.CameraOperator as CameraOperators.CTFCameraOperatorRedBlue)?.StrobeConnection == oneConn
+                };
+                if (demoState.demoName != null && demoState.demoTime != 0) // Even if it's truly 0, what could someone possibly get out of a mark when the demo recording literally just started?
+                {
+                    demoStates.Add(demoState);
+                }
+            }
+
+            foreach (ConnectionDemoState demoState in demoStates)
+            {
+                cutDemosCount++;
+                demoCutsTimes.Add(demoState.demoTime);
+                demoCutCommand.Append("DemoCutter ");
+                string demoPath = demoState.demoName;// client?.AbsoluteDemoName;
+                if (demoPath == null)
+                {
+                    return;
+                }
+                string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath);
+                demoCutCommand.Append($"\"{relativeDemoPath}\" ");
+                string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{playernameOverride}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{demoState.myClientNum}{demoNoteStringFilenamePart}";
+                if (filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
+                {
+                    filename = filename.Substring(0, 150);
+                }
+                filename = Helpers.MakeValidFileName(filename);
+                filename = Helpers.DemoCuttersanitizeFilename(filename, false);
+                demoCutCommand.Append($"\"{filename}\" ");
+                demoCutCommand.Append(Math.Max(0, demoState.demoTime - markMinutes * 60000).ToString());
+                demoCutCommand.Append(" ");
+                demoCutCommand.Append((demoState.demoTime + 60000).ToString());
+                demoCutCommand.Append(" & \n");
+
+                if (reframeRequested)
+                {
+                    string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
+
+                    cutDemoNames.Add(new Tuple<string, int>(filename, demoState.myClientNum));
+
+                    if (demoState.isStrobeOperator
+                        /*this.CameraOperator is CameraOperators.StrobeCameraOperator*/)
+                    {
+                        // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
+                        if (reframeAborted)
+                        {
+                            demoCutCommandReframes.Append("//");
+                        }
+                        demoCutCommandReframes.Append("DemoMerger ");
+                        demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
+                        demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
+                        demoCutCommandReframes.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                        demoCutCommandReframes.Append(" & \n");
+                    }
+                    else
+                    {
+                        if (reframeAborted)
+                        {
+                            demoCutCommandReframes.Append("//");
+                        }
+                        demoCutCommandReframes.Append("DemoReframer ");
+                        demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
+                        demoCutCommandReframes.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
+                        demoCutCommandReframes.Append(reframeClientNum);
+                        demoCutCommandReframes.Append(" & \n");
+                    }
+                }
+            }
+
+            demoCutCommand.Append("wait\n");
+            demoCutCommand.Append(demoCutCommandReframes);
+
+            if (reframeRequested && cutDemoNames.Count > 1) // Make a merged demo out of all with the reframed angle :)
+            {
+                string demoExtension = mohMode ? ".dm3" : (".dm_" + ((int)this.protocol).ToString());
+
+                StringBuilder numbersString = new StringBuilder();
+                foreach (Tuple<string, int> cutDemoName in cutDemoNames)
+                {
+                    numbersString.Append($"_{cutDemoName.Item2}");
+                }
+
+                string filenameGeneric = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{playernameOverride}__{thisServerInfo.HostName}__{thisServerInfo.MapName}{numbersString.ToString()}{demoNoteStringFilenamePart}";
+                filenameGeneric = Helpers.MakeValidFileName(filenameGeneric);
+                filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false);
+                if (filenameGeneric.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
+                {
+                    filenameGeneric = filenameGeneric.Substring(0, 150);
+                }
+                if (reframeAborted)
+                {
+                    demoCutCommand.Append("//");
+                }
+                demoCutCommand.Append("DemoMerger ");
+                demoCutCommand.Append($"\"{filenameGeneric}_reframedMERGE{reframeClientNum}{demoExtension}\" ");
+                foreach (Tuple<string, int> cutDemoName in cutDemoNames)
+                {
+                    demoCutCommand.Append($"\"{cutDemoName.Item1}{demoExtension}\" ");
+                }
+                demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                demoCutCommand.Append(" & \n");
+            }
+
+            demoCutCommand.Append("wait\n");
+
+            Helpers.logRequestedDemoCut(new string[] { demoCutCommand.ToString() });
+
+        }
 
 
 
