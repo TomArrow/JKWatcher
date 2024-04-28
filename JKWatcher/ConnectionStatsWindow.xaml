@@ -82,6 +82,11 @@
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10">DeltaDelta:</Label>
                 <TextBox Text="{Binding deltaDelta,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
+
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Delta snap max delay:</Label>
+                <TextBox Text="{Binding deltaSnapMaxDelay,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
         </StackPanel>
         <StackPanel x:Name="clientStatsPanel2" Grid.Row="2" Grid.Column="1">
 
@@ -96,6 +101,10 @@
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120" FontSize="10">SuperSkippable msgs:</Label>
                 <TextBox  Margin="0" Padding="2" Text="{Binding messagesSuperSkippable,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120" FontSize="10">SuperSkippable (bot):</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding messagesSuperSkippableButBotMovement,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Unskippable (svc):</Label>
@@ -117,10 +126,6 @@
             <WrapPanel>
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Snaps with deltaNum 0 that actually are deltas">Fake Non-Delta:</Label>
                 <TextBox Text="{Binding fakeNonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
-            </WrapPanel>
-            <WrapPanel>
-                <Label Width="120"  Margin="0" Padding="2" FontSize="10">Delta snap max delay:</Label>
-                <TextBox Text="{Binding deltaSnapMaxDelay,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
         </StackPanel>
         <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">

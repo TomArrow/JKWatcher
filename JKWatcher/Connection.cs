@@ -1752,6 +1752,7 @@ namespace JKWatcher
             {
                 client.AfkDropSnaps = snapsSettings.forceAFKSnapDrop;
                 client.AfkDropSnapsMinFPS = snapsSettings.afkMaxSnaps;
+                client.AfkDropSnapsMinFPSBots = snapsSettings.forceBotOnlySnaps ? snapsSettings.botOnlySnaps : 1000;
                 if (snapsSettings.forceEmptySnaps && infoPool.NoActivePlayers)
                 {
                     client.ClientForceSnaps = true;
@@ -3771,54 +3772,58 @@ namespace JKWatcher
 
                     if ((DateTime.Now - lastNewPasswordTried).TotalSeconds > 5) {
                         string passwordsString = Helpers.cachedFileRead("passwords.txt");
-                        string[] passwords = passwordsString.Split(new char[] { '\n','\r' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
-                        if(nextNewPasswordToTryIndex >= passwords.Length)
+                        if (!string.IsNullOrWhiteSpace(passwordsString))
                         {
-                            nextNewPasswordToTryIndex = 0;
-                        }
-                        if (passwords.Length > 0)
-                        {
-                            int passwordsConsidered = 0;
-                            string passwordToActuallyTry = null;
-                            while(passwordsConsidered < passwords.Length)
+
+                            string[] passwords = passwordsString.Split(new char[] { '\n','\r' },StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                            if(nextNewPasswordToTryIndex >= passwords.Length)
                             {
-                                string passwordToTry = passwords[nextNewPasswordToTryIndex];
-                                lastNewPasswordTried = DateTime.Now;
-
-                                string[] parts = passwordToTry.Split('\\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-                                if (parts.Length > 1)
+                                nextNewPasswordToTryIndex = 0;
+                            }
+                            if (passwords.Length > 0)
+                            {
+                                int passwordsConsidered = 0;
+                                string passwordToActuallyTry = null;
+                                while(passwordsConsidered < passwords.Length)
                                 {
-                                    NetAddress referenceIP = null;
-                                    try
+                                    string passwordToTry = passwords[nextNewPasswordToTryIndex];
+                                    lastNewPasswordTried = DateTime.Now;
+
+                                    string[] parts = passwordToTry.Split('\\', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                                    if (parts.Length > 1)
                                     {
-                                        referenceIP = NetAddress.FromString(parts[0],default,false);
+                                        NetAddress referenceIP = null;
+                                        try
+                                        {
+                                            referenceIP = NetAddress.FromString(parts[0],default,false);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            serverWindow.addToLog($"Invalid Password Handler, cannot resolve IP {parts[0]}: {e.ToString()}", true);
+                                        }
+                                        if(referenceIP == serverWindow.netAddress)
+                                        {
+                                            passwordToActuallyTry = passwordToTry;
+                                            break;
+                                        }
                                     }
-                                    catch (Exception e)
-                                    {
-                                        serverWindow.addToLog($"Invalid Password Handler, cannot resolve IP {parts[0]}: {e.ToString()}", true);
-                                    }
-                                    if(referenceIP == serverWindow.netAddress)
+                                    else
                                     {
                                         passwordToActuallyTry = passwordToTry;
                                         break;
                                     }
+
+                                    nextNewPasswordToTryIndex++;
+                                    passwordsConsidered++;
                                 }
-                                else
+
+                                if(passwordToActuallyTry != null)
                                 {
-                                    passwordToActuallyTry = passwordToTry;
-                                    break;
+                                    serverWindow.addToLog($"Trying password {nextNewPasswordToTryIndex}", true);
+                                    this.SetPassword(passwordToActuallyTry);
+                                    nextNewPasswordToTryIndex++;
                                 }
-
-                                nextNewPasswordToTryIndex++;
-                                passwordsConsidered++;
-                            }
-
-                            if(passwordToActuallyTry != null)
-                            {
-                                serverWindow.addToLog($"Trying password {nextNewPasswordToTryIndex}", true);
-                                this.SetPassword(passwordToActuallyTry);
-                                nextNewPasswordToTryIndex++;
                             }
                         }
                     }
