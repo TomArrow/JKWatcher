@@ -1788,6 +1788,8 @@ namespace JKWatcher
                     List<int> demoCutsTimes = new List<int>();
                     if (markRequested)
                     {
+
+                        bool serverSendsAllEntities = infoPool.serverSendsAllEntities;
                         List<ConnectionDemoState> demoStates = new List<ConnectionDemoState>();
                         Connection[] allConns = serverWindow.getAllConnections();
                         Connection firstActiveConnection = null;
@@ -1907,6 +1909,12 @@ namespace JKWatcher
                                     demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
                                     demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
                                     demoCutCommandReframes.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                                    if (serverSendsAllEntities)
+                                    {
+                                        // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                                        // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                                        demoCutCommandReframes.Append(" --visall");
+                                    }
                                     demoCutCommandReframes.Append(" & \n");
                                 } else
                                 {
@@ -1918,6 +1926,12 @@ namespace JKWatcher
                                     demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
                                     demoCutCommandReframes.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
                                     demoCutCommandReframes.Append(reframeClientNum);
+                                    if (serverSendsAllEntities)
+                                    {
+                                        // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                                        // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                                        demoCutCommandReframes.Append(" visall");
+                                    }
                                     demoCutCommandReframes.Append(" & \n");
                                 }
                             }
@@ -1954,6 +1968,12 @@ namespace JKWatcher
                                 demoCutCommand.Append($"\"{cutDemoName.Item1}{demoExtension}\" ");
                             }
                             demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                            if (serverSendsAllEntities)
+                            {
+                                // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                                // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                                demoCutCommand.Append(" --visall");
+                            }
                             demoCutCommand.Append(" & \n");
                         }
 
@@ -2008,7 +2028,9 @@ namespace JKWatcher
                 return;
             }
 
-            if(reframeClientNum < 0 || reframeClientNum >= Math.Max(this.serverMaxClientsLimit, 32))
+            bool serverSendsAllEntities = infoPool.serverSendsAllEntities;
+
+            if (reframeClientNum < 0 || reframeClientNum >= Math.Max(this.serverMaxClientsLimit, 32))
             {
                 reframeRequested = false;
             }
@@ -2099,6 +2121,12 @@ namespace JKWatcher
                         demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
                         demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
                         demoCutCommandReframes.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                        if (serverSendsAllEntities)
+                        {
+                            // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                            // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                            demoCutCommandReframes.Append(" --visall");
+                        }
                         demoCutCommandReframes.Append(" & \n");
                     }
                     else
@@ -2111,6 +2139,12 @@ namespace JKWatcher
                         demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
                         demoCutCommandReframes.Append($"\"{filename}_reframed{reframeClientNum}{demoExtension}\" ");
                         demoCutCommandReframes.Append(reframeClientNum);
+                        if (serverSendsAllEntities)
+                        {
+                            // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                            // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                            demoCutCommandReframes.Append(" visall");
+                        }
                         demoCutCommandReframes.Append(" & \n");
                     }
                 }
@@ -2147,6 +2181,12 @@ namespace JKWatcher
                     demoCutCommand.Append($"\"{cutDemoName.Item1}{demoExtension}\" ");
                 }
                 demoCutCommand.Append($" -r{reframeClientNum} -i -I"); // -i option for persisting and interpolating other entities. -I option for interpolating playerstate. Not great still, but better than a normal reframe.
+                if (serverSendsAllEntities)
+                {
+                    // Server sending all entities means we will be able to reframe even to players who would not be normally visible in either demo
+                    // Thus a high likelihood of ending up with reframes where the level is disappearing due to areamask issues. This should fix it.
+                    demoCutCommand.Append(" --visall");
+                }
                 demoCutCommand.Append(" & \n");
             }
 

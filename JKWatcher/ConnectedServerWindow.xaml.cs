@@ -874,9 +874,55 @@ namespace JKWatcher
             //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless
             if (_connectionOptions.autoUpgradeToCTF && (obj.GameType == GameType.CTF || obj.GameType == GameType.CTY))
             {
-                bool alreadyHaveCTFWatcher = false;
-                bool alreadyHaveStrobeWatcher = false;
+                bool existingCTFOperatorHasActiveStrobe = false;
+                CameraOperators.CTFCameraOperatorRedBlue existingCTFOperator = null;
+                CameraOperators.StrobeCameraOperator existingStrobeOperator = null;
                 lock (connectionsCameraOperatorsMutex)
+                {
+                    foreach (CameraOperator op in cameraOperators)
+                    {
+                        if (op is CameraOperators.CTFCameraOperatorRedBlue) { 
+                            existingCTFOperator = op as CameraOperators.CTFCameraOperatorRedBlue;
+                            existingCTFOperatorHasActiveStrobe = existingCTFOperatorHasActiveStrobe || (existingCTFOperator.GetOption("withStrobe") as string).Atoi()>0;
+                        }
+                        if (op is CameraOperators.StrobeCameraOperator) existingStrobeOperator = op as CameraOperators.StrobeCameraOperator;
+                    }
+                }
+                if (existingCTFOperator is null || ((existingStrobeOperator is null && !existingCTFOperatorHasActiveStrobe) && _connectionOptions.autoUpgradeToCTFWithStrobe))
+                {
+                    _connectionOptions.attachClientNumToName = true;
+                    _connectionOptions.demoTimeColorNames = true;
+                    _connectionOptions.silentMode = false;
+                    Dispatcher.Invoke(() => {
+                        bool anyNewWatcherCreated = false;
+                        if (existingCTFOperator is null)
+                        {
+                            var ctfOperator = this.createCTFOperator();
+                            if (_connectionOptions.autoUpgradeToCTFWithStrobe && existingStrobeOperator is null)
+                            {
+                                if (ctfOperator != null)
+                                {
+                                    ctfOperator.SetOption("withStrobe", "1");
+                                }
+                                else
+                                {
+                                    this.createStrobeOperator(); // Dunno how that'd ever happen tbh but oh well
+                                }
+                            }
+                            anyNewWatcherCreated = true;
+                        } else if (!existingCTFOperatorHasActiveStrobe && existingStrobeOperator is null && _connectionOptions.autoUpgradeToCTFWithStrobe)
+                        {
+                            existingCTFOperator.SetOption("withStrobe", "1");
+                            //this.createStrobeOperator();
+                            anyNewWatcherCreated = true;
+                        }
+                        if (anyNewWatcherCreated)
+                        {
+                            this.recordAll(); // in case of the "withStrobe" option (new method) this is partially obsolete i guess (since strobe is auto spawned and recorded) but whatever, still good for spawning the ctf operator itself.
+                        }
+                    });
+                }
+                /*lock (connectionsCameraOperatorsMutex)
                 {
                     foreach (CameraOperator op in cameraOperators)
                     {
@@ -906,7 +952,7 @@ namespace JKWatcher
                             this.recordAll();
                         }
                     });
-                }
+                }*/
             }
             
         }
