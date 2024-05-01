@@ -362,7 +362,7 @@ namespace JKWatcher
                                     .Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase)
                                     .Replace("$clientnum", pm.playerNum.ToString(), StringComparison.OrdinalIgnoreCase)
                                     .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
-                                ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                                ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>());
                             }
                         }
                     }

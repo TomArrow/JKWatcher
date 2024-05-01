@@ -185,11 +185,14 @@ Commands that are shown in the GUI to allow you to quickly and comfortably send 
 Special conditional commands that are set when specific conditions are met. 
 
 Syntax:
-```(single:)condition_type:condition:command;command2;command3,condition_type2:condition:command4;command5```
+```(nospam:)(nospamsame:)(single:)condition_type:condition:command;command2;command3,condition_type2:condition:command4;command5```
 
-First, optionally, "single:" to only execute the command on a single connection (main chat connection is automatically chosen and used from the available connections). Otherwise, each connection executes the command.
+First, optionally, you can use one or multiple prefixes: 
+- ```single:``` to only execute the command on a single connection (main chat connection is automatically chosen and used from the available connections). Otherwise, each connection executes the command.
+- ```nospam:```: If there is any other pending commands in the queue with the nospam prefix, this one will be discarded. 
+- ```nospamsame:```: If there is any other pending commands in the queue with the nospam prefix, this one will be discarded IF it's the same command. 
 
-First (or second) the condition type (see below), then some kind of condition for that condition type (see below), then commands to execute, separated by semicolon ```;```. ```wait``` can be used same as in mapChangeCommands. Multiple conditional statements like this can be used, separated by comma ```,```.
+After any optional prefix(es) the condition type (see below), then some kind of condition for that condition type (see below), then commands to execute, separated by semicolon ```;```. ```wait``` can be used same as in mapChangeCommands. Multiple conditional statements like this can be used, separated by comma ```,```.
 
 Some condition types allow you to use placeholders in the commands (see below).
 

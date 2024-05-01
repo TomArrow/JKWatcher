@@ -97,6 +97,8 @@ namespace JKWatcher
         CALENDAREVENT_ANNOUNCE,
         MAPCHANGECOMMAND,
         CONDITIONALCOMMAND,
+        CONDITIONALCOMMANDNOSPAM,
+        CONDITIONALCOMMANDNOSPAMSAME,
         STUFFTEXTECHO,
     }
 
@@ -2939,7 +2941,7 @@ namespace JKWatcher
 
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private void ExecuteCommandList(string commandList, RequestCategory requestCategory)
+        private void ExecuteCommandList(string commandList, RequestCategory requestCategory, LeakyBucketRequester<string, RequestCategory>.RequestBehavior behavior = LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE)
         {
             string[] mapChangeCommands = commandList?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if(mapChangeCommands != null)
@@ -2954,7 +2956,7 @@ namespace JKWatcher
                     }
                     else
                     {
-                        leakyBucketRequester.requestExecution(cmd, requestCategory, 0,3000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,waitTime > 0 ? waitTime : null);
+                        leakyBucketRequester.requestExecution(cmd, requestCategory, 0,3000, behavior, null,waitTime > 0 ? waitTime : null);
                     }
                 }
 
@@ -3328,7 +3330,7 @@ namespace JKWatcher
                                         .Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase)
                                         .Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase)
                                         .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
-                                    ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                                    ExecuteCommandList(commands, cmd.getRequestCategory(),cmd.GetSpamLevelAsRequestBehavior<string,RequestCategory>());
                                 }
                             }
                         }
@@ -3763,7 +3765,7 @@ namespace JKWatcher
                         {
                             string commands = cmd.commands
                                     .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
-                            ExecuteCommandList(commands, RequestCategory.CONDITIONALCOMMAND);
+                            ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>());
                         }
                     }
                 }

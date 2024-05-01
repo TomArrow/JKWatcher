@@ -50,7 +50,7 @@ namespace JKWatcher
         }
     }
 
-    public class LeakyBucketRequester<TCommand,TKind> where TKind:IComparable
+    public class LeakyBucketRequester<TCommand,TKind> where TKind:IComparable where TCommand : IComparable
     {
         private volatile int burst = 1;
         private volatile int period = 1100;
@@ -65,6 +65,8 @@ namespace JKWatcher
             ENQUEUE,
             DELETE_PREVIOUS_OF_SAME_TYPE,
             DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS,
+            DELETE_PREVIOUS_OF_SAME_TYPE_IF_COMMAND_SAME,
+            DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS_IF_COMMAND_SAME,
         }
 
         public struct Request
@@ -418,11 +420,44 @@ namespace JKWatcher
                             discarded = true;
                         }
                         break;
+                    case RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS_IF_COMMAND_SAME:
+                        // Only add to list if another request of the same type doesn't already exist.
+                        bool kindAndCmdAlreadyExists = false;
+                        foreach(Request tmpReq in requestQueue)
+                        {
+                            if(tmpReq.type.CompareTo(kind) == 0 && tmpReq.command.CompareTo(command) == 0)
+                            {
+                                kindAndCmdAlreadyExists = true;
+                            }
+                        }
+                        if (!kindAndCmdAlreadyExists)
+                        {
+                            requestQueue.Add(request);
+                            requestQueueChanged = true;
+                        } else
+                        {
+                            discarded = true;
+                        }
+                        break;
                     case RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE:
                         // If another request of the same type already exists, remove that previous request.
                         for(int i = requestQueue.Count - 1; i >= 0; i--)
                         {
                             if (requestQueue[i].type.CompareTo(kind) == 0)
+                            {
+                                requestQueue[i].tcs.TrySetResult(false);
+                                requestQueue.RemoveAt(i);
+                                requestQueueChanged = true;
+                            }
+                        }
+                        requestQueue.Add(request);
+                        requestQueueChanged = true;
+                        break;
+                    case RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE_IF_COMMAND_SAME:
+                        // If another request of the same type WITH THE SAME COMMAND already exists, remove that previous request.
+                        for(int i = requestQueue.Count - 1; i >= 0; i--)
+                        {
+                            if (requestQueue[i].type.CompareTo(kind) == 0 && requestQueue[i].command.CompareTo(command) == 0)
                             {
                                 requestQueue[i].tcs.TrySetResult(false);
                                 requestQueue.RemoveAt(i);

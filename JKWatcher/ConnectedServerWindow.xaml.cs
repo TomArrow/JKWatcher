@@ -200,6 +200,38 @@ namespace JKWatcher
                 public Regex conditionVariable1;
                 public string commands;
                 public bool mainConnectionOnly = false;
+                public SpamLevel spamLevel = SpamLevel.Queue;
+                public LeakyBucketRequester<T1, T2>.RequestBehavior GetSpamLevelAsRequestBehavior<T1, T2>() where T1 : IComparable where T2 : IComparable
+                {
+                    switch (spamLevel)
+                    {
+                        default:
+                        case SpamLevel.Queue:
+                            return LeakyBucketRequester<T1, T2>.RequestBehavior.ENQUEUE;
+                            break;
+                        case SpamLevel.NoSpam:
+                            return LeakyBucketRequester<T1, T2>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS;
+                            break;
+                        case SpamLevel.NoSpamSame:
+                            return LeakyBucketRequester<T1, T2>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS_IF_COMMAND_SAME;
+                            break;
+                    }
+                }
+                public RequestCategory getRequestCategory()
+                {
+                    switch (spamLevel) {
+                        default:
+                        case SpamLevel.Queue:
+                            return RequestCategory.CONDITIONALCOMMAND;
+                            break;
+                        case SpamLevel.NoSpam:
+                            return RequestCategory.CONDITIONALCOMMANDNOSPAM;
+                            break;
+                        case SpamLevel.NoSpamSame:
+                            return RequestCategory.CONDITIONALCOMMANDNOSPAMSAME;
+                            break;
+                    }
+                }
             }
 
             public bool autoUpgradeToCTF { get; set; } = false;
@@ -263,6 +295,14 @@ namespace JKWatcher
                 } 
             }
             public bool conditionalCommandsContainErrors { get; set; } = false;
+
+            private readonly string[] conditionalCommandPrefixes = new string[] { "single","nospam","nospamsame" };
+            public enum SpamLevel
+            {
+                Queue,
+                NoSpam,
+                NoSpamSame
+            }
             private void parseConditionalCommmands()
             {
                 bool anyErrors = false;
@@ -281,10 +321,25 @@ namespace JKWatcher
                         {
                             string[] parts = ccRaw.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                             bool single = false;
-                            if(parts.Length > 0 && parts[0].ToLower() == "single")
+                            SpamLevel spamLevel = SpamLevel.Queue;
+                            // Deal with prefixes
+                            while (parts.Length > 0 && conditionalCommandPrefixes.Contains(parts[0],StringComparer.InvariantCultureIgnoreCase))
                             {
-                                parts = parts.Skip(1).ToArray();
-                                single = true;
+                                switch (parts[0].ToLower())
+                                {
+                                    case "single":
+                                        parts = parts.Skip(1).ToArray();
+                                        single = true;
+                                        break;
+                                    case "nospam":
+                                        parts = parts.Skip(1).ToArray();
+                                        spamLevel = SpamLevel.NoSpam;
+                                        break;
+                                    case "nospamsame":
+                                        parts = parts.Skip(1).ToArray();
+                                        spamLevel = SpamLevel.NoSpamSame;
+                                        break;
+                                }
                             }
                             if(parts.Length < 3)
                             {
@@ -320,6 +375,7 @@ namespace JKWatcher
                                 }
                                 newCmd.commands = parts[2];
                                 newCmd.mainConnectionOnly = single;
+                                newCmd.spamLevel = spamLevel;
                                 _conditionalCommandsParsed.Add(newCmd);
                             }
                         }
