@@ -36,7 +36,15 @@ Comma-separated list of search strings for servers to exclude from ffa auto conn
 
 #### ffaAutoConnectKickReconnectDelay
 
-Number of minutes to wait before FFA auto-connecting to a server again after being kicked
+Number of minutes to wait before FFA auto-connecting to a server again after being kicked.
+
+#### ffaAutoConnectConditionalCommands
+
+Conditional commands to always use when doing ffa auto connect
+
+#### ctfAutoConnectConditionalCommands
+
+Conditional commands to always use when doing ctf auto connect
 
 #### autoJoinCheckInterval
 

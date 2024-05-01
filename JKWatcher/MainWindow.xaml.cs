@@ -313,6 +313,8 @@ namespace JKWatcher
                 bool ffaAutoJoinSilentActive = false;
                 bool ffaAutoJoinKickable = false;
                 string ffaAutoJoinExclude = null;
+                string ffaAutoJoinConditionalCommands = null;
+                string ctfAutoJoinConditionalCommands = null;
                 int ctfMinPlayersForJoin = 4;
                 int ffaMinPlayersForJoin = 2;
                 int ffaKickReconnectDelay = 0;
@@ -327,6 +329,8 @@ namespace JKWatcher
                     ffaAutoJoinSilentActive = ffaAutoJoinSilent.IsChecked == true;
                     ffaAutoJoinKickable = ffaAutoJoinKickableCheck.IsChecked == true;
                     ffaAutoJoinExclude = ffaAutoJoinExcludeTxt.Text;
+                    ffaAutoJoinConditionalCommands = ffaAutojoinConditionalCmdsTxt.Text;
+                    ctfAutoJoinConditionalCommands = ctfAutojoinConditionalCmdsTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
                     mohMode = mohModeCheck.IsChecked == true;
                     allJK2Versions = allJK2VersionsCheck.IsChecked == true;
@@ -512,7 +516,8 @@ namespace JKWatcher
 
                                                 lock (connectedServerWindows)
                                                 {
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName);
+                                                    ConnectedServerWindow.ConnectionOptions connOptions = string.IsNullOrWhiteSpace(ctfAutoJoinConditionalCommands) ? null : new ConnectedServerWindow.ConnectionOptions() { conditionalCommands = ctfAutoJoinConditionalCommands };
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, connOptions);
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
@@ -605,7 +610,7 @@ namespace JKWatcher
 
                                                 lock (connectedServerWindows)
                                                 {
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked" : null });
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ conditionalCommands = string.IsNullOrWhiteSpace(ffaAutoJoinConditionalCommands) ? null : ffaAutoJoinConditionalCommands, autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked" : null });
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
@@ -1608,6 +1613,18 @@ namespace JKWatcher
             {
                 ffaAutoConnectKickReconnectDelay = ffaAutoConnectKickReconnectDelay.Trim();
                 ffaAutoJoinKickReconnectDelayTxt.Text = ffaAutoConnectKickReconnectDelay;
+            }
+            string ffaAutoConnectConditionalCmds = cp.GetValue("__general__", "ffaAutoConnectConditionalCommands", "");
+            if (!string.IsNullOrWhiteSpace(ffaAutoConnectConditionalCmds))
+            {
+                ffaAutoConnectConditionalCmds = ffaAutoConnectConditionalCmds.Trim();
+                ffaAutojoinConditionalCmdsTxt.Text = ffaAutoConnectConditionalCmds;
+            }
+            string ctfAutoConnectConditionalCmds = cp.GetValue("__general__", "ctfAutoConnectConditionalCommands", "");
+            if (!string.IsNullOrWhiteSpace(ctfAutoConnectConditionalCmds))
+            {
+                ctfAutoConnectConditionalCmds = ctfAutoConnectConditionalCmds.Trim();
+                ctfAutojoinConditionalCmdsTxt.Text = ctfAutoConnectConditionalCmds;
             }
             string autoJoinCheckInterval = cp.GetValue("__general__", "autoJoinCheckInterval", "");
             if (!string.IsNullOrWhiteSpace(autoJoinCheckInterval))

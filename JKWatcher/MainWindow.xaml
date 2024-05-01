@@ -165,6 +165,16 @@
                     </DockPanel>
                 </DockPanel>
             </TabItem>
+            <TabItem Header="More Settings">
+                <StackPanel>
+                    <WrapPanel>
+                        <Label>Default conditional commands for ctf autojoin:</Label>
+                        <TextBox x:Name="ctfAutojoinConditionalCmdsTxt" MinWidth="200"></TextBox>
+                        <Label>Default conditional commands for ffa autojoin:</Label>
+                        <TextBox x:Name="ffaAutojoinConditionalCmdsTxt" MinWidth="200"></TextBox>
+                    </WrapPanel>
+                </StackPanel>
+            </TabItem>
         </TabControl>
         
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">
