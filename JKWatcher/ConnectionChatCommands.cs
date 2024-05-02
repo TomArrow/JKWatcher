@@ -362,7 +362,15 @@ namespace JKWatcher
                                     .Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase)
                                     .Replace("$clientnum", pm.playerNum.ToString(), StringComparison.OrdinalIgnoreCase)
                                     .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
-                                ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>());
+                                string saySameCmd = "say";
+                                if (pm.type == ChatType.PRIVATE)
+                                {
+                                    saySameCmd = $"tell {pm.playerNum}";
+                                } else if (pm.type == ChatType.TEAM)
+                                {
+                                    saySameCmd = $"say_team";
+                                }
+                                ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>(), saySameCmd);
                             }
                         }
                     }

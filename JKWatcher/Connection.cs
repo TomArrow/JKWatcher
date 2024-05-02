@@ -2940,8 +2940,9 @@ namespace JKWatcher
         PathFinder pathFinder = null;
 
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        Regex saySameCmdRegex = new Regex(@"^\s*say_same\s+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private void ExecuteCommandList(string commandList, RequestCategory requestCategory, LeakyBucketRequester<string, RequestCategory>.RequestBehavior behavior = LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE)
+        private void ExecuteCommandList(string commandList, RequestCategory requestCategory, LeakyBucketRequester<string, RequestCategory>.RequestBehavior behavior = LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,string saySame = "say")
         {
             string[] mapChangeCommands = commandList?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if(mapChangeCommands != null)
@@ -2950,13 +2951,17 @@ namespace JKWatcher
                 foreach(string cmd in mapChangeCommands)
                 {
                     Match match;
-                    if ((match = waitCmdRegex.Match(cmd)).Success && match.Groups.Count > 1)
+                    string mutableCmd = cmd;
+                    mutableCmd = saySameCmdRegex.Replace(mutableCmd, (s)=> { // for chat commands we may wanna respond the same way they were sent.
+                        return $"{saySame} ";
+                    });
+                    if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {
                         waitTime += (match.Groups[1].Value?.Atoi()).GetValueOrDefault(0); // This might be a bit overly careful lol.
                     }
                     else
                     {
-                        leakyBucketRequester.requestExecution(cmd, requestCategory, 0,3000, behavior, null,waitTime > 0 ? waitTime : null);
+                        leakyBucketRequester.requestExecution(mutableCmd, requestCategory, 0,3000, behavior, null,waitTime > 0 ? waitTime : null);
                     }
                 }
 

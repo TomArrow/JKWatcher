@@ -206,7 +206,7 @@ Some condition types allow you to use placeholders in the commands (see below).
 
 Condition types:
 
-- ```chat_contains```: Matches chat contents. Condition is a regular expression (C# Regex object) - if it matches the chat string, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player who sent the matching chat) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number).
+- ```chat_contains```: Matches chat contents. Condition is a regular expression (C# Regex object) - if it matches the chat string, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player who sent the matching chat) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number). You can use a special command named ```say_same``` here, same way you'd use say_team. It will be used to send a chat in the same way as the chat that triggered this, public, team or private (back to the original author).
 - ```playeractive_matchname```: Matches playernames of players who become active (join a non-spectator team). Condition is a regular expression (C# Regex object) - if it matches the player name, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player whose name matched) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number).
 - ```print_contains```: Matches print outputs sent by the server. Condition is a regular expression (C# Regex object) - if it matches the printed string, the commands are executed. No placeholders available. Usable placeholders in commands are ```$myclientnum``` (our own client number).
 
