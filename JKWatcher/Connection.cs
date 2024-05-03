@@ -3355,6 +3355,7 @@ namespace JKWatcher
                     }
 
                     infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
+                    infoPool.playerInfo[i].model = client.ClientInfo[i].Model;
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
                     if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))

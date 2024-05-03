@@ -2012,5 +2012,12 @@ namespace JKWatcher
         {
             taskManagerList.ItemsSource = TaskManager.GetRunningTasks();
         }
+
+        private void helpBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            var helpWindow = new Help();
+            helpWindow.Show();
+        }
     }
 }

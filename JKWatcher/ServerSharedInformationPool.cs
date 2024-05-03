@@ -380,6 +380,8 @@ namespace JKWatcher
         public bool confirmedBot { get; set; }
         public int clientNum { get; set; }
         public DateTime? lastClientInfoUpdate;
+
+        public string model { get; set; }
         #endregion
 
         #region tinfo

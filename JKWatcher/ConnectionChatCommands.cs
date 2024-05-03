@@ -351,7 +351,7 @@ namespace JKWatcher
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
                     }
 
-                    if (this.HandleAutoCommands)
+                    if (this.HandleAutoCommands && !pm.commandComesFromJKWatcher)
                     {
                         ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                         foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm

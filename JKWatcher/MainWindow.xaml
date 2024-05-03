@@ -111,6 +111,7 @@
 
                         <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
                         <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
+                        <Button x:Name="helpBtn" Click="helpBtn_Click" IsEnabled="True">Help</Button>
                     </WrapPanel>
                     <DataGrid FontSize="10" IsReadOnly="True"  CanUserAddRows="False" DockPanel.Dock="Bottom" VerticalScrollBarVisibility="Auto" x:Name="serverListDataGrid" AutoGenerateColumns="False" SelectionChanged="serverListDataGrid_SelectionChanged">
                         <DataGrid.Columns>

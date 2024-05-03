@@ -98,6 +98,7 @@
                     <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="VP" Binding="{Binding VisiblePlayers.VisiblePlayersString}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>
