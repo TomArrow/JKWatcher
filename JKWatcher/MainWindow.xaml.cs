@@ -1396,7 +1396,8 @@ namespace JKWatcher
                 UpdateDailyChance();
                 matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
-                if (generic || serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
+                bool matched = serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)));
+                if (generic || matched) // Improve this to also find non-colorcoded terms etc
                 {
                     if (!lastMapNames.ContainsKey(serverInfo.Address) || lastMapNames[serverInfo.Address] != serverInfo.MapName)
                     {
@@ -1410,7 +1411,7 @@ namespace JKWatcher
                     {
                         lastFittingServerInfo = serverInfo;
                     }
-                    matchesButMightNotMeetRequirements = true;
+                    matchesButMightNotMeetRequirements = matched;
                     if (!this.active) return false;
                     if (!dailyChanceTrueToday) return false;
                     if (chance < 100 && Connection.getNiceRandom(1,101) > chance) return false;
