@@ -1121,6 +1121,7 @@ namespace JKWatcher
         {
             private static Regex specialCharacterReplacer = new Regex(@"(?<!\\)\\x(?<number>[0-9a-f]{1,2})", RegexOptions.IgnoreCase|RegexOptions.CultureInvariant|RegexOptions.Compiled);
 
+            public bool generic { get; init; } = false;
             public string sectionName { get; init; } = null;
             public NetAddress ip { get; init; } = null;
             public string hostName { get; init; } = null;
@@ -1177,6 +1178,7 @@ namespace JKWatcher
             public bool attachClientNumToName { get; init; } = true;
             public bool demoTimeColorNames { get; init; } = true;
             public bool silentMode { get; init; } = false;
+            public bool autoUpgradeToCTF { get; init; } = false;
             public int? pollingInterval { get; init; } = null;
             public bool mohProtocol { get; init; } = false;
             public int? maxTimeSinceMapChange { get; init; } = null;
@@ -1216,6 +1218,7 @@ namespace JKWatcher
             {
                 sectionName = config.SectionName;
 
+                generic = (config["generic"]?.Trim().Atoi()).GetValueOrDefault(0) > 0;
                 try
                 {
                     string ipString = config["ip"]?.Trim();
@@ -1229,7 +1232,7 @@ namespace JKWatcher
                 }
                 hostName = config["hostName"]?.Trim();
                 if (hostName != null && hostName.Length == 0) hostName = null;
-                if (hostName == null && ip==null) throw new Exception("ServerConnectConfig: hostName or ip must be provided");
+                if (hostName == null && ip==null && !generic) throw new Exception("ServerConnectConfig: hostName or ip must be provided or 'generic' must be set.");
                 playerName = config["playerName"]?.Trim();
                 password = config["password"]?.Trim();
                 mapChangeCommands = config["mapChangeCommands"]?.Trim();
@@ -1291,6 +1294,7 @@ namespace JKWatcher
                 attachClientNumToName = (config["attachClientNumToName"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
                 demoTimeColorNames = (config["demoTimeColorNames"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
                 silentMode = (config["silentMode"]?.Trim().Atoi()).GetValueOrDefault(0) > 0;
+                autoUpgradeToCTF = (config["autoUpgradeToCTF"]?.Trim().Atoi()).GetValueOrDefault(0) > 0;
 
                 gameTypes |= Connection.GameTypeStringToBitMask(config["gameTypes"]);
 
@@ -1392,7 +1396,7 @@ namespace JKWatcher
                 UpdateDailyChance();
                 matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
-                if (serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
+                if (generic || serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)))) // Improve this to also find non-colorcoded terms etc
                 {
                     if (!lastMapNames.ContainsKey(serverInfo.Address) || lastMapNames[serverInfo.Address] != serverInfo.MapName)
                     {
@@ -1472,7 +1476,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta, autoUpgradeToCTF= serverToConnect.autoUpgradeToCTF, autoUpgradeToCTFWithStrobe= serverToConnect.autoUpgradeToCTF });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;
@@ -1654,7 +1658,7 @@ namespace JKWatcher
                 {
                     if (section.SectionName == "__general__") continue;
 
-                    if (section["hostName"] != null || section["ip"] != null)
+                    if (section["hostName"] != null || section["ip"] != null || !string.IsNullOrWhiteSpace(section["generic"]))
                     {
                         var newServer = new ServerToConnect(section);
                         if (newServer.delayed)

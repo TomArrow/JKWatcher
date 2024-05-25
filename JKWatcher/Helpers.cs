@@ -441,7 +441,8 @@ namespace JKWatcher
         public static string forcedLogFileName = "forcedLog.log";
         public static void logToFile(string[] texts)
         {
-            foreach(string line in texts)
+            Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
+            foreach (string line in texts)
             {
                 Debug.WriteLine(line);
             }

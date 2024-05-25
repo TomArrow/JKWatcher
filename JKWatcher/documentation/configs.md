@@ -68,13 +68,17 @@ Individual server sections require one section per server. The name of the secti
 
 List of possible keys with meaning and possible values:
 
+#### generic
+
+1 or 0. Default 0. If 1, no ip or hostname has to be specified and the connecting is controlled purely through additional conditions that are set.
+
 #### ip
 
-Specific IP to identify this server in normal ```XXX.XXX.XXX.XXX:XXXXX``` format. You **always** need either this or *hostName*.
+Specific IP to identify this server in normal ```XXX.XXX.XXX.XXX:XXXXX``` format. You **always** need either this or *hostName* (except when generic is 1).
 
 #### hostName
 
-Search string for the server name to identify this server. You **always** need either this or *ip*. This does not need to be the full server name, it can be a part of the server name.
+Search string for the server name to identify this server. You **always** need either this or *ip* (except when generic is 1). This does not need to be the full server name, it can be a part of the server name.
 
 #### playerName
 
@@ -162,10 +166,16 @@ Optionally, you can attach extra options to watchers, example:
 Currently available options are:
 
 - ctf: priorityPlayer: Player search string. In case one of the 2 ctf connections fails, the remaining connection will be used to follow the team that this player is on.
+- ctf: withStrobe: 1 or 0. Ctf watcher spawns with strobe
+- ctf: keepFreeSpot: 1 or 0. Avoid using strobe if it would fill up the server (buggy)
 
 #### delayPerWatcher
 
 If adding multiple watchers, how long to wait between adding each? Milliseconds.
+
+#### autoUpgradeToCTF
+
+0 or 1. Adds ctf watcher if ctf/cty gamemode is detected.
 
 #### disconnectTriggers
 

@@ -136,6 +136,10 @@ namespace JKWatcher.CameraOperators
             }
             if (withStrobe && !infoPool.serverSendsAllEntities)
             {
+                //if((DateTime.Now- timeStarted).TotalSeconds > 10)
+                //{
+
+                //}
                 neededConnectionsCount++;
             }
 
@@ -247,6 +251,7 @@ namespace JKWatcher.CameraOperators
         Connection theOneActiveConnection = null;
 
         int activeConnectionsCount = 0;
+        DateTime timeStarted = DateTime.Now;
 
         List<Connection> connectionsToUse = new List<Connection>();
 
@@ -259,6 +264,7 @@ namespace JKWatcher.CameraOperators
             FlagStatus[] lastFlagStatus = new FlagStatus[] { (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1) }; // What it was last time we checked
             FlagStatus[] lastLastFlagStatus = new FlagStatus[] { (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1), (FlagStatus)(-1) }; // What it was before the last change
             Team[] teams = new Team[] { Team.Red, Team.Blue };
+            timeStarted = DateTime.Now;
             while (true)
             {
                 System.Threading.Thread.Sleep(100);
