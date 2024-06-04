@@ -976,7 +976,8 @@ namespace JKWatcher
 
         private void Client_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
         {
-            serverWindow.addToLog($"JKClient error message: {e.errorMessage}.",true);
+            serverWindow.addToLog($"JKClient error message: {e.errorMessage}; detail length: {(e.errorMessageDetail is null ? 0 : e.errorMessageDetail.Length)} characters. Detail logged to jkClientErrors.log",true);
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), e.errorMessage, e.errorMessageDetail }, "jkClientErrors.log", true);
         }
 
         private void Client_InternalTaskStarted(object sender, in Task task, string description)
