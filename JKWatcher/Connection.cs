@@ -976,7 +976,7 @@ namespace JKWatcher
 
         private void Client_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
         {
-            serverWindow.addToLog($"JKClient error message: {e.errorMessage}.");
+            serverWindow.addToLog($"JKClient error message: {e.errorMessage}.",true);
         }
 
         private void Client_InternalTaskStarted(object sender, in Task task, string description)
