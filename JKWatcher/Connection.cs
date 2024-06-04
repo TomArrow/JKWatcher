@@ -916,6 +916,7 @@ namespace JKWatcher
             client.UserCommandGenerated += Client_UserCommandGenerated;
             client.DebugEventHappened += Client_DebugEventHappened;
             client.InternalTaskStarted += Client_InternalTaskStarted;
+            client.ErrorMessageCreated += Client_ErrorMessageCreated;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -971,6 +972,11 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void Client_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
+        {
+            serverWindow.addToLog($"JKClient error message: {e.errorMessage}.");
         }
 
         private void Client_InternalTaskStarted(object sender, in Task task, string description)
@@ -3460,6 +3466,7 @@ namespace JKWatcher
             client.UserCommandGenerated -= Client_UserCommandGenerated;
             client.DebugEventHappened -= Client_DebugEventHappened;
             client.InternalTaskStarted -= Client_InternalTaskStarted;
+            client.ErrorMessageCreated -= Client_ErrorMessageCreated;
             clientStatistics = null;
         }
 
