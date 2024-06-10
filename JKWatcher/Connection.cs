@@ -1399,7 +1399,21 @@ namespace JKWatcher
                                 }
                                 if(killType == "")
                                 {
-                                    killType = "SABER";
+                                    switch (saberStyle[attacker]) {
+                                        case 1:
+                                            killType = "BLUE";
+                                            break;
+                                        case 2:
+                                            killType = "YELLOW";
+                                            break;
+                                        case 3:
+                                            killType = "RED";
+                                            break;
+                                        default:
+                                            killType = "SABER";
+                                            break;
+                                    }
+
                                 }
                                 UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
                                 infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
@@ -1843,6 +1857,7 @@ namespace JKWatcher
 
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
+        public int[] saberStyle = new int[64];
         public Vector3[] lastVelocity = new Vector3[64];
         public Vector3[] lastPosition = new Vector3[64];
         public int[] lastLegsAnim = new int[64];
@@ -1913,6 +1928,7 @@ namespace JKWatcher
             }
             entityOrPSVisible[snap.PlayerState.ClientNum] = true;
             saberMove[snap.PlayerState.ClientNum] = snap.PlayerState.SaberMove;
+            saberStyle[snap.PlayerState.ClientNum] = snap.PlayerState.forceData.SaberAnimLevel;
             //ClientEntity[] entities = client.Entities;
             //if (entities == null)
             //{
@@ -2115,6 +2131,7 @@ namespace JKWatcher
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
                         saberMove[i] = snap.PlayerState.SaberMove;
+                        saberStyle[i] = snap.PlayerState.forceData.SaberAnimLevel;
                     }
 
                     if (mohMode)
@@ -2261,6 +2278,7 @@ namespace JKWatcher
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
                         saberMove[i] = snap.Entities[snapEntityNum].SaberMove;
+                        saberStyle[i] = snap.Entities[snapEntityNum].FireFlag;
                     }
 
                     visibleOtherPlayers++;
