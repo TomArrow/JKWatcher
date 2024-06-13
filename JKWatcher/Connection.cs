@@ -1163,7 +1163,8 @@ namespace JKWatcher
             if (amNotInSpec)
             {
                 DoSillyThings(ref modifiableCommand, in previousCommand);
-            } else
+            }            
+            else
             {
                 if ((DateTime.Now - lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
                 {
@@ -1178,6 +1179,11 @@ namespace JKWatcher
                     }
 
                     lastForcedActivity = DateTime.Now;
+                }
+                else if (weAreSpectatorSlowFalling)
+                {
+                    // if we are falling down VEEEERY slowly (spectator mode thing), accelerate it so we reach the bottom quick and stop wasting net bandwidth
+                    modifiableCommand.Upmove = -127; // crouch lets us go down real quick
                 }
             }
             if(this.CameraOperator == null)
@@ -1884,6 +1890,8 @@ namespace JKWatcher
 
         public DateTime lastSnapshotParsedOrServerInfoChange = DateTime.Now;
 
+        private bool weAreSpectatorSlowFalling = false; // if we are a spectator in PM_SPECTATOR mode and we are not on the ground, we will be floating and VEEEERY slowly falling down. this means we will get a snapshot every second with a fresh position/velocity value but no meaningful info otherwise, wasting space. let's just quickly fly to the ground to prevent that if needed.
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -1960,9 +1968,13 @@ namespace JKWatcher
             {
                 uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags, this.protocol);
                 amNotInSpec = (normalizePMFlags & PMF_SPECTATING_MOH) == 0;
+                weAreSpectatorSlowFalling = false; // idk if this is a thing in moh.
             } else
             {
                 amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+                //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Velocity[0] != 0.0f || snap.PlayerState.Velocity[1] != 0.0f || snap.PlayerState.Velocity[2] != 0.0f); // doesnt work as our crouch method affects velocity or idk something something :/
+                //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[0] != lastPosition[snap.PlayerState.ClientNum].X || snap.PlayerState.Origin[1] != lastPosition[snap.PlayerState.ClientNum].Y || snap.PlayerState.Origin[2] != lastPosition[snap.PlayerState.ClientNum].Z);
+                weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[2] < lastPosition[snap.PlayerState.ClientNum].Z);
             }
 
             bool teamChangesDetected = false;
@@ -3772,6 +3784,7 @@ namespace JKWatcher
 
         Regex playerNameSpecialCharsRegex = new Regex(@"[^\w\d ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex playerNameSpecialCharsExceptRoofRegex = new Regex(@"[^\w\d\^ ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex serverUsesProtocolRegex = new Regex(@"Server uses protocol version (?<protocol>\d+).", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         string disconnectedString = " disconnected\n";
 
@@ -3782,6 +3795,7 @@ namespace JKWatcher
             Match mohChatMatch;
             Match mohFrozenMatch = null;
             Match mohMeltedMatch = null;
+            Match protocolMatch = null;
             string tmpString = null;
             int tmpInt;
             if (commandEventArgs.Command.Argc >= 2)
@@ -3944,6 +3958,18 @@ namespace JKWatcher
                     {
                         clientsWhoDontWantTOrCannotoBeSpectated[inactiveClientNum] = DateTime.Now;
                         infoPool.playerInfo[inactiveClientNum].lastTimeClientInvalid = DateTime.Now;
+                    }
+                } else if ((protocolMatch = serverUsesProtocolRegex.Match(commandEventArgs.Command.Argv(1))).Success)
+                {
+                    // Is this info about who is spectating who?
+                    if (!protocolMatch.Groups.ContainsKey("protocol")) return;
+
+                    int newProtocol = -1;
+                    if(client?.Status != ConnectionStatus.Active && int.TryParse(protocolMatch.Groups["protocol"].Value, out newProtocol))
+                    {
+                        serverWindow.addToLog($"SERVER PROTOCOL CHANGE DETECTED, APPLYING: {protocol} to {newProtocol}", true);
+                        protocol = (JKClient.ProtocolVersion)newProtocol;
+                        Reconnect(); // is it safe to call it here? idk. let's find out
                     }
                 } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)
                 {
