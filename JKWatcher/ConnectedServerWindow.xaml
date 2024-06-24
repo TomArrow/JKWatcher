@@ -99,6 +99,8 @@
                     <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="VP" Binding="{Binding VisiblePlayers.VisiblePlayersString}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="G2TG" Binding="{Binding g2RatingThisGame}"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>

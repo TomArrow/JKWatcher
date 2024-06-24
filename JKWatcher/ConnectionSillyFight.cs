@@ -191,7 +191,7 @@ namespace JKWatcher
 
 		DateTime lastSaberSwitchCommand = DateTime.Now;
 
-		static readonly PlayerInfo dummyPlayerInfo = new PlayerInfo() {  position = new Vector3() { X= float.PositiveInfinity ,Y= float.PositiveInfinity ,Z= float.PositiveInfinity } };
+		static readonly PlayerInfo dummyPlayerInfo = new PlayerInfo(new Glicko2.RatingCalculator(), new Glicko2.RatingCalculator()) {  position = new Vector3() { X= float.PositiveInfinity ,Y= float.PositiveInfinity ,Z= float.PositiveInfinity } };
 
 		private long pendingCalmSays = 0;
 

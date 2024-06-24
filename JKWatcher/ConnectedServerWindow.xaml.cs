@@ -139,7 +139,7 @@ namespace JKWatcher
         //private ServerInfo serverInfo = null;
         //private string ip;
         public NetAddress netAddress { get; private set; }
-        public ProtocolVersion protocol { get; private set; }
+        public ProtocolVersion protocol { get; internal set; }
         private string serverName = null;
         public string ServerName
         {

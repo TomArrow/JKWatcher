@@ -4,3 +4,6 @@
 [submodule "ext/WPF-Clock-Based-Date-Time-Picker"]
 	path = ext/WPF-Clock-Based-Date-Time-Picker
 	url = git@github.com:TomArrow/WPF-Clock-Based-Date-Time-Picker.git
+[submodule "glicko2-csharp"]
+	path = glicko2-csharp
+	url = git@github.com:TomArrow/glicko2-csharp.git

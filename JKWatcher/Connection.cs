@@ -100,6 +100,7 @@ namespace JKWatcher
         CONDITIONALCOMMANDNOSPAM,
         CONDITIONALCOMMANDNOSPAMSAME,
         STUFFTEXTECHO,
+        JKCLIENTINTERNAL
     }
 
     struct MvHttpDownloadInfo
@@ -917,6 +918,7 @@ namespace JKWatcher
             client.DebugEventHappened += Client_DebugEventHappened;
             client.InternalTaskStarted += Client_InternalTaskStarted;
             client.ErrorMessageCreated += Client_ErrorMessageCreated;
+            client.InternalCommandCreated += Client_InternalCommandCreated;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -974,10 +976,21 @@ namespace JKWatcher
             return true;
         }
 
+        private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
+        {
+            // We wanna integrate internal commands here with our nice leaky bucket flood protection
+            leakyBucketRequester?.requestExecution(e.command,RequestCategory.JKCLIENTINTERNAL, 10, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+            e.handledExternally = true;
+        }
+
         private void Client_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
         {
             serverWindow.addToLog($"JKClient error message: {e.errorMessage}; detail length: {(e.errorMessageDetail is null ? 0 : e.errorMessageDetail.Length)} characters. Detail logged to jkClientErrors.log",true);
-            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), e.errorMessage, e.errorMessageDetail }, "jkClientErrors.log", true);
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), e.errorMessage, e.errorMessageDetail, e.possibleRelatedMessage.debugMessage, (e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null) ? $"Error contained possibly related message, dumping into jkClientErrorMessageDump.bin":null }, "jkClientErrors.log", true);
+            if(e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null)
+            {
+                Helpers.logToSpecificDebugFile(e.possibleRelatedMessage.Data, "jkClientErrorMessageDump.bin", false);
+            }
         }
 
         private void Client_InternalTaskStarted(object sender, in Task task, string description)
@@ -1461,6 +1474,21 @@ namespace JKWatcher
                             infoPool.killTrackers[attacker, target].lastKillTime = DateTime.Now;
                             infoPool.killTrackersThisGame[attacker, target].kills++;
                             infoPool.killTrackersThisGame[attacker, target].lastKillTime = DateTime.Now;
+
+                            if ((DateTime.Now-infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
+                            {
+                                infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating);
+                                infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating);
+                                if(infoPool.ratingPeriodResults.GetResultCount() >= 15)
+                                {
+                                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
+                                } 
+                                if(infoPool.ratingPeriodResultsThisGame.GetResultCount() >= 15)
+                                {
+                                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
+                                }
+                            }
+
                             bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
                             if (infoPool.killTrackers[attacker, target].trackingMatch)
                             {
@@ -1861,6 +1889,22 @@ namespace JKWatcher
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
         };
 
+
+        private void CommitRatings()
+        {
+            if (this.IsMainChatConnection)
+            {
+                if (infoPool.ratingPeriodResults.GetResultCount() > 0)
+                {
+                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
+                }
+                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() > 0)
+                {
+                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
+                }
+            }
+        }
+
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
         public int[] saberStyle = new int[64];
@@ -1917,6 +1961,11 @@ namespace JKWatcher
             if (isDuelMode && isIntermission)
             {
                 doClicks = Math.Min(3, doClicks + 1);
+            }
+
+            if (isIntermission && this.IsMainChatConnection)
+            {
+                CommitRatings();
             }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
@@ -3007,7 +3056,11 @@ namespace JKWatcher
 
         private void resetThisGameStats()
         {
+            CommitRatings();
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
+            infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
+            infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
+            infoPool.ratingsAndNamesThisGame.Clear();
             for (int i=0;i< maxClients; i++)
             {
                 for (int p = 0; p < maxClients; p++)
@@ -3015,7 +3068,7 @@ namespace JKWatcher
                     infoPool.killTrackersThisGame[i, p] = new KillTracker();
                     infoPool.killTrackersThisGame[p, i] = new KillTracker();
                 }
-                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
+                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
             }
         }
 
@@ -3324,8 +3377,8 @@ namespace JKWatcher
                                     infoPool.killTrackersThisGame[i, p] = new KillTracker();
                                     infoPool.killTrackersThisGame[p, i] = new KillTracker();
                                 }
-                                infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
-                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff() { onlineSince = DateTime.Now };
+                                infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
                             }
                             else
                             {
@@ -3393,6 +3446,10 @@ namespace JKWatcher
 
                     infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
                     infoPool.playerInfo[i].model = client.ClientInfo[i].Model;
+
+                    // To track rating of ppl who disco. TODO add more than just name to this.
+                    infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = client.ClientInfo[i].Name;
+                    infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = client.ClientInfo[i].Name;
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
                     if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
@@ -3498,6 +3555,7 @@ namespace JKWatcher
             client.DebugEventHappened -= Client_DebugEventHappened;
             client.InternalTaskStarted -= Client_InternalTaskStarted;
             client.ErrorMessageCreated -= Client_ErrorMessageCreated;
+            client.InternalCommandCreated -= Client_InternalCommandCreated;
             clientStatistics = null;
         }
 
@@ -3969,6 +4027,7 @@ namespace JKWatcher
                     {
                         serverWindow.addToLog($"SERVER PROTOCOL CHANGE DETECTED, APPLYING: {protocol} to {newProtocol}", true);
                         protocol = (JKClient.ProtocolVersion)newProtocol;
+                        serverWindow.protocol = (JKClient.ProtocolVersion)newProtocol;
                         Reconnect(); // is it safe to call it here? idk. let's find out
                     }
                 } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)

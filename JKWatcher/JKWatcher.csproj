@@ -10,7 +10,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <OutputPath></OutputPath>
+    <OutputPath>2/</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -84,6 +84,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ext\WPF-Clock-Based-Date-Time-Picker\DateTimePicker\DateTimePicker.csproj" />
+    <ProjectReference Include="..\glicko2-csharp\Glicko2.csproj" />
     <ProjectReference Include="..\JKClient\JKClient\JKClient.csproj" />
   </ItemGroup>
 

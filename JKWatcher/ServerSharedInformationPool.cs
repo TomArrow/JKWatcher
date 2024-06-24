@@ -1,5 +1,6 @@
 ﻿using JKClient;
 using System;
+using Glicko2;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -172,6 +173,8 @@ namespace JKWatcher
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];
 
+        public Rating rating = null;
+
         public BlocksTracker blocksTracker = new BlocksTracker();
 
         private object trackedKillsLock = new object();
@@ -220,6 +223,10 @@ namespace JKWatcher
             }
         }
 
+        public ChatCommandTrackingStuff(RatingCalculator ratingCalculator)
+        {
+            rating = new Rating(ratingCalculator);
+        }
     }
 
     public struct PlayerIdentification
@@ -349,17 +356,25 @@ namespace JKWatcher
         // For killtrackers/memes and such
         public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
         public DateTime? lastSeenValid = null;
-        public ChatCommandTrackingStuff chatCommandTrackingStuff = new ChatCommandTrackingStuff();
-        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
-        public void ResetChatCommandTrackingStuff()
+        public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
+        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
+        public void ResetChatCommandTrackingStuff(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
         {
-            chatCommandTrackingStuff = new ChatCommandTrackingStuff();
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
         }
-        public void ResetChatCommandTrackingStuffThisGame()
+        public void ResetChatCommandTrackingStuffThisGame(RatingCalculator ratingCalculatorThisGame)
         {
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff();
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
         }
+
+        public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
+        {
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+        }
+
+
         public VisiblePlayersTracker VisiblePlayers { get; init; } = new VisiblePlayersTracker(); // For vis check debug?
 
         #region score
@@ -391,6 +406,9 @@ namespace JKWatcher
         public volatile int curWeapon;
         public volatile int powerUps;		// so can display quad/flag status
         #endregion
+
+        public string g2Rating => $"{(int)this.chatCommandTrackingStuff.rating.GetRating()}±{(int)this.chatCommandTrackingStuff.rating.GetRatingDeviation()}";
+        public string g2RatingThisGame => $"{(int)this.chatCommandTrackingStuffThisGame.rating.GetRating()}±{(int)this.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation()}";
     }
     public class PlayerScore
     {
@@ -652,6 +670,15 @@ namespace JKWatcher
         public KillTracker[,] killTrackers;
         public KillTracker[,] killTrackersThisGame;
 
+        public RatingCalculator ratingCalculator = new RatingCalculator();
+        public RatingCalculator ratingCalculatorThisGame = new RatingCalculator();
+
+        public RatingPeriodResults ratingPeriodResults = new RatingPeriodResults();
+        public RatingPeriodResults ratingPeriodResultsThisGame = new RatingPeriodResults();
+
+        public ConcurrentDictionary<Rating,string> ratingsAndNames = new ConcurrentDictionary<Rating, string>();
+        public ConcurrentDictionary<Rating,string> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, string>();
+
         public int getProbableRetCount(int clientNum)
         {
             if(clientNum < 0 || clientNum > _maxClients)
@@ -765,7 +792,7 @@ namespace JKWatcher
 
             for (int i = 0; i < playerInfo.Length; i++)
             {
-                playerInfo[i] = new PlayerInfo() { infoPool=this};
+                playerInfo[i] = new PlayerInfo(ratingCalculator,ratingCalculatorThisGame) { infoPool=this};
             }
             jkaMode = jkaModeA;
             if (jkaMode)
