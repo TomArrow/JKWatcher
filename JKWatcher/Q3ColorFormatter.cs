@@ -138,7 +138,8 @@ namespace JKWatcher
         
         public static string cleanupString(string q3String, bool hexSupport = true)
         {
-            List<Run> runs = new List<Run>();
+            if (q3String is null) return null;
+            //List<Run> runs = new List<Run>();
             StringBuilder sb = new StringBuilder();
 
             for (int i = 0; i < q3String.Length; i++)

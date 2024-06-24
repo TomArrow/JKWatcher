@@ -100,7 +100,8 @@ namespace JKWatcher
         CONDITIONALCOMMANDNOSPAM,
         CONDITIONALCOMMANDNOSPAMSAME,
         STUFFTEXTECHO,
-        JKCLIENTINTERNAL
+        JKCLIENTINTERNAL,
+        AUTOPRINTSTATS
     }
 
     struct MvHttpDownloadInfo
@@ -1936,6 +1937,7 @@ namespace JKWatcher
 
         private bool weAreSpectatorSlowFalling = false; // if we are a spectator in PM_SPECTATOR mode and we are not on the ground, we will be floating and VEEEERY slowly falling down. this means we will get a snapshot every second with a fresh position/velocity value but no meaningful info otherwise, wasting space. let's just quickly fly to the ground to prevent that if needed.
 
+        private bool wasIntermission = false;
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -1954,6 +1956,8 @@ namespace JKWatcher
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
             bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission;
+            bool changedToIntermission = isIntermission && !wasIntermission;
+            wasIntermission = isIntermission;
             infoPool.isIntermission = isIntermission;
             this.Speed = e.snap.PlayerState.Speed;
             PlayerMoveType = snap.PlayerState.PlayerMoveType;
@@ -1966,6 +1970,12 @@ namespace JKWatcher
             if (isIntermission && this.IsMainChatConnection)
             {
                 CommitRatings();
+            }
+
+            if(changedToIntermission && this.IsMainChatConnection)
+            {
+                string glicko2String = MakeGlicko2RatingsString(true);
+                leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
             }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
