@@ -67,20 +67,24 @@ namespace JKWatcher
             return killTypesString.ToString();
         }
 
-        private string MakeGlicko2RatingsString(bool thisGame)
+        private string MakeGlicko2RatingsString(bool thisGame, bool all)
         {
-            List<KeyValuePair<Glicko2.Rating, string>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
+            List<KeyValuePair<Glicko2.Rating, Glicko2RatingInfo>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
             ratingData.Sort((a, b) => { return -a.Key.GetRating().CompareTo(b.Key.GetRating()); });
 
             StringBuilder topRatingsString = new StringBuilder();
             int ratingsIndex = 0;
-            foreach (KeyValuePair<Glicko2.Rating, string> thisRating in ratingData)
+            foreach (KeyValuePair<Glicko2.Rating, Glicko2RatingInfo> thisRating in ratingData)
             {
                 if (thisRating.Key.GetNumberOfResults() <= 5) // dont count these, not relevant
                 {
                     continue;
                 }
-                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value);
+                if((DateTime.Now-thisRating.Value.lastSeenActive).TotalSeconds > 60 && !all)
+                {
+                    continue;
+                }
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.name);
                 if (strippedName is null) continue;
                 if ((topRatingsString.Length + strippedName.Length) > 150)
                 {
@@ -660,7 +664,7 @@ namespace JKWatcher
                             break;
                         case "!g2top":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            string glicko2RatingsString = MakeGlicko2RatingsString(thisGameParamFound);
+                            string glicko2RatingsString = MakeGlicko2RatingsString(thisGameParamFound, stringParams.Contains("all"));
                             ChatCommandAnswer(pm, $"^7^0^7Glicko2 top: {glicko2RatingsString}", true, true, true);
                             notDemoCommand = true;
                             break;
@@ -1524,10 +1528,10 @@ namespace JKWatcher
                             }
                             if (thisGameParamFound)
                             {
-                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating (this game) for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRating()}+-{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRatingDeviation()}", true, true, true);
+                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating (this game) for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRating()}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRatingDeviation()}", true, true, true);
                             } else
                             {
-                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRating()}+-{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRatingDeviation()}", true, true, true);
+                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRating()}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRatingDeviation()}", true, true, true);
                             }
 
                             notDemoCommand = true;

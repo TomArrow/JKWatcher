@@ -1972,9 +1972,9 @@ namespace JKWatcher
                 CommitRatings();
             }
 
-            if(changedToIntermission && this.IsMainChatConnection)
+            if(changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
             {
-                string glicko2String = MakeGlicko2RatingsString(true);
+                string glicko2String = MakeGlicko2RatingsString(true,true);
                 leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
             }
 
@@ -3005,6 +3005,26 @@ namespace JKWatcher
 
             }
 
+            foreach(PlayerInfo pi in infoPool.playerInfo)
+            {
+                if (pi.infoValid)  // update this so we can show ppl who recently disconnected and such
+                {
+                    if (!infoPool.ratingsAndNames.ContainsKey(pi.chatCommandTrackingStuff.rating))
+                    {
+                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating] = new Glicko2RatingInfo();
+                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].name = pi.name;
+                    }
+                    if (!infoPool.ratingsAndNamesThisGame.ContainsKey(pi.chatCommandTrackingStuffThisGame.rating))
+                    {
+                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo();
+                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].name = pi.name;
+                    }
+                    infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
+                    infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
+                }
+            }
+
+
             oldSpectatedPlayer = SpectatedPlayer;
         }
 
@@ -3399,6 +3419,7 @@ namespace JKWatcher
                         {
                             // Player is disconnecting. Remember time to check for reconnect.
                             infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
+
                         }
                         
                     }
@@ -3460,8 +3481,18 @@ namespace JKWatcher
                     // To track rating of ppl who disco. TODO add more than just name to this.
                     if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
                     {
-                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = client.ClientInfo[i].Name;
-                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = client.ClientInfo[i].Name;
+                        if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].chatCommandTrackingStuff.rating))
+                        {
+                            infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = new Glicko2RatingInfo();
+                        }
+                        if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating))
+                        {
+                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo();
+                        }
+                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
+                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
+                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].name = client.ClientInfo[i].Name;
+                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
                     }
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;

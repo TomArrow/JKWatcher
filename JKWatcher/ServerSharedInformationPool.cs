@@ -618,6 +618,12 @@ namespace JKWatcher
         }
     }
 
+    public class Glicko2RatingInfo {
+        public string name = null;
+        public DateTime lastSeenActive = DateTime.Now;
+    }
+
+
     // Todo reset stuff on level restart and especially map change
     public class ServerSharedInformationPool : INotifyPropertyChanged
     {
@@ -676,8 +682,8 @@ namespace JKWatcher
         public RatingPeriodResults ratingPeriodResults = new RatingPeriodResults();
         public RatingPeriodResults ratingPeriodResultsThisGame = new RatingPeriodResults();
 
-        public ConcurrentDictionary<Rating,string> ratingsAndNames = new ConcurrentDictionary<Rating, string>();
-        public ConcurrentDictionary<Rating,string> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, string>();
+        public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNames = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
+        public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
 
         public int getProbableRetCount(int clientNum)
         {
