@@ -3458,8 +3458,11 @@ namespace JKWatcher
                     infoPool.playerInfo[i].model = client.ClientInfo[i].Model;
 
                     // To track rating of ppl who disco. TODO add more than just name to this.
-                    infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = client.ClientInfo[i].Name;
-                    infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = client.ClientInfo[i].Name;
+                    if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
+                    {
+                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = client.ClientInfo[i].Name;
+                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = client.ClientInfo[i].Name;
+                    }
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;
                     if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))

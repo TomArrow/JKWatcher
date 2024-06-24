@@ -81,6 +81,7 @@ namespace JKWatcher
                     continue;
                 }
                 string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value);
+                if (strippedName is null) continue;
                 if ((topRatingsString.Length + strippedName.Length) > 150)
                 {
                     break;
@@ -660,7 +661,7 @@ namespace JKWatcher
                         case "!g2top":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             string glicko2RatingsString = MakeGlicko2RatingsString(thisGameParamFound);
-                            ChatCommandAnswer(pm, $"^7^0^7Glicko 2 top: {glicko2RatingsString}", true, true, true);
+                            ChatCommandAnswer(pm, $"^7^0^7Glicko2 top: {glicko2RatingsString}", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!doomer":
