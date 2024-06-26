@@ -2024,5 +2024,11 @@ namespace JKWatcher
             var helpWindow = new Help();
             helpWindow.Show();
         }
+        private void markovBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            var markovManager = new MarkovManager();
+            markovManager.Show();
+        }
     }
 }

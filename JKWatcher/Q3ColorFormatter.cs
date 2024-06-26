@@ -174,6 +174,65 @@ namespace JKWatcher
             return sb.ToString();
         }
 
+        // Make each word its own token. colors become their own token too. not ideal or anything but eh :)
+        // TODO make it take into account whether there was a space before/after colors? idk.
+        public static string[] tokenizeStringColors(string q3String, bool hexSupport = true)
+        {
+            if (q3String is null) return null;
+            //List<Run> runs = new List<Run>();
+            List<string> tokens = new List<string>();
+            StringBuilder currentToken = new StringBuilder();
+
+            for (int i = 0; i < q3String.Length; i++)
+            {
+                int charsLeft = q3String.Length - 1 - i;
+                char curChar = q3String[i];
+                if (curChar == '^')
+                {
+                    if (charsLeft == 0)
+                    {
+                        break; // Nuthing to do, just a lonely ^ at the end
+                    }
+                    char nextChar = q3String[i + 1];
+                    if (nextChar == '^') // Just an escaped ^ we actually want to see
+                    {
+                        currentToken.Append('^');
+                        i++;
+                    } else
+                    {
+
+                        // Color is being specified. This
+                        int length;
+                        Vector4 color = parseColor(ref q3String, i + 1, out length, hexSupport);
+                        if (currentToken.Length > 0)
+                        {
+                            tokens.Add(currentToken.ToString());
+                            currentToken.Clear();
+                        }
+                        tokens.Add(q3String.Substring(i, length + 1));
+                        i += length;
+                    }
+                } else if (curChar == ' ') {
+                    if (currentToken.Length > 0)
+                    {
+                        tokens.Add(currentToken.ToString());
+                        currentToken.Clear();
+                    }
+                } else
+                {
+                    currentToken.Append(curChar);
+                }
+            }
+
+            if (currentToken.Length > 0)
+            {
+                tokens.Add(currentToken.ToString());
+                currentToken.Clear();
+            }
+
+            return tokens.ToArray();
+        }
+
         const float contrastMinBrightnessFactor = 4.0f;
         private static void ensureContrast(ref Vector4 foregroundColor,ref Vector4 backgroundColor)
         {

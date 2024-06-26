@@ -500,7 +500,7 @@ namespace JKWatcher
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker", true, true, true, true);
+                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker !thots", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -541,6 +541,15 @@ namespace JKWatcher
                         case "!agree":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             ChatCommandAnswer(pm, $"agreed, {pm.playerName}",true,true,true);
+                            notDemoCommand = true;
+                            break;
+                        case "!thots":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            string response = Markov.GetAnyMarkovText(demoNoteString);
+                            if(response != null)
+                            {
+                                ChatCommandAnswer(pm, response, true, true, true);
+                            }
                             notDemoCommand = true;
                             break;
                         case "!color":

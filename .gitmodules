@@ -7,3 +7,6 @@
 [submodule "glicko2-csharp"]
 	path = glicko2-csharp
 	url = git@github.com:TomArrow/glicko2-csharp.git
+[submodule "markov"]
+	path = markov
+	url = git@github.com:TomArrow/markov.git

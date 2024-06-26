@@ -86,6 +86,7 @@
     <ProjectReference Include="..\ext\WPF-Clock-Based-Date-Time-Picker\DateTimePicker\DateTimePicker.csproj" />
     <ProjectReference Include="..\glicko2-csharp\Glicko2.csproj" />
     <ProjectReference Include="..\JKClient\JKClient\JKClient.csproj" />
+    <ProjectReference Include="..\markov\Markov\Markov.csproj" />
   </ItemGroup>
 
   <ItemGroup>

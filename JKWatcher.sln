@@ -6,6 +6,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKWatcher", "JKWatcher\JKWatcher.csproj", "{919E435B-6BF6-4469-A8C8-BAEB12B1FABE}"
 	ProjectSection(ProjectDependencies) = postProject
 		{70462B24-C812-43AA-8520-40D9E016BE89} = {70462B24-C812-43AA-8520-40D9E016BE89}
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530} = {4AA25C4B-07CC-47F6-B882-8D4D35108530}
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "JKClient", "JKClient\JKClient\JKClient.csproj", "{152A799E-A186-4040-A0AA-FE22445333DF}"
@@ -24,6 +25,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DateTimePicker", "ext\WPF-Clock-Based-Date-Time-Picker\DateTimePicker\DateTimePicker.csproj", "{BB7ED3A8-C551-4279-8DDA-5F07F9CB82F9}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Glicko2", "glicko2-csharp\Glicko2.csproj", "{70462B24-C812-43AA-8520-40D9E016BE89}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Markov", "markov\Markov\Markov.csproj", "{4AA25C4B-07CC-47F6-B882-8D4D35108530}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -115,6 +118,18 @@ Global
 		{70462B24-C812-43AA-8520-40D9E016BE89}.Release|x64.Build.0 = Release|Any CPU
 		{70462B24-C812-43AA-8520-40D9E016BE89}.Release|x86.ActiveCfg = Release|Any CPU
 		{70462B24-C812-43AA-8520-40D9E016BE89}.Release|x86.Build.0 = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|x64.Build.0 = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Debug|x86.Build.0 = Debug|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|x64.ActiveCfg = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|x64.Build.0 = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|x86.ActiveCfg = Release|Any CPU
+		{4AA25C4B-07CC-47F6-B882-8D4D35108530}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
