@@ -3311,7 +3311,7 @@ namespace JKWatcher
                                 int pakChecksumInt;
                                 if (int.TryParse(pakChecksum, out pakChecksumInt))
                                 {
-                                    string dlLink = mvHttpDownloadInfo.Value.urlPrefix + pakName + ".pk3";
+                                    string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
                                     string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
                                     serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
                                     downloadLinks.Add($"{pakName},{hashString},{dlLink}");
