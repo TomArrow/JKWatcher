@@ -218,6 +218,13 @@ namespace JKWatcher
                         tokens.Add(currentToken.ToString());
                         currentToken.Clear();
                     }
+                } else if (!Char.IsLetterOrDigit(curChar)) {
+                    if (currentToken.Length > 0)
+                    {
+                        tokens.Add(currentToken.ToString());
+                        currentToken.Clear();
+                    }
+                    tokens.Add(curChar.ToString());
                 } else
                 {
                     currentToken.Append(curChar);

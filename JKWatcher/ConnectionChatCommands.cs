@@ -546,9 +546,12 @@ namespace JKWatcher
                         case "!thots":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             string response = Markov.GetAnyMarkovText(demoNoteString);
-                            if(response != null)
+                            if(!string.IsNullOrWhiteSpace(response))
                             {
-                                ChatCommandAnswer(pm, response, true, true, true);
+                                ChatCommandAnswer(pm, string.IsNullOrWhiteSpace(demoNoteString) ? response : demoNoteString.Trim()+" "+response, true, true, true);
+                            } else
+                            {
+                                ChatCommandAnswer(pm, "no thots on that", true, true, true);
                             }
                             notDemoCommand = true;
                             break;

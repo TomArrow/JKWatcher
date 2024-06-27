@@ -5,6 +5,7 @@ using System.Text;
 using Markov;
 using System.IO;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace JKWatcher
 {
@@ -26,7 +27,7 @@ namespace JKWatcher
                 return false;
             }
 
-            MarkovChain<string> chain = new MarkovChain<string>(2);
+            MarkovChain<string> chain = new MarkovChain<string>(2, KeyTransformer);
 
             Int64 index = 0;
             foreach(string line in lines)
@@ -50,6 +51,16 @@ namespace JKWatcher
             return true;
         }
 
+        static Regex sSounds = new Regex("[zx]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex kSounds = new Regex("[cgq]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex vocals = new Regex("[aeiou]",RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex repeats = new Regex(@"(.)\1{1,}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static string KeyTransformer(string input)
+        {
+            return sSounds.Replace(vocals.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"o").Replace("ph","f").Replace('b','p'),"s").Replace('m', 'n');
+        }
+
         public static string GetAnyMarkovText(string startString = null)
         {
             MarkovChain<string> chain = null;
@@ -59,7 +70,10 @@ namespace JKWatcher
                 string[] keys = chains.Keys.ToArray();
                 if (keys.Length == 0) return null;
 
-                chain = chains[keys[rnd.Next(0,chains.Count)]];
+                lock (rnd)
+                {
+                    chain = chains[keys[rnd.Next(0,chains.Count)]];
+                }
             }
 
             if(chain is null)
@@ -80,22 +94,66 @@ namespace JKWatcher
                     {
                         previous = previousTokens;
                     }
+                    for(int i = 0; i < previous.Length; i++)
+                    {
+                        previous[i] = KeyTransformer(previous[i]);
+                    }
                 }
             }
 
             string[] tokens = null;
             lock (chain)
             {
-                if(previous is null)
-                {
-                    tokens = chain.Chain(rnd).ToArray();
-                } else
-                {
-                    tokens = chain.Chain(previous,rnd).ToArray();
+                lock (rnd) { 
+                    if(previous is null)
+                    {
+                        tokens = chain.Chain(rnd,10).ToArray();
+                    } else
+                    {
+                        tokens = chain.Chain(previous,rnd,10).ToArray();
+                    }
                 }
             }
 
-            return previous is null ? string.Join(' ', tokens) : startString.Trim()+" "+ string.Join(' ', tokens);
+            //return previous is null ? string.Join(' ', tokens) : startString.Trim()+" "+ string.Join(' ', tokens);
+            return tokenReassembler(tokens);// string.Join(' ', tokens);
         }
+        static readonly char[] punctuation = {'.',',',';',':' };
+        private static string tokenReassembler(string[] tokens)
+        {
+            if (tokens is null) return null;
+            StringBuilder sb= new StringBuilder();
+            string lastToken = null;
+            lock (rnd)
+            {
+                foreach (string token in tokens)
+                {
+                    if (lastToken == null || token.Length == 1 && lastToken.Length == 1 || lastToken == "(" || token == ")" || lastToken == "[" || token == "]")
+                    {
+
+                    }
+                    else if (token.Length == 1 && (token == "," || token == "." || token == "!" || token == "?") && rnd.NextDouble() > 0.1)
+                    {
+
+                    }
+                    else if (token.Length == 1 && (token == ";" || token == ":") && rnd.NextDouble() > 0.8)
+                    {
+
+                    }
+                    else if (token.Length == 1 && rnd.NextDouble() > 0.9)
+                    {
+
+                    } else
+                    {
+                        sb.Append(" ");
+                    }
+
+                    sb.Append(token);
+                    lastToken = token;
+                }
+            }
+            return sb.ToString();
+        }
+
     }
 }
