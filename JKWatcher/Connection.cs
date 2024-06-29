@@ -3011,16 +3011,25 @@ namespace JKWatcher
                 {
                     if (!infoPool.ratingsAndNames.ContainsKey(pi.chatCommandTrackingStuff.rating))
                     {
-                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating] = new Glicko2RatingInfo();
-                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].name = pi.name;
+                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating] = new Glicko2RatingInfo() { name = pi.name};
+                        //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].name = pi.name;
                     }
                     if (!infoPool.ratingsAndNamesThisGame.ContainsKey(pi.chatCommandTrackingStuffThisGame.rating))
                     {
-                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo();
-                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].name = pi.name;
+                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo() { name = pi.name };
+                        //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].name = pi.name;
                     }
-                    infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
-                    infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
+
+                    if (infoPool.ratingsAndNames.TryGetValue(pi.chatCommandTrackingStuff.rating, out Glicko2RatingInfo val))
+                    {
+                        val.lastSeenActive = DateTime.Now;
+                    }
+                    if (infoPool.ratingsAndNamesThisGame.TryGetValue(pi.chatCommandTrackingStuffThisGame.rating, out Glicko2RatingInfo val2))
+                    {
+                        val2.lastSeenActive = DateTime.Now;
+                    }
+                    //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
+                    //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
                 }
             }
 
@@ -3489,10 +3498,20 @@ namespace JKWatcher
                         {
                             infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo();
                         }
-                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
-                        infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
-                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].name = client.ClientInfo[i].Name;
-                        infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
+                        if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].chatCommandTrackingStuff.rating, out Glicko2RatingInfo val))
+                        {
+                            val.name = client.ClientInfo[i].Name;
+                            val.lastSeenActive = DateTime.Now;
+                        }
+                        if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating, out Glicko2RatingInfo val2))
+                        {
+                            val2.name = client.ClientInfo[i].Name;
+                            val2.lastSeenActive = DateTime.Now;
+                        }
+                        //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
+                        //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
+                        //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].name = client.ClientInfo[i].Name;
+                        //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
                     }
 
                     clientInfoValid[i] = client.ClientInfo[i].InfoValid;

@@ -12,7 +12,7 @@ namespace JKWatcher
     public static class Markov
     {
 
-        private static Dictionary<string, MarkovChain<string>> chains = new Dictionary<string, MarkovChain<string>>();
+        private static Dictionary<string, Tuple<MarkovChain<string>, MarkovChain<string>>> chains = new Dictionary<string, Tuple<MarkovChain<string>, MarkovChain<string>>>();
 
         static Random rnd = new Random();
         public static bool RegisterMarkovChain(string filename, Action<Int64,Int64> trainProgressCallback = null)
@@ -28,6 +28,7 @@ namespace JKWatcher
             }
 
             MarkovChain<string> chain = new MarkovChain<string>(2, KeyTransformer);
+            MarkovChain<string> chainReverse = new MarkovChain<string>(2, KeyTransformer);
 
             Int64 index = 0;
             foreach(string line in lines)
@@ -36,6 +37,7 @@ namespace JKWatcher
                 if(tokens != null)
                 {
                     chain.Add(tokens);
+                    chainReverse.Add(tokens.Reverse());
                 }
                 index++;
                 if (!(trainProgressCallback is null))
@@ -46,29 +48,31 @@ namespace JKWatcher
 
             lock (chains)
             {
-                chains[filename] = chain;
+                chains[filename] = new Tuple<MarkovChain<string>, MarkovChain<string>>(chain,chainReverse);
             }
             return true;
         }
 
         static Regex sSounds = new Regex("[zx]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex kSounds = new Regex("[cgq]", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        static Regex vocals = new Regex("[aeiou]",RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        //static Regex vocals = new Regex("[aeiou]",RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        static Regex vocals1 = new Regex("[aei]",RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        //static Regex vocals2 = new Regex("[ou]",RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static Regex repeats = new Regex(@"(.)\1{1,}", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static string KeyTransformer(string input)
         {
-            return sSounds.Replace(vocals.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"o").Replace("ph","f").Replace('b','p'),"s").Replace('m', 'n');
+            return sSounds.Replace(vocals1.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"a").Replace('o','u').Replace("ph","f").Replace('v','f').Replace('b','p'),"s").Replace('m', 'n').Replace('t', 'd');
         }
 
-        public static string GetAnyMarkovText(string startString = null)
+        public static (string,string) GetAnyMarkovText(string startString = null)
         {
-            MarkovChain<string> chain = null;
+            Tuple<MarkovChain<string>, MarkovChain<string>> chain = null;
 
             lock (chains)
             {
                 string[] keys = chains.Keys.ToArray();
-                if (keys.Length == 0) return null;
+                if (keys.Length == 0) return (null,null);
 
                 lock (rnd)
                 {
@@ -78,10 +82,11 @@ namespace JKWatcher
 
             if(chain is null)
             {
-                return null;
+                return (null, null);
             }
 
             string[] previous = null;
+            string[] previousReverse = null;
             if(!string.IsNullOrWhiteSpace(startString))
             {
                 string[] previousTokens = Q3ColorFormatter.tokenizeStringColors(startString,true);
@@ -90,33 +95,56 @@ namespace JKWatcher
                     if (previousTokens.Length > 2)
                     {
                         previous = new string[] { previousTokens[previousTokens.Length - 2], previousTokens[previousTokens.Length - 1] };
+                        previousReverse = new string[] { previousTokens[1], previousTokens[0] };
                     } else
                     {
                         previous = previousTokens;
+                        previousReverse = previousTokens.Reverse().ToArray();
                     }
-                    for(int i = 0; i < previous.Length; i++)
-                    {
-                        previous[i] = KeyTransformer(previous[i]);
-                    }
+                    //for(int i = 0; i < previous.Length; i++)
+                    //{
+                    //    previous[i] = KeyTransformer(previous[i]);
+                    //    previousReverse[i] = KeyTransformer(previousReverse[i]);
+                    //}
                 }
             }
 
             string[] tokens = null;
+            string[] tokensReverse = null;
             lock (chain)
             {
                 lock (rnd) { 
                     if(previous is null)
                     {
-                        tokens = chain.Chain(rnd,10).ToArray();
+                        tokens = chain.Item1.Chain(rnd,10).ToArray();
                     } else
                     {
-                        tokens = chain.Chain(previous,rnd,10).ToArray();
+                        if(rnd.NextDouble() > 0.5)
+                        {
+                            tokensReverse = chain.Item2.Chain(previousReverse, rnd, 5).Reverse().ToArray();
+                            if (previous.Length == 1 && tokensReverse.Length > 0 && rnd.NextDouble() > 0.25)
+                            {
+                                //previous = new string[] { KeyTransformer(tokensReverse[tokensReverse.Length - 1]), previous[0] };
+                                previous = new string[] { tokensReverse[tokensReverse.Length - 1], previous[0] };
+                            }
+                            tokens = chain.Item1.Chain(previous, rnd, 5).ToArray();
+                        } else
+                        {
+                            tokens = chain.Item1.Chain(previous, rnd, 5).ToArray();
+                            if (previousReverse.Length == 1 && tokens.Length > 0 && rnd.NextDouble() > 0.25)
+                            {
+                                //previousReverse = new string[] { KeyTransformer(tokens[0]), previousReverse[0] };
+                                previousReverse = new string[] { tokens[0], previousReverse[0] };
+                            }
+                            tokensReverse = chain.Item2.Chain(previousReverse, rnd, 5).Reverse().ToArray();
+                        }
                     }
                 }
             }
 
             //return previous is null ? string.Join(' ', tokens) : startString.Trim()+" "+ string.Join(' ', tokens);
-            return tokenReassembler(tokens);// string.Join(' ', tokens);
+
+            return (tokenReassembler(tokens),tokenReassembler(tokensReverse));// string.Join(' ', tokens);
         }
         static readonly char[] punctuation = {'.',',',';',':' };
         private static string tokenReassembler(string[] tokens)

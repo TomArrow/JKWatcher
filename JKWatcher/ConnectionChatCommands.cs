@@ -430,6 +430,14 @@ namespace JKWatcher
                             || messageBits[0].ToLowerInvariant().Contains("rettypes")
                             ) ? 
                             2 : 1;
+                        if (messageBits[0].ToLowerInvariant().Contains("thots")
+                            || messageBits[0].ToLowerInvariant().Contains("who")
+                            || messageBits[0].ToLowerInvariant().Contains("choose")
+                            || messageBits[0].ToLowerInvariant().Contains("botsay")
+                            )
+                        {
+                            possibleNumbers = 0;
+                        }
                         foreach (string bit in messageBits)
                         {
                             if (stringParams.Count == 1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
@@ -545,10 +553,25 @@ namespace JKWatcher
                             break;
                         case "!thots":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            string response = Markov.GetAnyMarkovText(demoNoteString);
-                            if(!string.IsNullOrWhiteSpace(response))
+                            (string response, string reverseResponse) = Markov.GetAnyMarkovText(demoNoteString);
+                            if(!string.IsNullOrWhiteSpace(response) || !string.IsNullOrWhiteSpace(reverseResponse))
                             {
-                                ChatCommandAnswer(pm, string.IsNullOrWhiteSpace(demoNoteString) ? response : demoNoteString.Trim()+" "+response, true, true, true);
+                                StringBuilder sb = new StringBuilder();
+                                if (!string.IsNullOrWhiteSpace(reverseResponse))
+                                {
+                                    sb.Append(reverseResponse);
+                                    sb.Append(" ");
+                                }
+                                if (!string.IsNullOrWhiteSpace(demoNoteString))
+                                {
+                                    sb.Append(demoNoteString);
+                                    sb.Append(" ");
+                                }
+                                if (!string.IsNullOrWhiteSpace(response))
+                                {
+                                    sb.Append(response);
+                                }
+                                ChatCommandAnswer(pm, sb.ToString(), true, true, true);
                             } else
                             {
                                 ChatCommandAnswer(pm, "no thots on that", true, true, true);
