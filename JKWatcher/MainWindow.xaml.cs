@@ -24,6 +24,7 @@ using System.Windows.Threading;
 using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Windows.Shell;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -133,6 +134,8 @@ namespace JKWatcher
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+            RandomHelpers.NumberImages.Init();
+
             // Check botroutes
             BotRouteManager.Initialize();
 
@@ -167,6 +170,13 @@ namespace JKWatcher
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { fastDelayedConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
             }, TaskContinuationOptions.OnlyOnFaulted),"Fast Delayed Connecter");
+            backgroundTasks.Add(tokenSource);
+
+            tokenSource = new CancellationTokenSource();
+            ct = tokenSource.Token;
+            TaskManager.RegisterTask(Task.Factory.StartNew(() => { playerCountProgressBarUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
+                Helpers.logToFile(new string[] { t.Exception.ToString() });
+            }, TaskContinuationOptions.OnlyOnFaulted),"Player count progress bar updater");
             backgroundTasks.Add(tokenSource);
 
             //Timeline.DesiredFrameRateProperty.OverrideMetadata(
@@ -690,6 +700,7 @@ namespace JKWatcher
             {
 
                 System.Threading.Thread.Sleep(500);
+                if (ct.IsCancellationRequested) return;
                 bool delayedConnecterActive = true;
                 Dispatcher.Invoke(() => {
                     delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
@@ -807,6 +818,60 @@ namespace JKWatcher
                     }
                 }*/
 
+
+            }
+        }
+
+        private double lastTaskbarPlayerCountState = -1;
+
+        private async void playerCountProgressBarUpdater(CancellationToken ct)
+        {
+
+            while (true)
+            {
+
+                System.Threading.Thread.Sleep(500);
+                if (ct.IsCancellationRequested) return;
+                string relevantGameTypesString = null;
+                Dispatcher.Invoke(() => {
+                    relevantGameTypesString = taskbarPlayerCountStatusGametypesTxt.Text;
+                });
+
+                //if (string.IsNullOrWhiteSpace(relevantGameTypesString)) continue;
+
+                int relevantGameTypes = Connection.GameTypeStringToBitMask(relevantGameTypesString);
+
+                //if (relevantGameTypes == 0) continue;
+
+                double maxPlayerCount = 0;
+
+                lock (connectedServerWindows)
+                {
+                    foreach (ConnectedServerWindow window in connectedServerWindows)
+                    {
+                        if (((1 << (int)window.gameType) & relevantGameTypes) > 0)
+                        {
+                            double numHEre = (double)window.truePlayerCountExcludingMyselfDelayed / (double)window.serverMaxClientsLimit;
+                            if (!double.IsNaN(numHEre))
+                            {
+                                maxPlayerCount = Math.Max(maxPlayerCount, numHEre);
+                            }
+                        }
+                    }
+                }
+
+                if (lastTaskbarPlayerCountState != maxPlayerCount)
+                {
+                    Dispatcher.Invoke(()=> {
+                        TaskbarItemInfo tbii = this.TaskbarItemInfo;
+                        if (tbii != null)
+                        {
+                            tbii.ProgressState = TaskbarItemProgressState.Paused;
+                            tbii.ProgressValue = maxPlayerCount;
+                            lastTaskbarPlayerCountState = maxPlayerCount;
+                        }
+                    });
+                }
 
             }
         }
@@ -1630,6 +1695,12 @@ namespace JKWatcher
             {
                 ctfAutoConnectConditionalCmds = ctfAutoConnectConditionalCmds.Trim();
                 ctfAutojoinConditionalCmdsTxt.Text = ctfAutoConnectConditionalCmds;
+            }
+            string taskbarPlayerCountStatusGametypes = cp.GetValue("__general__", "taskbarPlayerCountStatusGametypes", "");
+            if (!string.IsNullOrWhiteSpace(taskbarPlayerCountStatusGametypes))
+            {
+                taskbarPlayerCountStatusGametypes = taskbarPlayerCountStatusGametypes.Trim();
+                taskbarPlayerCountStatusGametypesTxt.Text = taskbarPlayerCountStatusGametypes;
             }
             string autoJoinCheckInterval = cp.GetValue("__general__", "autoJoinCheckInterval", "");
             if (!string.IsNullOrWhiteSpace(autoJoinCheckInterval))

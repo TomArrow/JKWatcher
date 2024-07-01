@@ -22,6 +22,7 @@ using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Numerics;
+using System.Windows.Shell;
 
 namespace JKWatcher
 {
@@ -787,6 +788,8 @@ namespace JKWatcher
         private string lastMapName = null;
         private object lastMapNameLock = new object();
 
+        public GameType gameType { get; protected set; } = GameType.FFA;
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
             bool mapChangeDetected = false;
@@ -804,6 +807,8 @@ namespace JKWatcher
                     miniMapResetBounds = true;
                 }
             }
+
+            gameType = obj.GameType;
 
             int activeClientCount = obj.Clients;
             if (mohMode)
@@ -1596,6 +1601,11 @@ namespace JKWatcher
         bool playerRefreshRequested = false;
         DateTime lastPlayerRefresh = DateTime.Now;
         object playerRefreshStatusLock = new object();
+        double lastTaskbarPlayerCount = 0;
+        public int truePlayerCountExcludingMyselfDelayed { get; protected set; } = 0;
+        public int activePlayerCountExcludingMyselfDelayed { get; protected set; } = 0;
+        int lastTaskbarTruePlayerCount = -1;
+        int lastTaskbarActivePlayerCount = -1;
 
         public void requestPlayersRefresh()
         {
@@ -1623,6 +1633,53 @@ namespace JKWatcher
                         lastPlayerRefresh = DateTime.Now;
                     }
                 }
+
+                int truePlayerExcludingMyselfCount = 0;
+                int activePlayerExcludingMyselfCount = 0;
+                int[] myClientNums = this.getJKWatcherClientNums();
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if(pi.infoValid && !pi.confirmedBot &&  (pi.score.ping != 0 || pi.score.pingUpdatesSinceLastNonZeroPing < 4) && !myClientNums.Contains(pi.clientNum))
+                    {
+                        truePlayerExcludingMyselfCount++;
+                        if (!pi.confirmedAfk && pi.team != Team.Spectator)
+                        {
+                            activePlayerExcludingMyselfCount++;
+                        }
+                    }
+                }
+                truePlayerCountExcludingMyselfDelayed = truePlayerExcludingMyselfCount;
+                activePlayerCountExcludingMyselfDelayed = activePlayerExcludingMyselfCount;
+                if(lastTaskbarTruePlayerCount != truePlayerExcludingMyselfCount || lastTaskbarActivePlayerCount != activePlayerExcludingMyselfCount)
+                {
+                    Dispatcher.Invoke(() => {
+                        ThumbButtonInfo pct = this.playerCountThumb;
+                        ThumbButtonInfo apct = this.activePlayerCountThumb;
+                        if(pct != null)
+                        {
+                            pct.ImageSource = RandomHelpers.NumberImages.getImageSource(truePlayerExcludingMyselfCount);
+                            lastTaskbarTruePlayerCount = truePlayerExcludingMyselfCount;
+                        }
+                        if(apct != null)
+                        {
+                            apct.ImageSource = RandomHelpers.NumberImages.getImageSource(activePlayerExcludingMyselfCount);
+                            lastTaskbarActivePlayerCount = activePlayerExcludingMyselfCount;
+                        }
+                    });
+                }
+                /*double playerFillRatio = (double)truePlayerCount / (double)serverMaxClientsLimit;
+                if (playerFillRatio != lastTaskbarPlayerCount)
+                {
+                    Dispatcher.Invoke(()=> {
+                        TaskbarItemInfo tbii = this.TaskbarItemInfo;
+                        if(tbii != null)
+                        {
+                            tbii.ProgressState = TaskbarItemProgressState.Paused;
+                            tbii.ProgressValue = playerFillRatio;
+                            lastTaskbarPlayerCount = playerFillRatio;
+                        }
+                    });
+                }*/
 
                 if (needrefresh)
                 {

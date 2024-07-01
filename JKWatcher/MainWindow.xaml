@@ -11,6 +11,9 @@
         <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
         <local1:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></local1:BooleanToVisibilityConverter>
     </Window.Resources>
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo></TaskbarItemInfo>
+    </Window.TaskbarItemInfo>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
@@ -97,7 +100,7 @@
                 <DockPanel>
                     <WrapPanel DockPanel.Dock="Top">
 
-                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">All JK2 Versions</CheckBox>
+                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">AllJK2Ver</CheckBox>
                         <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
                         <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
                         <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
@@ -109,7 +112,7 @@
                         <Button x:Name="connectRSBtn" Click="connectRSBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record">+RS</Button>
 
 
-                        <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">Color Date Decoder</Button>
+                        <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">ColorDateDecoder</Button>
                         <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
                         <Button x:Name="helpBtn" Click="helpBtn_Click" IsEnabled="True">Help</Button>
                         <Button x:Name="markovBtn" Click="markovBtn_Click"  IsEnabled="True">Markov</Button>
@@ -174,6 +177,8 @@
                         <TextBox x:Name="ctfAutojoinConditionalCmdsTxt" MinWidth="200"></TextBox>
                         <Label>Default conditional commands for ffa autojoin:</Label>
                         <TextBox x:Name="ffaAutojoinConditionalCmdsTxt" MinWidth="200"></TextBox>
+                        <Label>Taskbar max player count status gametypes:</Label>
+                        <TextBox x:Name="taskbarPlayerCountStatusGametypesTxt" MinWidth="200"></TextBox>
                     </WrapPanel>
                 </StackPanel>
             </TabItem>

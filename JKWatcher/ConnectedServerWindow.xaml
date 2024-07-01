@@ -14,6 +14,16 @@
         <local:UnderScoreConverter x:Key="underScoreConverter"></local:UnderScoreConverter>
         <local1:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></local1:BooleanToVisibilityConverter>
     </Window.Resources>
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo>
+            <TaskbarItemInfo.ThumbButtonInfos>
+                <ThumbButtonInfo x:Name="playerCountThumb" IsInteractive="False" DismissWhenClicked="False" Description="Real player count">
+                </ThumbButtonInfo>
+                <ThumbButtonInfo x:Name="activePlayerCountThumb" IsInteractive="False" DismissWhenClicked="False" Description="Active player count">
+                </ThumbButtonInfo>
+            </TaskbarItemInfo.ThumbButtonInfos>
+        </TaskbarItemInfo>
+    </Window.TaskbarItemInfo>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="0.6*"></ColumnDefinition>

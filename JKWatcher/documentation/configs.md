@@ -62,6 +62,10 @@ Interval (in minutes) in which to check for new servers for auto join/delayed co
 
 0 or 1. For JK2, query servers of all JK2 versions, not just 1.02.
 
+#### taskbarPlayerCountStatusGametypes
+
+Comma separated list of gametypes for which the maximum real player count should be shown as status in taskbar.  Options: ffa, holocron, jedimaster, duel, powerduel, sp, tffa, siege, cty, ctf, 1flagctf, obelisk, harvester, teamrounds, objective, tow, liberation (not all are supported by each game ofc)
+
 ### Server sections
 
 Individual server sections require one section per server. The name of the section is irrelevant but avoid duplicates. And they can't be named ```[__general__]``` for obvious reasons.
