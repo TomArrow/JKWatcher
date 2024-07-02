@@ -31,7 +31,7 @@
                         <WrapPanel>
                             <CheckBox x:Name="ctfAutoJoin" Padding="2" Margin="1" FontSize="10" ToolTip="Auto-join and record ctf matches">CTF >=</CheckBox>
                             <TextBox x:Name="ctfAutoJoinMinPlayersTxt" MinWidth="20" Padding="2" Margin="1" FontSize="10">
-                                4
+                                3
                             </TextBox>
                             <Label Padding="2" Margin="1" FontSize="10" ToolTip="players">pl.</Label>
                             <CheckBox x:Name="ctfAutoJoinWithStrobe" Padding="2" Margin="1" FontSize="10" ToolTip="w/ strobe">str.</CheckBox>

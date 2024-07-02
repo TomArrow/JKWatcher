@@ -702,6 +702,8 @@ namespace JKWatcher
 
         public DateTime? lastBotOnlyConfirmed = null;
         public DateTime? lastScoreboardReceived = null;
+        public DateTime? lastServerInfoReceived = null;
+        public DateTime infoPoolCreated = DateTime.Now;
         
         public bool botOnlyGuaranteed = false;
 

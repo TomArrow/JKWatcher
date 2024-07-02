@@ -66,6 +66,50 @@ namespace JKWatcher
             }
             return killTypesString.ToString();
         }
+        
+        private string MakeKillsOnString(bool thisGame, int clientNum, bool victim, bool rets )
+        {
+
+            List<KeyValuePair<string, int>> otherPersonData = new List<KeyValuePair<string, int>>();
+
+            otherPersonData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
+
+            KillTracker[,] kts = thisGame ? infoPool.killTrackersThisGame : infoPool.killTrackers;
+
+            foreach(PlayerInfo pi in infoPool.playerInfo)
+            {
+                if (pi.infoValid && pi.clientNum != clientNum)
+                {
+                    string name = Q3ColorFormatter.cleanupString(pi.name);
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        KillTracker theTracker = victim ? kts[pi.clientNum, clientNum] : kts[clientNum, pi.clientNum];
+                        otherPersonData.Add(new KeyValuePair<string, int>(name, rets ? theTracker.returns : theTracker.kills));
+                    }
+                }
+            }
+
+            StringBuilder otherPeopleString = new StringBuilder();
+            int otherPersonIndex = 0;
+            foreach (KeyValuePair<string, int> otherPersonInfo in otherPersonData)
+            {
+                if (otherPersonInfo.Value <= 0)
+                {
+                    continue;
+                }
+                if ((otherPeopleString.Length + otherPersonInfo.Key.Length) > 150)
+                {
+                    break;
+                }
+                if (otherPersonIndex != 0)
+                {
+                    otherPeopleString.Append(", ");
+                }
+                otherPeopleString.Append($"{otherPersonInfo.Value}x{otherPersonInfo.Key}");
+                otherPersonIndex++;
+            }
+            return otherPeopleString.ToString();
+        }
 
         private string MakeGlicko2RatingsString(bool thisGame, bool all)
         {
@@ -1435,8 +1479,8 @@ namespace JKWatcher
                         case "tools":
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
-                            ChatCommandAnswer(pm, "!kills !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
-                            ChatCommandAnswer(pm, "!rets !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top", true, true, true, true);
+                            ChatCommandAnswer(pm, "!kills !killsOn !killedBy !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
+                            ChatCommandAnswer(pm, "!rets !retsOn !retBy !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top", true, true, true, true);
                             ChatCommandAnswer(pm, "(add 'thisgame' at end to get stats for current game)", true, true, true, true);
                             notDemoCommand = true;
                             break;
@@ -1653,6 +1697,58 @@ namespace JKWatcher
                                 string killTypesString = MakeKillTypesString(thisGameParamFound ? infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.GetKillTypesReturns() : infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.GetKillTypesReturns());
                                 ChatCommandAnswer(pm, $"^7^0^7Total witnessed return types for {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {killTypesString}", true, true, true);
                             }
+
+                            notDemoCommand = true;
+                            break;
+                        case "!killson":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !killson with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+
+                            string killsOnString = MakeKillsOnString(thisGameParamFound,numberParams[0],false,false);
+                            ChatCommandAnswer(pm, $"^7^0^7Victims of {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {killsOnString}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!killedby":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !killedby with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+
+                            string killedByString = MakeKillsOnString(thisGameParamFound,numberParams[0],true,false);
+                            ChatCommandAnswer(pm, $"^7^0^7Killers of {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {killedByString}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!retson":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !retson with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+
+                            string retsOnString = MakeKillsOnString(thisGameParamFound,numberParams[0],false,true);
+                            ChatCommandAnswer(pm, $"^7^0^7Returned cappers by {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {retsOnString}", true, true, true);
+
+                            notDemoCommand = true;
+                            break;
+                        case "!retby":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !retby with a valid client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+
+                            string rutByString = MakeKillsOnString(thisGameParamFound,numberParams[0],true,true);
+                            ChatCommandAnswer(pm, $"^7^0^7Returners of {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {rutByString}", true, true, true);
 
                             notDemoCommand = true;
                             break;

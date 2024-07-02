@@ -140,7 +140,13 @@ namespace JKWatcher.CameraOperators
                 //{
 
                 //}
-                neededConnectionsCount++;
+                if(infoPool.lastServerInfoReceived.HasValue || (DateTime.Now -infoPool.infoPoolCreated).TotalSeconds > 30)
+                {
+                    // infoPool.serverSendsAllEntities value might not have been set yet at all.
+                    // So wait until we actually know, or worst case, if for some weird reason infoPool.lastServerInfoReceived is never set,
+                    // allow the extra connection after 30 seconds anyway
+                    neededConnectionsCount++;
+                }
             }
 
             // TODO what about that reserved slots thingie? how to check for that?

@@ -347,11 +347,11 @@ namespace JKWatcher
                     delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
                     if (!int.TryParse(ctfAutoJoinMinPlayersTxt.Text, out ctfMinPlayersForJoin))
                     {
-                        ctfMinPlayersForJoin = 4;
+                        ctfMinPlayersForJoin = 3;
                     }
                     if (!int.TryParse(ffaAutoJoinMinPlayersTxt.Text, out ffaMinPlayersForJoin))
                     {
-                        ffaMinPlayersForJoin = 4;
+                        ffaMinPlayersForJoin = 2;
                     }
                     if (!int.TryParse(ffaAutoJoinKickReconnectDelayTxt.Text, out ffaKickReconnectDelay))
                     {

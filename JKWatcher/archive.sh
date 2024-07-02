@@ -27,6 +27,7 @@ curl --fail --location --header 'x-amz-auto-make-bucket:0' \
 --header 'x-archive-meta-language:eng' \
 --header "authorization: LOW $accesskey:$secret" \
 --upload-file "$filename" \
+--retry 1000 --retry-all-errors \
 "http://s3.us.archive.org/democuts/$filename"
 
 # if successful, move .zip and .sh file to old/ folder

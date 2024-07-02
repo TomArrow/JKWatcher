@@ -3569,6 +3569,8 @@ namespace JKWatcher
                 }
             }*/
 
+            infoPool.lastServerInfoReceived = DateTime.Now;
+
             oldClientInfo = (ClientInfo[])client.ClientInfo.Clone();
 
             snapsEnforcementUpdate();
