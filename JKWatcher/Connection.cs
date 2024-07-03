@@ -1488,8 +1488,9 @@ namespace JKWatcher
                                 if (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
                                 AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
 
-                                //if (!targetWasFlagCarrier && !attackerWasFlagCarrier) // flag carrier kills (both returns and killed by flag carrier) always count
+                                if (!targetWasFlagCarrier && !attackerWasFlagCarrier && infoPool.serverSendsAllEntities) // flag carrier kills (both returns and killed by flag carrier) always count
                                 {
+                                    // only do these extra considerations if we're getting all entities.
                                     if (targetAliveInfo != null && (DateTime.Now - targetAliveInfo.when).TotalSeconds < 0.5 && targetAliveInfo.weapon == (jkaMode ? 3 : 2))
                                     {
                                         if (targetAliveInfo.saberHolstered > 0)
@@ -1503,12 +1504,17 @@ namespace JKWatcher
                                             DateTime? lastProximitySwing = infoPool.playerInfo[target].lastProximitySwing[attacker];
                                             if (!lastProximitySwing.HasValue || (DateTime.Now - lastProximitySwing).Value.TotalSeconds > 7.5)
                                             {
-                                                // Doesn't seem like he was really fighting back. Don't count. TODO better way to do this?
-                                                goto noGlicko2;
+                                                // Doesn't seem like he was really fighting back. Potentially Don't count. TODO better way to do this?
+
+                                                DateTime? nearSince = infoPool.playerInfo[target].inProximitySince[attacker];
+                                                if(!nearSince.HasValue || (DateTime.Now - nearSince.Value).TotalSeconds < 4.0) // isn't near or hasn't been near for at least 4 seconds
+                                                {
+                                                    // If this player has been nearby (within 400 units) for at least 4 seconds,
+                                                    // we will count the kill as the player reasonably could be expected to be aware of the other player's presence
+                                                    goto noGlicko2;
+                                                }
                                             }
                                             // TODO If you were near the other person (within 500 units) for an extended period of time, even if u werent attacking, still make it count? since u should be aware of the other guy at that point
-                                            // TODO Make rets always count
-                                            // TODO count also all kills by flag carrier? fair to assume that anyone near him wants to kill him
                                         }
                                     }
                                 }
