@@ -50,6 +50,16 @@ namespace JKWatcher
     }
 
 
+    public class AliveInfo
+    {
+        public int weapon;
+        public int saberMove;
+        public int saberHolstered;
+        public DateTime when = DateTime.Now;
+    }
+
+
+
     public static unsafe class EntityStateExtensionMethods {
         public static UInt64 GetKillHash(this EntityState es, ServerSharedInformationPool infoPool)
         {
@@ -353,6 +363,10 @@ namespace JKWatcher
         public Vector3 lastDeathPosition;
         public DateTime? lastDeath;
 
+        // The following 2 things probably aren't very useful when not on a server that sends all entities so take with a pinch of salt. They're kinda coded under the assumption that all entities are sent
+        public DateTime?[] lastProximitySwing = new DateTime?[64]; // When have we last swung our saber within 200 units distance of other players?
+        public DateTime?[] inProximitySince = new DateTime?[64]; // When is the last time this player came into proximity to another player (within 400 units)
+
         // For killtrackers/memes and such
         public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
         public DateTime? lastSeenValid = null;
@@ -373,6 +387,8 @@ namespace JKWatcher
             chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
             chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
         }
+
+        public AliveInfo lastAliveInfo = null;
 
 
         public VisiblePlayersTracker VisiblePlayers { get; init; } = new VisiblePlayersTracker(); // For vis check debug?

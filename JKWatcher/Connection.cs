@@ -20,6 +20,7 @@ using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.Con
 namespace JKWatcher
 {
 
+
     enum ConfigStringDefines
     {
         //CS_MUSIC = 2,
@@ -1387,12 +1388,18 @@ namespace JKWatcher
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
 
                 bool targetWasFlagCarrier = false;
+                bool attackerWasFlagCarrier = false;
                 foreach (TeamInfo teamInfo in infoPool.teamInfo)
                 {
                     if(teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == target)
                     {
                         targetWasFlagCarrier = true;
-                        break;
+                        //break;
+                    }
+                    if(teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == attacker)
+                    {
+                        attackerWasFlagCarrier = true;
+                        //break;
                     }
                 }
 
@@ -1478,6 +1485,34 @@ namespace JKWatcher
 
                             if ((DateTime.Now-infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
                             {
+                                if (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
+                                AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
+
+                                //if (!targetWasFlagCarrier && !attackerWasFlagCarrier) // flag carrier kills (both returns and killed by flag carrier) always count
+                                {
+                                    if (targetAliveInfo != null && (DateTime.Now - targetAliveInfo.when).TotalSeconds < 0.5 && targetAliveInfo.weapon == (jkaMode ? 3 : 2))
+                                    {
+                                        if (targetAliveInfo.saberHolstered > 0)
+                                        {
+                                            // Was saber down. Don't count.
+                                            goto noGlicko2;
+                                        }
+                                        else if (targetAliveInfo.saberMove <= 3)
+                                        {
+                                            // Not attacking. Instead check if he attacked in proximity to the attacker in the past 7.5 seconds? 
+                                            DateTime? lastProximitySwing = infoPool.playerInfo[target].lastProximitySwing[attacker];
+                                            if (!lastProximitySwing.HasValue || (DateTime.Now - lastProximitySwing).Value.TotalSeconds > 7.5)
+                                            {
+                                                // Doesn't seem like he was really fighting back. Don't count. TODO better way to do this?
+                                                goto noGlicko2;
+                                            }
+                                            // TODO If you were near the other person (within 500 units) for an extended period of time, even if u werent attacking, still make it count? since u should be aware of the other guy at that point
+                                            // TODO Make rets always count
+                                            // TODO count also all kills by flag carrier? fair to assume that anyone near him wants to kill him
+                                        }
+                                    }
+                                }
+
                                 infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating);
                                 infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating);
                                 if(infoPool.ratingPeriodResults.GetResultCount() >= 15)
@@ -1489,6 +1524,7 @@ namespace JKWatcher
                                     infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
                                 }
                             }
+                            noGlicko2:
 
                             bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
                             if (infoPool.killTrackers[attacker, target].trackingMatch)
@@ -1906,6 +1942,7 @@ namespace JKWatcher
             }
         }
 
+        //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
         public int[] saberStyle = new int[64];
@@ -1975,7 +2012,7 @@ namespace JKWatcher
             if(changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
             {
                 string glicko2String = MakeGlicko2RatingsString(true,true);
-                leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2{Glicko2Version}: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
             }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
@@ -2040,6 +2077,8 @@ namespace JKWatcher
 
             int visibleOtherPlayers = 0;
 
+            List<int> swingers = new List<int>(); // People who are swinging.
+
             Dictionary<int, Vector3> possiblyBlockedPlayers = new Dictionary<int, Vector3>();
 
             for (int i = 0; i < client.ClientHandler.MaxClients; i++)
@@ -2094,7 +2133,14 @@ namespace JKWatcher
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
                     this.delta_angles.Y = Short2Angle(snap.PlayerState.DeltaAngles[1]);
                     this.delta_angles.Z = Short2Angle(snap.PlayerState.DeltaAngles[2]);
-
+                    if(snap.PlayerState.Stats[0] > 0)
+                    {
+                        infoPool.playerInfo[i].lastAliveInfo = new AliveInfo() { saberHolstered = jkaMode ? snap.PlayerState.saberHolsteredJKA : snap.PlayerState.SaberHolstered, weapon = snap.PlayerState.Weapon, saberMove = snap.PlayerState.SaberMove };
+                        if (snap.PlayerState.Weapon == (jkaMode ? 3 : 2) && snap.PlayerState.SaberMove > 3)
+                        {
+                            swingers.Add(i);
+                        }
+                    }
                     
 
                     if (mohMode && !mohExpansion)
@@ -2276,6 +2322,14 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
+                    if (!deadFlagSet)
+                    {
+                        infoPool.playerInfo[i].lastAliveInfo = new AliveInfo() { saberHolstered = jkaMode ? snap.Entities[snapEntityNum].saberHolstered : snap.Entities[snapEntityNum].ShouldTarget, weapon = snap.Entities[snapEntityNum].Weapon, saberMove = snap.Entities[snapEntityNum].SaberMove };
+                        if (snap.Entities[snapEntityNum].Weapon == (jkaMode ? 3 : 2) && snap.Entities[snapEntityNum].SaberMove > 3)
+                        {
+                            swingers.Add(i);
+                        }
+                    }
 
 
                     if (mohMode && !mohExpansion)
@@ -2440,6 +2494,51 @@ namespace JKWatcher
                     infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.falls++;
                 }
             }
+
+
+
+            foreach(PlayerInfo piMain in infoPool.playerInfo)
+            {
+                Vector3 mainPos = piMain.position;
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if(pi.clientNum != piMain.clientNum && pi.infoValid && pi.lastFullPositionUpdate.HasValue && (DateTime.Now - pi.lastFullPositionUpdate).Value.TotalMilliseconds < 100)
+                    {
+                        bool mainIsSwinger = swingers.Contains(piMain.clientNum);
+                        float distance = Vector3.Distance(mainPos, pi.position);
+                        if (mainIsSwinger && distance < 200.0f) // Does this all really work? idk
+                        {
+                            piMain.lastProximitySwing[pi.clientNum] = DateTime.Now;
+                        }
+                        if (distance < 400.0f)
+                        {
+                            if (!piMain.inProximitySince[pi.clientNum].HasValue)
+                            {
+                                piMain.inProximitySince[pi.clientNum] = DateTime.Now;
+                            }
+                        } else
+                        {
+                            piMain.inProximitySince[pi.clientNum] = null;
+                        }
+                    }
+                }
+            }
+
+            foreach(int swinger in swingers)
+            {
+                Vector3 swingerPos = infoPool.playerInfo[swinger].position;
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if(pi.clientNum != swinger && pi.infoValid && pi.lastFullPositionUpdate.HasValue && (DateTime.Now - pi.lastFullPositionUpdate).Value.TotalMilliseconds < 100)
+                    {
+                        if (Vector3.Distance(swingerPos, pi.position) < 200.0f) // Does this all really work? idk
+                        {
+                            infoPool.playerInfo[swinger].lastProximitySwing[pi.clientNum] = DateTime.Now;
+                        }
+                    }
+                }
+            }
+
 
             infoPool.playerInfo[snap.PlayerState.ClientNum].VisiblePlayers.VisiblePlayers = (byte)visibleOtherPlayers;
 

@@ -22,6 +22,8 @@ namespace JKWatcher
     public partial class Connection
     {
 
+        const string Glicko2Version = "(v1.1)";
+
         struct DemoRequestRateLimiter
         {
             public DateTime? lastRequest;
@@ -72,7 +74,6 @@ namespace JKWatcher
 
             List<KeyValuePair<string, int>> otherPersonData = new List<KeyValuePair<string, int>>();
 
-            otherPersonData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
 
             KillTracker[,] kts = thisGame ? infoPool.killTrackersThisGame : infoPool.killTrackers;
 
@@ -88,6 +89,8 @@ namespace JKWatcher
                     }
                 }
             }
+
+            otherPersonData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
 
             StringBuilder otherPeopleString = new StringBuilder();
             int otherPersonIndex = 0;
@@ -744,7 +747,7 @@ namespace JKWatcher
                         case "!g2top":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             string glicko2RatingsString = MakeGlicko2RatingsString(thisGameParamFound, stringParams.Contains("all"));
-                            ChatCommandAnswer(pm, $"^7^0^7Glicko2 top: {glicko2RatingsString}", true, true, true);
+                            ChatCommandAnswer(pm, $"^7^0^7Glicko2{Glicko2Version} top: {glicko2RatingsString}", true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!doomer":
