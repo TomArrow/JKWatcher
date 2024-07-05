@@ -22,7 +22,7 @@ namespace JKWatcher
     public partial class Connection
     {
 
-        const string Glicko2Version = "(v1.3)";
+        const string Glicko2Version = "(v1.4)";
 
         struct DemoRequestRateLimiter
         {
