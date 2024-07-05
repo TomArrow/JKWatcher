@@ -1387,6 +1387,8 @@ namespace JKWatcher
                 int target = e.Entity.CurrentState.OtherEntityNum;
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
 
+                var pos = e.Entity.CurrentState.Position;
+                Vector3 deathPosition = new Vector3() { X=pos.Base[0],Y=pos.Base[1],Z=pos.Base[2]};
                 bool targetWasFlagCarrier = false;
                 bool attackerWasFlagCarrier = false;
                 foreach (TeamInfo teamInfo in infoPool.teamInfo)
@@ -1488,7 +1490,7 @@ namespace JKWatcher
                                 if (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
                                 AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
 
-                                if (!targetWasFlagCarrier && !attackerWasFlagCarrier && infoPool.serverSendsAllEntities) // flag carrier kills (both returns and killed by flag carrier) always count
+                                if (/*!targetWasFlagCarrier && !attackerWasFlagCarrier &&*/ infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY)) // flag carrier kills (both returns and killed by flag carrier) always count
                                 {
                                     // only do these extra considerations if we're getting all entities.
                                     if (targetAliveInfo != null && (DateTime.Now - targetAliveInfo.when).TotalSeconds < 0.5 && targetAliveInfo.weapon == (jkaMode ? 3 : 2))
@@ -1519,8 +1521,24 @@ namespace JKWatcher
                                     }
                                 }
 
-                                infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating);
-                                infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating);
+                                double killWeight = 1.0;
+                                if(infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
+                                {
+                                    // For ctf, check how many enemies are nearby.
+                                    int nearbyEnemies = 1; // 1 is the killer
+                                    Team victimTeam = infoPool.playerInfo[target].team;
+                                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                                    {
+                                        if (pi.clientNum != attacker && pi.infoValid && pi.team != Team.Spectator && pi.team != victimTeam && pi.lastFullPositionUpdate.HasValue && (DateTime.Now- pi.lastFullPositionUpdate.Value).TotalMilliseconds < 100.0 && Vector3.Distance(deathPosition,pi.position) < 300.0)
+                                        {
+                                            nearbyEnemies++;
+                                        }
+                                    }
+                                    killWeight /= (double)nearbyEnemies;
+                                }
+
+                                infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating, killWeight);
+                                infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating, killWeight);
                                 if(infoPool.ratingPeriodResults.GetResultCount() >= 15)
                                 {
                                     infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
