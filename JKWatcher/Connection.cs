@@ -1487,7 +1487,7 @@ namespace JKWatcher
 
                             if ((DateTime.Now-infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
                             {
-                                if (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
+                                if (!jkaMode && (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY)) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
                                 AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
 
                                 if (/*!targetWasFlagCarrier && !attackerWasFlagCarrier &&*/ infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY)) // flag carrier kills (both returns and killed by flag carrier) always count
@@ -1529,7 +1529,7 @@ namespace JKWatcher
                                     Team victimTeam = infoPool.playerInfo[target].team;
                                     foreach (PlayerInfo pi in infoPool.playerInfo)
                                     {
-                                        if (pi.clientNum != attacker && pi.infoValid && pi.team != Team.Spectator && pi.team != victimTeam && pi.lastFullPositionUpdate.HasValue && (DateTime.Now- pi.lastFullPositionUpdate.Value).TotalMilliseconds < 100.0 && Vector3.Distance(deathPosition,pi.position) < 300.0)
+                                        if (pi.clientNum != attacker && pi.infoValid && pi.team != Team.Spectator && pi.IsAlive && pi.team != victimTeam && pi.lastFullPositionUpdate.HasValue && (DateTime.Now- pi.lastFullPositionUpdate.Value).TotalMilliseconds < 100.0 && Vector3.Distance(deathPosition,pi.position) < 300.0)
                                         {
                                             nearbyEnemies++;
                                         }
@@ -1539,13 +1539,20 @@ namespace JKWatcher
 
                                 infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating, killWeight);
                                 infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating, killWeight);
-                                if(infoPool.ratingPeriodResults.GetResultCount() >= 15)
+                                if(infoPool.ratingPeriodResults.GetResultCount() >= 10*infoPool.ratingPeriodResults.GetActiveParticipantCount())
                                 {
+                                    // I tried first with 15 as the cutoff, but it reduced precision it seems
+                                    // Then I tried 1000 but that also reduced precision because if a rating period never ends during a game,
+                                    // the algo kinda assumes its always battling against 1500+-350 opponents and it never converges towards the correct
+                                    // value even though it "thinks" that the deviation from the true value is low, but it actually isn't (I think?)
+                                    // I then plotted the average deviation for each length of rating period from 5 to 300 with 10 players and the sweet spot does seem
+                                    // to be around 100 to 150. So I'm guessing what was said about 10-15 per player being ideal appears to be accurate
                                     infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
                                 } 
-                                if(infoPool.ratingPeriodResultsThisGame.GetResultCount() >= 15)
+                                if(infoPool.ratingPeriodResultsThisGame.GetResultCount() >= 10*infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
                                 {
                                     infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
+                                    thisGameRatingCommitCount++;
                                 }
                             }
                             noGlicko2:
@@ -1831,6 +1838,7 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.name + " captured the "+teamAsString+" flag.");
+
                 }
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
@@ -1951,17 +1959,21 @@ namespace JKWatcher
         };
 
 
-        private void CommitRatings()
+        private void CommitRatings(bool temporary = false, bool onlyThisGame = false, int minResultCountPerPlayer = 0)
         {
             if (this.IsMainChatConnection)
             {
-                if (infoPool.ratingPeriodResults.GetResultCount() > 0)
+                if (!onlyThisGame && infoPool.ratingPeriodResults.GetResultCount() > minResultCountPerPlayer* infoPool.ratingPeriodResults.GetActiveParticipantCount())
                 {
-                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
+                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults,temporary);
                 }
-                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() > 0)
+                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() > minResultCountPerPlayer* infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
                 {
-                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
+                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame,temporary);
+                    if (!temporary)
+                    {
+                        thisGameRatingCommitCount++;
+                    }
                 }
             }
         }
@@ -1999,6 +2011,9 @@ namespace JKWatcher
         private bool weAreSpectatorSlowFalling = false; // if we are a spectator in PM_SPECTATOR mode and we are not on the ground, we will be floating and VEEEERY slowly falling down. this means we will get a snapshot every second with a fresh position/velocity value but no meaningful info otherwise, wasting space. let's just quickly fly to the ground to prevent that if needed.
 
         private bool wasIntermission = false;
+
+        public DateTime lastTemporaryRatingsCommit = DateTime.Now;
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -2031,6 +2046,12 @@ namespace JKWatcher
             if (isIntermission && this.IsMainChatConnection)
             {
                 CommitRatings();
+            }
+
+            if(this.IsMainChatConnection && (DateTime.Now - lastTemporaryRatingsCommit).TotalSeconds > 60)
+            {
+                CommitRatings(true); // just temporary to have the GUI show somewhat up to date values.
+                lastTemporaryRatingsCommit = DateTime.Now;
             }
 
             if(changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
@@ -3219,6 +3240,7 @@ namespace JKWatcher
         private void resetThisGameStats()
         {
             CommitRatings();
+            thisGameRatingCommitCount = 0;
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
             infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
             infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
@@ -3248,6 +3270,13 @@ namespace JKWatcher
 
         int serverFPS = 0;
 
+        int captureLimit = 8;
+
+        int scoreRedOld = 0;
+        int scoreBlueOld = 0;
+
+        int thisGameRatingCommitCount = 0;
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
         {
@@ -3262,6 +3291,11 @@ namespace JKWatcher
             OnServerInfoChanged(obj);
 
             serverFPS = obj.FPS;
+
+            if(obj.CaptureLimit != -1)
+            {
+                captureLimit = obj.CaptureLimit;
+            }
 
             serverWindow.serverMaxClientsLimit = serverMaxClientsLimit = obj.MaxClients > 1 ? obj.MaxClients : (client?.ClientHandler.MaxClients).GetValueOrDefault(32);
             if (obj.PrivateClients.HasValue)
@@ -3353,6 +3387,31 @@ namespace JKWatcher
             oldGameName = obj.GameName;
             currentGameType = obj.GameType;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
+
+
+            int scoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            int scoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+
+            if (this.IsMainChatConnection && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
+            {
+                int captureScoreRatingCommitInterval = Math.Max(1, captureLimit / 3); // Make sure we have at least 3 rating commits during a ctf game so that the results are meaningful
+                if (scoreBlue != 0 && scoreBlue > scoreBlueOld && (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
+                {
+                    // however, do require at least 4 results per active participant since last ranking commit to actually commit.
+                    // otherwise we might commit in really tiny increments and hurt accuracy too much.
+                    // we do after all also commit after 10*activeparticipantcount
+                    CommitRatings(false, true, 4);
+                    serverWindow.addToLog($"GLICKO2: Conditionally forcing rating commit in ctf due to (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreBlue}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                }
+                else if (scoreRed != 0 && scoreRed > scoreRedOld && (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
+                {
+                    CommitRatings(false, true, 4);
+                    serverWindow.addToLog($"GLICKO2: Conditionally forcing commit in ctf due to (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreRed}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                }
+            }
+
+            scoreRedOld = scoreRed;
+            scoreBlueOld = scoreBlue;
 
             // Check for referencedPaks
             InfoString systemInfo = new InfoString( client.GetMappedConfigstring(ClientGame.Configstring.SystemInfo));

@@ -423,8 +423,8 @@ namespace JKWatcher
         public volatile int powerUps;		// so can display quad/flag status
         #endregion
 
-        public string g2Rating => $"{(int)this.chatCommandTrackingStuff.rating.GetRating()}±{(int)this.chatCommandTrackingStuff.rating.GetRatingDeviation()}";
-        public string g2RatingThisGame => $"{(int)this.chatCommandTrackingStuffThisGame.rating.GetRating()}±{(int)this.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation()}";
+        public string g2Rating => $"{(int)this.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)this.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}";
+        public string g2RatingThisGame => $"{(int)this.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
     }
     public class PlayerScore
     {

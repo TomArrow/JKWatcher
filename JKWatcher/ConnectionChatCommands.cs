@@ -116,14 +116,18 @@ namespace JKWatcher
 
         private string MakeGlicko2RatingsString(bool thisGame, bool all)
         {
+            // Make temporary ratings (so we can get up to date data without having to have rating periods so short they make the algorithm overall very imprecise)
+            if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
+            else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
+
             List<KeyValuePair<Glicko2.Rating, Glicko2RatingInfo>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
-            ratingData.Sort((a, b) => { return -a.Key.GetRating().CompareTo(b.Key.GetRating()); });
+            ratingData.Sort((a, b) => { return -a.Key.GetRating(true).CompareTo(b.Key.GetRating(true)); });
 
             StringBuilder topRatingsString = new StringBuilder();
             int ratingsIndex = 0;
             foreach (KeyValuePair<Glicko2.Rating, Glicko2RatingInfo> thisRating in ratingData)
             {
-                if (thisRating.Key.GetNumberOfResults() <= 5) // dont count these, not relevant
+                if (thisRating.Key.GetNumberOfResults(true) <= 5) // dont count these, not relevant
                 {
                     continue;
                 }
@@ -142,7 +146,7 @@ namespace JKWatcher
                     topRatingsString.Append(", ");
                 }
                 //topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating()}+-{(int)thisRating.Key.GetRatingDeviation()})");
-                topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating()}+-{(int)thisRating.Key.GetRatingDeviation()})");
+                topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating(true)}+-{(int)thisRating.Key.GetRatingDeviation(true)})");
                 ratingsIndex++;
             }
             return topRatingsString.ToString();
@@ -1610,10 +1614,12 @@ namespace JKWatcher
                             }
                             if (thisGameParamFound)
                             {
-                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating (this game) for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRating()}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRatingDeviation()}", true, true, true);
+                                infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true, infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating);
+                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating (this game) for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRating(true)}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}", true, true, true);
                             } else
                             {
-                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRating()}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRatingDeviation()}", true, true, true);
+                                infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true, infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating);
+                                ChatCommandAnswer(pm, $"^7^0^7Glicko2 rating for {infoPool.playerInfo[numberParams[0]].name}: {(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRating(true)}+-{(int)infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.rating.GetRatingDeviation(true)}", true, true, true);
                             }
 
                             notDemoCommand = true;

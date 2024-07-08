@@ -34,6 +34,10 @@ namespace JKWatcher
             foreach(string line in lines)
             {
                 string[] tokens = Q3ColorFormatter.tokenizeStringColors(line, true);
+                for(int i = 0; i < tokens.Length; i++)
+                {
+                    tokens[i] = string.Intern(tokens[i]); // Save a bit of RAM :)
+                }
                 if(tokens != null)
                 {
                     chain.Add(tokens);
@@ -62,7 +66,9 @@ namespace JKWatcher
 
         private static string KeyTransformer(string input)
         {
-            return sSounds.Replace(vocals1.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"a").Replace('o','u').Replace("ph","f").Replace('v','f').Replace('b','p'),"s").Replace('m', 'n').Replace('t', 'd');
+            // Save a bit of RAM with string.Intern :)
+            // TODO er -> a ?
+            return string.Intern(sSounds.Replace(vocals1.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"a").Replace('o','u').Replace("ph","f").Replace('v','f').Replace('b','p'),"s").Replace('m', 'n').Replace('t', 'd'));
         }
 
         public static (string,string) GetAnyMarkovText(string startString = null)
