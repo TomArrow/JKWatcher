@@ -2054,7 +2054,31 @@ namespace JKWatcher
                 lastTemporaryRatingsCommit = DateTime.Now;
             }
 
-            if(changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
+            int scoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
+            int scoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
+
+            if (this.IsMainChatConnection && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
+            {
+                int captureScoreRatingCommitInterval = Math.Max(1, captureLimit / 3); // Make sure we have at least 3 rating commits during a ctf game so that the results are meaningful
+                if (scoreBlue != 0 && scoreBlue > scoreBlueOld && (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
+                {
+                    // however, do require at least 4 results per active participant since last ranking commit to actually commit.
+                    // otherwise we might commit in really tiny increments and hurt accuracy too much.
+                    // we do after all also commit after 10*activeparticipantcount
+                    CommitRatings(false, true, 4);
+                    serverWindow.addToLog($"GLICKO2: Conditionally forcing rating commit in ctf due to (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreBlue}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                }
+                else if (scoreRed != 0 && scoreRed > scoreRedOld && (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
+                {
+                    CommitRatings(false, true, 4);
+                    serverWindow.addToLog($"GLICKO2: Conditionally forcing commit in ctf due to (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreRed}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                }
+            }
+
+            scoreRedOld = scoreRed;
+            scoreBlueOld = scoreBlue;
+
+            if (changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
             {
                 string glicko2String = MakeGlicko2RatingsString(true,true);
                 leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2{Glicko2Version}: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
@@ -3278,7 +3302,7 @@ namespace JKWatcher
         int thisGameRatingCommitCount = 0;
 
         // Update player list
-        private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState)
+        private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
             if (obj.SendsAllEntities && !infoPool.serverSendsAllEntities)
             {
@@ -3388,30 +3412,6 @@ namespace JKWatcher
             currentGameType = obj.GameType;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
-
-            int scoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
-            int scoreBlue = client.GetMappedConfigstring(ClientGame.Configstring.Scores2).Atoi();
-
-            if (this.IsMainChatConnection && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
-            {
-                int captureScoreRatingCommitInterval = Math.Max(1, captureLimit / 3); // Make sure we have at least 3 rating commits during a ctf game so that the results are meaningful
-                if (scoreBlue != 0 && scoreBlue > scoreBlueOld && (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
-                {
-                    // however, do require at least 4 results per active participant since last ranking commit to actually commit.
-                    // otherwise we might commit in really tiny increments and hurt accuracy too much.
-                    // we do after all also commit after 10*activeparticipantcount
-                    CommitRatings(false, true, 4);
-                    serverWindow.addToLog($"GLICKO2: Conditionally forcing rating commit in ctf due to (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreBlue}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
-                }
-                else if (scoreRed != 0 && scoreRed > scoreRedOld && (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
-                {
-                    CommitRatings(false, true, 4);
-                    serverWindow.addToLog($"GLICKO2: Conditionally forcing commit in ctf due to (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreRed}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
-                }
-            }
-
-            scoreRedOld = scoreRed;
-            scoreBlueOld = scoreBlue;
 
             // Check for referencedPaks
             InfoString systemInfo = new InfoString( client.GetMappedConfigstring(ClientGame.Configstring.SystemInfo));
