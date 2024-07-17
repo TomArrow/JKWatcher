@@ -2065,13 +2065,13 @@ namespace JKWatcher
                     // however, do require at least 4 results per active participant since last ranking commit to actually commit.
                     // otherwise we might commit in really tiny increments and hurt accuracy too much.
                     // we do after all also commit after 10*activeparticipantcount
-                    CommitRatings(false, true, 4);
                     serverWindow.addToLog($"GLICKO2: Conditionally forcing rating commit in ctf due to (scoreBlue / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreBlue}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                    CommitRatings(false, true, 4);
                 }
                 else if (scoreRed != 0 && scoreRed > scoreRedOld && (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount)
                 {
-                    CommitRatings(false, true, 4);
                     serverWindow.addToLog($"GLICKO2: Conditionally forcing commit in ctf due to (scoreRed / captureScoreRatingCommitInterval) > thisGameRatingCommitCount: ({scoreRed}/{captureScoreRatingCommitInterval}) > {thisGameRatingCommitCount}");
+                    CommitRatings(false, true, 4);
                 }
             }
 
