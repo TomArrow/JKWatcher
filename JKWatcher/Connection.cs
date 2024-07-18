@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -438,6 +439,9 @@ namespace JKWatcher
             } else if(e.PropertyName == "skin")
             {
                 updateSkin();
+            } else if(e.PropertyName == "netDebug")
+            {
+                updateNetDebug();
             }
         }
 
@@ -470,7 +474,8 @@ namespace JKWatcher
         private string realName = "Padawan";
         private void updateName()
         {
-            if (client != null)
+            var localClient = client;
+            if (localClient != null)
             {
                 string nameToUse = nameOverride == null ? ( _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan" ) : nameOverride;
 
@@ -489,7 +494,7 @@ namespace JKWatcher
                 }
 
                 bool clientNumAlreadyAdded = false;
-                if (!mohMode && _connectionOptions.demoTimeColorNames && client.Demorecording && !nameToUse.Contains("^"))
+                if (!mohMode && _connectionOptions.demoTimeColorNames && localClient.Demorecording && !nameToUse.Contains("^"))
                 {
                     DemoName_t demoName = client.getDemoName();
                     if(demoName != null) // Pointless I guess, hmm
@@ -610,17 +615,26 @@ namespace JKWatcher
                     }
                 }
                 realName = nameToUse;
-                client.Name = nameToUse;
+                localClient.Name = nameToUse;
             }
         }
         
         private void updateSkin()
         {
-            if (client != null)
+            var localClient = client;
+            if (localClient != null)
             {
                 string skinToUse = _connectionOptions.skin != null ? _connectionOptions.userInfoName : "kyle/default";
-                
-                client.Skin = skinToUse;
+
+                localClient.Skin = skinToUse;
+            }
+        }
+        private void updateNetDebug()
+        {
+            var localClient = client;
+            if (localClient != null)
+            {
+                localClient.DebugNet = _connectionOptions.netDebug;
             }
         }
 
@@ -860,7 +874,7 @@ namespace JKWatcher
                 return false;
             }
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
-            client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine }; // Todo make more flexible
+            client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine, DebugNet=_connectionOptions.netDebug }; // Todo make more flexible
 
             client.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
 
@@ -1978,6 +1992,13 @@ namespace JKWatcher
             }
         }
 
+        private bool firstSpectatorSnapshotOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
+        public bool intermissionCamSet { get; set; } = false;
+        DateTime lastIntermissionCamCachedReadTry = DateTime.Now - new TimeSpan(10,0,0);
+        public bool intermissionCamAutoDetectImpossible { get; set; } = false; // we have followed someone. if we now go back to spectator pmt, we can't safely assume that we will get intermission coordinates
+        Vector3 intermissionCamPos = new Vector3();
+        Vector3 intermissionCamAngles = new Vector3();
+
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         public int[] saberMove = new int[64];
@@ -2052,6 +2073,64 @@ namespace JKWatcher
             {
                 CommitRatings(true); // just temporary to have the GUI show somewhat up to date values.
                 lastTemporaryRatingsCommit = DateTime.Now;
+            }
+
+            if(snap.PlayerState.CommandTime > 0)
+            {
+                if(snap.PlayerState.ClientNum != client?.clientNum)
+                {
+                    intermissionCamAutoDetectImpossible = true; // we are following someone. so any spectator cam we get at this point might be at some random point and not intermission position. this resets wwith map restart or map change
+                }
+                bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && !intermissionCamAutoDetectImpossible;
+
+                if (!intermissionCamSet &&
+                    (
+                        canGetIntermissionCamFromSpectatorView  || isIntermission
+                    )
+                )
+                {
+                    intermissionCamPos.X = snap.PlayerState.Origin[0];
+                    intermissionCamPos.Y = snap.PlayerState.Origin[1];
+                    intermissionCamPos.Z = snap.PlayerState.Origin[2];
+                    intermissionCamAngles.X = snap.PlayerState.ViewAngles[0];
+                    intermissionCamAngles.Y = snap.PlayerState.ViewAngles[1];
+                    intermissionCamAngles.Z = snap.PlayerState.ViewAngles[2];
+                    AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition() { 
+                        MapName = oldMapName, 
+                        posX = intermissionCamPos.X, 
+                        posY = intermissionCamPos.Y, 
+                        posZ = intermissionCamPos.Z, 
+                        angX = intermissionCamAngles.X, 
+                        angY = intermissionCamAngles.Y, 
+                        angZ = intermissionCamAngles.Z, 
+                    },false);
+
+                    intermissionCamSet = true;
+                }
+
+                if (intermissionCamAutoDetectImpossible && !intermissionCamSet && (DateTime.Now- lastIntermissionCamCachedReadTry).TotalSeconds > 10)
+                {
+                    // Do we have it already saved?
+                    IntermissionCamPosition savedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(oldMapName);
+                    if(savedPosition != null)
+                    {
+                        intermissionCamPos.X = savedPosition.posX;
+                        intermissionCamPos.Y = savedPosition.posY;
+                        intermissionCamPos.Z = savedPosition.posZ;
+                        intermissionCamAngles.X = savedPosition.angX;
+                        intermissionCamAngles.Y = savedPosition.angY;
+                        intermissionCamAngles.Z = savedPosition.angZ;
+                        intermissionCamSet = true;
+                    } else
+                    {
+                        lastIntermissionCamCachedReadTry = DateTime.Now;
+                    }
+                }
+
+                if(snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator)
+                {
+                    firstSpectatorSnapshotOfThisMapReceived = true;
+                }
             }
 
             int scoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
@@ -3263,6 +3342,8 @@ namespace JKWatcher
 
         private void resetThisGameStats()
         {
+            firstSpectatorSnapshotOfThisMapReceived = false;
+            intermissionCamAutoDetectImpossible = false;
             CommitRatings();
             thisGameRatingCommitCount = 0;
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
@@ -3391,6 +3472,7 @@ namespace JKWatcher
             bool executeMapChangeCommands = newGameState;
             if(obj.MapName != oldMapName)
             {
+                intermissionCamSet = false;
                 resetAllFrozenStatus();
                 resetThisGameStats();
                 executeMapChangeCommands = true;

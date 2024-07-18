@@ -256,6 +256,22 @@
                         </WrapPanel>
                     </StackPanel>
                 </TabItem>
+                <TabItem Header="Debug">
+                    <StackPanel x:Name="debugStats">
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Debug (Conn)">
+                    <StackPanel DataContext="{Binding ElementName=connectionsDataGrid,Path=SelectedItem}">
+                        <WrapPanel>
+                            <Label>Client num:</Label>
+                            <TextBlock IsEnabled="False" Text="{Binding ClientNum,Mode=OneWay}"></TextBlock>
+                        </WrapPanel>
+                        <WrapPanel>
+                            <Label>Intermission cam set:</Label>
+                            <CheckBox IsEnabled="False" IsChecked="{Binding intermissionCamSet,Mode=OneWay}"></CheckBox>
+                        </WrapPanel>
+                    </StackPanel>
+                </TabItem>
             </TabControl>
                     
         </DockPanel>
@@ -377,24 +393,28 @@
                         </StackPanel>
                     </TabItem>
                     <TabItem Header="Network">
-                        <StackPanel x:Name="snapsSettingsControls">
-                            <WrapPanel>
-                                <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
-                                <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
-                            </WrapPanel>
-                            <WrapPanel>
-                                <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
-                                <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
-                            </WrapPanel>
-                            <WrapPanel>
-                                <CheckBox IsChecked="{Binding forceAFKSnapDrop,Mode=TwoWay}">AFK maxsnaps</CheckBox>
-                                <TextBox Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding afkMaxSnaps,Mode=TwoWay}"></TextBox>
-                            </WrapPanel>
-                            <WrapPanel>
-                                <CheckBox IsChecked="{Binding pingAdjustActive,Mode=TwoWay}">Ping adjust</CheckBox>
-                                <TextBox Width="40" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding pingAdjust,Mode=TwoWay}"></TextBox>
-                            </WrapPanel>
-                            <CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>
+                        <StackPanel>
+                            <StackPanel x:Name="snapsSettingsControls">
+
+                                <WrapPanel>
+                                    <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
+                                    <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
+                                    <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <CheckBox IsChecked="{Binding forceAFKSnapDrop,Mode=TwoWay}">AFK maxsnaps</CheckBox>
+                                    <TextBox Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding afkMaxSnaps,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                                <WrapPanel>
+                                    <CheckBox IsChecked="{Binding pingAdjustActive,Mode=TwoWay}">Ping adjust</CheckBox>
+                                    <TextBox Width="40" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding pingAdjust,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                            </StackPanel>
+                            <!--<CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>-->
+                            <CheckBox x:Name="netDebugCheck" IsChecked="{Binding netDebug,Mode=TwoWay}">NetDebug</CheckBox>
                         </StackPanel>
                     </TabItem>
                 </TabControl>

@@ -134,6 +134,8 @@ namespace JKWatcher
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+            AsyncPersistentDataManager<IntermissionCamPosition>.Init();
+
             RandomHelpers.NumberImages.Init();
 
             // Check botroutes

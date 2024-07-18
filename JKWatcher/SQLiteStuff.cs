@@ -3,6 +3,7 @@ using JKClient;
 using SQLite;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -10,6 +11,23 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+	class IntermissionCamPosition : INotifyPropertyChanged
+    {
+		[PrimaryKey]
+		public string MapName { get; set; }
+
+		public float posX { get; set; }
+		public float posY { get; set; }
+		public float posZ { get; set; }
+		public float angX { get; set; }
+		public float angY { get; set; }
+		public float angZ { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+    }
+
+
+
 	class ServerInfoPublic
 	{
 		public DateTime? InfoPacketReceivedTime { get; set; } = null;

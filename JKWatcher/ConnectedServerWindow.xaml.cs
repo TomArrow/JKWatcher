@@ -238,6 +238,8 @@ namespace JKWatcher
             public bool autoUpgradeToCTF { get; set; } = false;
             public bool autoUpgradeToCTFWithStrobe { get; set; } = false;
 
+            public bool netDebug { get; set; } = false;
+
             public bool attachClientNumToName { get; set; } = true;
             public bool demoTimeColorNames { get; set; } = true;
             public bool silentMode { get; set; } = false;
@@ -689,6 +691,7 @@ namespace JKWatcher
             snapsSettingsControls.DataContext = snapsSettings;
             connectionSettingsControls.DataContext = _connectionOptions;
             advancedSettingsControls.DataContext = _connectionOptions;
+            debugStats.DataContext = this;
             quickCommandsControl.ItemsSource = new string[] { "say_team !top", "logout"};
             updateQuickCommands();
         }
