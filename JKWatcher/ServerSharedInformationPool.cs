@@ -701,6 +701,16 @@ namespace JKWatcher
         public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNames = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
         public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
 
+        public const float levelShotFov = 140;
+        public const int levelShotWidth = 1920;
+        public const int levelShotHeight = 1080;
+        public float[,] levelShot = new float[levelShotWidth, levelShotHeight];
+
+        public void resetLevelShot()
+        {
+            levelShot = new float[1920, 1080];
+        }
+
         public int getProbableRetCount(int clientNum)
         {
             if(clientNum < 0 || clientNum > _maxClients)

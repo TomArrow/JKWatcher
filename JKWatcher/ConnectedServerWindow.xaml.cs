@@ -23,6 +23,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Numerics;
 using System.Windows.Shell;
+using System.IO;
 
 namespace JKWatcher
 {
@@ -2836,6 +2837,74 @@ namespace JKWatcher
             {
                 connectionsDataGrid.SelectedItem = null;
             }
+        }
+
+        private void levelshotBtn_Click(object sender, RoutedEventArgs e)
+        {
+            SaveLevelshot(infoPool.levelShot);
+        }
+
+        private const float invGamma = 1f / 2.4f;
+        private void SaveLevelshot(float[,] levelshotData)
+        {
+
+            float[,] levelshotDataLocal = (float[,])levelshotData.Clone();
+            TaskManager.TaskRun(()=> {
+                int width = levelshotDataLocal.GetLength(0);
+                int height = levelshotDataLocal.GetLength(1);
+
+                List<float> brightnessValuesList = new List<float>();
+
+                //double totalUsedPixelBrightness = 0;
+                //double divider = 0;
+                for(int x = 0; x < width; x++)
+                {
+                    for(int y = 0; y < height; y++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y];
+                        if (valueHere > 0.0f)
+                        {
+                            //totalUsedPixelBrightness += valueHere;
+                            //divider++;
+                            brightnessValuesList.Add(valueHere);
+                        }
+                    }
+                }
+
+                //double averageBrightness = totalUsedPixelBrightness / divider;
+                //float multiplier = 1.0f/ (float)averageBrightness;
+                brightnessValuesList.Sort();
+                float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count/2] : 1.0f;
+                float multiplier = 1.0f/ (float)roughMedianBrightness;
+
+                Bitmap bmp = new Bitmap(width, height,System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                ByteImage bi = Helpers.BitmapToByteArray(bmp);
+                bmp.Dispose();
+
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y];
+                        float gammaValue = (float) Math.Pow(valueHere * multiplier, invGamma);
+                        byte byteValue = (byte)Math.Clamp(gammaValue*0.5f*255.0f, 0, 255.0f);
+                        int yInv = height - 1 - y;
+                        int xInv = width - 1 - x;
+                        bi.imageData[bi.stride * yInv + xInv * 3] = byteValue;
+                        bi.imageData[bi.stride * yInv + xInv * 3 +1] = byteValue;
+                        bi.imageData[bi.stride * yInv + xInv * 3 +2] = byteValue;
+                    }
+                }
+                bmp = Helpers.ByteArrayToBitmap(bi);
+                string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
+                Directory.CreateDirectory(imagesSubDir);
+                string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+"_"+ (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
+                filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
+                filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+                bmp.Save(filenameString);
+                bmp.Dispose();
+
+            }, $"Levelshot saver ({netAddress},{ServerName})");
         }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)

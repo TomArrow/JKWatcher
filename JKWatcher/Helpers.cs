@@ -844,7 +844,7 @@ namespace JKWatcher
             0, 0, 0, 1
         };
 
-        public static Matrix4x4 createModelProjectionMatrix(Vector3 origin, Vector3 angles, float width, float height, float fovX)
+        public static Matrix4x4 createModelProjectionMatrix(Vector3 origin, Vector3 angles,float fovX, float width, float height)
         {
 
             Matrix4x4 modelMatrtix = createModelMatrix(origin,angles);

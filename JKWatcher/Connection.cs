@@ -1998,6 +1998,7 @@ namespace JKWatcher
         public bool intermissionCamAutoDetectImpossible { get; set; } = false; // we have followed someone. if we now go back to spectator pmt, we can't safely assume that we will get intermission coordinates
         Vector3 intermissionCamPos = new Vector3();
         Vector3 intermissionCamAngles = new Vector3();
+        Matrix4x4 intermissionCamTransform = new Matrix4x4();
 
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
@@ -2034,6 +2035,22 @@ namespace JKWatcher
         private bool wasIntermission = false;
 
         public DateTime lastTemporaryRatingsCommit = DateTime.Now;
+
+
+        private void PrintPositionToLevelshot(Vector4 pos)
+        {
+            Vector4 levelshotPos = Vector4.Transform(pos, intermissionCamTransform);
+            levelshotPos /= levelshotPos.W;
+            if (levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+            {
+                int posX = (int)(((levelshotPos.X+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotWidth);
+                int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotHeight);
+                if(posX >= 0 && posX < ServerSharedInformationPool.levelShotWidth && posY >= 0 && posY < ServerSharedInformationPool.levelShotHeight)
+                {
+                    infoPool.levelShot[posX, posY] += 1.0f;
+                }
+            }
+        }
 
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
@@ -2095,6 +2112,7 @@ namespace JKWatcher
                     intermissionCamAngles.X = snap.PlayerState.ViewAngles[0];
                     intermissionCamAngles.Y = snap.PlayerState.ViewAngles[1];
                     intermissionCamAngles.Z = snap.PlayerState.ViewAngles[2];
+                    intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(intermissionCamPos,intermissionCamAngles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
                     AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition() { 
                         MapName = oldMapName.ToLowerInvariant(), 
                         posX = intermissionCamPos.X, 
@@ -2120,6 +2138,7 @@ namespace JKWatcher
                         intermissionCamAngles.X = savedPosition.angX;
                         intermissionCamAngles.Y = savedPosition.angY;
                         intermissionCamAngles.Z = savedPosition.angZ;
+                        intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(intermissionCamPos, intermissionCamAngles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
                         intermissionCamSet = true;
                     } else
                     {
@@ -2288,6 +2307,20 @@ namespace JKWatcher
                         {
                             swingers.Add(i);
                         }
+                    }
+
+                    if (intermissionCamSet
+                        && (snap.PlayerState.Origin[0] != lastPosition[i].X
+                        || snap.PlayerState.Origin[1] != lastPosition[i].Y
+                        || snap.PlayerState.Origin[2] != lastPosition[i].Z))
+                    {
+                        PrintPositionToLevelshot(new Vector4()
+                        {
+                            X = snap.PlayerState.Origin[0],
+                            Y = snap.PlayerState.Origin[1],
+                            Z = snap.PlayerState.Origin[2],
+                            W = 1
+                        });
                     }
                     
 
@@ -2477,6 +2510,22 @@ namespace JKWatcher
                         {
                             swingers.Add(i);
                         }
+                    }
+
+
+                    if (intermissionCamSet
+                        && (snap.Entities[snapEntityNum].Position.Base[0] != lastPosition[i].X
+                        || snap.Entities[snapEntityNum].Position.Base[1] != lastPosition[i].Y
+                        || snap.Entities[snapEntityNum].Position.Base[2] != lastPosition[i].Z)
+                        )
+                    {
+                        PrintPositionToLevelshot(new Vector4()
+                        {
+                            X = snap.Entities[snapEntityNum].Position.Base[0],
+                            Y = snap.Entities[snapEntityNum].Position.Base[1],
+                            Z = snap.Entities[snapEntityNum].Position.Base[2],
+                            W = 1
+                        });
                     }
 
 

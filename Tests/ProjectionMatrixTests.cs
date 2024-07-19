@@ -80,5 +80,26 @@ namespace Tests
 
             Assert.IsTrue(true);
         }
+        [TestMethod]
+        public void TestProjectionMatrixYavinCamTarget()
+        {
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f });
+            Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120);
+            Trace.WriteLine($"{m1.ToString()}");
+            Trace.WriteLine($"{m2.ToString()}");
+            //m1 = Matrix4x4.Transpose(m1);
+            //m2 = Matrix4x4.Transpose(m2);
+            Matrix4x4 m3 = Matrix4x4.Multiply(m1, m2);
+            //Trace.WriteLine($"{m.ToString()}");
+            Vector4 v1 = new Vector4() { X = -724, Y = 1724, Z = 140, W = 1 };
+            v1 = Vector4.Transform(v1, m3);
+            Trace.WriteLine($"{(v1).ToString()}");
+            v1 /= v1.W;
+            Trace.WriteLine($"{(v1).ToString()}");
+
+            Assert.IsTrue(v1.X < 0.01f);
+            Assert.IsTrue(v1.Y < 0.01f);
+            Assert.IsTrue(true);
+        }
     }
 }
