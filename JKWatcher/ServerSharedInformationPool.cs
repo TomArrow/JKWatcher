@@ -705,10 +705,19 @@ namespace JKWatcher
         public const int levelShotWidth = 1920;
         public const int levelShotHeight = 1080;
         public float[,] levelShot = new float[levelShotWidth, levelShotHeight];
+        public float[,] levelShotThisGame = new float[levelShotWidth, levelShotHeight];
 
-        public void resetLevelShot()
+        public void resetLevelShot(bool thisGame, bool normal)
         {
-            levelShot = new float[1920, 1080];
+            if (thisGame)
+            {
+                levelShotThisGame = new float[1920, 1080];
+            }
+            if (normal)
+            {
+
+                levelShot = new float[1920, 1080];
+            }
         }
 
         public int getProbableRetCount(int clientNum)

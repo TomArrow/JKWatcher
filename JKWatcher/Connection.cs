@@ -2048,9 +2048,12 @@ namespace JKWatcher
                 if(posX >= 0 && posX < ServerSharedInformationPool.levelShotWidth && posY >= 0 && posY < ServerSharedInformationPool.levelShotHeight)
                 {
                     infoPool.levelShot[posX, posY] += 1.0f;
+                    infoPool.levelShotThisGame[posX, posY] += 1.0f;
                 }
             }
         }
+
+
 
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
@@ -2098,6 +2101,7 @@ namespace JKWatcher
                 {
                     intermissionCamAutoDetectImpossible = true; // we are following someone. so any spectator cam we get at this point might be at some random point and not intermission position. this resets wwith map restart or map change
                 }
+                bool amInGame = snap.PlayerState.Persistant[3] != 3 && snap.PlayerState.ClientNum == client?.clientNum;
                 bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && !intermissionCamAutoDetectImpossible;
 
                 if (!intermissionCamSet &&
@@ -2126,7 +2130,7 @@ namespace JKWatcher
                     intermissionCamSet = true;
                 }
 
-                if (intermissionCamAutoDetectImpossible && !intermissionCamSet && (DateTime.Now- lastIntermissionCamCachedReadTry).TotalSeconds > 10)
+                if ((amInGame || intermissionCamAutoDetectImpossible) && !intermissionCamSet && (DateTime.Now- lastIntermissionCamCachedReadTry).TotalSeconds > 10)
                 {
                     // Do we have it already saved?
                     IntermissionCamPosition savedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(oldMapName);
@@ -2176,10 +2180,14 @@ namespace JKWatcher
             scoreRedOld = scoreRed;
             scoreBlueOld = scoreBlue;
 
-            if (changedToIntermission && this.IsMainChatConnection && !_connectionOptions.silentMode)
+            if (changedToIntermission && this.IsMainChatConnection)
             {
-                string glicko2String = MakeGlicko2RatingsString(true,true);
-                leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2{Glicko2Version}: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                serverWindow.SaveLevelshot(infoPool.levelShotThisGame);
+                if (!_connectionOptions.silentMode)
+                {
+                    string glicko2String = MakeGlicko2RatingsString(true, true);
+                    leakyBucketRequester.requestExecution($"say \"   ^7^0^7Top Glicko2{Glicko2Version}: {glicko2String}\"", RequestCategory.AUTOPRINTSTATS, 5, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
+                }
             }
 
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
@@ -3391,6 +3399,7 @@ namespace JKWatcher
 
         private void resetThisGameStats()
         {
+            infoPool.resetLevelShot(true, false);
             firstSpectatorSnapshotOfThisMapReceived = false;
             intermissionCamAutoDetectImpossible = false;
             CommitRatings();
@@ -3522,6 +3531,7 @@ namespace JKWatcher
             if(obj.MapName != oldMapName)
             {
                 intermissionCamSet = false;
+                infoPool.resetLevelShot(false,true);
                 resetAllFrozenStatus();
                 resetThisGameStats();
                 executeMapChangeCommands = true;

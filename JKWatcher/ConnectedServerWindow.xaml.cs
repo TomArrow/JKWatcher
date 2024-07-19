@@ -2845,9 +2845,9 @@ namespace JKWatcher
         }
 
         private const float invGamma = 1f / 2.4f;
-        private void SaveLevelshot(float[,] levelshotData)
+        public void SaveLevelshot(float[,] levelshotData)
         {
-
+            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
             float[,] levelshotDataLocal = (float[,])levelshotData.Clone();
             TaskManager.TaskRun(()=> {
                 int width = levelshotDataLocal.GetLength(0);
@@ -2898,7 +2898,6 @@ namespace JKWatcher
                 bmp = Helpers.ByteArrayToBitmap(bi);
                 string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
                 Directory.CreateDirectory(imagesSubDir);
-                string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+"_"+ (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
                 filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
                 filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
                 bmp.Save(filenameString);
