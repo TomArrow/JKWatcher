@@ -2096,7 +2096,7 @@ namespace JKWatcher
                     intermissionCamAngles.Y = snap.PlayerState.ViewAngles[1];
                     intermissionCamAngles.Z = snap.PlayerState.ViewAngles[2];
                     AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition() { 
-                        MapName = oldMapName, 
+                        MapName = oldMapName.ToLowerInvariant(), 
                         posX = intermissionCamPos.X, 
                         posY = intermissionCamPos.Y, 
                         posZ = intermissionCamPos.Z, 

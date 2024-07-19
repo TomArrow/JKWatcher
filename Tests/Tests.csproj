@@ -1,9 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net5.0-windows</TargetFramework>
 
     <IsPackable>false</IsPackable>
+
+    <ApplicationIcon />
+
+    <OutputType>WinExe</OutputType>
+
+    <StartupObject />
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\glicko2-csharp\Glicko2.csproj" />
+    <ProjectReference Include="..\JKWatcher\JKWatcher.csproj" />
   </ItemGroup>
 
 </Project>

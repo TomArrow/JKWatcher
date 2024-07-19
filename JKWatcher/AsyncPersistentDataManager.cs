@@ -93,14 +93,16 @@ namespace JKWatcher
 
                         db.CreateTable<T>();
                         db.BeginTransaction();
-                        foreach (T entry in itemsToPersist)
+                        while(itemsToPersist.Count > 0)
                         {
-                            if (items.Values.Contains(entry))
+                            while (itemsToPersist.TryTake(out T entry))
                             {
-                                db.InsertOrReplace(entry);
+                                if (items.Values.Contains(entry))
+                                {
+                                    db.InsertOrReplace(entry);
+                                }
                             }
                         }
-                        itemsToPersist.Clear();
                         db.Commit();
                         db.Close();
                         db.Dispose();
