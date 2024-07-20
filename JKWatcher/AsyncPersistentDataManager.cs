@@ -215,7 +215,7 @@ namespace JKWatcher
                 CommitStuffIfNeeded();
                 if((DateTime.Now-lastRead).TotalMinutes > 5)
                 {
-                    LoadData();
+                    LoadData(); // TODO Make it check date modified?
                 }
             }
         }

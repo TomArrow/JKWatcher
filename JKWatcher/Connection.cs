@@ -43,7 +43,7 @@ namespace JKWatcher
 
         //CS_GAME_VERSION = 20,
         //CS_LEVEL_START_TIME = 21,       // so the timer only shows the current level
-        //CS_INTERMISSION = 22,       // when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
+        CS_INTERMISSION = 22,       // when 1, fraglimit/timelimit has been hit and intermission will start in a second or two
         CS_FLAGSTATUS = 23,     // string indicating flag status in CTF
         //CS_SHADERSTATE = 24,
         //CS_BOTINFO = 25,
@@ -2014,6 +2014,8 @@ namespace JKWatcher
         }
 
         private bool firstSpectatorSnapshotOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
+        // private bool firstNonIntermissionOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
+        private bool intermissionCSReceived = false;
         public bool intermissionCamSet { get; set; } = false;
         public bool intermissionCamTrueIntermission { get; set; } = false;
         DateTime lastIntermissionCamCachedReadTry = DateTime.Now - new TimeSpan(10,0,0);
@@ -2094,7 +2096,9 @@ namespace JKWatcher
             lastSnapshot = snap;
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
-            bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission;
+
+            int csIntermission = client.GetMappedConfigstring(ClientGame.Configstring.Intermission).Atoi();
+            bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission && (intermissionCSReceived || csIntermission > 0); // Gotta see whether after last game restart we received the cs 22 1 command basically. nwh (and maybe others) set it to 1 but immediately empty it again afterwards (why?)  /////Gotta check CS too because playerstate can stay on intermission after mapchange, tricking us into taking levelshot pos from previous level
             bool changedToIntermission = isIntermission && !wasIntermission;
             wasIntermission = isIntermission;
             infoPool.isIntermission = isIntermission;
@@ -2129,7 +2133,7 @@ namespace JKWatcher
                 bool forceLoadSavedPosition = false;
 
                 if ((!intermissionCamSet && (canGetIntermissionCamFromSpectatorView || isIntermission))
-                    || (isIntermission && !intermissionCamTrueIntermission)
+                    || (isIntermission && !intermissionCamTrueIntermission /*&& firstNonIntermissionOfThisMapReceived*/)
                 )
                 {
                     Vector3 pos = new Vector3() { X = snap.PlayerState.Origin[0], Y = snap.PlayerState.Origin[1], Z = snap.PlayerState.Origin[2] };
@@ -2187,6 +2191,10 @@ namespace JKWatcher
                 {
                     firstSpectatorSnapshotOfThisMapReceived = true;
                 }
+                //if(snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission)
+                //{
+                //    firstNonIntermissionOfThisMapReceived = true;
+                //}
             }
 
             int scoreRed = client.GetMappedConfigstring(ClientGame.Configstring.Scores1).Atoi();
@@ -3434,6 +3442,8 @@ namespace JKWatcher
         {
             infoPool.resetLevelShot(true, false);
             firstSpectatorSnapshotOfThisMapReceived = false;
+            intermissionCSReceived = false;
+            //firstNonIntermissionOfThisMapReceived = false;
             intermissionCamAutoDetectImpossible = false;
             CommitRatings();
             thisGameRatingCommitCount = 0;
@@ -4237,6 +4247,12 @@ namespace JKWatcher
             {
                 case (int)ConfigStringDefines.CS_FLAGSTATUS:
                     EvaluateFlagStatus(commandEventArgs.Command.Argv(2));
+                    break;
+                case (int)ConfigStringDefines.CS_INTERMISSION: 
+                    if (commandEventArgs.Command.Argv(2).Atoi() > 0)
+                    {
+                        intermissionCSReceived = true; // to make sure we can trust PM_INTERMISSION playermovetype
+                    }
                     break;
                 default:break;
             }
