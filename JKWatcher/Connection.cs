@@ -996,7 +996,7 @@ namespace JKWatcher
         private void Client_MapChangeServerCommandReceived(object sender, EventArgs e)
         {
             serverWindow.addToLog("svc_mapchange received.");
-            lastMapChangeOrMapChangeServerCommand = DateTime.Now;
+            lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -1110,9 +1110,10 @@ namespace JKWatcher
                 return;
             }
 
-            if ((DateTime.Now-lastMapChangeOrMapChangeServerCommand).TotalSeconds <10 && !intermissionCamSet)
+            if (!mohMode && !intermissionCamSet && ((DateTime.Now-lastMapChangeOrMapChangeServerCommandOrGameState).TotalSeconds <10 || modifiableCommand.ServerTime < 10000) )
             {
                 // give ourselves a chance to capture intermission cam cleanly.
+                // intermission cam stuff doesnt work in MOH anyway atm hence !mohMode
                 return;
             }
 
@@ -3472,7 +3473,7 @@ namespace JKWatcher
 
         int thisGameRatingCommitCount = 0;
 
-        DateTime lastMapChangeOrMapChangeServerCommand = DateTime.Now;
+        DateTime lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
 
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
@@ -3562,6 +3563,10 @@ namespace JKWatcher
             }
 
             bool executeMapChangeCommands = newGameState;
+            if (newGameState)
+            {
+                lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
+            }
             if(obj.MapName != oldMapName)
             {
                 if(!string.IsNullOrWhiteSpace(oldMapName))
@@ -3581,7 +3586,7 @@ namespace JKWatcher
                 }
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
-                lastMapChangeOrMapChangeServerCommand = DateTime.Now;
+                lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
             }
             if (executeMapChangeCommands && this.HandleAutoCommands)
             {

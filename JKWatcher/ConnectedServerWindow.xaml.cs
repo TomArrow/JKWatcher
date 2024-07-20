@@ -240,6 +240,7 @@ namespace JKWatcher
             public bool autoUpgradeToCTFWithStrobe { get; set; } = false;
 
             public bool netDebug { get; set; } = false;
+            public bool fightDebug { get; set; } = false;
 
             public bool attachClientNumToName { get; set; } = true;
             public bool demoTimeColorNames { get; set; } = true;

@@ -421,7 +421,10 @@
                                 </WrapPanel>
                             </StackPanel>
                             <!--<CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>-->
-                            <CheckBox x:Name="netDebugCheck" IsChecked="{Binding netDebug,Mode=TwoWay}">NetDebug</CheckBox>
+                            <WrapPanel>
+                                <CheckBox x:Name="netDebugCheck" IsChecked="{Binding netDebug,Mode=TwoWay}">NetDbg</CheckBox>
+                                <CheckBox IsChecked="{Binding fightDebug,Mode=TwoWay}">FightDbg</CheckBox>
+                            </WrapPanel>
                         </StackPanel>
                     </TabItem>
                 </TabControl>

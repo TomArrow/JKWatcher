@@ -160,7 +160,16 @@ namespace JKWatcher
 					infoPool.sillyMode = isDuelMode ? SillyMode.SILLY : SillyMode.GRIPKICKDBS;
 					oldIsDuelMode = isDuelMode;
 				}
-				DoSillyThingsReal(ref userCmd, in previousCommand, infoPool.sillyMode);
+				StringBuilder debugLine = _connectionOptions.fightDebug ? new StringBuilder() : null;
+				DoSillyThingsReal(ref userCmd, in previousCommand, infoPool.sillyMode, debugLine);
+				if(debugLine != null)
+                {
+					string debugLineString = debugLine.ToString();
+                    if (!string.IsNullOrWhiteSpace(debugLineString))
+                    {
+						Helpers.logToSpecificDebugFile(new string[] { debugLineString }, "fightDebug.log", true);
+					}
+                }
 			}
 		}
 
@@ -324,11 +333,13 @@ namespace JKWatcher
 		Vector3 veryStuckRandomDirection = new Vector3();
         #endregion
 
-        private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode)
+        private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
 		{
 
 			int myNum = ClientNum.GetValueOrDefault(-1);
 			if (myNum < 0 || myNum > infoPool.playerInfo.Length) return;
+
+			debugLine?.Append($"{userCmd.ServerTime}");
 
 			intermissionCamAutoDetectImpossible = true; // this will ruin at the very least our watch angle. Even if we are forced to spec, it's likely that the movement that we already sent before has ruined our possibility of cleanly detecting levelshot position.
 			// might need some more logic to deal with map changes and such. not sure. let's go with this for now.
@@ -347,6 +358,7 @@ namespace JKWatcher
 			List<PlayerInfo> grippingPlayers = new List<PlayerInfo>();
 
 			Vector3 myPosition = myself.position;
+			Vector3 myPositionRawUnpredicted = myself.position;
 
             if (infoPool.deluxePredict > 0.0f)
             {
@@ -384,6 +396,8 @@ namespace JKWatcher
 				{
 					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // Switch saber off.
 				}
+
+				debugLine?.Append("; calmsay");
 				return;
 			}
 
@@ -407,6 +421,7 @@ namespace JKWatcher
 					if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
 						leakyBucketRequester.requestExecution("kill", RequestCategory.FIGHTBOT, 0, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
 						lastTimeFastMove = DateTime.Now;
+						debugLine?.Append("; kms");
 						return;
 					}
 				} else if ((DateTime.Now - lastTimeFastMove).TotalSeconds > 10 && wayPointsToWalk.Count > 0 && myself.groundEntityNum == Common.MaxGEntities - 2)
@@ -497,6 +512,7 @@ namespace JKWatcher
 						stuckDetectRandomDirectionSet = false;
 					}
 					lastStuckDetectReset = DateTime.Now;
+					debugLine?.Append("; stuckreset");
 				}
 			}
 
@@ -689,6 +705,7 @@ namespace JKWatcher
 			}
 
 			Vector3 closestPlayerPosition = closestPlayer.position;
+			Vector3 closestPlayerPositionRawUnpredicted = closestPlayer.position;
             if (infoPool.deluxePredict > 0.0f)
             {
 				DateTime? lastFullPosUpdate = closestPlayer.lastFullPositionUpdate;
@@ -789,7 +806,13 @@ namespace JKWatcher
 			bool releaseGrip = false;
 			bool doPull = false;
 
-			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + myMax + hisMin + 10.0f) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
+			float standingOnTopTolerance = 5.0f;
+
+			//bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + myMax + hisMin + 10.0f) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 5.0f);
+			bool heIsStandingOnTopOfMe = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + myMax + hisMin + standingOnTopTolerance) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
+			bool heIsStandingOnTopOfMyFullHeight = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + 40 + hisMin + standingOnTopTolerance) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
+			//bool heIsStandingOnTopOfMyFullHeightUnpredicted = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPositionRawUnpredicted.Z <= (myPositionRawUnpredicted.Z + 40 + hisMin + 10.0f) && closestPlayerPositionRawUnpredicted.Z > (myPositionRawUnpredicted.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
+			//bool heIsStandingOnTopOfMeUnpredicted = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPositionRawUnpredicted.Z <= (myPositionRawUnpredicted.Z + myMax + hisMin + 8.0f) && closestPlayerPositionRawUnpredicted.Z > (myPositionRawUnpredicted.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
 			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z > (closestPlayerPosition.Z - hisMin) && myPosition.Z < (closestPlayerPosition.Z + hisMax);
 			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody && !amGripped; // Don't dbs while gripped. Is it even possible?
 			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z < (closestPlayerPosition.Z - hisMin) && (myPosition.Z + 96) > (closestPlayerPosition.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
@@ -808,6 +831,8 @@ namespace JKWatcher
 						leakyBucketRequester.requestExecution(wayPointsToWalk[0].command, RequestCategory.FIGHTBOT_WAYPOINTCOMMAND, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
 					}
 					wayPointsToWalk.RemoveAt(0);
+
+					debugLine?.Append("; waypointcommand");
 					return;
 				}
 
@@ -815,6 +840,7 @@ namespace JKWatcher
 				if ((enemyLikelyOnSamePlane || dbsPossible) && !inAntiStuckCooldown)
 				{
 					wayPointsToWalk.Clear();
+					debugLine?.Append("; breakWaypoints");
 				}
 
 				hadWayPoints = wayPointsToWalk.Count > 0;
@@ -822,6 +848,7 @@ namespace JKWatcher
                 {
 					// Special case: We have reached the waypoint horizontally but we are way above it and we are standing on ground. We likely got lost/stuck.
 					wayPointsToWalk.Clear();
+					debugLine?.Append("; breakWaypointsLost");
 				}
 
 				bool weAreOverjumping = false;
@@ -1028,33 +1055,41 @@ namespace JKWatcher
 					// Already in air. Jump a bit higher than needed to get over potential obstacles.
 					mustJumpToReachWayPoint = true;
 				}
+
+				debugLine?.Append("; walkWaypoints");
 			}
             else if (amGripped && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 0 && !isLightsideMode)
             {
 				// TODO exception when gripping myself?
 				PlayerInfo guessedGrippingPlayer = grippingPlayers[(int)(sillyflip % grippingPlayers.Count)];
 				moveVector = guessedGrippingPlayer.position - myViewHeightPos;
-            }
+				debugLine?.Append("; amgripped-setdir");
+			}
 			else if (amCurrentlyDbsing)
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
+				debugLine?.Append("; amdbsingmovevector");
 			} else if (infoPool.sillyModeOneOf(SillyMode.DBS, SillyMode.GRIPKICKDBS,SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED) && dbsPossible && ((lastPlayerState.GroundEntityNum == Common.MaxGEntities - 1) || (infoPool.fastDbs && lastFrameWasJumpCommand)) )
             {
 				moveVector = vecToClosestPlayer; // For the actual triggering of dbs we need to be precise
 				moveVector.Z += hisMax - myMax;
+				debugLine?.Append("; setDirectionForDbsStart");
 			}
 			else if (!infoPool.sillyModeOneOf(SillyMode.SILLY, SillyMode.LOVER, SillyMode.CUSTOM) && heIsStandingOnTopOfMe && meIsDucked)
 			{
 				forceKick = true;
+				debugLine?.Append("; forcekick");
 			}
 			else if (gripkickMode && gripPossible)
 			{
 				moveVector = viewHeightMoveVector;
+				debugLine?.Append("; grippossibleViewHeightVector");
 			}
 			else if (gripkickMode && pullPossible && closestDistance < 400 && !gripPossibleDistanceWise && !amGripping && lastPlayerState.forceData.ForcePower >= 40)
 			{
 				doPull = true;
+				debugLine?.Append("; dopull");
 				//moveVector = closestPlayerPosition - myPosition;
 			}
 			else if (gripkickMode && grippingSomebody)
@@ -1063,26 +1098,31 @@ namespace JKWatcher
 				if(vecToClosestPlayer2D.Length() >= 15 || closestPlayerPosition.Z < (myPosition.Z+myMax+hisMin-1.0f)) // -1.0f to give some leniency to floating point precision?
                 {
 					gripForcePitchUp = true;
-				//} else if (closestPlayer.groundEntityNum != myself.clientNum)
-				} else if (closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin + 10.0f))
+					debugLine?.Append("; gripPitchUp");
+					//} else if (closestPlayer.groundEntityNum != myself.clientNum)
+				} else if (closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin + standingOnTopTolerance))
                 {
 					gripForcePitchDown = true;
-				//} else if (!enemyIsKnockedDown)
-                //{
-				//	gripForceKick = true;
+					debugLine?.Append("; gripPitchDown");
+					//} else if (!enemyIsKnockedDown)
+					//{
+					//	gripForceKick = true;
 				} else
                 {
 					releaseGrip = true;
+					debugLine?.Append("; gripReleaseGrip");
 				}
 			}
 			else if (sillyMode == SillyMode.LOVER && kissPossible)
             {
 				moveVector = viewHeightMoveVector;
+				debugLine?.Append("; lovedkisspossible");
 			}
 			else if (sillyMode == SillyMode.CUSTOM && kissPossible)
             {
 				moveVector = viewHeightMoveVector;
-            }
+				debugLine?.Append("; customkisspossible");
+			}
 			else if (dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
@@ -1091,9 +1131,12 @@ namespace JKWatcher
 				if(strafe && !dbsPossible)
                 {
 					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(closestPlayerPosition + closestPlayer.velocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
-				} else
+					debugLine?.Append("; strafetoPosPlus1second");
+				}
+				else
                 {
 					moveVector = (closestPlayerPosition + closestPlayer.velocity) - myPositionMaybePredicted;
+					debugLine?.Append("; movetoPosPlus1second");
 				}
 			} else
             {
@@ -1124,19 +1167,23 @@ namespace JKWatcher
                     if (strafe && !dbsPossible)
                     {
 						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						debugLine?.Append("; strafetoPosPlus1second_failedSolution");
 					} else
                     {
 						moveVector = targetPos - myPositionMaybePredicted;
-                    }
+						debugLine?.Append("; movetoPosPlus1second_failedSolution");
+					}
                 }
                 else
                 {
 					if(strafe && !dbsPossible)
 					{
 						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayerPosition.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						debugLine?.Append("; strafetoIntercept");
 					} else
                     {
 						moveVector = new Vector3() { X = moveVector2d.X, Y = moveVector2d.Y, Z = moveVector.Z };
+						debugLine?.Append("; moveToIntercept");
 					}
                 }
             }
@@ -1144,7 +1191,8 @@ namespace JKWatcher
 			if((DateTime.Now- lastSaberAttackCycleSent).TotalMilliseconds > 1000 && this.saberDrawAnimLevel != (infoPool.sillyModeOneOf(SillyMode.BLUBS,SillyMode.GRIPKICKBLUBS) ? 1 : 3) && this.saberDrawAnimLevel != -1 && myself.curWeapon == infoPool.saberWeaponNum)
             {
 				userCmd.GenericCmd = (byte)genCmdSaberAttackCycle;
-            }
+				debugLine?.Append("; saberAttackCycle");
+			}
 
 			Vector3 angles = new Vector3();
 			vectoangles(moveVector, ref angles);
@@ -1154,12 +1202,14 @@ namespace JKWatcher
 			{
 				pitchAngle = 0 - this.delta_angles.X;
 				yawAngle += strafeAngleYawDelta;
-            }
+				debugLine?.Append("; amStrafingAngles");
+			}
 
             if (mustJumpToReachWayPoint)
             {
 				userCmd.Upmove = 127;
-            }
+				debugLine?.Append("; jumpToWaypoint");
+			}
 			else if (sillyMode == SillyMode.WALKWAYPOINTS)
 			{
 				// Nothing to do.
@@ -1167,10 +1217,12 @@ namespace JKWatcher
                 {
 					userCmd.ForwardMove = 127;
 				}
+				debugLine?.Append("; walkWayPoints");
 			}
 			else if (sillyMode == SillyMode.LOVER)
 			{
 
+				debugLine?.Append("; lovermode");
 				amGripping = false;
 				if (closestDistance < 100 && userCmd.GenericCmd == 0)
                 {
@@ -1193,12 +1245,14 @@ namespace JKWatcher
 						leakyBucketRequester.requestExecution(getNiceRandom(0, 5) == 0 ? "amkiss2" : "amkiss", RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 						kissOrCustomSent = true;
 						kissOrCustomLastSent = DateTime.Now;
+						debugLine?.Append("; kiss");
 					}
 				}
 			}
 			else if (sillyMode == SillyMode.CUSTOM)
 			{
 
+				debugLine?.Append("; custommode");
 				amGripping = false;
 				if (lastPlayerState.SaberHolstered != previousSaberHolstered)
                 {
@@ -1214,6 +1268,7 @@ namespace JKWatcher
 						leakyBucketRequester.requestExecution(infoPool.sillyModeCustomCommand, RequestCategory.FIGHTBOT, 3, 500, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
 						kissOrCustomSent = true;
 						kissOrCustomLastSent = DateTime.Now;
+						debugLine?.Append("; customcmd");
 					}
 				}
 			}
@@ -1237,17 +1292,21 @@ namespace JKWatcher
 						break;
 				}
 
+				debugLine?.Append("; sillymode");
 				if (sillyAttack)
 				{
+					debugLine?.Append("; sillyattack");
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
 			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS, SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED))
             {
 
-                if (!amStrafing)
+				debugLine?.Append("; dbsmode");
+				if (!amStrafing)
                 {
 					userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+					debugLine?.Append("; nostrafeforward");
 				}
 				
 				// For lightside, this doesn't need to be part of the general if-else statements because we can still do other stuff while activating absorb
@@ -1256,16 +1315,19 @@ namespace JKWatcher
                     if (sillyAttack)
 					{
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_ABSORB;
+						debugLine?.Append("; doabsorb");
 					}
 				}
 
 				if (amGripped && !isLightsideMode && grippingPlayers.Count > 0 && lastPlayerState.forceData.ForcePower > 20)
-                {
+				{
+					debugLine?.Append("; amgripped");
 					amGripping = false;
                     if (sillyAttack)
                     {
 						doingGripDefense = true;
 						userCmd.GenericCmd = (weAreChoking || blackListedPlayerIsNearby) ? (byte)GenericCommandJK2.FORCE_THROW : (byte)GenericCommandJK2.FORCE_PULL;
+						debugLine?.Append("; pushOrPull");
 					}
                 } 
 				else if (!amInAttack /*&& !amCurrentlyDbsing*/)
@@ -1281,6 +1343,7 @@ namespace JKWatcher
 						// Check if we are moving in the right direction
 						// Because once we are in the air, we can't change our direction anymore.
 
+						debugLine?.Append("; checkdbsangle");
 						Vector2 myVelocity2D = new Vector2() { X=myself.velocity.X, Y=myself.velocity.Y};
 						Vector2 moveVector2D = new Vector2() { X = moveVector.X, Y = moveVector.Y };
 						Vector2 moveVector2DNormalized = Vector2.Normalize(moveVector2D);
@@ -1291,6 +1354,7 @@ namespace JKWatcher
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
+							debugLine?.Append("; dbsjump");
 						} else if ((dot < 150 && !amInRageCoolDown && 150 < maxSpeed) || (dot < 110 && amInRageCoolDown && 110 < maxSpeed))
                         {
 							// We're slower than a backflip anyway.
@@ -1298,64 +1362,84 @@ namespace JKWatcher
 							userCmd.ForwardMove = -128;
 							yawAngle += 180;
 							userCmd.Upmove = 127;
+							debugLine?.Append("; backflip");
 						}
 
 					}
 					else if (dbsPossible)
 					{
-                        // Do dbs
-                        if (!bsModeActive) // In bs mode, don't crouch
+						debugLine?.Append("; dbspossible");
+						// Do dbs
+						if (!bsModeActive) // In bs mode, don't crouch
                         {
 							userCmd.Upmove = -128;
+							debugLine?.Append("; bsdontcrouch");
 						}
 						yawAngle += 180;
 						//pitchAngle -= 180; // Eh..
 						userCmd.ForwardMove = -128;
 						if (sillyAttack)
 						{
+							debugLine?.Append("; dbsattack");
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 						}
 					} else if (gripkickMode && gripForcePitchUp) // Look up
 					{
+						debugLine?.Append("; griplookup");
 						userCmd.ForwardMove = 0;
 						amGripping = true;
 						userCmd.Upmove = -128; // Crouch
 						pitchAngle = -89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
 					} else if (gripkickMode && gripForcePitchDown) // Look down
 					{
+						debugLine?.Append("; griplookdown");
 						userCmd.ForwardMove = 0;
 						amGripping = true;
 						userCmd.Upmove = -128; // Crouch
 						pitchAngle = 89 - this.delta_angles.X; // Not sure if 90 is safe (might cause weird math issues?)
 					} else if (!infoPool.sillyModeOneOf(SillyMode.SILLY, SillyMode.LOVER, SillyMode.CUSTOM) && forceKick) // Kick enemy
 					{
+						debugLine?.Append("; gripforcekick");
 						userCmd.ForwardMove = 127;
                         if (sillyAttack) // On off quickly
-                        {
+						{
+							debugLine?.Append("; jump");
 							userCmd.Upmove = 127;
 						} else
-                        {
+						{
+							debugLine?.Append("; crouch");
 							userCmd.Upmove = -128; // Crouch
 						}
 						amGripping = false;
 					} else if (gripkickMode && releaseGrip) // Release him and then we can dbs
 					{
+						debugLine?.Append("; releasegrip");
 						userCmd.ForwardMove = 127;
-                        if (sillyAttack) // On off quickly
-                        {
-							userCmd.Upmove = 127; // Jump diretly? idk
-						}
+                        //if (sillyAttack) // On off quickly
+						//{
+						//	debugLine?.Append("; jumpdirectly");
+						//	userCmd.Upmove = 127; // Jump diretly? idk
+						//}
 						amGripping = false;
 					}
 					else if (!infoPool.sillyModeOneOf(SillyMode.SILLY,SillyMode.LOVER,SillyMode.CUSTOM) && heIsStandingOnTopOfMe && !meIsDucked) // Release him and then we can dbs
 					{
+						debugLine?.Append("; standingonmeDuckNow");
+						userCmd.ForwardMove = 0;
+						userCmd.Upmove = -128;
+						amGripping = false;
+					}
+					else if (!infoPool.sillyModeOneOf(SillyMode.SILLY,SillyMode.LOVER,SillyMode.CUSTOM) && heIsStandingOnTopOfMyFullHeight && meIsDucked && !heIsStandingOnTopOfMe) // Not quite on top of me for purposes of kicking yet but lets keep crouching
+					{
+						debugLine?.Append("; standingonmyFullHeightDuckedDuckNow");
 						userCmd.ForwardMove = 0;
 						userCmd.Upmove = -128;
 						amGripping = false;
 					}
 					else if(gripkickMode && gripPossible)
 					{
+						debugLine?.Append("; grippossible");
 						personImTryingToGrip = closestPlayer.clientNum;
 
 						Int64 myClientNums = serverWindow.getJKWatcherClientNumsBitMask();
@@ -1381,31 +1465,43 @@ namespace JKWatcher
 								}
                             }
                         }
-                        if (!someoneIsInTheWay) 
-                        {
+                        if (!someoneIsInTheWay)
+						{
+							debugLine?.Append("; nobodyinwayGripping");
 							amGripping = true;
+                        }
+                        else
+                        {
+							debugLine?.Append("; otherplayerobstructing");
 						}
 
 					} else if(gripkickMode && doPull)
 					{
+						debugLine?.Append("; dopull");
 						personImTryingToGrip = closestPlayer.clientNum;
 						amGripping = false;
 						if(canUseNonRageSpeedPowers) userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_PULL;
 
 					} else
 					{
+						debugLine?.Append("; elseStopGrip");
 						amGripping = false;
 					}
 				}
-				else if(amCurrentlyDbsing) 
+				else if(amCurrentlyDbsing)
 				{
-					if(infoPool.sillyModeOneOf(SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS))
+					debugLine?.Append("; amDbsing");
+					if (infoPool.sillyModeOneOf(SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS))
                     {
+
+						debugLine?.Append("; bluebsaimback");
 						// Blue bs we just aim back
 						yawAngle += 180;
 						//pitchAngle -= 180; // Eh..
 						pitchAngle += (-angles.X) - angles.X; // Reverse the angle? Not sure if logically consistent. Wanna aim at the person
-					} else { 
+					} else {
+
+						debugLine?.Append("; rotateme");
 						float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
 						float maxRotationPerMillisecond = 160.0f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
 						float maxVertRotationPerMillisecond = 3.5f / serverFrameDuration; // -20 to have a slow alternation of the angle to cover all sides. must be under 180 i think to be reasonable. 180 would just have 2 directions forever in theory.
@@ -1426,6 +1522,7 @@ namespace JKWatcher
 					amGripping = false;
 				} else
 				{
+					debugLine?.Append("; elsesillyflip");
 					amGripping = false;
 					switch (sillyflip %4)
 					{
@@ -1449,6 +1546,7 @@ namespace JKWatcher
 					{
 						if (sillyAttack)
 						{
+							debugLine?.Append("; sillyattack");
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 						}
@@ -1460,80 +1558,95 @@ namespace JKWatcher
 			// Light side stuff
 			if (sillyMode == SillyMode.MINDTRICKSPEED)
 			{
+				debugLine?.Append("; mindtrickspeedmode");
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
 					if (!amInSpeed && lastPlayerState.forceData.ForcePower >= 50 && closestDistance < 700)
 					{
 						// Go Speed
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; dospeed");
 					}
 					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInMindTrick || closestDistance > 700))
 					{
 						// Disable speed unless in rage
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; stopspeed");
 					} else if (!amInMindTrick && lastPlayerState.forceData.ForcePower > 0 && closestDistance < 700)
                     {
 						// Enable mindtrick
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_DISTRACT;
+						debugLine?.Append("; dodistract");
 					}  else if (amInMindTrick && !amInSpeed && closestDistance > 700)
                     {
 						// Enable mindtrick
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_DISTRACT;
+						debugLine?.Append("; stopdistract");
 					} 
 				}
 			}
 			// Conservative speed usage.
 			else if (sillyMode == SillyMode.ABSORBSPEED)
 			{
+				debugLine?.Append("; absorbspeedmode");
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
 					if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100 && closestDistance < 700)
 					{
 						// Go Speed
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; startspeed");
 					}
 					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInAbsorb || closestDistance > 700))
 					{
 						// Disable speed unless in absorb
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; stopspeed");
 					} else if (!amInSpeed && closestDistance > 500 && amInAbsorb)
                     {
 						// Disable absorb
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_ABSORB;
+						debugLine?.Append("; stopabsorb");
 					} 
 				}
 			}
 			// Conservative speed usage.
 			else if ((gripkickMode && infoPool.gripDbsMode == GripKickDBSMode.SPEED) || sillyMode == SillyMode.LOVER)
-            {
+			{
+				debugLine?.Append("; loverOrSpeedDbsMode");
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
 					if (!amInRage && lastPlayerState.Stats[0] > 1 && lastPlayerState.Stats[0] < 50 && closestDistance < 500)
 					{
 						// Go rage
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_RAGE;
+						debugLine?.Append("; ragestart");
 					}
 					else if (amInRage && (closestDistance > 500 || lastPlayerState.Stats[0] > 50))
 					{
 						// Disable rage if nobody within 500 units
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_RAGE;
+						debugLine?.Append("; ragestop");
 					}
 					else if (!amInSpeed && lastPlayerState.forceData.ForcePower == 100 && closestDistance < 700)
 					{
 						// Go Speed
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; speedstart");
 					}
 					else if (amInSpeed && (lastPlayerState.forceData.ForcePower < 25 && !amInRage || closestDistance > 700))
 					{
 						// Disable speed unless in rage
 						userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED;
+						debugLine?.Append("; speedstop");
 
 					}
 				}
 			}
 			// Hardcore rage+speed mode.
 			else if(gripkickMode && speedRageModeActive)
-            {
+			{
+				debugLine?.Append("; speedragemode");
 				if (userCmd.GenericCmd == 0) // Other stuff has priority.
 				{
                     if (amInSpeed != amInRage && lastPlayerState.forceData.ForcePower < 50)
@@ -1542,10 +1655,12 @@ namespace JKWatcher
                         if (amInRage)
                         {
 							userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_RAGE; // Deactivate rage
+							debugLine?.Append("; stoprage");
 						}
                         else
                         {
 							userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED; // Deactivate speed
+							debugLine?.Append("; stopspeed");
 						}
                     }
 					// General conditions for trying to go back in ragespeed mode
@@ -1555,15 +1670,18 @@ namespace JKWatcher
                         {
 							// Start with speed.
 							userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED; // activate speed
+							debugLine?.Append("; startspeed");
 						} else if(amInRage != amInSpeed && lastPlayerState.forceData.ForcePower >= 50) // We already checked above but whatever 
                         {
 							if (!amInRage)
 							{
 								userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_RAGE; // activate rage
+								debugLine?.Append("; startrage");
 							}
 							else
 							{
 								userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_SPEED; // activate speed
+								debugLine?.Append("; startspeed");
 							}
 						}
                     }
@@ -1577,57 +1695,70 @@ namespace JKWatcher
 				userCmd.ForwardMove = 0;
 				userCmd.RightMove = 0;
 				lastNavigationJump = DateTime.Now;
+				debugLine?.Append("; navjump");
 			}
 
 
 
 			if (amGripping)
 			{
+				debugLine?.Append("; amgripping");
 				if (canUseNonRageSpeedPowers)
 				{
+					debugLine?.Append("; keepgrip");
 					userCmd.Buttons |= (int)UserCommand.Button.ForceGripJK2;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
 			} else if (lastPlayerState.Stats[0] < 100 && drainPossible && lastPlayerState.forceData.ForcePower > 0 && !amInAttack && !dbsPossible && !movingVerySlowly)
 			{
-                if (canUseNonRageSpeedPowers && !isLightsideMode)
-                {
+				debugLine?.Append("; drainpossible");
+				if (canUseNonRageSpeedPowers && !isLightsideMode)
+				{
+					debugLine?.Append("; dodrain");
 					userCmd.Buttons |= (int)UserCommand.Button.ForceDrainJK2;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				} else if (isLightsideMode && userCmd.GenericCmd == 0)
-                {
+				{
+					debugLine?.Append("; doheal");
 					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_HEAL;
                 }
 			}
 
 			if (lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
-            {
+			{
+				debugLine?.Append("; deadclearpoints");
 				wayPointsToWalk.Clear(); // When dead, always clear waypoints.
 				if (sillyAttack)
 				{
+					debugLine?.Append("; deadattack");
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
 				}
 			} else if (blackListedPlayerIsNearby || strongIgnoreNearby) // If near blacklisted player, don't do anything that could cause damage
-            {
+			{
+				debugLine?.Append("; ignorenearby");
 				userCmd.Buttons = 0;
 				if(!lastPlayerState.SaberHolstered && (DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
 				{
+					debugLine?.Append("; switchoffsaber");
 					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // Switch saber off.
 					lastSaberSwitchCommand = DateTime.Now;
 				} else
 				{
 					userCmd.GenericCmd = (byte)0; // Switch saber off.
+					debugLine?.Append("; switchoffsaber2");
 				}
                 if (doingGripDefense) // Allow grip defense.
                 {
 					userCmd.GenericCmd = (byte)GenericCommandJK2.FORCE_THROW;
+					debugLine?.Append("; allowgripdefense_throw");
 				}
 				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
 			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && ((sillyMode != SillyMode.CUSTOM && sillyMode != SillyMode.LOVER) || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
             {
 				if((DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
-                {
+				{
+					debugLine?.Append("; switchsaberbackon");
 					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
 					lastSaberSwitchCommand = DateTime.Now;
 				} 
@@ -1635,11 +1766,13 @@ namespace JKWatcher
 			}
 
             if (amStrafing)
-            {
+			{
+				debugLine?.Append("; amstrafing");
 				bool wouldOverjump = false;
 				if(Vector3.Dot(Vector3.Normalize(strafeTarget-myPosition), approximateStrafeJumpAirtimeInSeconds * myself.velocity) > nextSharpTurnOrEnd + 32)
                 {
 					wouldOverjump = true;
+					debugLine?.Append("; wouldOJ");
 				} 
 				//if((approximateStrafeJumpAirtimeInSeconds*myself.velocity).Length() > nextSharpTurnOrEnd + 32)
                 //{
@@ -1663,6 +1796,7 @@ namespace JKWatcher
 						else if(canShouldJump)
 						{
 							userCmd.Upmove = 127;
+							debugLine?.Append("; strafejump");
 						}
 					} else if(userCmd.Upmove < 0)
                     {
@@ -1676,6 +1810,7 @@ namespace JKWatcher
 					if(canShouldJump && userCmd.Upmove == 0 /*&& (DateTime.Now - lastTimeInAir).TotalMilliseconds > (lastSnapshot.ping+100)*/) // Stuff can fuck up sometimes with detecting that we jumped
                     {
 						userCmd.Upmove = 127;
+						debugLine?.Append("; strafejump2");
 					}
 					countFramesJumpReleasedThisJump = 0;
 				}

@@ -493,16 +493,15 @@ namespace JKWatcher
                         {
                             if (stringParams.Count == 1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
                             {
+                                float tmp2;
+                                if (float.TryParse(bit, out tmp2)) 
+                                {
+                                    floatParams.Add(tmp2);
+                                }
                                 int tmp;
                                 if (int.TryParse(bit, out tmp)) // dunno why it wouldnt be true but lets be safe
                                 {
                                     numberParams.Add(tmp);
-                                    continue;
-                                }
-                                float tmp2;
-                                if (float.TryParse(bit, out tmp2)) // dunno why it wouldnt be true but lets be safe
-                                {
-                                    floatParams.Add(tmp2);
                                     continue;
                                 }
                             }
