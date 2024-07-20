@@ -802,7 +802,8 @@ namespace JKWatcher
             {
                 if(obj.MapName != lastMapName)
                 {
-                    if(lastMapName != null)
+                    infoPool.resetLevelShot(false, true);
+                    if (lastMapName != null)
                     {
                         mapChangeDetected = true;
                         mapChangeFrom = lastMapName;

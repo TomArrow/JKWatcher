@@ -935,6 +935,7 @@ namespace JKWatcher
             client.InternalTaskStarted += Client_InternalTaskStarted;
             client.ErrorMessageCreated += Client_ErrorMessageCreated;
             client.InternalCommandCreated += Client_InternalCommandCreated;
+            client.MapChangeServerCommandReceived += Client_MapChangeServerCommandReceived;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -990,6 +991,12 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void Client_MapChangeServerCommandReceived(object sender, EventArgs e)
+        {
+            serverWindow.addToLog("svc_mapchange received.");
+            lastMapChangeOrMapChangeServerCommand = DateTime.Now;
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -1101,6 +1108,19 @@ namespace JKWatcher
             if ((DateTime.Now-lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10)
             {
                 return;
+            }
+
+            if ((DateTime.Now-lastMapChangeOrMapChangeServerCommand).TotalSeconds <10 && !intermissionCamSet)
+            {
+                // give ourselves a chance to capture intermission cam cleanly.
+                return;
+            }
+
+            if(lastSnapshot.PlayerState.CommandTime <= 0)
+            {
+                return; 
+                // we havent gotten a proper playerstate from the server yet. let everything catch up. should only take a few milliseconds. 
+                // Thus avoid ruining our start spectating angle for levelshot perspective.
             }
 
             if (durationButtonPress > 0) // For example in MOH not every button press is processed for spectator change. Instead button presses are processed once per server frame. So the only thing we can do to speed things up is to just alternate the button for a duration that in combination with a known sv_fps will give us the amount of changes we need. This is not a precise science or anything and kinda fucked.
@@ -1994,10 +2014,11 @@ namespace JKWatcher
 
         private bool firstSpectatorSnapshotOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
         public bool intermissionCamSet { get; set; } = false;
+        public bool intermissionCamTrueIntermission { get; set; } = false;
         DateTime lastIntermissionCamCachedReadTry = DateTime.Now - new TimeSpan(10,0,0);
         public bool intermissionCamAutoDetectImpossible { get; set; } = false; // we have followed someone. if we now go back to spectator pmt, we can't safely assume that we will get intermission coordinates
-        Vector3 intermissionCamPos = new Vector3();
-        Vector3 intermissionCamAngles = new Vector3();
+        public Vector3 intermissionCamPos { get; private set; }  = new Vector3();
+        public Vector3 intermissionCamAngles { get; private set; }  = new Vector3();
         Matrix4x4 intermissionCamTransform = new Matrix4x4();
 
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
@@ -2104,46 +2125,57 @@ namespace JKWatcher
                 bool amInGame = snap.PlayerState.Persistant[3] != 3 && snap.PlayerState.ClientNum == client?.clientNum;
                 bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && !intermissionCamAutoDetectImpossible;
 
-                if (!intermissionCamSet &&
-                    (
-                        canGetIntermissionCamFromSpectatorView  || isIntermission
-                    )
+                bool forceLoadSavedPosition = false;
+
+                if ((!intermissionCamSet && (canGetIntermissionCamFromSpectatorView || isIntermission))
+                    || (isIntermission && !intermissionCamTrueIntermission)
                 )
                 {
-                    intermissionCamPos.X = snap.PlayerState.Origin[0];
-                    intermissionCamPos.Y = snap.PlayerState.Origin[1];
-                    intermissionCamPos.Z = snap.PlayerState.Origin[2];
-                    intermissionCamAngles.X = snap.PlayerState.ViewAngles[0];
-                    intermissionCamAngles.Y = snap.PlayerState.ViewAngles[1];
-                    intermissionCamAngles.Z = snap.PlayerState.ViewAngles[2];
-                    intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(intermissionCamPos,intermissionCamAngles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
-                    AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition() { 
-                        MapName = oldMapName.ToLowerInvariant(), 
-                        posX = intermissionCamPos.X, 
-                        posY = intermissionCamPos.Y, 
-                        posZ = intermissionCamPos.Z, 
-                        angX = intermissionCamAngles.X, 
-                        angY = intermissionCamAngles.Y, 
-                        angZ = intermissionCamAngles.Z, 
-                    },false);
+                    Vector3 pos = new Vector3() { X = snap.PlayerState.Origin[0], Y = snap.PlayerState.Origin[1], Z = snap.PlayerState.Origin[2] };
+                    Vector3 angles = new Vector3() { X = snap.PlayerState.ViewAngles[0], Y = snap.PlayerState.ViewAngles[1], Z = snap.PlayerState.ViewAngles[2] };
+                    intermissionCamPos = pos;
+                    intermissionCamAngles = angles;
+                    intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
 
                     intermissionCamSet = true;
+                    intermissionCamTrueIntermission = isIntermission;
+
+                    IntermissionCamPosition oldSavedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(oldMapName);
+                    if(oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false && isIntermission)
+                    {
+                        AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition()
+                        {
+                            MapName = oldMapName.ToLowerInvariant(),
+                            posX = intermissionCamPos.X,
+                            posY = intermissionCamPos.Y,
+                            posZ = intermissionCamPos.Z,
+                            angX = intermissionCamAngles.X,
+                            angY = intermissionCamAngles.Y,
+                            angZ = intermissionCamAngles.Z,
+                            trueIntermissionCam = isIntermission
+                        }, true);
+                    } else if (!isIntermission && oldSavedPosition != null && oldSavedPosition.trueIntermissionCam)
+                    {
+                        forceLoadSavedPosition = true;
+                        intermissionCamSet = false;
+                        intermissionCamTrueIntermission = false;
+                    }
+
                 }
 
-                if ((amInGame || intermissionCamAutoDetectImpossible) && !intermissionCamSet && (DateTime.Now- lastIntermissionCamCachedReadTry).TotalSeconds > 10)
+                if ((forceLoadSavedPosition || amInGame || intermissionCamAutoDetectImpossible) && !intermissionCamSet && (DateTime.Now- lastIntermissionCamCachedReadTry).TotalSeconds > 10)
                 {
                     // Do we have it already saved?
                     IntermissionCamPosition savedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(oldMapName);
                     if(savedPosition != null)
                     {
-                        intermissionCamPos.X = savedPosition.posX;
-                        intermissionCamPos.Y = savedPosition.posY;
-                        intermissionCamPos.Z = savedPosition.posZ;
-                        intermissionCamAngles.X = savedPosition.angX;
-                        intermissionCamAngles.Y = savedPosition.angY;
-                        intermissionCamAngles.Z = savedPosition.angZ;
-                        intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(intermissionCamPos, intermissionCamAngles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
+                        Vector3 pos = new Vector3() { X = savedPosition.posX, Y = savedPosition.posY, Z = savedPosition.posZ };
+                        Vector3 angles = new Vector3() { X = savedPosition.angX, Y = savedPosition.angY, Z = savedPosition.angZ };
+                        intermissionCamPos = pos;
+                        intermissionCamAngles = angles;
+                        intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
                         intermissionCamSet = true;
+                        intermissionCamTrueIntermission = savedPosition.trueIntermissionCam;
                     } else
                     {
                         lastIntermissionCamCachedReadTry = DateTime.Now;
@@ -2242,7 +2274,7 @@ namespace JKWatcher
                 weAreSpectatorSlowFalling = false; // idk if this is a thing in moh.
             } else
             {
-                amNotInSpec = snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+                amNotInSpec = snap.PlayerState.CommandTime > 0 && snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Velocity[0] != 0.0f || snap.PlayerState.Velocity[1] != 0.0f || snap.PlayerState.Velocity[2] != 0.0f); // doesnt work as our crouch method affects velocity or idk something something :/
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[0] != lastPosition[snap.PlayerState.ClientNum].X || snap.PlayerState.Origin[1] != lastPosition[snap.PlayerState.ClientNum].Y || snap.PlayerState.Origin[2] != lastPosition[snap.PlayerState.ClientNum].Z);
                 weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[2] < lastPosition[snap.PlayerState.ClientNum].Z);
@@ -3440,6 +3472,8 @@ namespace JKWatcher
 
         int thisGameRatingCommitCount = 0;
 
+        DateTime lastMapChangeOrMapChangeServerCommand = DateTime.Now;
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
@@ -3530,10 +3564,14 @@ namespace JKWatcher
             bool executeMapChangeCommands = newGameState;
             if(obj.MapName != oldMapName)
             {
+                if(!string.IsNullOrWhiteSpace(oldMapName))
+                {
+                    // Only do these in case we didn't just spawn a new connection (which also causes a "map change")
+                    resetAllFrozenStatus();
+                    resetThisGameStats();
+                }
                 intermissionCamSet = false;
-                infoPool.resetLevelShot(false,true);
-                resetAllFrozenStatus();
-                resetThisGameStats();
+                intermissionCamTrueIntermission = false;
                 executeMapChangeCommands = true;
                 string mapNameRaw = obj.MapName;
                 int lastSlashIndex = mapNameRaw.LastIndexOf('/');
@@ -3543,6 +3581,7 @@ namespace JKWatcher
                 }
                 pathFinder = BotRouteManager.GetPathFinder(mapNameRaw);
                 oldMapName = obj.MapName;
+                lastMapChangeOrMapChangeServerCommand = DateTime.Now;
             }
             if (executeMapChangeCommands && this.HandleAutoCommands)
             {
@@ -3944,6 +3983,7 @@ namespace JKWatcher
             client.InternalTaskStarted -= Client_InternalTaskStarted;
             client.ErrorMessageCreated -= Client_ErrorMessageCreated;
             client.InternalCommandCreated -= Client_InternalCommandCreated;
+            client.MapChangeServerCommandReceived -= Client_MapChangeServerCommandReceived;
             clientStatistics = null;
         }
 

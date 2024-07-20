@@ -22,6 +22,7 @@ namespace JKWatcher
 		public float angX { get; set; }
 		public float angY { get; set; }
 		public float angZ { get; set; }
+		public bool trueIntermissionCam { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }

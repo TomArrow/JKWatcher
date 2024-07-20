@@ -270,6 +270,12 @@
                         <WrapPanel>
                             <Label>Intermission cam set:</Label>
                             <CheckBox IsEnabled="False" IsChecked="{Binding intermissionCamSet,Mode=OneWay}"></CheckBox>
+                            <Label ToolTip="True intermission position">(true)</Label>
+                            <CheckBox IsEnabled="False" IsChecked="{Binding intermissionCamTrueIntermission,Mode=OneWay}"></CheckBox>
+                            <Label>Pos:</Label>
+                            <TextBlock IsEnabled="False" Text="{Binding intermissionCamPos,Mode=OneWay}"></TextBlock>
+                            <Label>Ang:</Label>
+                            <TextBlock IsEnabled="False" Text="{Binding intermissionCamAngles,Mode=OneWay}"></TextBlock>
                         </WrapPanel>
                     </StackPanel>
                 </TabItem>

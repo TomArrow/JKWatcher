@@ -330,6 +330,9 @@ namespace JKWatcher
 			int myNum = ClientNum.GetValueOrDefault(-1);
 			if (myNum < 0 || myNum > infoPool.playerInfo.Length) return;
 
+			intermissionCamAutoDetectImpossible = true; // this will ruin at the very least our watch angle. Even if we are forced to spec, it's likely that the movement that we already sent before has ruined our possibility of cleanly detecting levelshot position.
+			// might need some more logic to deal with map changes and such. not sure. let's go with this for now.
+
 			userCmd.forceWriteThisCmd = true;
 
 			PlayerInfo myself = infoPool.playerInfo[myNum];
