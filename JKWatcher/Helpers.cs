@@ -874,21 +874,19 @@ namespace JKWatcher
             return fov_y;//(fov_x,fov_y);
         }
 
-        public static Matrix4x4 createProjectionMatrix(float widthScr, float heightScr, float fovX)
+        public static Matrix4x4 createProjectionMatrix(float widthScr, float heightScr, float fovX, float zFar = 2000, float zNear = 4)
         {
             float[] projectionMatrix = new float[16];
             Vector3[] axis = new Vector3[3];
 
             float xmin, xmax, ymin, ymax;
             float width,height,depth;
-            float zNear, zFar;
+            //float zNear, zFar;
 
 
             //
             // set up projection matrix
             //
-            zNear = 4;// r_znear->value;
-            zFar = 2000;
 
             ymax = zNear * (float)Math.Tan(DEG2RAD(CG_CalcFOVFromX(fovX,widthScr,heightScr) * 0.5f));
             ymin = -ymax;

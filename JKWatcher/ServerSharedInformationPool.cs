@@ -704,19 +704,18 @@ namespace JKWatcher
         public const float levelShotFov = 140;
         public const int levelShotWidth = 1920;
         public const int levelShotHeight = 1080;
-        public float[,] levelShot = new float[levelShotWidth, levelShotHeight];
-        public float[,] levelShotThisGame = new float[levelShotWidth, levelShotHeight];
+        public float[,,] levelShot = new float[levelShotWidth, levelShotHeight,3];
+        public float[,,] levelShotThisGame = new float[levelShotWidth, levelShotHeight,3];
 
         public void resetLevelShot(bool thisGame, bool normal)
         {
             if (thisGame)
             {
-                levelShotThisGame = new float[1920, 1080];
+                levelShotThisGame = new float[levelShotWidth, levelShotHeight, 3];
             }
             if (normal)
             {
-
-                levelShot = new float[1920, 1080];
+                levelShot = new float[levelShotWidth, levelShotHeight, 3];
             }
         }
 

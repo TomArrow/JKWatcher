@@ -2067,22 +2067,34 @@ namespace JKWatcher
         public DateTime lastTemporaryRatingsCommit = DateTime.Now;
 
 
-        private void PrintPositionToLevelshot(Vector4 pos)
+        private void PrintPositionToLevelshot(Vector4 pos, Vector3 color)
         {
             Vector4 levelshotPos = Vector4.Transform(pos, intermissionCamTransform);
+            float theZ = levelshotPos.Z;
             levelshotPos /= levelshotPos.W;
-            if (levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+            if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
             {
                 int posX = (int)(((levelshotPos.X+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotWidth);
                 int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotHeight);
                 if(posX >= 0 && posX < ServerSharedInformationPool.levelShotWidth && posY >= 0 && posY < ServerSharedInformationPool.levelShotHeight)
                 {
-                    infoPool.levelShot[posX, posY] += 1.0f;
-                    infoPool.levelShotThisGame[posX, posY] += 1.0f;
+                    // bgr ordering.
+                    infoPool.levelShot[posX, posY, 0] += color.Z;
+                    infoPool.levelShot[posX, posY, 1] += color.Y;
+                    infoPool.levelShot[posX, posY, 2] += color.X;
+                    infoPool.levelShotThisGame[posX, posY, 0] += color.Z;
+                    infoPool.levelShotThisGame[posX, posY, 1] += color.Y;
+                    infoPool.levelShotThisGame[posX, posY, 2] += color.X;
                 }
             }
         }
 
+        readonly Vector3[] levelshotTeamColors = new Vector3[4] { 
+            new Vector3(0.5f, 1.0f, 0.5f), // Free
+            new Vector3(1.0f, 0.5f, 0.5f), // Red
+            new Vector3(0.5f, 0.5f, 1.0f), // Blue
+            new Vector3(1.0f, 1.0f, 0.5f), // Spectator
+        };
 
 
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
@@ -2379,7 +2391,7 @@ namespace JKWatcher
                             Y = snap.PlayerState.Origin[1],
                             Z = snap.PlayerState.Origin[2],
                             W = 1
-                        });
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team]);
                     }
                     
 
@@ -2584,7 +2596,7 @@ namespace JKWatcher
                             Y = snap.Entities[snapEntityNum].Position.Base[1],
                             Z = snap.Entities[snapEntityNum].Position.Base[2],
                             W = 1
-                        });
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team]);
                     }
 
 

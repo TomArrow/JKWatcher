@@ -2847,10 +2847,11 @@ namespace JKWatcher
         }
 
         private const float invGamma = 1f / 2.4f;
-        public void SaveLevelshot(float[,] levelshotData)
+        private const float invGamma10 = 1f / 10f;
+        public void SaveLevelshot(float[,,] levelshotData)
         {
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
-            float[,] levelshotDataLocal = (float[,])levelshotData.Clone();
+            float[,,] levelshotDataLocal = (float[,,])levelshotData.Clone();
             TaskManager.TaskRun(()=> {
                 int width = levelshotDataLocal.GetLength(0);
                 int height = levelshotDataLocal.GetLength(1);
@@ -2863,12 +2864,15 @@ namespace JKWatcher
                 {
                     for(int y = 0; y < height; y++)
                     {
-                        float valueHere = levelshotDataLocal[x, y];
-                        if (valueHere > 0.0f)
+                        for(int c = 0; c < 3; c++)
                         {
-                            //totalUsedPixelBrightness += valueHere;
-                            //divider++;
-                            brightnessValuesList.Add(valueHere);
+                            float valueHere = levelshotDataLocal[x, y,c];
+                            if (valueHere > 0.0f)
+                            {
+                                //totalUsedPixelBrightness += valueHere;
+                                //divider++;
+                                brightnessValuesList.Add(valueHere);
+                            }
                         }
                     }
                 }
@@ -2887,14 +2891,15 @@ namespace JKWatcher
                 {
                     for (int y = 0; y < height; y++)
                     {
-                        float valueHere = levelshotDataLocal[x, y];
-                        float gammaValue = (float) Math.Pow(valueHere * multiplier, invGamma);
-                        byte byteValue = (byte)Math.Clamp(gammaValue*0.5f*255.0f, 0, 255.0f);
-                        int yInv = height - 1 - y;
-                        int xInv = width - 1 - x;
-                        bi.imageData[bi.stride * yInv + xInv * 3] = byteValue;
-                        bi.imageData[bi.stride * yInv + xInv * 3 +1] = byteValue;
-                        bi.imageData[bi.stride * yInv + xInv * 3 +2] = byteValue;
+                        for(int c= 0; c < 3; c++)
+                        {
+                            float valueHere = levelshotDataLocal[x, y,c];
+                            float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma10) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                            byte byteValue = (byte)Math.Clamp(gammaValue * 0.5f * 255.0f, 0, 255.0f);
+                            int yInv = height - 1 - y;
+                            int xInv = width - 1 - x;
+                            bi.imageData[bi.stride * yInv + xInv * 3 +c] = byteValue;
+                        }
                     }
                 }
                 bmp = Helpers.ByteArrayToBitmap(bi);
