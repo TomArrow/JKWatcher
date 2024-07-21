@@ -224,6 +224,10 @@ Condition types:
 - ```playeractive_matchname```: Matches playernames of players who become active (join a non-spectator team). Condition is a regular expression (C# Regex object) - if it matches the player name, the commands are executed. Usable placeholders in commands are ```$name``` (name of the player whose name matched) and ```$clientnum``` (his client number) and ```$myclientnum``` (our own client number).
 - ```print_contains```: Matches print outputs sent by the server. Condition is a regular expression (C# Regex object) - if it matches the printed string, the commands are executed. No placeholders available. Usable placeholders in commands are ```$myclientnum``` (our own client number).
 
+Special commands that can be used with all condition types:
+- ```levelshot```: Makes levelshot images with player positions heatmap. Since map change.
+- ```levelshotThisGame```: Makes levelshot images with player positions heatmap, only for current game.
+
 #### demoMeta
 
 Additional meta data to always write into demos for this server.

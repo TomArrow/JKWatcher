@@ -2860,7 +2860,7 @@ namespace JKWatcher
                 List<float> brightnessValuesList = new List<float>();
 
                 //double totalUsedPixelBrightness = 0;
-                //double divider = 0;
+                double divider = 0;
                 for(int x = 0; x < width; x++)
                 {
                     for(int y = 0; y < height; y++)
@@ -2871,12 +2871,14 @@ namespace JKWatcher
                             if (valueHere > 0.0f)
                             {
                                 //totalUsedPixelBrightness += valueHere;
-                                //divider++;
+                                divider++;
                                 brightnessValuesList.Add(valueHere);
                             }
                         }
                     }
                 }
+
+                if (divider == 0.0) return;
 
                 //double averageBrightness = totalUsedPixelBrightness / divider;
                 //float multiplier = 1.0f/ (float)averageBrightness;

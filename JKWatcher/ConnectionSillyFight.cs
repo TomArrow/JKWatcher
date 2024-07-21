@@ -336,8 +336,22 @@ namespace JKWatcher
 
 
 
+		private void EnqueueAngleMessages(Vector2[] angleSequence)
+        {
+            lock (angleMessageQueue)
+			{
+				foreach (Vector2 anglePair in angleSequence)
+				{
+					angleMessageQueue.Enqueue(anglePair);
+				}
+				lastTimeAngleMessageQueueChanged = DateTime.Now;
+			}
+		}
+
+
 		Queue<Vector2> angleMessageQueue = new Queue<Vector2>(); // jkwatcherBotStringBytesAngleSequence
 		int angleConfirmedCount = 0;
+		DateTime lastTimeAngleMessageQueueChanged = DateTime.Now;
 		DateTime lastTimeSelfIdentified = DateTime.Now - new TimeSpan(1, 0, 0);
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
 		{
@@ -640,10 +654,7 @@ namespace JKWatcher
 				{
 					if (angleMessageQueue.Count == 0)
 					{
-						foreach (Vector2 anglePair in jkwatcherBotStringBytesAngleSequence)
-						{
-							angleMessageQueue.Enqueue(anglePair);
-						}
+						EnqueueAngleMessages(jkwatcherBotStringBytesAngleSequence);
 						serverWindow.addToLog($"Fightbot: Identifying myself via angle code :)");
 						lastTimeSelfIdentified = DateTime.Now;
 					}

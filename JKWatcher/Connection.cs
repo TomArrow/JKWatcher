@@ -2198,6 +2198,7 @@ namespace JKWatcher
                         if(angleConfirmedCount >= 2)
                         { // Ok this was successfully communicated. Move on to next.
                             angleMessageQueue.Dequeue();
+                            lastTimeAngleMessageQueueChanged = DateTime.Now;
                             angleConfirmedCount = 0;
                             if(angleMessageQueue.Count == 0)
                             {
@@ -2205,6 +2206,10 @@ namespace JKWatcher
                                 serverWindow.addToLog($"Fightbot: Angle message queue empty. All done.");
                             }
                         }
+                    } else if ((DateTime.Now- lastTimeAngleMessageQueueChanged).TotalSeconds > 5)
+                    {
+                        serverWindow.addToLog($"Fightbot: Angle message queue hasn't changed in a while, seems to not be working. Canceling.");
+                        angleMessageQueue.Clear();
                     }
                 }
             }
@@ -3528,7 +3533,16 @@ namespace JKWatcher
                     mutableCmd = saySameCmdRegex.Replace(mutableCmd, (s)=> { // for chat commands we may wanna respond the same way they were sent.
                         return $"{saySame} ";
                     });
-                    if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
+                    string trimmedCmd = mutableCmd.Trim();
+                    if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        serverWindow.SaveLevelshot(infoPool.levelShot);
+                    }
+                    else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame);
+                    }
+                    else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {
                         waitTime += (match.Groups[1].Value?.Atoi()).GetValueOrDefault(0); // This might be a bit overly careful lol.
                     }
