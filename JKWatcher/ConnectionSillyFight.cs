@@ -147,6 +147,7 @@ namespace JKWatcher
 
 		public bool AllowBotFight = false;
 		public bool HandlesFightBotChatCommands = false;
+
 		private void DoSillyThings(ref UserCommand userCmd, in UserCommand previousCommand)
 		{
 			// Of course normally the priority is to get back in spec
@@ -331,9 +332,14 @@ namespace JKWatcher
 		DateTime lastStuckDetectReset = DateTime.Now;
 		bool stuckDetectRandomDirectionSet = false;
 		Vector3 veryStuckRandomDirection = new Vector3();
-        #endregion
+		#endregion
 
-        private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
+
+
+		Queue<Vector2> angleMessageQueue = new Queue<Vector2>(); // jkwatcherBotStringBytesAngleSequence
+		int angleConfirmedCount = 0;
+		DateTime lastTimeSelfIdentified = DateTime.Now - new TimeSpan(1, 0, 0);
+		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
 		{
 
 			int myNum = ClientNum.GetValueOrDefault(-1);
@@ -622,6 +628,40 @@ namespace JKWatcher
 					}
 				}
 			}
+
+			float overridePitch = 0;
+			float overrideYaw = 0;
+			bool overridePitchYaw = false;
+
+			lock (angleMessageQueue)
+			{
+				// identify ourselves as bot to other jkwatcher instances by clever "secret" angle based message :)
+				if ((DateTime.Now - lastTimeSelfIdentified).TotalSeconds > 120 && closestDistance > 500.0)
+				{
+					if (angleMessageQueue.Count == 0)
+					{
+						foreach (Vector2 anglePair in jkwatcherBotStringBytesAngleSequence)
+						{
+							angleMessageQueue.Enqueue(anglePair);
+						}
+						serverWindow.addToLog($"Fightbot: Identifying myself via angle code :)");
+						lastTimeSelfIdentified = DateTime.Now;
+					}
+				}
+				if(angleMessageQueue.Count > 0)
+                {
+					Vector2 current = angleMessageQueue.Peek();
+					float desiredPitch = current.X;
+					float desiredYaw = current.Y;
+					overrideYaw = desiredYaw - this.delta_angles.Y;
+					overridePitch = desiredPitch - this.delta_angles.X;
+					//userCmd.Angles[YAW] = Angle2Short(yawToSet);
+					//userCmd.Angles[PITCH] = Angle2Short(pitchToSet);
+					overridePitchYaw = true;
+					//return;
+                }
+			}
+
 
 			if (findShortestBotPathWalkDistance || (infoPool.sillyMode == SillyMode.WALKWAYPOINTS && wayPointsToWalk.Count == 0))
             {
@@ -1818,8 +1858,15 @@ namespace JKWatcher
 
 			userCmd.Weapon = (byte)infoPool.saberWeaponNum;
 
-			userCmd.Angles[YAW] = Angle2Short(yawAngle);
-			userCmd.Angles[PITCH] = Angle2Short(pitchAngle);
+            if (overridePitchYaw)
+			{
+				userCmd.Angles[YAW] = Angle2Short(overrideYaw);
+				userCmd.Angles[PITCH] = Angle2Short(overridePitch);
+			} else
+			{
+				userCmd.Angles[YAW] = Angle2Short(yawAngle);
+				userCmd.Angles[PITCH] = Angle2Short(pitchAngle);
+			}
 
 			lastFrameWasJumpCommand = userCmd.Upmove > 0;
 			sillyAttack = !sillyAttack;

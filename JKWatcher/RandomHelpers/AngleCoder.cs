@@ -18,7 +18,7 @@ namespace JKWatcher.RandomHelpers
         protected const uint startSequence = 'J' | 'K' << 8 | 'W' << 16 | 'A' << 24; // 4 bytes for identifier, then 4 bytes for size of message 
         protected const uint endSequence = 'T' | 'C' << 8 | 'H' << 16 | 'R' << 24; // 4 bytes for identifier, then 4 bytes for xor checksum
 
-        protected static float normalizeAngle(float angle)
+        public static float normalizeAngle(float angle)
         {
             angle %= 360.0f;
             if (angle < 0.0f)

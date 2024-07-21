@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using static JKWatcher.ConnectedServerWindow;
+using JKWatcher.RandomHelpers;
 
 namespace JKWatcher
 {
@@ -411,6 +412,9 @@ namespace JKWatcher
         public bool confirmedBot { get; set; }
         public int clientNum { get; set; }
         public DateTime? lastClientInfoUpdate;
+
+        public AngleDecoder angleDecoder = new AngleDecoder();
+        public bool confirmedJKWatcherFightbot = false;
 
         public string model { get; set; }
         #endregion

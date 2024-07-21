@@ -2119,6 +2119,23 @@ namespace JKWatcher
 
         DateTime lastNonIntermission = DateTime.Now;
 
+        static readonly string jkwatcherBotString = "HEHEFIGHTBOTXD";
+        static readonly byte[] jkwatcherBotStringBytes = Encoding.Latin1.GetBytes(jkwatcherBotString);
+        static readonly Vector2[] jkwatcherBotStringBytesAngleSequence = RandomHelpers.AngleEncoder.CreateAngleSequence(jkwatcherBotStringBytes);
+        private void playerAngleDecodeResult(int clientNum, byte[] angleDecodeResult)
+        {
+            string angleDecodeAsString = Encoding.Latin1.GetString(angleDecodeResult);
+            if (angleDecodeAsString != null)
+            {
+                string angleDecodeAsStringSafe = Helpers.DemoCuttersanitizeFilename(angleDecodeAsString, false);
+                string hexString = BitConverter.ToString(angleDecodeResult);
+                serverWindow.addToLog($"ANGLE MESSAGE RECEIVED from client {clientNum} ({infoPool.playerInfo[clientNum].name}): {angleDecodeAsStringSafe} (safe string representation); hex: {hexString}");
+                if(angleDecodeAsString == jkwatcherBotString)
+                {
+                    infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot = true;
+                }
+            }
+        }
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -2164,6 +2181,32 @@ namespace JKWatcher
             {
                 CommitRatings(true); // just temporary to have the GUI show somewhat up to date values.
                 lastTemporaryRatingsCommit = DateTime.Now;
+            }
+
+            lock (angleMessageQueue)
+            {
+                if (angleMessageQueue.Count > 0 && snap.PlayerState.ClientNum == client?.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator)
+                {
+                    Vector2 current = angleMessageQueue.Peek();
+                    int desiredPitch = (int)current.X;
+                    int desiredYaw = (int)current.Y;
+                    int actualPitch = (int)(RandomHelpers.AngleCoder.normalizeAngle(snap.PlayerState.ViewAngles[0])+0.1f);
+                    int actualYaw = (int)(RandomHelpers.AngleCoder.normalizeAngle(snap.PlayerState.ViewAngles[1])+0.1f);
+                    if(desiredPitch == actualPitch && desiredYaw == actualYaw)
+                    {
+                        angleConfirmedCount++;
+                        if(angleConfirmedCount >= 2)
+                        { // Ok this was successfully communicated. Move on to next.
+                            angleMessageQueue.Dequeue();
+                            angleConfirmedCount = 0;
+                            if(angleMessageQueue.Count == 0)
+                            {
+
+                                serverWindow.addToLog($"Fightbot: Angle message queue empty. All done.");
+                            }
+                        }
+                    }
+                }
             }
 
             if(snap.PlayerState.CommandTime > 0)
@@ -2407,6 +2450,12 @@ namespace JKWatcher
                         }
                     }
 
+                    byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.PlayerState.ViewAngles[0], snap.PlayerState.ViewAngles[1]);
+                    if (angleDecodeResult != null)
+                    {
+                        playerAngleDecodeResult(i, angleDecodeResult);
+                    }
+
                     if (intermissionCamSet
                         && (snap.PlayerState.Origin[0] != lastPosition[i].X
                         || snap.PlayerState.Origin[1] != lastPosition[i].Y
@@ -2610,6 +2659,11 @@ namespace JKWatcher
                         }
                     }
 
+                    byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.Entities[snapEntityNum].AngularPosition.Base[0], snap.Entities[snapEntityNum].AngularPosition.Base[1]);
+                    if (angleDecodeResult != null)
+                    {
+                        playerAngleDecodeResult(i, angleDecodeResult);
+                    }
 
                     if (intermissionCamSet
                         && (snap.Entities[snapEntityNum].Position.Base[0] != lastPosition[i].X
@@ -3826,6 +3880,8 @@ namespace JKWatcher
                     
                     // Whole JkWatcher instance based
                     if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
+
+                        infoPool.playerInfo[i].confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
 
                         // Client connected/disconnected. Masybe reset some stats
                         if (client.ClientInfo[i].InfoValid)
@@ -5339,7 +5395,7 @@ namespace JKWatcher
                 if (infoPool.playerInfo[clientNum].team != Team.Spectator)
                 {
                     anyPlayersActive = true;
-                    if (!infoPool.playerInfo[clientNum].confirmedBot && (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
                     {
                         anyNonBotPlayerActive = true;
                     }
