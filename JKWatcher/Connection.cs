@@ -1096,11 +1096,15 @@ namespace JKWatcher
         int doClicks = 0;
         bool lastWasClick = false;
 
+        private int lastMyUserCommandServerTime = 0;
+
         // We relay this so any potential watchers can latch on to this and do their own modifications if they want to.
         // It also means we don't have to have watchers subscribe directly to the client because then that would break
         // when we get disconnected/reconnected etc.
         private void Client_UserCommandGenerated(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand, ref List<UserCommand> insertCommands)
         {
+
+            lastMyUserCommandServerTime = modifiableCommand.ServerTime;
 
             // If we haven't gotten any response from the server in the last 10 seconds or so, stop doing any of these. 
             // Because generating these commands can force the client to send usercommands at 142-ish fps and if the server went down or something,
@@ -1123,6 +1127,8 @@ namespace JKWatcher
                 // we havent gotten a proper playerstate from the server yet. let everything catch up. should only take a few milliseconds. 
                 // Thus avoid ruining our start spectating angle for levelshot perspective.
             }
+
+            // TODO Ready when intermission and only player on server.
 
             if (durationButtonPress > 0) // For example in MOH not every button press is processed for spectator change. Instead button presses are processed once per server frame. So the only thing we can do to speed things up is to just alternate the button for a duration that in combination with a known sv_fps will give us the amount of changes we need. This is not a precise science or anything and kinda fucked.
             {
@@ -2128,7 +2134,11 @@ namespace JKWatcher
                     intermissionCamAutoDetectImpossible = true; // we are following someone. so any spectator cam we get at this point might be at some random point and not intermission position. this resets wwith map restart or map change
                 }
                 bool amInGame = snap.PlayerState.Persistant[3] != 3 && snap.PlayerState.ClientNum == client?.clientNum;
-                bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && !intermissionCamAutoDetectImpossible;
+                bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && // only the first snapshot with spectator pmt of this map/restart received is counted
+                    snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && // pmt must be spectator
+                    !intermissionCamAutoDetectImpossible &&  // if we had already followed someone, he might have just disconnected or our spectating interrupted for anther reason and then wwe are in the wrong place
+                    snap.PlayerState.CommandTime <= lastMyUserCommandServerTime; // could be a spectator position from last map or from before map restart. client think is only called when our usercmd_ts are received by the server and thats when playerstate is updated.
+                // hmm but what about map_restart and serverTime does NOT reset and we still got the old playerstate from before? hm.
 
                 bool forceLoadSavedPosition = false;
 
@@ -2187,7 +2197,7 @@ namespace JKWatcher
                     }
                 }
 
-                if(snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator)
+                if(snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && snap.PlayerState.CommandTime <= lastMyUserCommandServerTime)
                 {
                     firstSpectatorSnapshotOfThisMapReceived = true;
                 }
@@ -3445,6 +3455,7 @@ namespace JKWatcher
             intermissionCSReceived = false;
             //firstNonIntermissionOfThisMapReceived = false;
             intermissionCamAutoDetectImpossible = false;
+            lastMyUserCommandServerTime = 0;
             CommitRatings();
             thisGameRatingCommitCount = 0;
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
