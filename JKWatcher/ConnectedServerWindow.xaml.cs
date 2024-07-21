@@ -1645,7 +1645,7 @@ namespace JKWatcher
                 int[] myClientNums = this.getJKWatcherClientNums();
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    if(pi.infoValid && !pi.confirmedBot &&  (pi.score.ping != 0 || pi.score.pingUpdatesSinceLastNonZeroPing < 4) && !myClientNums.Contains(pi.clientNum))
+                    if(pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot &&  (pi.score.ping != 0 || pi.score.pingUpdatesSinceLastNonZeroPing < 4) && !myClientNums.Contains(pi.clientNum))
                     {
                         truePlayerExcludingMyselfCount++;
                         if (!pi.confirmedAfk && pi.team != Team.Spectator)
