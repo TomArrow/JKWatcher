@@ -1509,6 +1509,7 @@ namespace JKWatcher
 
                         if (this.IsMainChatConnection) {  // Avoid dupes.
 
+
                             if (targetWasFlagCarrier)
                             {
                                // infoPool.playerInfo[attacker].chatCommandTrackingStuff.returns++; // tracking elsewhere already
@@ -1516,6 +1517,10 @@ namespace JKWatcher
                                 infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
                                 infoPool.killTrackers[attacker, target].returns++;
                                 infoPool.killTrackersThisGame[attacker, target].returns++;
+                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team]);
+                            } else
+                            {
+                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team]);
                             }
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
                             infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
@@ -2097,6 +2102,23 @@ namespace JKWatcher
         };
 
 
+        const float killFactor = 10f;
+        readonly Vector3[] levelshotKillTeamColors = new Vector3[4] { 
+            new Vector3(0f, killFactor, 0f), // Free
+            new Vector3(killFactor, 0f, 0f), // Red
+            new Vector3(0f, 0f, killFactor), // Blue
+            new Vector3(1.0f, killFactor, 0f), // Spectator
+        };
+        const float retFactor = 100f;
+        readonly Vector3[] levelshotRetTeamColors = new Vector3[4] {
+            new Vector3(0f, retFactor, 0f), // Free
+            new Vector3(retFactor, 0f, 0f), // Red
+            new Vector3(0f, 0f, retFactor), // Blue
+            new Vector3(1.0f, retFactor, 0f), // Spectator
+        };
+
+        DateTime lastNonIntermission = DateTime.Now;
+
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -2123,7 +2145,12 @@ namespace JKWatcher
             this.Speed = e.snap.PlayerState.Speed;
             PlayerMoveType = snap.PlayerState.PlayerMoveType;
 
-            if (isDuelMode && isIntermission)
+            if (!isIntermission)
+            {
+                lastNonIntermission = DateTime.Now;
+            }
+
+            if ((isDuelMode || (DateTime.Now - lastNonIntermission).TotalSeconds > 30) && isIntermission)
             {
                 doClicks = Math.Min(3, doClicks + 1);
             }

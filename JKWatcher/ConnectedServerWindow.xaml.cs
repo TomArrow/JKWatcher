@@ -2847,6 +2847,7 @@ namespace JKWatcher
         }
 
         private const float invGamma = 1f / 2.4f;
+        private const float invGamma5 = 1f / 5f;
         private const float invGamma10 = 1f / 10f;
         public void SaveLevelshot(float[,,] levelshotData)
         {
@@ -2894,7 +2895,7 @@ namespace JKWatcher
                         for(int c= 0; c < 3; c++)
                         {
                             float valueHere = levelshotDataLocal[x, y,c];
-                            float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma10) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                            float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
                             byte byteValue = (byte)Math.Clamp(gammaValue * 0.5f * 255.0f, 0, 255.0f);
                             int yInv = height - 1 - y;
                             int xInv = width - 1 - x;
