@@ -997,6 +997,8 @@ namespace JKWatcher
         {
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
+
+            serverWindow.SaveLevelshot(infoPool.levelShot, 200, 5);
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -2079,17 +2081,17 @@ namespace JKWatcher
             levelshotPos /= levelshotPos.W;
             if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
             {
-                int posX = (int)(((levelshotPos.X+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotWidth);
-                int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)ServerSharedInformationPool.levelShotHeight);
-                if(posX >= 0 && posX < ServerSharedInformationPool.levelShotWidth && posY >= 0 && posY < ServerSharedInformationPool.levelShotHeight)
+                int posX = (int)(((levelshotPos.X+1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                if(posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                 {
                     // bgr ordering.
-                    infoPool.levelShot[posX, posY, 0] += color.Z;
-                    infoPool.levelShot[posX, posY, 1] += color.Y;
-                    infoPool.levelShot[posX, posY, 2] += color.X;
-                    infoPool.levelShotThisGame[posX, posY, 0] += color.Z;
-                    infoPool.levelShotThisGame[posX, posY, 1] += color.Y;
-                    infoPool.levelShotThisGame[posX, posY, 2] += color.X;
+                    infoPool.levelShot.data[posX, posY, 0] += color.Z;
+                    infoPool.levelShot.data[posX, posY, 1] += color.Y;
+                    infoPool.levelShot.data[posX, posY, 2] += color.X;
+                    infoPool.levelShotThisGame.data[posX, posY, 0] += color.Z;
+                    infoPool.levelShotThisGame.data[posX, posY, 1] += color.Y;
+                    infoPool.levelShotThisGame.data[posX, posY, 2] += color.X;
                 }
             }
         }
@@ -2247,7 +2249,7 @@ namespace JKWatcher
                     Vector3 angles = new Vector3() { X = snap.PlayerState.ViewAngles[0], Y = snap.PlayerState.ViewAngles[1], Z = snap.PlayerState.ViewAngles[2] };
                     intermissionCamPos = pos;
                     intermissionCamAngles = angles;
-                    intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
+                    intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
 
                     intermissionCamSet = true;
                     intermissionCamTrueIntermission = isIntermission;
@@ -2285,7 +2287,7 @@ namespace JKWatcher
                         Vector3 angles = new Vector3() { X = savedPosition.angX, Y = savedPosition.angY, Z = savedPosition.angZ };
                         intermissionCamPos = pos;
                         intermissionCamAngles = angles;
-                        intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, ServerSharedInformationPool.levelShotFov, ServerSharedInformationPool.levelShotWidth, ServerSharedInformationPool.levelShotHeight);
+                        intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
                         intermissionCamSet = true;
                         intermissionCamTrueIntermission = savedPosition.trueIntermissionCam;
                     } else
@@ -2330,7 +2332,7 @@ namespace JKWatcher
 
             if (changedToIntermission && this.IsMainChatConnection)
             {
-                serverWindow.SaveLevelshot(infoPool.levelShotThisGame,0);
+                serverWindow.SaveLevelshot(infoPool.levelShotThisGame,0,5);
                 if (!_connectionOptions.silentMode)
                 {
                     string glicko2String = MakeGlicko2RatingsString(true, true);
@@ -3547,11 +3549,11 @@ namespace JKWatcher
                     string trimmedCmd = mutableCmd.Trim();
                     if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShot, 200);
+                        serverWindow.SaveLevelshot(infoPool.levelShot, 200,5);
                     }
                     else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,200);
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,200,5);
                     }
                     else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {

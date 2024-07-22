@@ -2854,73 +2854,102 @@ namespace JKWatcher
         private const float invGamma = 1f / 2.4f;
         private const float invGamma5 = 1f / 5f;
         private const float invGamma10 = 1f / 10f;
-        public void SaveLevelshot(float[,,] levelshotData, int skipLessThanPixelCount = 0)
+        public void SaveLevelshot(LevelShotData levelshotData, int skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0)
         {
+            lock (levelshotData.lastSavedLock)
+            {
+                if (blockIfOtherLevelshotInPastSeconds != 0.0 && (DateTime.Now - levelshotData.lastSaved).TotalSeconds < blockIfOtherLevelshotInPastSeconds)
+                {
+                    return;
+                }
+                else
+                {
+                    levelshotData.lastSaved = DateTime.Now;
+                }
+            }
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
-            float[,,] levelshotDataLocal = (float[,,])levelshotData.Clone();
+            float[,,] levelshotDataLocal = (float[,,])levelshotData.data.Clone();
             TaskManager.TaskRun(()=> {
-                int width = levelshotDataLocal.GetLength(0);
-                int height = levelshotDataLocal.GetLength(1);
 
-                List<float> brightnessValuesList = new List<float>();
-
-                //double totalUsedPixelBrightness = 0;
-                double divider = 0;
-                for(int x = 0; x < width; x++)
+                try
                 {
-                    for(int y = 0; y < height; y++)
+                    string mutexAddress = netAddress is null ? "": netAddress.ToString().Replace('.', '_').Replace(':', '_');
+
+                    //lock (forcedLogFileName)
+                    using (new GlobalMutexHelper($"JKWatcherLevelshotFilenameMutex{mutexAddress}"))
                     {
-                        for(int c = 0; c < 3; c++)
-                        {
-                            float valueHere = levelshotDataLocal[x, y,c];
-                            if (valueHere > 0.0f)
-                            {
-                                //totalUsedPixelBrightness += valueHere;
-                                divider++;
-                                brightnessValuesList.Add(valueHere);
-                            }
-                        }
+                        SaveLevelshotReal(levelshotDataLocal, skipLessThanPixelCount, filenameString);
                     }
                 }
-
-                if (divider < (double)skipLessThanPixelCount) return;
-
-                //double averageBrightness = totalUsedPixelBrightness / divider;
-                //float multiplier = 1.0f/ (float)averageBrightness;
-                brightnessValuesList.Sort();
-                float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count/2] : 1.0f;
-                float multiplier = 1.0f/ (float)roughMedianBrightness;
-
-                Bitmap bmp = new Bitmap(width, height,System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-                ByteImage bi = Helpers.BitmapToByteArray(bmp);
-                bmp.Dispose();
-
-                for (int x = 0; x < width; x++)
+                catch (Exception ex)
                 {
-                    for (int y = 0; y < height; y++)
-                    {
-                        for(int c= 0; c < 3; c++)
-                        {
-                            float valueHere = levelshotDataLocal[x, y,c];
-                            float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
-                            byte byteValue = (byte)Math.Clamp(gammaValue * 0.5f * 255.0f, 0, 255.0f);
-                            int yInv = height - 1 - y;
-                            int xInv = width - 1 - x;
-                            bi.imageData[bi.stride * yInv + xInv * 3 +c] = byteValue;
-                        }
-                    }
+                    // Failed to get  mutex, weird...
                 }
-                bmp = Helpers.ByteArrayToBitmap(bi);
-                string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
-                Directory.CreateDirectory(imagesSubDir);
-                filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
-                filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
-                bmp.Save(filenameString);
-                bmp.Dispose();
 
             }, $"Levelshot saver ({netAddress},{ServerName})");
         }
+        public void SaveLevelshotReal(float[,,] levelshotDataLocal, int skipLessThanPixelCount, string filenameString)
+        {
+            int width = levelshotDataLocal.GetLength(0);
+            int height = levelshotDataLocal.GetLength(1);
 
+            List<float> brightnessValuesList = new List<float>();
+
+            //double totalUsedPixelBrightness = 0;
+            double divider = 0;
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y, c];
+                        if (valueHere > 0.0f)
+                        {
+                            //totalUsedPixelBrightness += valueHere;
+                            divider++;
+                            brightnessValuesList.Add(valueHere);
+                        }
+                    }
+                }
+            }
+
+            if (divider < (double)skipLessThanPixelCount) return;
+
+            //double averageBrightness = totalUsedPixelBrightness / divider;
+            //float multiplier = 1.0f/ (float)averageBrightness;
+            brightnessValuesList.Sort();
+            float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count / 2] : 1.0f;
+            float multiplier = 1.0f / (float)roughMedianBrightness;
+
+            Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            ByteImage bi = Helpers.BitmapToByteArray(bmp);
+            bmp.Dispose();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y, c];
+                        float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                        byte byteValue = (byte)Math.Clamp(gammaValue * 0.5f * 255.0f, 0, 255.0f);
+                        int yInv = height - 1 - y;
+                        int xInv = width - 1 - x;
+                        bi.imageData[bi.stride * yInv + xInv * 3 + c] = byteValue;
+                    }
+                }
+            }
+            bmp = Helpers.ByteArrayToBitmap(bi);
+            string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
+            Directory.CreateDirectory(imagesSubDir);
+            filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
+            filenameString = Helpers.GetUnusedFilename(filenameString);
+            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            bmp.Save(filenameString);
+            bmp.Dispose();
+        }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
         {

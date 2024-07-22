@@ -16,6 +16,17 @@ using JKWatcher.RandomHelpers;
 namespace JKWatcher
 {
 
+    public class LevelShotData
+    {
+        public const float levelShotFov = 140;
+        public const int levelShotWidth = 1920;
+        public const int levelShotHeight = 1080;
+        public float[,,] data = new float[levelShotWidth, levelShotHeight, 3];
+        public DateTime lastSaved = DateTime.Now;
+        public object lastSavedLock = new object();
+    }
+
+
     // Two dimensional array that can be accessed in any order of indizi and return the same rsuult
     // Aka: [a][b] gives same result as [b][a]
     // How? It just orders the indizi. Biggest first.
@@ -705,21 +716,18 @@ namespace JKWatcher
         public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNames = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
         public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
 
-        public const float levelShotFov = 140;
-        public const int levelShotWidth = 1920;
-        public const int levelShotHeight = 1080;
-        public float[,,] levelShot = new float[levelShotWidth, levelShotHeight,3];
-        public float[,,] levelShotThisGame = new float[levelShotWidth, levelShotHeight,3];
+        public LevelShotData levelShot = new LevelShotData();
+        public LevelShotData levelShotThisGame = new LevelShotData();
 
         public void resetLevelShot(bool thisGame, bool normal)
         {
             if (thisGame)
             {
-                levelShotThisGame = new float[levelShotWidth, levelShotHeight, 3];
+                levelShotThisGame = new LevelShotData();
             }
             if (normal)
             {
-                levelShot = new float[levelShotWidth, levelShotHeight, 3];
+                levelShot = new LevelShotData();
             }
         }
 
