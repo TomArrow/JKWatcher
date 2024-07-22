@@ -2129,17 +2129,20 @@ namespace JKWatcher
             {
                 string angleDecodeAsStringSafe = Helpers.DemoCuttersanitizeFilename(angleDecodeAsString, false);
                 string hexString = BitConverter.ToString(angleDecodeResult);
-                serverWindow.addToLog($"ANGLE MESSAGE RECEIVED from client {clientNum} ({infoPool.playerInfo[clientNum].name}): {angleDecodeAsStringSafe} (safe string representation); hex: {hexString}");
                 if(angleDecodeAsString == jkwatcherBotString)
                 {
                     if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot)
                     {
-                        serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) detected as fightbot.");
+                        serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) detected as fightbot from angle message.");
                     } else
                     {
-                        serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) re-detected as fightbot (already known).");
+                        //serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) re-detected as fightbot (already known).");
                     }
                     infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot = true;
+                    this.client?.SetClientAsBot(clientNum,true);
+                } else
+                {
+                    serverWindow.addToLog($"ANGLE MESSAGE RECEIVED from client {clientNum} ({infoPool.playerInfo[clientNum].name}): {angleDecodeAsStringSafe} (safe string representation); hex: {hexString}");
                 }
             }
         }
@@ -2327,7 +2330,7 @@ namespace JKWatcher
 
             if (changedToIntermission && this.IsMainChatConnection)
             {
-                serverWindow.SaveLevelshot(infoPool.levelShotThisGame);
+                serverWindow.SaveLevelshot(infoPool.levelShotThisGame,0);
                 if (!_connectionOptions.silentMode)
                 {
                     string glicko2String = MakeGlicko2RatingsString(true, true);
@@ -2469,6 +2472,7 @@ namespace JKWatcher
                     }
 
                     if (intermissionCamSet
+                        && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator
                         && (snap.PlayerState.Origin[0] != lastPosition[i].X
                         || snap.PlayerState.Origin[1] != lastPosition[i].Y
                         || snap.PlayerState.Origin[2] != lastPosition[i].Z))
@@ -3543,11 +3547,11 @@ namespace JKWatcher
                     string trimmedCmd = mutableCmd.Trim();
                     if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShot);
+                        serverWindow.SaveLevelshot(infoPool.levelShot, 200);
                     }
                     else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame);
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,200);
                     }
                     else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {

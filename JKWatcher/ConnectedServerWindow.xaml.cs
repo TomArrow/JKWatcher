@@ -2843,13 +2843,18 @@ namespace JKWatcher
 
         private void levelshotBtn_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot);
+            SaveLevelshot(infoPool.levelShot,0);
+        }
+
+        private void levelshotBtnOver200_Click(object sender, RoutedEventArgs e)
+        {
+            SaveLevelshot(infoPool.levelShot, 200);
         }
 
         private const float invGamma = 1f / 2.4f;
         private const float invGamma5 = 1f / 5f;
         private const float invGamma10 = 1f / 10f;
-        public void SaveLevelshot(float[,,] levelshotData)
+        public void SaveLevelshot(float[,,] levelshotData, int skipLessThanPixelCount = 0)
         {
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
             float[,,] levelshotDataLocal = (float[,,])levelshotData.Clone();
@@ -2878,7 +2883,7 @@ namespace JKWatcher
                     }
                 }
 
-                if (divider == 0.0) return;
+                if (divider < (double)skipLessThanPixelCount) return;
 
                 //double averageBrightness = totalUsedPixelBrightness / divider;
                 //float multiplier = 1.0f/ (float)averageBrightness;
@@ -2915,6 +2920,7 @@ namespace JKWatcher
 
             }, $"Levelshot saver ({netAddress},{ServerName})");
         }
+
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
         {
