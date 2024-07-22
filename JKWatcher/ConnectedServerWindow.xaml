@@ -42,6 +42,41 @@
                 <Button x:Name="refreshPlayersBtn" Click="refreshPlayersBtn_Click" IsEnabled="True">Refresh</Button>
             </WrapPanel>
             <DataGrid  IsReadOnly="True" CanUserAddRows="False" DockPanel.Dock="Bottom" x:Name="playerListDataGrid" AutoGenerateColumns="False" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" SelectionChanged="playerListDataGrid_SelectionChanged">
+                
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30">
+                        <DataGridTextColumn.CellStyle>
+                            <Style TargetType="{x:Type DataGridCell}">
+                                <Style.Triggers>
+
+                                    <DataTrigger Binding="{Binding confirmedJKWatcherFightbot}" Value="True">
+                                        <Setter Property="Background" Value="Black"/>
+                                        <Setter Property="Foreground" Value="White"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding confirmedBot}" Value="True">
+                                        <Setter Property="Background" Value="Gray"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGridTextColumn.CellStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Team" Binding="{Binding team}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Ping" Binding="{Binding score.ping}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Score" Binding="{Binding score.score}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="S/D" Binding="{Binding score.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="KDm" Binding="{Binding score.kdMod, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="D" Binding="{Binding score.deaths}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="VP" Binding="{Binding VisiblePlayers.VisiblePlayersString}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="G2TG" Binding="{Binding g2RatingThisGame}"></DataGridTextColumn>
+                </DataGrid.Columns>
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
                         <Style.Triggers>
@@ -64,9 +99,9 @@
                                 </DataTrigger.Value>
                                 <Setter Property="Background" Value="LightBlue"/>
                             </DataTrigger>
-                            
+
                             <DataTrigger Binding="{Binding IsAlive}" Value="False">
-                                <Setter Property="Foreground" Value="Red"/>
+                                <Setter Property="Foreground" Value="Maroon"/>
                             </DataTrigger>
                             <DataTrigger Binding="{Binding team}">
                                 <DataTrigger.Value>
@@ -93,26 +128,6 @@
                         </Style.Triggers>
                     </Style>
                 </DataGrid.RowStyle>
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="cN" Binding="{Binding clientNum}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Team" Binding="{Binding team}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Ping" Binding="{Binding score.ping}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Score" Binding="{Binding score.score}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="S/D" Binding="{Binding score.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="KDm" Binding="{Binding score.kdMod, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="D" Binding="{Binding score.deaths}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="VP" Binding="{Binding VisiblePlayers.VisiblePlayersString}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="G2TG" Binding="{Binding g2RatingThisGame}"></DataGridTextColumn>
-                </DataGrid.Columns>
-
             </DataGrid>
         </DockPanel>
         <WrapPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">

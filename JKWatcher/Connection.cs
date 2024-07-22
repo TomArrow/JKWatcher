@@ -2132,8 +2132,14 @@ namespace JKWatcher
                 serverWindow.addToLog($"ANGLE MESSAGE RECEIVED from client {clientNum} ({infoPool.playerInfo[clientNum].name}): {angleDecodeAsStringSafe} (safe string representation); hex: {hexString}");
                 if(angleDecodeAsString == jkwatcherBotString)
                 {
+                    if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot)
+                    {
+                        serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) detected as fightbot.");
+                    } else
+                    {
+                        serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) re-detected as fightbot (already known).");
+                    }
                     infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot = true;
-                    serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) detected as fightbot.");
                 }
             }
         }
@@ -2456,11 +2462,11 @@ namespace JKWatcher
                         }
                     }
 
-                    //byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.PlayerState.ViewAngles[0], snap.PlayerState.ViewAngles[1]);
-                    //if (angleDecodeResult != null)
-                    //{
-                   //     playerAngleDecodeResult(i, angleDecodeResult);
-                    //}
+                    byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.PlayerState.ViewAngles[0], snap.PlayerState.ViewAngles[1]);
+                    if (angleDecodeResult != null)
+                    {
+                        playerAngleDecodeResult(i, angleDecodeResult);
+                    }
 
                     if (intermissionCamSet
                         && (snap.PlayerState.Origin[0] != lastPosition[i].X
@@ -3494,7 +3500,7 @@ namespace JKWatcher
         private bool playerIsLikelyBot(int clientNumber)
         {
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
-                (infoPool.playerInfo[clientNumber].confirmedBot || 
+                (infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
                 (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) 
                 && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10);
         }

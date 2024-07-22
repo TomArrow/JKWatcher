@@ -414,7 +414,7 @@ namespace JKWatcher
         public DateTime? lastClientInfoUpdate;
 
         public AngleDecoder angleDecoder = new AngleDecoder();
-        public bool confirmedJKWatcherFightbot = false;
+        public bool confirmedJKWatcherFightbot { get; set; } = false;
 
         public string model { get; set; }
         #endregion
