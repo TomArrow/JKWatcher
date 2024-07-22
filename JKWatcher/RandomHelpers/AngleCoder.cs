@@ -20,6 +20,11 @@ namespace JKWatcher.RandomHelpers
 
         public static float normalizeAngle(float angle)
         {
+            if (Math.Abs(angle % 1.0f) < 0.01f && angle < 0 && Math.Abs(angle) > 0.01f)
+            {
+                // probably a badly snapped (int cast) negative number so we must actually do -1 here
+                angle -= 1.0f;
+            }
             angle %= 360.0f;
             if (angle < 0.0f)
             {

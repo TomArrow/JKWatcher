@@ -2133,6 +2133,7 @@ namespace JKWatcher
                 if(angleDecodeAsString == jkwatcherBotString)
                 {
                     infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot = true;
+                    serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) detected as fightbot.");
                 }
             }
         }
@@ -2455,11 +2456,11 @@ namespace JKWatcher
                         }
                     }
 
-                    byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.PlayerState.ViewAngles[0], snap.PlayerState.ViewAngles[1]);
-                    if (angleDecodeResult != null)
-                    {
-                        playerAngleDecodeResult(i, angleDecodeResult);
-                    }
+                    //byte[] angleDecodeResult = infoPool.playerInfo[i].angleDecoder.GiveAngleMaybeReturnResult(snap.PlayerState.ViewAngles[0], snap.PlayerState.ViewAngles[1]);
+                    //if (angleDecodeResult != null)
+                    //{
+                   //     playerAngleDecodeResult(i, angleDecodeResult);
+                    //}
 
                     if (intermissionCamSet
                         && (snap.PlayerState.Origin[0] != lastPosition[i].X

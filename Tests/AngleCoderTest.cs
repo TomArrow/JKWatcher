@@ -152,7 +152,7 @@ namespace Tests
             int successCount = 0;
             for(int i = 0; i < 100; i++)
             {
-                if (jumbled2test())
+                if (jumbled2test(SnapMode.NONE, true))
                 {
                     successCount++;
                 }
@@ -160,16 +160,81 @@ namespace Tests
             Trace.WriteLine($"{successCount} out of 100 jumbled successful. 50 required.");
             Assert.IsTrue(successCount > 50);
         }
-        private bool jumbled2test()
+
+        enum SnapMode
         {
+            NONE,
+            CRUDESNAPRANDOM,
+            ALWAYSSNAP180RANGE
+        };
 
-            string message = "hello there xy424yRSDHY42";
+        [TestMethod]
+        public void TestAngleCoderJumbled3()
+        {
+            int successCount = 0;
+            for(int i = 0; i < 100; i++)
+            {
+                if (jumbled2test(SnapMode.ALWAYSSNAP180RANGE, true))
+                {
+                    successCount++;
+                }
+            }
+            Trace.WriteLine($"{successCount} out of 100 jumbled successful. 50 required.");
+            Assert.IsTrue(successCount > 50);
+        }
+        [TestMethod]
+        public void TestAngleCoderMany()
+        {
+            int successCount = 0;
+            for(int i = 0; i < 100; i++)
+            {
+                if (jumbled2test(SnapMode.ALWAYSSNAP180RANGE, false))
+                {
+                    successCount++;
+                }
+            }
+            Trace.WriteLine($"{successCount} out of 100 jumbled successful.");
+            Assert.IsTrue(successCount ==100);
+        }
+        [TestMethod]
+        public void TestAngleCoderMany2()
+        {
+            int successCount = 0;
+            for(int i = 0; i < 100; i++)
+            {
+                if (jumbled2test(SnapMode.NONE, false))
+                {
+                    successCount++;
+                }
+            }
+            Trace.WriteLine($"{successCount} out of 100 jumbled successful.");
+            Assert.IsTrue(successCount ==100);
+        }
+        private bool jumbled2test(SnapMode snapMode, bool dojumble)
+        {
+            Random rnd = new Random();
+            int max = 50;
+            int offset = 0;
+            if(rnd.NextDouble() < 0.3)
+            {
+                offset = 256 - max;
+            }
+            else if(rnd.NextDouble() < 0.3)
+            {
+                offset += rnd.Next(1,256-max);
+            }
+            //string message = "hello there xy424yRSDHY42";
+            //byte[] stuff = Encoding.UTF8.GetBytes(message);
+            byte[] stuff = new byte[max];
+            for(int i = 0; i < max; i++)
+            {
+                stuff[i] = (byte)(i+offset);
+            }
 
-            Vector2[] angleSequence = AngleEncoder.CreateAngleSequence(Encoding.UTF8.GetBytes(message));
+            Vector2[] angleSequence = AngleEncoder.CreateAngleSequence(stuff);
 
             List<Vector2> jumbledSequence = new List<Vector2>();
 
-            Random rnd = new Random();
 
             for (int i = 0; i < angleSequence.Length; i++)
             {
@@ -178,7 +243,7 @@ namespace Tests
                 {
                     jumbledSequence.Add(angleSequence[i]);
                 }
-                while(rnd.NextDouble() < 0.3)
+                while(rnd.NextDouble() < 0.3 && dojumble)
                 {
                     jumbledSequence.Add(new Vector2() { X=(float)rnd.NextDouble()*2000.0f-1000.0f, Y = (float)rnd.NextDouble() * 2000.0f - 1000.0f });
                 }
@@ -186,22 +251,50 @@ namespace Tests
             for (int i = 0; i < jumbledSequence.Count - 1; i++)
             {
                 bool doJumble = rnd.NextDouble() < 0.4;
-                if (doJumble)
+                if (doJumble && dojumble)
                 {
                     Vector2 tmp = jumbledSequence[i];
                     jumbledSequence[i] = jumbledSequence[i + 1];
                     jumbledSequence[i + 1] = tmp;
                 }
-                while (rnd.NextDouble() < 0.3)
+                if(snapMode == SnapMode.NONE)
+                {
+                    while (rnd.NextDouble() < 0.3)
+                    {
+                        Vector2 tmp = jumbledSequence[i];
+                        tmp.X += 360.0f;
+                        jumbledSequence[i] = tmp;
+                    }
+                    while (rnd.NextDouble() < 0.3)
+                    {
+                        Vector2 tmp = jumbledSequence[i];
+                        tmp.X -= 360.0f;
+                        jumbledSequence[i] = tmp;
+                    }
+                    while (rnd.NextDouble() < 0.3)
+                    {
+                        Vector2 tmp = jumbledSequence[i];
+                        tmp.Y += 360.0f;
+                        jumbledSequence[i] = tmp;
+                    }
+                    while (rnd.NextDouble() < 0.3)
+                    {
+                        Vector2 tmp = jumbledSequence[i];
+                        tmp.Y -= 360.0f;
+                        jumbledSequence[i] = tmp;
+                    }
+                } else if (snapMode == SnapMode.ALWAYSSNAP180RANGE)
                 {
                     Vector2 tmp = jumbledSequence[i];
-                    tmp.X += 360.0f;
-                    jumbledSequence[i] = tmp;
-                }
-                while (rnd.NextDouble() < 0.3)
-                {
-                    Vector2 tmp = jumbledSequence[i];
-                    tmp.X -= 360.0f;
+                    while (tmp.X > 180.0f)
+                    {
+                        tmp.X -= 360.0f;
+                    }
+                    while (tmp.Y > 180.0f)
+                    {
+                        tmp.Y -= 360.0f;
+                    }
+                    tmp.Y = (int)tmp.Y;
                     jumbledSequence[i] = tmp;
                 }
             }
@@ -222,7 +315,15 @@ namespace Tests
             if (rsult != null)
             {
                 string decodedString = Encoding.UTF8.GetString(rsult);
-                return decodedString== message;
+                bool same = stuff.Length == rsult.Length;
+                if (same)
+                {
+                    for (int i = 0; i < max; i++)
+                    {
+                        same = same && stuff[i] == rsult[i];
+                    }
+                }
+                return same;
             } else
             {
                 return false;
