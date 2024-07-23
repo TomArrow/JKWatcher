@@ -2268,6 +2268,8 @@ namespace JKWatcher
                 if (isDestroyed) return;
                 isDestroyed = true;
 
+                SaveLevelshot(infoPool.levelShot, 200, 5);
+
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 this.Closed -= ConnectedServerWindow_Closed;
                 foreach (CancellationTokenSource backgroundTask in backgroundTasks)
@@ -2851,20 +2853,31 @@ namespace JKWatcher
             SaveLevelshot(infoPool.levelShot, 200);
         }
 
+        private float above1To2SoftApproach(float value) // the result of this will approach 2 but never reach it. perfection
+        {
+            return (1.0f-1.0f/(1f+(float)Math.Pow(value,0.833333333333333333f)))*2.0f; // dont ask me why exactly 0.83333. i just aligned the two derivatives in le graphing calculator :)
+        }
+
         private const float invGamma = 1f / 2.4f;
         private const float invGamma5 = 1f / 5f;
         private const float invGamma10 = 1f / 10f;
-        public void SaveLevelshot(LevelShotData levelshotData, int skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0)
+        public void SaveLevelshot(LevelShotData levelshotData, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0)
         {
+            if (levelshotData is null) return;
             lock (levelshotData.lastSavedLock)
             {
                 if (blockIfOtherLevelshotInPastSeconds != 0.0 && (DateTime.Now - levelshotData.lastSaved).TotalSeconds < blockIfOtherLevelshotInPastSeconds)
                 {
                     return;
                 }
+                else if (levelshotData.changesSinceLastSaved < skipLessThanPixelCount)
+                {
+                    return;
+                }
                 else
                 {
                     levelshotData.lastSaved = DateTime.Now;
+                    levelshotData.changesSinceLastSaved++;
                 }
             }
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
@@ -2888,7 +2901,7 @@ namespace JKWatcher
 
             }, $"Levelshot saver ({netAddress},{ServerName})");
         }
-        public void SaveLevelshotReal(float[,,] levelshotDataLocal, int skipLessThanPixelCount, string filenameString)
+        public void SaveLevelshotReal(float[,,] levelshotDataLocal, uint skipLessThanPixelCount, string filenameString)
         {
             int width = levelshotDataLocal.GetLength(0);
             int height = levelshotDataLocal.GetLength(1);
@@ -2933,8 +2946,9 @@ namespace JKWatcher
                     for (int c = 0; c < 3; c++)
                     {
                         float valueHere = levelshotDataLocal[x, y, c];
-                        float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
-                        byte byteValue = (byte)Math.Clamp(gammaValue * 0.5f * 255.0f, 0, 255.0f);
+                        //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                        float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere * multiplier) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                        byte byteValue = (byte)Math.Clamp(gammaValue* 255.0f * 0.5f, 0, 255.0f);
                         int yInv = height - 1 - y;
                         int xInv = width - 1 - x;
                         bi.imageData[bi.stride * yInv + xInv * 3 + c] = byteValue;

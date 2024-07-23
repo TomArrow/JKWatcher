@@ -274,7 +274,7 @@ namespace JKWatcher
 
         private ServerSharedInformationPool infoPool;
 
-        public string GameTime { get; set; } = null;
+        //public string GameTime { get; set; } = null;
 
         public bool isRecordingADemo { get; private set; } = false;
 
@@ -2092,6 +2092,14 @@ namespace JKWatcher
                     infoPool.levelShotThisGame.data[posX, posY, 0] += color.Z;
                     infoPool.levelShotThisGame.data[posX, posY, 1] += color.Y;
                     infoPool.levelShotThisGame.data[posX, posY, 2] += color.X;
+                    lock (infoPool.levelShot.lastSavedLock)
+                    {
+                        infoPool.levelShot.changesSinceLastSaved++;
+                    }
+                    lock (infoPool.levelShotThisGame.lastSavedLock)
+                    {
+                        infoPool.levelShotThisGame.changesSinceLastSaved++;
+                    }
                 }
             }
         }
@@ -2148,6 +2156,8 @@ namespace JKWatcher
                 }
             }
         }
+
+        const int PMF_INTERMISSION = (1 << 6);
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
@@ -2158,7 +2168,8 @@ namespace JKWatcher
             SnapStatus.addDataPoint(client.SnapNum,client.ServerTime);
             OnPropertyChanged(new PropertyChangedEventArgs("SnapStatus"));
 
-            infoPool.setGameTime(client.gameTime);
+            int gameTime = client.gameTime;
+            infoPool.setGameTime(gameTime);
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
@@ -2168,6 +2179,12 @@ namespace JKWatcher
 
             int csIntermission = client.GetMappedConfigstring(ClientGame.Configstring.Intermission).Atoi();
             bool isIntermission = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Intermission && (intermissionCSReceived || csIntermission > 0); // Gotta see whether after last game restart we received the cs 22 1 command basically. nwh (and maybe others) set it to 1 but immediately empty it again afterwards (why?)  /////Gotta check CS too because playerstate can stay on intermission after mapchange, tricking us into taking levelshot pos from previous level
+            if (mohMode)
+            {
+                uint normalizePMFlags = MOH_CPT_NormalizePlayerStateFlags((uint)snap.PlayerState.PlayerMoveFlags, this.protocol);
+                // Moh as usual doesn't seem very reliable and all that (no CS_INTERMISSION), and also actually moh itself already doesn't align the intermission cam properly, so only way to get it truly right is via bsp parsing
+                isIntermission = gameTime > 10000 && (DateTime.Now-lastMapChangeOrMapChangeServerCommandOrGameState).TotalSeconds > 10 && (normalizePMFlags & PMF_INTERMISSION)>0 && (normalizePMFlags & PMF_CAMERA_VIEW_MOH)>0;
+            }
             bool changedToIntermission = isIntermission && !wasIntermission;
             wasIntermission = isIntermission;
             infoPool.isIntermission = isIntermission;
@@ -2233,7 +2250,8 @@ namespace JKWatcher
                     intermissionCamAutoDetectImpossible = true; // we are following someone. so any spectator cam we get at this point might be at some random point and not intermission position. this resets wwith map restart or map change
                 }
                 bool amInGame = snap.PlayerState.Persistant[3] != 3 && snap.PlayerState.ClientNum == client?.clientNum;
-                bool canGetIntermissionCamFromSpectatorView = !firstSpectatorSnapshotOfThisMapReceived && // only the first snapshot with spectator pmt of this map/restart received is counted
+                bool canGetIntermissionCamFromSpectatorView = !mohMode && // no chance of this working in MOH prolly
+                    !firstSpectatorSnapshotOfThisMapReceived && // only the first snapshot with spectator pmt of this map/restart received is counted
                     snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && // pmt must be spectator
                     !intermissionCamAutoDetectImpossible &&  // if we had already followed someone, he might have just disconnected or our spectating interrupted for anther reason and then wwe are in the wrong place
                     snap.PlayerState.CommandTime <= lastMyUserCommandServerTime; // could be a spectator position from last map or from before map restart. client think is only called when our usercmd_ts are received by the server and thats when playerstate is updated.
@@ -2247,15 +2265,20 @@ namespace JKWatcher
                 {
                     Vector3 pos = new Vector3() { X = snap.PlayerState.Origin[0], Y = snap.PlayerState.Origin[1], Z = snap.PlayerState.Origin[2] };
                     Vector3 angles = new Vector3() { X = snap.PlayerState.ViewAngles[0], Y = snap.PlayerState.ViewAngles[1], Z = snap.PlayerState.ViewAngles[2] };
+                    if (mohMode)
+                    {
+                        pos = new Vector3() { X = snap.PlayerState.CameraOrigin[0], Y = snap.PlayerState.CameraOrigin[1], Z = snap.PlayerState.CameraOrigin[2] };
+                        angles = new Vector3() { X = snap.PlayerState.CameraAngles[0], Y = snap.PlayerState.CameraAngles[1], Z = snap.PlayerState.CameraAngles[2] };
+                    }
                     intermissionCamPos = pos;
                     intermissionCamAngles = angles;
                     intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
 
                     intermissionCamSet = true;
-                    intermissionCamTrueIntermission = isIntermission;
+                    intermissionCamTrueIntermission = mohMode? false: isIntermission; // MOH can never be trustd, and wont bother trying to get it from normal cam.
 
                     IntermissionCamPosition oldSavedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(oldMapName);
-                    if(oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false && isIntermission)
+                    if(oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false && intermissionCamTrueIntermission)
                     {
                         AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition()
                         {
@@ -2266,9 +2289,9 @@ namespace JKWatcher
                             angX = intermissionCamAngles.X,
                             angY = intermissionCamAngles.Y,
                             angZ = intermissionCamAngles.Z,
-                            trueIntermissionCam = isIntermission
+                            trueIntermissionCam = intermissionCamTrueIntermission
                         }, true);
-                    } else if (!isIntermission && oldSavedPosition != null && oldSavedPosition.trueIntermissionCam)
+                    } else if (!intermissionCamTrueIntermission && oldSavedPosition != null && oldSavedPosition.trueIntermissionCam)
                     {
                         forceLoadSavedPosition = true;
                         intermissionCamSet = false;
@@ -2332,7 +2355,10 @@ namespace JKWatcher
 
             if (changedToIntermission && this.IsMainChatConnection)
             {
-                serverWindow.SaveLevelshot(infoPool.levelShotThisGame,0,5);
+                if(!mohMode && currentGameType != GameType.Duel && currentGameType != GameType.PowerDuel)
+                {
+                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame, 0, 5);
+                }
                 if (!_connectionOptions.silentMode)
                 {
                     string glicko2String = MakeGlicko2RatingsString(true, true);
@@ -3710,7 +3736,8 @@ namespace JKWatcher
             }
             if(obj.MapName != oldMapName)
             {
-                if(!string.IsNullOrWhiteSpace(oldMapName))
+                serverWindow.SaveLevelshot(infoPool.levelShot, 200, 5);
+                if (!string.IsNullOrWhiteSpace(oldMapName))
                 {
                     // Only do these in case we didn't just spawn a new connection (which also causes a "map change")
                     resetAllFrozenStatus();

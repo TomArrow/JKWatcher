@@ -25,6 +25,8 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Windows.Shell;
+using JKWatcher.RandomHelpers;
+using System.Numerics;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -2102,6 +2104,90 @@ namespace JKWatcher
 
             var markovManager = new MarkovManager();
             markovManager.Show();
+        }
+
+        Regex bspRegex = new Regex(@"\.bsp$",RegexOptions.Compiled|RegexOptions.IgnoreCase);
+        private void btnFindIntermissionInFolderPath_Click(object sender, RoutedEventArgs e)
+        {
+            var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            bool? result = fbd.ShowDialog();
+
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
+            {
+                string folder = fbd.SelectedPath;
+                ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                zipRecursor.HandleFolder(folder);
+            }
+        }
+
+        private void FindIntermissionInBsp(string filename, byte[] fileData, string path)
+        {
+            Stack<string> pathStack = new Stack<string>();
+            string[] pathPartsArr = path is null ? new string[0] : path.Split(new char[] { '\\','/'});
+            bool mapsFolderFound = false;
+            for(int i = pathPartsArr.Length - 1; i >= 0; i--)
+            {
+                string pathPart = pathPartsArr[i];
+                if (pathPart.Equals("maps", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    mapsFolderFound = true;
+                    break;
+                } else if (pathPart.EndsWith(".pk3",StringComparison.InvariantCultureIgnoreCase) || pathPart.EndsWith(".zip", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // this is weird. must be some weird isolated file
+                    pathStack.Clear();
+                    break;
+                }
+                else
+                {
+                    pathStack.Push(pathPart);
+                }
+            }
+            if (!mapsFolderFound)
+            {
+                pathStack.Clear();
+            }
+            // TODO What if there is some maps folder really low in the hierarchy?
+            StringBuilder sb = new StringBuilder();
+            while (pathStack.Count > 0)
+            {
+                sb.Append($"{pathStack.Pop().ToLowerInvariant()}/");
+            }
+            sb.Append(System.IO.Path.GetFileNameWithoutExtension(filename).ToLowerInvariant());
+            string mapname = sb.ToString();
+            Debug.WriteLine($"Found {filename} ({mapname}) in {path}");
+            (Vector3? origin,Vector3? angles)=BSPHelper.GetIntermissionCamFromBSPData(fileData);
+
+            if(origin.HasValue && angles.HasValue)
+            {
+                IntermissionCamPosition oldSavedPosition = AsyncPersistentDataManager<IntermissionCamPosition>.getByPrimaryKey(mapname);
+                if (oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false)
+                {
+                    AsyncPersistentDataManager<IntermissionCamPosition>.addItem(new IntermissionCamPosition()
+                    {
+                        MapName = mapname.ToLowerInvariant(),
+                        posX = origin.Value.X,
+                        posY = origin.Value.Y,
+                        posZ = origin.Value.Z,
+                        angX = angles.Value.X,
+                        angY = angles.Value.Y,
+                        angZ = angles.Value.Z,
+                        trueIntermissionCam = true
+                    }, true);
+                }
+            }
+        }
+
+        private void btnFindIntermissionInFile_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "BSP map files (.bsp)|*.bsp|Zip files (.zip)|*.zip|Pk3 archives (.pk3)|*.pk3";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+                ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                zipRecursor.HandleFile(filename);
+            }
         }
     }
 }

@@ -24,6 +24,7 @@ namespace JKWatcher
         public float[,,] data = new float[levelShotWidth, levelShotHeight, 3];
         public DateTime lastSaved = DateTime.Now;
         public object lastSavedLock = new object();
+        public UInt64 changesSinceLastSaved = 0;
     }
 
 

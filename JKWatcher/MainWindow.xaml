@@ -182,6 +182,17 @@
                     </WrapPanel>
                 </StackPanel>
             </TabItem>
+            <TabItem Header="More Features">
+                <StackPanel>
+                    <GroupBox Header="Find intermission camera coordinates/angles">
+                        <StackPanel>
+
+                            <Button x:Name="btnFindIntermissionInFolderPath" Click="btnFindIntermissionInFolderPath_Click">Find in folder path</Button>
+                            <Button x:Name="btnFindIntermissionInFile" Click="btnFindIntermissionInFile_Click">Find file (.bsp/.pk3)</Button>
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
         </TabControl>
         
         <WrapPanel Grid.Row="1" Grid.ColumnSpan="2">

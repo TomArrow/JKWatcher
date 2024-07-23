@@ -1246,7 +1246,7 @@ namespace JKWatcher
 			}
 
 			Vector3 angles = new Vector3();
-			vectoangles(moveVector, ref angles);
+			Q3MathStuff.vectoangles(moveVector, ref angles);
 			float yawAngle = angles.Y - this.delta_angles.Y;
 			float pitchAngle = angles.X - this.delta_angles.X;
             if (amStrafing)
@@ -1968,55 +1968,6 @@ namespace JKWatcher
 			return yaw;
 		}
 
-		void vectoangles(Vector3 value1, ref Vector3 angles)
-		{
-			float forward;
-			float yaw, pitch;
-
-			if (value1.Y == 0 && value1.X == 0)
-			{
-				yaw = 0;
-				if (value1.Z > 0)
-				{
-					pitch = 90;
-				}
-				else
-				{
-					pitch = 270;
-				}
-			}
-			else
-			{
-				if (value1.X != 0)
-				{
-					yaw = (float)(Math.Atan2(value1.Y, value1.X) * 180 / Math.PI);
-				}
-				else if (value1.Y > 0)
-				{
-					yaw = 90;
-				}
-				else
-				{
-					yaw = 270;
-				}
-				if (yaw < 0)
-				{
-					yaw += 360;
-				}
-
-				forward = (float)Math.Sqrt(value1.X * value1.X + value1.Y * value1.Y);
-				pitch = (float)(Math.Atan2(value1.Z, forward) * 180 / Math.PI);
-				if (pitch < 0)
-				{
-					pitch += 360;
-				}
-			}
-
-
-			angles.X = -pitch;
-			angles.Y = yaw;
-			angles.Z = 0;
-		}
 
 		public static void AngleVectors( Vector3 angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
 			float angle;
