@@ -998,7 +998,7 @@ namespace JKWatcher
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
 
-            serverWindow.SaveLevelshot(infoPool.levelShot, 200, 5);
+            serverWindow.SaveLevelshot(infoPool.levelShot, 200, 10.0);
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -2357,7 +2357,7 @@ namespace JKWatcher
             {
                 if(!mohMode && currentGameType != GameType.Duel && currentGameType != GameType.PowerDuel)
                 {
-                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame, 0, 5);
+                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame, 0, 10);
                 }
                 if (!_connectionOptions.silentMode)
                 {
@@ -3575,11 +3575,11 @@ namespace JKWatcher
                     string trimmedCmd = mutableCmd.Trim();
                     if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShot, 200,5);
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame, 200, 10.0);
                     }
                     else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,200,5);
+                        serverWindow.SaveLevelshot(infoPool.levelShot,200, 10.0);
                     }
                     else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {
@@ -3736,7 +3736,6 @@ namespace JKWatcher
             }
             if(obj.MapName != oldMapName)
             {
-                serverWindow.SaveLevelshot(infoPool.levelShot, 200, 5);
                 if (!string.IsNullOrWhiteSpace(oldMapName))
                 {
                     // Only do these in case we didn't just spawn a new connection (which also causes a "map change")

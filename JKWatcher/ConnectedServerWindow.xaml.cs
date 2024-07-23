@@ -803,6 +803,7 @@ namespace JKWatcher
             {
                 if(obj.MapName != lastMapName)
                 {
+                    SaveLevelshot(infoPool.levelShot, 200, 10.0);
                     infoPool.resetLevelShot(false, true);
                     if (lastMapName != null)
                     {
@@ -2268,7 +2269,7 @@ namespace JKWatcher
                 if (isDestroyed) return;
                 isDestroyed = true;
 
-                SaveLevelshot(infoPool.levelShot, 200, 5);
+                SaveLevelshot(infoPool.levelShot, 200, 10);
 
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 this.Closed -= ConnectedServerWindow_Closed;
@@ -2850,7 +2851,7 @@ namespace JKWatcher
 
         private void levelshotBtnOver200_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot, 200);
+            SaveLevelshot(infoPool.levelShot, 200,10);
         }
 
         private float above1To2SoftApproach(float value) // the result of this will approach 2 but never reach it. perfection
@@ -2877,7 +2878,7 @@ namespace JKWatcher
                 else
                 {
                     levelshotData.lastSaved = DateTime.Now;
-                    levelshotData.changesSinceLastSaved++;
+                    levelshotData.changesSinceLastSaved=0;
                 }
             }
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
