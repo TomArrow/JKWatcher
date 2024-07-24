@@ -136,6 +136,7 @@ namespace JKWatcher
         public bool LogColoredEnabled { get; set; } = true;
         public bool LogPlainEnabled { get; set; } = false;
         public bool DrawMiniMap { get; set; } = false;
+        public bool DrawMiniMap3D { get; set; } = false;
         public float MiniMapVelocityScale { get; set; } = 1.0f;
 
         //private ServerInfo serverInfo = null;
@@ -761,6 +762,7 @@ namespace JKWatcher
                 {
                     connections.Remove(ghostPeerConn);
                 }
+                queueRecheckMainDrawMinimapConnection();
                 updateIndices();
             }
         }
@@ -1690,6 +1692,7 @@ namespace JKWatcher
 
                 if (needrefresh)
                 {
+                    queueRecheckMainDrawMinimapConnection();
                     Dispatcher.Invoke(()=> {
                         lock (playerListDataGrid)
                         {
@@ -1943,13 +1946,47 @@ namespace JKWatcher
             }
         }
 
+
+
         const float miniMapOutdatedDrawTime = 1; // in seconds.
 
         bool miniMapResetBounds = false;
 
+
+        // ONLY call this from miniMapUpdater, as it might recheck connections which might lock connections, which might easily lead to deadlock
+        private PlayerInfo GetMiniMap3DPOVClient()
+        {
+            bool recheck = false;
+            lock (mainDrawMinimapConnectionPossiblyChangedLock)
+            {
+                recheck = mainDrawMinimapConnectionPossiblyChanged;
+            }
+            if (recheck)
+            {
+                recheckMainDrawMinimapConnection();
+            }
+            lock (mainDrawMinimapConnectionLock)
+            {
+                if (mainDrawMinimapConnectionLatestType == MiniMapFollowSource.PLAYER && mainDrawMinimapPlayer >= 0 && mainDrawMinimapPlayer < infoPool.playerInfo.Length)
+                {
+                    return infoPool.playerInfo[mainDrawMinimapPlayer];
+                }
+                else if (mainDrawMinimapConnectionLatestType == MiniMapFollowSource.CONNECTION && mainDrawMinimapConnection != null)
+                {
+                    int? spectatedPlayer = mainDrawMinimapConnection.SpectatedPlayer;
+                    if(spectatedPlayer.HasValue && spectatedPlayer.Value >=0 && spectatedPlayer < infoPool.playerInfo.Length)
+                    {
+                        return infoPool.playerInfo[spectatedPlayer.Value];
+                    }               
+                }
+            }
+            return null;
+        }
+
         private unsafe void miniMapUpdater(CancellationToken ct)
         {
             float minX = float.PositiveInfinity, maxX = float.NegativeInfinity, minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
+
             while (true) {
 
                 System.Threading.Thread.Sleep(100);
@@ -1991,17 +2028,36 @@ namespace JKWatcher
                     maxY = Math.Max(maxY, infoPool.playerInfo[i].position.Y);
                 }
 
+                Vector3 up = new Vector3();
+                Vector3 right = new Vector3();
+                Vector3 forward = new Vector3();
+
+
+                bool do2d = true;
+                Matrix4x4 matrixFor3d = new Matrix4x4();
+                if (DrawMiniMap3D)
+                {
+                    PlayerInfo mainPlayer = GetMiniMap3DPOVClient();
+                    if(mainPlayer != null)
+                    {
+                        Vector3 position = mainPlayer.position;
+                        position.Z += 26.0f + 8.0f;
+                        Connection.AngleVectors(mainPlayer.angles, out forward, out right, out up);
+                        position -= forward * 80.0f;
+                        matrixFor3d = ProjectionMatrixHelper.createModelProjectionMatrix(position, mainPlayer.angles, 120,imageWidth, imageHeight);
+                        do2d = false;
+                    }
+                }
+
+
                 // Pass 2: Draw players as pixels
                 float xRange = maxX - minX, yRange = maxY-minY;
                 float x, y, dirX, dirY;
-                int imageX, imageY, imageXEnd, imageYEnd;
+                int imageX=0, imageY=0, imageXEnd=0, imageYEnd=0;
                 int xFrom, xTo, yFrom, yTo, pixY, yStep, yPixRange, xPixRange, yState, yStart;
                 float XYRatio = 1.0f, XYRatioHere;
                 //int byteOffset;
                 byte[] color = new byte[3];
-                Vector3 up = new Vector3();
-                Vector3 right = new Vector3();
-                Vector3 forward = new Vector3();
                 //fixed(byte* imgData = miniMapImage.imageData)
                 {
                     byte[] imgData = imgData = miniMapImage.imageData;
@@ -2029,12 +2085,32 @@ namespace JKWatcher
                         //dirY = infoPool.playerInfo[i].velocity.Y;
                         Connection.AngleVectors(infoPool.playerInfo[i].angles, out forward, out right, out up);
                         forward *= 100 * MiniMapVelocityScale;
-                        dirX = -forward.X;
-                        dirY = forward.Y;
-                        imageX = Math.Clamp((int)( (x - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
-                        imageY = Math.Clamp((int)((y - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
-                        imageXEnd = Math.Clamp((int)( (x + (dirX*MiniMapVelocityScale) - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
-                        imageYEnd = Math.Clamp((int)((y + (dirY* MiniMapVelocityScale) - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
+
+
+                        if (do2d) { 
+                            dirX = -forward.X;
+                            dirY = forward.Y;
+                            imageX = Math.Clamp((int)( (x - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
+                            imageY = Math.Clamp((int)((y - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
+                            imageXEnd = Math.Clamp((int)( (x + (dirX*MiniMapVelocityScale) - minX) / xRange *(float)(imageWidth-1f)),0,imageWidth-1);
+                            imageYEnd = Math.Clamp((int)((y + (dirY* MiniMapVelocityScale) - minY) / yRange *(float)(imageHeight-1f)),0,imageHeight-1);
+                        }
+                        else
+                        {
+                            Vector4 playerPos = Vector4.Transform(infoPool.playerInfo[i].position, matrixFor3d);
+                            Vector4 playerTargetPos = Vector4.Transform(infoPool.playerInfo[i].position+ forward, matrixFor3d);
+
+                            float theZ = playerPos.Z;
+                            playerPos /= playerPos.W;
+                            playerTargetPos /= playerTargetPos.W;
+                            if (theZ > 0 && playerPos.X >= -1.0f && playerPos.X <= 1.0f && playerPos.Y >= -1.0f && playerPos.Y <= 1.0f)
+                            {
+                                imageX = Math.Clamp((int)(((playerPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                                imageY = Math.Clamp((int)(((-playerPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                                imageXEnd = Math.Clamp((int)(((playerTargetPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                                imageYEnd = Math.Clamp((int)(((-playerTargetPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                            }
+                        }
 
                         if (infoPool.playerInfo[i].team == Team.Red)
                         {
@@ -2456,9 +2532,97 @@ namespace JKWatcher
             }
         }
 
+
         private void connectionsDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             updateButtonEnablednesses();
+            queueRecheckMainDrawMinimapConnection(MiniMapFollowSource.CONNECTION);
+        }
+
+        private void queueRecheckMainDrawMinimapConnection(MiniMapFollowSource? type = null)
+        {
+            lock (mainDrawMinimapConnectionPossiblyChangedLock)
+            {
+                mainDrawMinimapConnectionPossiblyChanged = true;
+                if (type.HasValue)
+                {
+                    mainDrawMinimapConnectionLatestType = type.Value;
+                }
+            }
+        }
+
+        enum MiniMapFollowSource
+        {
+            CONNECTION,
+            PLAYER
+        }
+
+        // For 3d minimap
+        Connection mainDrawMinimapConnection = null;
+        int mainDrawMinimapPlayer = -1;
+        bool mainDrawMinimapConnectionPossiblyChanged = false;
+        MiniMapFollowSource mainDrawMinimapConnectionLatestType = MiniMapFollowSource.CONNECTION;
+        object mainDrawMinimapConnectionPossiblyChangedLock = new object();
+        object mainDrawMinimapConnectionLock = new object();
+
+        // be very careful to not call this from anywhere that might be caused directly by some other part of the program that locks connectionsCameraOperatorsMutex
+        // e.g. don't call it in SelectionChanged of Datagrid, as deleting a connection might result in that. 
+        private void recheckMainDrawMinimapConnection()
+        {
+            lock (mainDrawMinimapConnectionLock) { 
+                // Connection
+                List<Connection> ops = null;
+                List<Connection> possibles = null;
+                Dispatcher.Invoke(()=> {
+                    ops = connectionsDataGrid.SelectedItems?.Cast<Connection>()?.ToList();
+                    possibles = connectionsDataGrid.Items?.Cast<Connection>()?.ToList();
+                });
+                if (ops != null && ops.Count > 0 && possibles != null && possibles.Contains(ops[0]))
+                {
+                    mainDrawMinimapConnection = ops[0];
+                }
+                else
+                {
+                    lock (connectionsCameraOperatorsMutex)
+                    {
+                        if (mainDrawMinimapConnection != null && connections.Contains(mainDrawMinimapConnection))
+                        {
+                            // All good, just stay on this.
+                        }
+                        if (connections.Count > 0)
+                        {
+                            mainDrawMinimapConnection = connections[0];
+                        }
+                        else
+                        {
+                            mainDrawMinimapConnection = null;
+                        }
+                    }
+                }
+                mainDrawMinimapConnectionPossiblyChanged = false;
+
+                // Player
+                List<PlayerInfo> playas = null;
+                Dispatcher.Invoke(() => {
+                    playas = playerListDataGrid.SelectedItems?.Cast<PlayerInfo>()?.ToList();
+                });
+                if (playas != null && playas.Count > 0 && infoPool.playerInfo[playas[0].clientNum].infoValid == true)
+                {
+                    mainDrawMinimapPlayer = playas[0].clientNum;
+                }
+                else
+                {
+                    mainDrawMinimapPlayer = -1;
+                    foreach(PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if (pi.infoValid)
+                        {
+                            mainDrawMinimapPlayer = pi.clientNum;
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         private void deleteWatcherBtn_Click(object sender, RoutedEventArgs e)
@@ -2544,6 +2708,7 @@ namespace JKWatcher
         private void playerListDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             updateButtonEnablednesses();
+            queueRecheckMainDrawMinimapConnection(MiniMapFollowSource.PLAYER);
         }
 
         private void followBtn_Click(object sender, RoutedEventArgs e)
@@ -2573,6 +2738,10 @@ namespace JKWatcher
         private void checkDraw_Checked(object sender, RoutedEventArgs e)
         {
             DrawMiniMap = checkDraw.IsChecked.HasValue ? checkDraw.IsChecked.Value : false;
+        }
+        private void checkDraw3D_Checked(object sender, RoutedEventArgs e)
+        {
+            DrawMiniMap3D = checkDraw3D.IsChecked.HasValue ? checkDraw3D.IsChecked.Value : false;
         }
 
         private void newConBtn_Click(object sender, RoutedEventArgs e)
@@ -2621,6 +2790,7 @@ namespace JKWatcher
                             conn.ServerInfoChanged -= Con_ServerInfoChanged;
                             conn.PropertyChanged -= Con_PropertyChanged;
                             connections.Remove(conn);
+                            queueRecheckMainDrawMinimapConnection();
                         }
                     //}
                 }
@@ -3004,6 +3174,7 @@ namespace JKWatcher
                     //conn.disconnect();
                     conn.CloseDown();
                     connections.Remove(conn);
+                    queueRecheckMainDrawMinimapConnection();
                     updateIndices();
                     return true;
                 }
