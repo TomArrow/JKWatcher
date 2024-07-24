@@ -382,7 +382,7 @@
 
             <WrapPanel>
                 <CheckBox x:Name="checkDraw" Checked="checkDraw_Checked" Unchecked="checkDraw_Checked" Panel.ZIndex="1" IsChecked="False" FontSize="10">MiniMap</CheckBox>
-                <CheckBox x:Name="checkDraw3D" Checked="checkDraw3D_Checked" Unchecked="checkDraw3D_Checked" Panel.ZIndex="1" IsChecked="False">3D</CheckBox>
+                <!--<CheckBox x:Name="checkDraw3D" Checked="checkDraw3D_Checked" Unchecked="checkDraw3D_Checked" Panel.ZIndex="1" IsChecked="False">3D</CheckBox>-->
                 <Slider Width="50" Minimum="1.0" Maximum="10.0" x:Name="minimapVelocityScaleSlider" ValueChanged="minimapVelocityScaleSlider_ValueChanged" Value="1.0"></Slider>
             </WrapPanel>
             <Label>Password</Label><TextBox x:Name="passwordTxt"></TextBox>

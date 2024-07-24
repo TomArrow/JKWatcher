@@ -2062,7 +2062,7 @@ namespace JKWatcher
                 Matrix4x4 matrixFor3d = new Matrix4x4();
                 if (DrawMiniMap3D)
                 {
-                    PlayerInfo mainPlayer = GetMiniMap3DPOVClient();
+                    /*PlayerInfo mainPlayer = GetMiniMap3DPOVClient();
                     if(mainPlayer != null)
                     {
                         Vector3 position = mainPlayer.position;
@@ -2071,7 +2071,7 @@ namespace JKWatcher
                         position -= forward * 80.0f;
                         matrixFor3d = ProjectionMatrixHelper.createModelProjectionMatrix(position, mainPlayer.angles, 120,imageWidth, imageHeight);
                         do2d = false;
-                    }
+                    }*/
                 }
 
 
@@ -2123,6 +2123,7 @@ namespace JKWatcher
                         }
                         else
                         {
+                            /*
                             const bool drawboxes = true;
 
                             if (drawboxes)
@@ -2220,7 +2221,7 @@ namespace JKWatcher
                                     imageYEnd = Math.Clamp((int)(((-playerTargetPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
                                     linesToDraw.Enqueue(new LineTuple(imageX, imageY, imageXEnd, imageYEnd));
                                 }
-                            }
+                            }*/
 
                         }
 
@@ -2872,7 +2873,7 @@ namespace JKWatcher
         }
         private void checkDraw3D_Checked(object sender, RoutedEventArgs e)
         {
-            DrawMiniMap3D = checkDraw3D.IsChecked.HasValue ? checkDraw3D.IsChecked.Value : false;
+        //    DrawMiniMap3D = checkDraw3D.IsChecked.HasValue ? checkDraw3D.IsChecked.Value : false;
         }
 
         private void newConBtn_Click(object sender, RoutedEventArgs e)
