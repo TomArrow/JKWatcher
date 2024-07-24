@@ -31,9 +31,9 @@ namespace JKWatcher.GenericDialogBoxes
         public string QuestionText { get; set; } = "Do you want Blah?";
         public string HeaderText { get; set; } = "Dialog box";
         [DependsOn("OkBtnText")]
-        Visibility OkBtnVisibility => string.IsNullOrWhiteSpace(OkBtnText) ? Visibility.Collapsed: Visibility.Visible;
+        public Visibility OkBtnVisibility => string.IsNullOrWhiteSpace(OkBtnText) ? Visibility.Collapsed: Visibility.Visible;
         [DependsOn("CancelBtnText")]
-        Visibility CancelBtnVisibility => string.IsNullOrWhiteSpace(CancelBtnText) ? Visibility.Collapsed: Visibility.Visible;
+        public Visibility CancelBtnVisibility => string.IsNullOrWhiteSpace(CancelBtnText) ? Visibility.Collapsed: Visibility.Visible;
         public DetailedDialogBox(string questionText, string detailsText, string headerText, string okBtnText = "OK", string cancelBtnText = "Cancel")
         {
             InitializeComponent();
