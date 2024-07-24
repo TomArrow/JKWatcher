@@ -2738,7 +2738,7 @@ namespace JKWatcher
                 }
                 else
                 {
-                    if(mainDrawMinimapPlayer >= 0 && mainDrawMinimapPlayer<infoPool.playerInfo.Length && infoPool.playerInfo[mainDrawMinimapPlayer].InfoValid)
+                    if(mainDrawMinimapPlayer >= 0 && mainDrawMinimapPlayer<infoPool.playerInfo.Length && infoPool.playerInfo[mainDrawMinimapPlayer].infoValid)
                     {
                         // Ok. keep it.
                     }
