@@ -14,7 +14,8 @@ namespace JKWatcher.RandomHelpers
     {
         static Regex entitiesRegex = new Regex(@"\{(\s*""[^""]+""\s*){2,}\}", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
-        public static (Vector3?,Vector3?) GetIntermissionCamFromBSPData(byte[] data)
+        // return values: origin, angles, from intermission ent (bool)
+        public static (Vector3?,Vector3?,bool) GetIntermissionCamFromBSPData(byte[] data)
         {
             string dataAsString = Encoding.Latin1.GetString(data); // really cringe, i know :)
             MatchCollection matches = entitiesRegex.Matches(dataAsString);
@@ -76,19 +77,19 @@ namespace JKWatcher.RandomHelpers
                         Vector3 angles = new Vector3();
                         Q3MathStuff.vectoangles(dir,ref angles);
                         Debug.WriteLine($"target found, using angle to target {angles} with intermission origin {intermissionEnt.origin}");
-                        return (intermissionEnt.origin, angles);
+                        return (intermissionEnt.origin, angles,true);
                     }
                     else
                     {
                         string key = intermissionEnt["target"];
                         Debug.WriteLine($"target {key} not found, using ent values {intermissionEnt.origin} {intermissionEnt.angles}");
-                        return (intermissionEnt.origin, intermissionEnt.angles);
+                        return (intermissionEnt.origin, intermissionEnt.angles, true);
                     }
                 }
                 else
                 {
                     Debug.WriteLine($"no target specified, using ent values {intermissionEnt.origin} {intermissionEnt.angles}");
-                    return (intermissionEnt.origin, intermissionEnt.angles);
+                    return (intermissionEnt.origin, intermissionEnt.angles, true);
                 }
             } else
             {
@@ -98,14 +99,14 @@ namespace JKWatcher.RandomHelpers
                 if(relevantEntity != null)
                 {
                     Debug.WriteLine($"no intermission ent, using furthest spawnpoint {origin} {angles}");
-                    return (origin, angles);
+                    return (origin, angles,false);
                 } else
                 {
                     Debug.WriteLine($"no intermission ent, no spawn point found. giving up.");
                 }
             }
 
-            return (null, null);
+            return (null, null,false);
         }
 
         static EntityProperties SelectRandomFurthestSpawnPoint(Vector3 avoidPoint,List<EntityProperties> playerSpots, ref Vector3 origin, ref Vector3 angles)

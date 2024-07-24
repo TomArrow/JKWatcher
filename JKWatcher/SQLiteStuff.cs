@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -12,7 +13,7 @@ using System.Threading.Tasks;
 namespace JKWatcher
 {
 	class IntermissionCamPosition : INotifyPropertyChanged
-    {
+	{
 		[PrimaryKey]
 		public string MapName { get; set; }
 
@@ -23,6 +24,18 @@ namespace JKWatcher
 		public float angY { get; set; }
 		public float angZ { get; set; }
 		public bool trueIntermissionCam { get; set; }
+		public bool trueIntermissionEntity { get; set; }
+
+		[Ignore]
+		public Vector3 position => new Vector3(posX, posY, posZ);
+		[Ignore]
+		public Vector3 angles => new Vector3(angX, angY, angZ);
+
+		public (float,float) DistanceToOther(IntermissionCamPosition other)
+        {
+			if (other is null) return (float.NaN, float.NaN);
+			return (Vector3.Distance(this.position,other.position), Vector3.Distance(this.angles, other.angles));
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
     }
