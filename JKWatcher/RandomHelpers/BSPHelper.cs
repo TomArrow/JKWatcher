@@ -38,7 +38,13 @@ namespace JKWatcher.RandomHelpers
                             }
                             else if(props["classname"].Equals("info_player_intermission", StringComparison.InvariantCultureIgnoreCase))
                             {
-                                intermissionEnt = props;
+                                if(intermissionEnt is null)
+                                {
+                                    intermissionEnt = props;
+                                } else
+                                {
+                                    Debug.WriteLine($"map contains multiple intermisson ents. using first one.");
+                                }
                             }
                             else if(
                                 props["classname"].Equals("info_player_start", StringComparison.InvariantCultureIgnoreCase)
