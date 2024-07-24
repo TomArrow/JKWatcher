@@ -2479,6 +2479,20 @@ namespace JKWatcher
                     infoPool.playerInfo[i].saberMove = snap.PlayerState.SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
                     infoPool.playerInfo[i].movementDir = snap.PlayerState.MovementDirection;
+
+                    infoPool.playerInfo[i].hitBox.mins = Hitbox.defaultMins;
+                    int legsAnim = snap.PlayerState.LegsAnimation & ~2048;
+                    bool isDucked = (legsAnim >= 697 && legsAnim <= 699) || (snap.PlayerState.PlayerMoveFlags & 1) > 0; // PMF_DUCKED
+                    bool isInRoll = legsAnim >= 781 && legsAnim <= 784 && snap.PlayerState.LegsTimer > 0; // TODO Make work with JKA and 1.04
+                    if (isDucked || isInRoll) {
+                        Vector3 themaxs = Hitbox.defaultMaxs;
+                        themaxs.Z = 16;
+                        infoPool.playerInfo[i].hitBox.maxs = themaxs;
+                    } else
+                    {
+                        infoPool.playerInfo[i].hitBox.maxs = Hitbox.defaultMaxs;
+                    }
+                    
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
                     this.baseSpeed = snap.PlayerState.Basespeed;
                     this.delta_angles.X = Short2Angle(snap.PlayerState.DeltaAngles[0]);
@@ -2570,7 +2584,7 @@ namespace JKWatcher
 
                     playerHasFlag[i] = hasFlag;
 
-                    int legsAnim = snap.PlayerState.LegsAnimation & ~2048;
+                    //int legsAnim = snap.PlayerState.LegsAnimation & ~2048;
                     if (legsAnim != lastLegsAnim[i])
                     {
                         if (legsAnim >= 781 && legsAnim <= 784 && !(lastLegsAnim[i] >= 781 && lastLegsAnim[i] <= 784)) // Is in roll. TODO Make work with JKA and 1.04
@@ -2693,6 +2707,26 @@ namespace JKWatcher
                     infoPool.playerInfo[i].forcePowersActive = snap.Entities[snapEntityNum].ForcePowersActive;
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
+
+                    if (snap.Entities[snapEntityNum].Solid >0)
+                    {
+                        int solid = snap.Entities[snapEntityNum].Solid;
+
+                        int x = 0, zd = 0, zu = 0;
+                        x = (solid & 255);
+                        zd = ((solid >> 8) & 255);
+                        zu = ((solid >> 16) & 255) - 32;
+
+                        infoPool.playerInfo[i].hitBox.mins.X = infoPool.playerInfo[i].hitBox.mins.Y = -x;
+                        infoPool.playerInfo[i].hitBox.mins.Z = -zd;
+                        infoPool.playerInfo[i].hitBox.maxs.X = infoPool.playerInfo[i].hitBox.maxs.Y = x;
+                        infoPool.playerInfo[i].hitBox.maxs.Z = zu;
+                    } else
+                    {
+                        infoPool.playerInfo[i].hitBox.mins = Hitbox.defaultMins;
+                        infoPool.playerInfo[i].hitBox.maxs = Hitbox.defaultMaxs;
+                    }
+
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
                     if (!deadFlagSet)
                     {

@@ -336,6 +336,14 @@ namespace JKWatcher
         }
     }
 
+    public struct Hitbox
+    {
+        static public readonly Vector3 defaultMins = new Vector3(-15,-15,-24);
+        static public readonly Vector3 defaultMaxs = new Vector3(15,15,40);
+        public Vector3 mins;
+        public Vector3 maxs;
+    }
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
@@ -369,6 +377,7 @@ namespace JKWatcher
         public int saberMove;
         public int forcePowersActive;
         public int movementDir;
+        public Hitbox hitBox;
         public DateTime? lastDrainedEvent;
         //public int legsTimer;
         #endregion

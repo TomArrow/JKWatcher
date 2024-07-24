@@ -29,6 +29,7 @@ namespace JKWatcher
 {
 
 
+    using LineTuple = Tuple<int, int, int, int>;
     public class SnapsSettings : INotifyPropertyChanged
     {
         private int _botOnlySnaps = 5;
@@ -1983,6 +1984,30 @@ namespace JKWatcher
             return null;
         }
 
+        private LineTuple LineTupleFromPoints(float[] point1, float[] point2, Matrix4x4 matrix, int imageWidth, int imageHeight)
+        {
+            Vector3 pos1 = new Vector3(point1[0],point1[1],point1[2]);
+            Vector3 pos2 = new Vector3(point2[0], point2[1], point2[2]);
+            Vector4 tpos1 = Vector4.Transform(pos1, matrix);
+            Vector4 tpos2 = Vector4.Transform(pos2, matrix);
+
+            float theZ = Math.Max(tpos1.Z, tpos2.Z);
+            tpos1 /= tpos1.W;
+            tpos2 /= tpos2.W;
+            if (theZ > 0 && 
+               ( (tpos1.X >= -1.0f && tpos1.X <= 1.0f && tpos1.Y >= -1.0f && tpos1.Y <= 1.0f)
+                || (tpos2.X >= -1.0f && tpos2.X <= 1.0f && tpos2.Y >= -1.0f && tpos2.Y <= 1.0f))
+                )
+            {
+                int imageX = Math.Clamp((int)(((-tpos1.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                int imageY = Math.Clamp((int)(((-tpos1.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                int imageXEnd = Math.Clamp((int)(((-tpos2.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                int imageYEnd = Math.Clamp((int)(((-tpos2.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                return new LineTuple(imageX, imageY, imageXEnd, imageYEnd);
+            }
+            return null;
+        }
+
         private unsafe void miniMapUpdater(CancellationToken ct)
         {
             float minX = float.PositiveInfinity, maxX = float.NegativeInfinity, minY = float.PositiveInfinity, maxY = float.NegativeInfinity;
@@ -2086,6 +2111,7 @@ namespace JKWatcher
                         Connection.AngleVectors(infoPool.playerInfo[i].angles, out forward, out right, out up);
                         forward *= 100 * MiniMapVelocityScale;
 
+                        Queue<LineTuple> linesToDraw = new Queue<LineTuple>();
 
                         if (do2d) { 
                             dirX = -forward.X;
@@ -2097,19 +2123,105 @@ namespace JKWatcher
                         }
                         else
                         {
-                            Vector4 playerPos = Vector4.Transform(infoPool.playerInfo[i].position, matrixFor3d);
-                            Vector4 playerTargetPos = Vector4.Transform(infoPool.playerInfo[i].position+ forward, matrixFor3d);
+                            const bool drawboxes = true;
 
-                            float theZ = playerPos.Z;
-                            playerPos /= playerPos.W;
-                            playerTargetPos /= playerTargetPos.W;
-                            if (theZ > 0 && playerPos.X >= -1.0f && playerPos.X <= 1.0f && playerPos.Y >= -1.0f && playerPos.Y <= 1.0f)
+                            if (drawboxes)
                             {
-                                imageX = Math.Clamp((int)(((playerPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
-                                imageY = Math.Clamp((int)(((-playerPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
-                                imageXEnd = Math.Clamp((int)(((playerTargetPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
-                                imageYEnd = Math.Clamp((int)(((-playerTargetPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                                // mostly lifted from eternaljk2mv
+                                Vector3 basePos = infoPool.playerInfo[i].position;
+                                Vector3 maxPos = basePos+infoPool.playerInfo[i].hitBox.maxs;
+                                Vector3 minPos = basePos+infoPool.playerInfo[i].hitBox.mins;
+                                float[] absmin = new float[3] { minPos.X, minPos.Y, minPos.Z };
+                                float[] absmax = new float[3] { maxPos.X, maxPos.Y, maxPos.Z };
+                                float[] point1 = new float[3];
+                                float[] point2 = new float[3];
+                                float[] point3 = new float[3];
+                                float[] point4 = new float[3];
+                                int[] vec = new int[3];
+                                int axis, j;
+
+                                for (axis = 0, vec[0] = 0, vec[1] = 1, vec[2] = 2; axis < 3; axis++, vec[0]++, vec[1]++, vec[2]++)
+                                {
+                                    for (j = 0; j < 3; j++)
+                                    {
+                                        if (vec[j] > 2)
+                                        {
+                                            vec[j] = 0;
+                                        }
+                                    }
+
+                                    point1[vec[1]] = absmin[vec[1]];
+                                    point1[vec[2]] = absmin[vec[2]];
+
+                                    point2[vec[1]] = absmin[vec[1]];
+                                    point2[vec[2]] = absmax[vec[2]];
+
+                                    point3[vec[1]] = absmax[vec[1]];
+                                    point3[vec[2]] = absmax[vec[2]];
+
+                                    point4[vec[1]] = absmax[vec[1]];
+                                    point4[vec[2]] = absmin[vec[2]];
+
+                                    //- face
+                                    point1[vec[0]] = point2[vec[0]] = point3[vec[0]] = point4[vec[0]] = absmin[vec[0]];
+
+                                    LineTuple lt;
+                                    if((lt = LineTupleFromPoints(point1, point2, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if((lt = LineTupleFromPoints(point2, point3, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if((lt = LineTupleFromPoints(point1, point4, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if((lt = LineTupleFromPoints(point4, point3, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    
+                                    //+ face
+                                    point1[vec[0]] = point2[vec[0]] = point3[vec[0]] = point4[vec[0]] = absmax[vec[0]];
+
+                                    if ((lt = LineTupleFromPoints(point1, point2, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if ((lt = LineTupleFromPoints(point2, point3, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if ((lt = LineTupleFromPoints(point1, point4, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                    if ((lt = LineTupleFromPoints(point4, point3, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                }
                             }
+                            else 
+                            {
+                                Vector4 playerPos = Vector4.Transform(infoPool.playerInfo[i].position, matrixFor3d);
+                                Vector4 playerTargetPos = Vector4.Transform(infoPool.playerInfo[i].position + forward, matrixFor3d);
+
+                                float theZ = playerPos.Z;
+                                playerPos /= playerPos.W;
+                                playerTargetPos /= playerTargetPos.W;
+                                if (theZ > 0 && playerPos.X >= -1.0f && playerPos.X <= 1.0f && playerPos.Y >= -1.0f && playerPos.Y <= 1.0f)
+                                {
+                                    imageX = Math.Clamp((int)(((-playerPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                                    imageY = Math.Clamp((int)(((-playerPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                                    imageXEnd = Math.Clamp((int)(((-playerTargetPos.X + 1.0f) / 2.0f) * (float)imageWidth), 0, imageWidth - 1);
+                                    imageYEnd = Math.Clamp((int)(((-playerTargetPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
+                                    linesToDraw.Enqueue(new LineTuple(imageX, imageY, imageXEnd, imageYEnd));
+                                }
+                            }
+
                         }
 
                         if (infoPool.playerInfo[i].team == Team.Red)
@@ -2137,6 +2249,15 @@ namespace JKWatcher
                             color[2] = 0;
                         }
 
+                        drawNextLine:
+                        if(linesToDraw.Count > 0)
+                        {
+                            LineTuple lt = linesToDraw.Dequeue();
+                            imageX = lt.Item1;
+                            imageY = lt.Item2;
+                            imageXEnd = lt.Item3;
+                            imageYEnd = lt.Item4;
+                        }
 
                         xFrom = Math.Min(imageX, imageXEnd);
                         xTo = Math.Max(imageX, imageXEnd);
@@ -2180,6 +2301,11 @@ namespace JKWatcher
                                 imgData[pixY * stride + pixX * 3 + 1] = Math.Max(imgData[pixY * stride + pixX * 3 + 1], color[1]);
                                 imgData[pixY * stride + pixX * 3 + 2] = Math.Max(imgData[pixY * stride + pixX * 3 + 2], color[2]);
                             }
+                        }
+
+                        if (linesToDraw.Count > 0)
+                        {
+                            goto drawNextLine;
                         }
 
                         /*byteOffset = imageY * stride + imageX * 3;
@@ -2612,13 +2738,18 @@ namespace JKWatcher
                 }
                 else
                 {
-                    mainDrawMinimapPlayer = -1;
-                    foreach(PlayerInfo pi in infoPool.playerInfo)
+                    if(mainDrawMinimapPlayer >= 0 && mainDrawMinimapPlayer<infoPool.playerInfo.Length && infoPool.playerInfo[mainDrawMinimapPlayer].InfoValid)
                     {
-                        if (pi.infoValid)
+                        // Ok. keep it.
+                    }
+                    else { 
+                        foreach(PlayerInfo pi in infoPool.playerInfo)
                         {
-                            mainDrawMinimapPlayer = pi.clientNum;
-                            break;
+                            if (pi.infoValid)
+                            {
+                                mainDrawMinimapPlayer = pi.clientNum;
+                                break;
+                            }
                         }
                     }
                 }
