@@ -19,12 +19,16 @@
             <RowDefinition Height="Auto"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
             <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <TextBox Background="LightGray" IsReadOnly="True" MinWidth="500" TextWrapping="Wrap" MaxWidth="800" MaxHeight="300" ScrollViewer.CanContentScroll="True" AcceptsReturn="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100"  Text="{Binding DetailsText}" d:Text=" Lorem ipsum&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test">
+        <TextBox Background="LightGray" IsReadOnly="True" MinWidth="500" TextWrapping="Wrap" MaxWidth="800" MaxHeight="300" ScrollViewer.CanContentScroll="True" AcceptsReturn="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100"  Text="{Binding DetailsText}" d:Text=" Lorem ipsum&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test&#x0a;test" Visibility="{Binding DetailsVisibility}">
         </TextBox>
-        <TextBox Grid.Row="1" IsReadOnly="True" MinWidth="500" TextWrapping="Wrap" MaxWidth="800" MaxHeight="300" ScrollViewer.CanContentScroll="True" AcceptsReturn="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100"  Text="{Binding QuestionText}" d:Text="Explanation">
+        <DataGrid Grid.Row="1" AutoGenerateColumns="True" MinWidth="500" MaxWidth="800" d:MinHeight="50" MaxHeight="300" ScrollViewer.CanContentScroll="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100" x:Name="detailsGrid"  Visibility="{Binding DetailsGridVisibility}" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True" IsReadOnly="False">
+            
+        </DataGrid>
+        <TextBox Grid.Row="2" IsReadOnly="True" MinWidth="500" TextWrapping="Wrap" MaxWidth="800" MaxHeight="300" ScrollViewer.CanContentScroll="True" AcceptsReturn="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100"  Text="{Binding QuestionText}" d:Text="Explanation">
         </TextBox>
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
             <Button x:Name="yesBtn" Click="yesBtn_Click">Yes</Button>
             <Button x:Name="noBtn" Click="noBtn_Click">No</Button>
             <Button x:Name="okBtn" Content="{Binding OkBtnText}" Click="okBtn_Click" Visibility="{Binding OkBtnVisibility}"></Button>

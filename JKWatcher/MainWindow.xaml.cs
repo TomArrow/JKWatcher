@@ -35,7 +35,32 @@ using System.Numerics;
 
 namespace JKWatcher
 {
-    using IntermissionCamPositionTuple = System.Tuple<IntermissionCamPosition, IntermissionCamPosition,UInt64>; // new, old, dupe count
+    class IntermissionCamPositionTuple
+    {
+        public string mapName { get; set; }
+        public enum OverrideChoice {
+            None,
+            Override,
+            KeepOld
+        }
+        public IntermissionCamPosition newPos { get; set; }
+        public IntermissionCamPosition oldPos { get; set; }
+        public UInt64 dupeCount { get; set; }
+        public float differencePos { get; set; } = 0;
+        public float differenceAng { get; set; } = 0;
+        public OverrideChoice overrideChoice { get; set; } = OverrideChoice.None;
+
+        public IntermissionCamPositionTuple(string map, IntermissionCamPosition newPosition, IntermissionCamPosition oldPosition, UInt64 dupesCount)
+        {
+            mapName = map;
+            newPos = newPosition;
+            oldPos = oldPosition;
+            dupeCount = dupesCount;
+            (differencePos, differenceAng) = newPos.DistanceToOther(oldPos);
+        }
+    }
+
+    //using IntermissionCamPositionTuple = System.Tuple<IntermissionCamPosition, IntermissionCamPosition,UInt64>; // new, old, dupe count
 
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -2126,11 +2151,11 @@ namespace JKWatcher
             }
             foreach(var kvp in conflictingCams)
             {
-                (float distance1, float distance2) = kvp.Value.Item1.DistanceToOther(kvp.Value.Item2);
+                (float distance1, float distance2) = kvp.Value.newPos.DistanceToOther(kvp.Value.oldPos);
                 informText.Append($"{kvp.Key}: {distance1} posdiff {distance2} angdiff");
-                if(kvp.Value.Item3 > 0)
+                if(kvp.Value.dupeCount > 0)
                 {
-                    informText.Append($" ({kvp.Value.Item3} map dupes, might conflict)");
+                    informText.Append($" ({kvp.Value.dupeCount} map dupes, might conflict)");
                 }
                 informText.Append("\n");
 
@@ -2138,34 +2163,49 @@ namespace JKWatcher
             MessageBoxResult result = MessageBoxResult.None;
 
             Dispatcher.Invoke(()=> {
-                GenericDialogBoxes.DetailedDialogBox db = new GenericDialogBoxes.DetailedDialogBox("Click Yes to manually decide for each, No to overwrite all, Cancel to not overwrite any.", informText.ToString(), "Intermission cam conflicts found", null);
+                GenericDialogBoxes.DetailedDialogBox db = new GenericDialogBoxes.DetailedDialogBox("Click Yes to manually decide for each, No to overwrite all, Cancel to not overwrite any. Set override choice where you want to quickly set now.", conflictingCams.Values.ToArray(), "Intermission cam conflicts found", null);
                 db.ShowDialog();
                 result = db.result;
             });
 
-            if (result == MessageBoxResult.Cancel)
-            {
-                return;
-            }
+            //if (result == MessageBoxResult.Cancel)
+            //{
+            //    return;
+            //}
             bool doubleCheckEach = result == MessageBoxResult.Yes;
             foreach (var kvp in conflictingCams)
             {
+                if(kvp.Value.overrideChoice != IntermissionCamPositionTuple.OverrideChoice.None)
+                {
+                    switch (kvp.Value.overrideChoice)
+                    {
+                        case IntermissionCamPositionTuple.OverrideChoice.KeepOld:
+                            continue;
+                        case IntermissionCamPositionTuple.OverrideChoice.Override:
+                            AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.newPos, true);
+                            continue;
+                    }
+                }
+                if(result == MessageBoxResult.Cancel)
+                {
+                    continue;
+                }
                 if (!doubleCheckEach)
                 {
-                    AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.Item1, true);
+                    AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.newPos, true);
                     continue;
                 }
                 informText.Clear();
-                (float distance1, float distance2) = kvp.Value.Item1.DistanceToOther(kvp.Value.Item2);
+                (float distance1, float distance2) = kvp.Value.newPos.DistanceToOther(kvp.Value.oldPos);
                 informText.AppendLine($"{kvp.Key}:\nposdiff {distance1} angdiff {distance2}");
-                if (kvp.Value.Item3 > 0)
+                if (kvp.Value.dupeCount > 0)
                 {
-                    informText.AppendLine($"{kvp.Value.Item3} map dupes, might conflict");
+                    informText.AppendLine($"{kvp.Value.dupeCount} map dupes, might conflict");
                 }
-                informText.AppendLine($"old pos/ang: {kvp.Value.Item2.position} {kvp.Value.Item2.angles}");
-                informText.AppendLine($"new pos/ang: {kvp.Value.Item1.position} {kvp.Value.Item1.angles}");
-                informText.AppendLine($"old was intermission ent: {kvp.Value.Item2.trueIntermissionEntity}");
-                informText.AppendLine($"new is intermission ent: {kvp.Value.Item1.trueIntermissionEntity}");
+                informText.AppendLine($"old pos/ang: {kvp.Value.oldPos.position} {kvp.Value.oldPos.angles}");
+                informText.AppendLine($"new pos/ang: {kvp.Value.newPos.position} {kvp.Value.newPos.angles}");
+                informText.AppendLine($"old was intermission ent: {kvp.Value.oldPos.trueIntermissionEntity}");
+                informText.AppendLine($"new is intermission ent: {kvp.Value.newPos.trueIntermissionEntity}");
                 informText.AppendLine();
 
                 bool doIt = false;
@@ -2183,12 +2223,12 @@ namespace JKWatcher
                     case MessageBoxResult.Cancel:
                         return;
                     case MessageBoxResult.Yes:
-                        AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.Item1, true);
+                        AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.newPos, true);
                         break;
                     case MessageBoxResult.No:
                         continue;
                     case MessageBoxResult.OK:
-                        AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.Item1, true);
+                        AsyncPersistentDataManager<IntermissionCamPosition>.addItem(kvp.Value.newPos, true);
                         doubleCheckEach = false;
                         break;
                 }
@@ -2264,9 +2304,10 @@ namespace JKWatcher
                     angY = angles.Value.Y,
                     angZ = angles.Value.Z,
                     trueIntermissionCam = true,
-                    trueIntermissionEntity = intermissionEnt
+                    trueIntermissionEntity = intermissionEnt,
+                    nonIntermissionEntityAlgorithmVersion = BSPHelper.nonIntermissionEntityAlgorithmVersion
                 };
-                if (oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false || oldSavedPosition.trueIntermissionEntity == false && intermissionEnt)
+                if (oldSavedPosition == null || oldSavedPosition.trueIntermissionCam == false || oldSavedPosition.trueIntermissionEntity == false && intermissionEnt || BSPHelper.nonIntermissionEntityAlgorithmVersion > oldSavedPosition.nonIntermissionEntityAlgorithmVersion && !intermissionEnt && !oldSavedPosition.trueIntermissionEntity)
                 {
                     AsyncPersistentDataManager<IntermissionCamPosition>.addItem(newPosition, true);
                 } else if(oldSavedPosition.trueIntermissionEntity == intermissionEnt)
@@ -2278,11 +2319,11 @@ namespace JKWatcher
                         {
                             if (differentOldNewIntermissionCamPositions.ContainsKey(mapname))
                             {
-                                differentOldNewIntermissionCamPositions[mapname] = new IntermissionCamPositionTuple(newPosition, oldSavedPosition, differentOldNewIntermissionCamPositions[mapname].Item3+1);
+                                differentOldNewIntermissionCamPositions[mapname].dupeCount++;// = new IntermissionCamPositionTuple(newPosition, oldSavedPosition, differentOldNewIntermissionCamPositions[mapname].Item3+1);
                             }
                             else
                             {
-                                differentOldNewIntermissionCamPositions[mapname] = new IntermissionCamPositionTuple(newPosition, oldSavedPosition,0);
+                                differentOldNewIntermissionCamPositions[mapname] = new IntermissionCamPositionTuple(mapname,newPosition, oldSavedPosition,0);
                             }
                         }
                     }

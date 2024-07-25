@@ -10,8 +10,11 @@ using System.Threading.Tasks;
 
 namespace JKWatcher.RandomHelpers
 {
+    using EntityAndCount = Tuple<EntityProperties, int, int>;
     static class BSPHelper
     {
+        public const int nonIntermissionEntityAlgorithmVersion = 3;
+
         static Regex entitiesRegex = new Regex(@"\{(\s*""[^""]+""\s*){2,}\}", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
         // return values: origin, angles, from intermission ent (bool)
@@ -20,6 +23,7 @@ namespace JKWatcher.RandomHelpers
             string dataAsString = Encoding.Latin1.GetString(data); // really cringe, i know :)
             MatchCollection matches = entitiesRegex.Matches(dataAsString);
             Dictionary<string, EntityProperties> entitiesByTargetname = new Dictionary<string, EntityProperties>(StringComparer.InvariantCultureIgnoreCase);
+            List<EntityProperties> allEnts = new List<EntityProperties>();
             List<EntityProperties> playerSpots = new List<EntityProperties>();
             List<EntityProperties> allPlayerSpots = new List<EntityProperties>(); // maybe if no info_player_deathmatch is found we do other stuff, like ctf spawns. idk
             EntityProperties intermissionEnt = null;
@@ -28,6 +32,7 @@ namespace JKWatcher.RandomHelpers
                 if (m.Success)
                 {
                     EntityProperties props = EntityProperties.FromString(m.Value);
+                    allEnts.Add(props);
                     if(props != null)
                     {
                         if (props.ContainsKey("classname"))
@@ -101,7 +106,7 @@ namespace JKWatcher.RandomHelpers
             {
                 Vector3 origin = new Vector3();
                 Vector3 angles = new Vector3();
-                EntityProperties relevantEntity = SelectRandomFurthestSpawnPoint(Vector3.Zero,playerSpots.Count == 0? allPlayerSpots : playerSpots,ref origin, ref angles);
+                EntityProperties relevantEntity = SelectRandomFurthestSpawnPoint(Vector3.Zero,playerSpots.Count == 0? allPlayerSpots : playerSpots,ref origin, ref angles, allEnts);
                 if(relevantEntity != null)
                 {
                     Debug.WriteLine($"no intermission ent, using furthest spawnpoint {origin} {angles}");
@@ -115,7 +120,7 @@ namespace JKWatcher.RandomHelpers
             return (null, null,false);
         }
 
-        static EntityProperties SelectRandomFurthestSpawnPoint(Vector3 avoidPoint,List<EntityProperties> playerSpots, ref Vector3 origin, ref Vector3 angles)
+        static EntityProperties SelectRandomFurthestSpawnPoint(Vector3 avoidPoint,List<EntityProperties> playerSpots, ref Vector3 origin, ref Vector3 angles, List<EntityProperties> allEnts)
         {
             EntityProperties spot;
             Vector3 delta;
@@ -180,17 +185,61 @@ namespace JKWatcher.RandomHelpers
                 return spot;
             }
 
+            // classic q3:
             // select a random spot from the spawn points furthest away
             //rnd = random() * (numSpots / 2);
             //Random random = new Random(); // actually nah, let it be deterministic
             //rnd = (int)((float)random.NextDouble() * (float)(numSpots / 2));
-            rnd = 0;
 
-            origin = list_spot[rnd].origin;
+            // v0/1:
+            //rnd = 0;
+            //
+            //origin = list_spot[rnd].origin;
+            //origin.Y += 9;
+            //angles = list_spot[rnd].angles;
+
+            //return list_spot[rnd];
+
+            // v3
+            // highestPossibleIndex is numSpots/2 in classic q3
+            // out of all these (which could feasibly happen in a real game), we will pick the one 
+            // that has sight of most of the other entities
+            int feasibleCount = (numSpots / 2) +1;
+            EntityAndCount[] feasibleSpots = new EntityAndCount[feasibleCount];
+            for(i=0;i< feasibleCount; i++)
+            {
+                feasibleSpots[i] = new EntityAndCount(list_spot[i],0,i);
+            }
+
+            // Ok now, for each feasible spot, check how many other entities it sees
+            Vector3 forward = new Vector3();
+            Vector3 right = new Vector3();
+            Vector3 up = new Vector3();
+            for (i = 0; i < feasibleCount; i++)
+            {
+                Vector3 optionOri = feasibleSpots[i].Item1.origin;
+                Connection.AngleVectors(feasibleSpots[i].Item1.angles,out forward, out right, out up);
+                for (j = 0; j < allEnts.Count; j++)
+                {
+                    if (!allEnts[j].originSet) continue;
+                    Vector3 dir = Vector3.Normalize(allEnts[j].origin-optionOri);
+                    float dot = Vector3.Dot(dir,forward);
+                    if(dot > 0.5f) // 60 degrees
+                    {
+                        feasibleSpots[i] = new EntityAndCount(feasibleSpots[i].Item1, feasibleSpots[i].Item2 + 1, feasibleSpots[i].Item3);
+                    }
+                }
+            }
+
+            // Sort by amount of visible entities. If count same, favor the smaller original index.
+            Array.Sort(feasibleSpots, (a, b) => { return a.Item2==b.Item2 ? a.Item3.CompareTo(b.Item3) : b.Item2.CompareTo(a.Item2); });
+
+
+            origin = feasibleSpots[0].Item1.origin;
             origin.Y += 9;
-            angles = list_spot[rnd].angles;
+            angles = feasibleSpots[0].Item1.angles;
+            return feasibleSpots[0].Item1;
 
-            return list_spot[rnd];
         }
 
     }
@@ -199,6 +248,7 @@ namespace JKWatcher.RandomHelpers
     {
         public Vector3 origin = new Vector3(0,0,0);
         public Vector3 angles = new Vector3(0,0,0);
+        public bool originSet = false;
 
         public EntityProperties() : base(StringComparer.InvariantCultureIgnoreCase)
         {
@@ -244,6 +294,7 @@ namespace JKWatcher.RandomHelpers
                             if(entorigin != null)
                             {
                                 props.origin = entorigin.Value;
+                                props.originSet = true;
                             }
                         } else if(match.Groups[2].Captures[c].Value.Equals("angle",StringComparison.InvariantCultureIgnoreCase))
                         {

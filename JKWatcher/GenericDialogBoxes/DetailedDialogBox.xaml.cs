@@ -27,11 +27,16 @@ namespace JKWatcher.GenericDialogBoxes
 
         public string OkBtnText { get; set; } = "OK";
         public string CancelBtnText { get; set; } = "Cancel";
-        public string DetailsText { get; set; } = "Details....";
+        public string DetailsText { get; set; } = null;//"Details....";
         public string QuestionText { get; set; } = "Do you want Blah?";
         public string HeaderText { get; set; } = "Dialog box";
+        public object[] GridObjects { get; set; } = null;
         [DependsOn("OkBtnText")]
         public Visibility OkBtnVisibility => string.IsNullOrWhiteSpace(OkBtnText) ? Visibility.Collapsed: Visibility.Visible;
+        [DependsOn("DetailsText")]
+        public Visibility DetailsVisibility => string.IsNullOrWhiteSpace(DetailsText) ? Visibility.Collapsed: Visibility.Visible;
+        [DependsOn("GridObjects")]
+        public Visibility DetailsGridVisibility => GridObjects is null ? Visibility.Collapsed: Visibility.Visible;
         [DependsOn("CancelBtnText")]
         public Visibility CancelBtnVisibility => string.IsNullOrWhiteSpace(CancelBtnText) ? Visibility.Collapsed: Visibility.Visible;
         public DetailedDialogBox(string questionText, string detailsText, string headerText, string okBtnText = "OK", string cancelBtnText = "Cancel")
@@ -44,6 +49,17 @@ namespace JKWatcher.GenericDialogBoxes
             this.HeaderText = headerText;
             this.DataContext = this;
             
+        }
+        public DetailedDialogBox(string questionText, object[] detailsData, string headerText, string okBtnText = "OK", string cancelBtnText = "Cancel")
+        {
+            InitializeComponent();
+            this.OkBtnText = okBtnText;
+            this.CancelBtnText = cancelBtnText;
+            this.QuestionText = questionText;
+            this.GridObjects = detailsData;
+            this.HeaderText = headerText;
+            this.DataContext = this;
+            this.detailsGrid.ItemsSource = this.GridObjects;
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

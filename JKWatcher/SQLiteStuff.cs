@@ -25,6 +25,7 @@ namespace JKWatcher
 		public float angZ { get; set; }
 		public bool trueIntermissionCam { get; set; }
 		public bool trueIntermissionEntity { get; set; }
+		public int nonIntermissionEntityAlgorithmVersion { get; set; }
 
 		[Ignore]
 		public Vector3 position => new Vector3(posX, posY, posZ);
@@ -35,6 +36,11 @@ namespace JKWatcher
         {
 			if (other is null) return (float.NaN, float.NaN);
 			return (Vector3.Distance(this.position,other.position), Vector3.Distance(this.angles, other.angles));
+        }
+
+		public override string ToString()
+        {
+			return $"[{(int)posX} {(int)posY} {(int)posZ}|{(int)angX} {(int)angY} {(int)angZ}|trueIntEnt {trueIntermissionEntity}|V{nonIntermissionEntityAlgorithmVersion}]";
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
