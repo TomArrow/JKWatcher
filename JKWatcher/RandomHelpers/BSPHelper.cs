@@ -15,23 +15,30 @@ namespace JKWatcher.RandomHelpers
     {
         public const int nonIntermissionEntityAlgorithmVersion = 3;
 
-        static Regex entitiesRegex = new Regex(@"\{(\s*""[^""]+""\s*){2,}\}", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        // \{(\s*"[^"]+"\s*){2,}\s*\}
+        // gets stuck in weird inexplicable infinite loop on some maps
+        // e.g. bMOHAA24 NS +2000 Mapas (64 bits) v2024.rar\MOHAA24 NS +2000 Mapas (64 bits) v2024\MOHAA\main\mohaa24ns_1_byDJ.pk3\maps\test_normandy.bsp
+        static Regex entitiesRegex = new Regex(@"\{(\s*""[^""]+""\s*){2,}\s*\}", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase); 
 
         // return values: origin, angles, from intermission ent (bool)
         public static (Vector3?,Vector3?,bool) GetIntermissionCamFromBSPData(byte[] data)
         {
             string dataAsString = Encoding.Latin1.GetString(data); // really cringe, i know :)
-            MatchCollection matches = entitiesRegex.Matches(dataAsString);
+            string[] potentialEntityBlocks = GetEntityBlocks(dataAsString);
+            //MatchCollection matches = entitiesRegex.Matches(dataAsString);
             Dictionary<string, EntityProperties> entitiesByTargetname = new Dictionary<string, EntityProperties>(StringComparer.InvariantCultureIgnoreCase);
             List<EntityProperties> allEnts = new List<EntityProperties>();
             List<EntityProperties> playerSpots = new List<EntityProperties>();
             List<EntityProperties> allPlayerSpots = new List<EntityProperties>(); // maybe if no info_player_deathmatch is found we do other stuff, like ctf spawns. idk
             EntityProperties intermissionEnt = null;
-            foreach (Match m in matches)
+            //foreach (Match m in matches)
+            foreach (string entityBlock in potentialEntityBlocks)
             {
-                if (m.Success)
+                //if (m.Success)
                 {
-                    EntityProperties props = EntityProperties.FromString(m.Value);
+                    //EntityProperties props = EntityProperties.FromString(m.Value);
+                    EntityProperties props = EntityProperties.FromString(entityBlock);
+                    if (props is null) continue;
                     allEnts.Add(props);
                     if(props != null)
                     {
@@ -242,6 +249,49 @@ namespace JKWatcher.RandomHelpers
 
         }
 
+
+        readonly static char[] spaceChars = new char[] { ' ', '\n', '\r', '\t'};
+        // Because Regex gets stuck in infinite loop.... SIGH
+        static string[] GetEntityBlocks(string input)
+        {
+            List<string> potentialEntities = new List<string>();
+            List<int> braceOpens = new List<int>();
+            for(int i = 0; i < input.Length; i++)
+            {
+                if(input[i] == '{')
+                {
+                    braceOpens.Add(i);
+                }
+            }
+            foreach(int braceOpen in braceOpens)
+            {
+                bool inQuote = false;
+                int quotedStrings = 0;
+                for(int i = braceOpen+1; i < input.Length; i++)
+                {
+                    if (inQuote && input[i] == 0)
+                    {
+                        break;
+                    }
+                    else if (input[i] == '"')
+                    {
+                        inQuote = !inQuote;
+                        if (inQuote)
+                        {
+                            quotedStrings++;
+                        }
+                    } else if (!inQuote && input[i] == '}' && quotedStrings >= 2)
+                    {
+                        potentialEntities.Add(input.Substring(braceOpen,i-braceOpen+1));
+                        break;
+                    } else if (!inQuote && !spaceChars.Contains(input[i]))
+                    {
+                        break;
+                    }
+                }
+            }
+            return potentialEntities.ToArray();
+        }
     }
 
     public class EntityProperties : Dictionary<string, string>, INotifyPropertyChanged

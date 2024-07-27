@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using SharpCompress.Readers;
+using SharpCompress.Archives.SevenZip;
 #if SHARPZIPLIB
 using ICSharpCode.SharpZipLib.Zip;
 #else
@@ -42,6 +44,8 @@ namespace JKWatcher.RandomHelpers
             AnalyzeFolder(mainFolderPath);
 
         }
+
+        static readonly string[] SharpCompressFormats = new string[] { ".rar",".tar",".tar.bz2",".tbz2",".tar.gz",".tgz", ".tar.lz",  ".tlz", ".tar.xz", ".txz", ".gz", };
         public void HandleFile(string file)
         {
             pathRoot = Path.GetDirectoryName(file);
@@ -69,7 +73,48 @@ namespace JKWatcher.RandomHelpers
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error opening: {file}", ex.Message);
+                    Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                }
+            }
+            else if (file.EndsWith($".7z", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    using (SevenZipArchive mainArchive = SevenZipArchive.Open(file))
+                    {
+                        Analyze7ZipFile(Path.Combine(folderPath, file), mainArchive, searchFile);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                }
+            } else
+            {
+                bool isSharpCompressFormat = false;
+                foreach(string format in SharpCompressFormats)
+                {
+                    if (file.EndsWith(format, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isSharpCompressFormat = true;
+                        break;
+                    }
+                }
+                if (isSharpCompressFormat)
+                {
+                    try
+                    {
+                        // may be archive. may not.
+                        using (Stream stream = File.OpenRead(file))
+                        using (IReader reader = ReaderFactory.Open(stream))
+                        {
+                            AnalyzeSharpCompressReader(Path.Combine(folderPath, file), reader, searchFile);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                    }
                 }
             }
 
@@ -134,7 +179,49 @@ namespace JKWatcher.RandomHelpers
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error opening: {file}", ex.Message);
+                        Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                    }
+                }
+                else if (file.EndsWith($".7z", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using (SevenZipArchive mainArchive = SevenZipArchive.Open(file))
+                        {
+                            Analyze7ZipFile(Path.Combine(folderPath, file), mainArchive, searchFile);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                    }
+                }
+                else
+                {
+                    bool isSharpCompressFormat = false;
+                    foreach (string format in SharpCompressFormats)
+                    {
+                        if (file.EndsWith(format, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isSharpCompressFormat = true;
+                            break;
+                        }
+                    }
+                    if (isSharpCompressFormat)
+                    {
+                        try
+                        {
+                            // may be archive. may not.
+                            using (Stream stream = File.OpenRead(file))
+                            using (IReader reader = ReaderFactory.Open(stream))
+                            {
+                                AnalyzeSharpCompressReader(Path.Combine(folderPath, file), reader, searchFile);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error opening: {Path.Combine(folderPath, file)}", ex.Message);
+                        }
                     }
                 }
             }
@@ -177,16 +264,63 @@ namespace JKWatcher.RandomHelpers
                         {
                             using (ZipArchive subArchive = new ZipArchive(zipStream))
                             {
-                                AnalyzeZipFile(Path.Combine(path, entry.Name), subArchive, searchFile);
+                                AnalyzeZipFile(Path.Combine(path, entry.FullName), subArchive, searchFile);
                             }
                         }
 #endif
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"Error opening: {path}/{entry.Name}", ex.Message);
+                        Debug.WriteLine($"Error opening: {path}/{entry.FullName}", ex.Message);
                     }
                 }
+                else if (entry.Name.EndsWith($".7z", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using (Stream zipStream = entry.Open())
+                        {
+                            using (SevenZipArchive mainArchive2 = SevenZipArchive.Open(zipStream))
+                            {
+                                Analyze7ZipFile(Path.Combine(path, entry.FullName), mainArchive2, searchFile);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {Path.Combine(path, entry.FullName)}", ex.Message);
+                    }
+                }
+                else
+                {
+
+                    bool isSharpCompressFormat = false;
+                    foreach (string format in SharpCompressFormats)
+                    {
+                        if (entry.Name.EndsWith(format, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isSharpCompressFormat = true;
+                            break;
+                        }
+                    }
+                    if (isSharpCompressFormat)
+                    {
+                        try
+                        {
+                            // may be archive. may not.
+                            using (Stream stream = entry.Open())
+                            using (IReader reader2 = ReaderFactory.Open(stream))
+                            {
+                                AnalyzeSharpCompressReader(Path.Combine(path, entry.FullName), reader2, searchFile);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error opening: {Path.Combine(path, entry.FullName)}", ex.Message);
+                        }
+                    }
+                }
+
                 if (searchFile.Match(entry.Name).Success)
                 {
 #if SHARPZIPLIB
@@ -198,6 +332,192 @@ namespace JKWatcher.RandomHelpers
 
                 }
             }
+        }
+        void Analyze7ZipFile(string path, SevenZipArchive mainArchive, Regex searchFile)
+        {
+            foreach (SevenZipArchiveEntry entry in mainArchive.Entries)
+            {
+                if (entry.Key.EndsWith($".zip", StringComparison.OrdinalIgnoreCase) || entry.Key.EndsWith($".pk3", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using (Stream zipStream = entry.OpenEntryStream())
+                        {
+                            using (ZipArchive subArchive = new ZipArchive(zipStream))
+                            {
+                                AnalyzeZipFile(Path.Combine(path, entry.Key), subArchive, searchFile);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {path}/{entry.Key}", ex.Message);
+                    }
+                }
+                else if (entry.Key.EndsWith($".7z", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using (Stream zipStream = entry.OpenEntryStream())
+                        {
+                            using (SevenZipArchive mainArchive2 = SevenZipArchive.Open(zipStream))
+                            {
+                                Analyze7ZipFile(Path.Combine(path, entry.Key), mainArchive2, searchFile);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {Path.Combine(path, entry.Key)}", ex.Message);
+                    }
+                }
+                else
+                {
+
+                    bool isSharpCompressFormat = false;
+                    foreach (string format in SharpCompressFormats)
+                    {
+                        if (entry.Key.EndsWith(format, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isSharpCompressFormat = true;
+                            break;
+                        }
+                    }
+                    if (isSharpCompressFormat)
+                    {
+                        try
+                        {
+                            // may be archive. may not.
+                            using (Stream stream = entry.OpenEntryStream())
+                            using (IReader reader2 = ReaderFactory.Open(stream))
+                            {
+                                AnalyzeSharpCompressReader(Path.Combine(path, entry.Key), reader2, searchFile);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error opening: {Path.Combine(path, entry.Key)}", ex.Message);
+                        }
+                    }
+                }
+
+                if (searchFile.Match(Path.GetFileNameWithoutExtension(entry.Key)).Success)
+                {
+                    byte[] version = ReadFileFrom7ZipEntry(entry);
+                    HandleMatchedFile(entry.Key, path, version);
+
+                }
+            }
+        }
+        
+        void AnalyzeSharpCompressReader(string path, IReader reader, Regex searchFile)
+        {
+            while (reader.MoveToNextEntry())
+            {
+                if (!reader.Entry.IsDirectory)
+                {
+                    SharpCompress.Common.IEntry entry = reader.Entry;
+                    //Debug.WriteLine(reader.Entry.Key);
+                    if (entry.Key.EndsWith($".zip", StringComparison.OrdinalIgnoreCase) || entry.Key.EndsWith($".pk3", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            using (Stream zipStream = reader.OpenEntryStream())
+                            {
+                                using (ZipArchive subArchive = new ZipArchive(zipStream))
+                                {
+                                    AnalyzeZipFile(Path.Combine(path, entry.Key), subArchive, searchFile);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error opening: {path}/{entry.Key}", ex.Message);
+                        }
+                    }
+                    else if (entry.Key.EndsWith($".7z", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            using (Stream zipStream = reader.OpenEntryStream())
+                            {
+                                using (SevenZipArchive mainArchive2 = SevenZipArchive.Open(zipStream))
+                                {
+                                    Analyze7ZipFile(Path.Combine(path, entry.Key), mainArchive2, searchFile);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error opening: {Path.Combine(path, entry.Key)}", ex.Message);
+                        }
+                    }
+                    else
+                    {
+
+                        bool isSharpCompressFormat = false;
+                        foreach (string format in SharpCompressFormats)
+                        {
+                            if (entry.Key.EndsWith(format, StringComparison.OrdinalIgnoreCase))
+                            {
+                                isSharpCompressFormat = true;
+                                break;
+                            }
+                        }
+                        if (isSharpCompressFormat)
+                        {
+                            try
+                            {
+                                // may be archive. may not.
+                                using (Stream stream = reader.OpenEntryStream())
+                                using (IReader reader2 = ReaderFactory.Open(stream))
+                                {
+                                    AnalyzeSharpCompressReader(Path.Combine(path, entry.Key), reader2, searchFile);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Error opening: {Path.Combine(path, entry.Key)}", ex.Message);
+                            }
+                        }
+                    }
+
+
+                    if (searchFile.Match(Path.GetFileNameWithoutExtension(entry.Key)).Success)
+                    {
+                        byte[] version = ReadFileFromSharpCompressEntry(reader);
+                        HandleMatchedFile(entry.Key, path, version);
+
+                    }
+                }
+            }
+            /*
+            foreach (ZipArchiveEntry entry in mainArchive.Entries)
+            {
+                if (entry.Name.EndsWith($".zip", StringComparison.OrdinalIgnoreCase) || entry.Name.EndsWith($".pk3", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        using (Stream zipStream = entry.Open())
+                        {
+                            using (ZipArchive subArchive = new ZipArchive(zipStream))
+                            {
+                                AnalyzeZipFile(Path.Combine(path, entry.Name), subArchive, searchFile);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error opening: {path}/{entry.Name}", ex.Message);
+                    }
+                }
+                if (searchFile.Match(entry.Name).Success)
+                {
+                    byte[] version = ReadFileFromZipEntry(entry);
+                    HandleMatchedFile(entry.FullName, path, version);
+
+                }
+            }*/
         }
 
         void HandleMatchedFile(string fileName, string path, byte[] version)
@@ -276,5 +596,19 @@ namespace JKWatcher.RandomHelpers
             }
         }
 #endif
+        static byte[] ReadFileFromSharpCompressEntry(IReader sharpCompressReader)
+        {
+            using (BinaryReader reader = new BinaryReader(sharpCompressReader.OpenEntryStream()))
+            {
+                return reader.ReadBytes((int)sharpCompressReader.Entry.Size);
+            }
+        }
+        static byte[] ReadFileFrom7ZipEntry(SevenZipArchiveEntry entry)
+        {
+            using (BinaryReader reader = new BinaryReader(entry.OpenEntryStream()))
+            {
+                return reader.ReadBytes((int)entry.Size);
+            }
+        }
     }
 }

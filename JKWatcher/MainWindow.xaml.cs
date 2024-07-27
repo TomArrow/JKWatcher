@@ -2334,7 +2334,7 @@ namespace JKWatcher
         private void btnFindIntermissionInFile_Click(object sender, RoutedEventArgs e)
         {
             var ofd = new Microsoft.Win32.OpenFileDialog();
-            ofd.Filter = "BSP map files (.bsp)|*.bsp|Zip files (.zip)|*.zip|Pk3 archives (.pk3)|*.pk3";
+            ofd.Filter = "BSP, ZIP, RAR, PK3 files (.bsp;.zip;.pk3)|*.bsp;*.zip;*.rar;*.pk3";
             if (ofd.ShowDialog() == true)
             {
                 string filename = ofd.FileName;
