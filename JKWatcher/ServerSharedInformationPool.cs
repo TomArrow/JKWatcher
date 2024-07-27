@@ -204,6 +204,11 @@ namespace JKWatcher
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
         private Dictionary<string,int> killTypes = new Dictionary<string, int>();
         private Dictionary<string,int> killTypesReturns = new Dictionary<string, int>();
+
+        // This is just saved in here as a reference, we access them via infoPool.killTrackers, but this way we can keep track even of stuff with players that disconnected.
+        public ConcurrentDictionary<SessionPlayerInfo, KillTracker> killTrackersOnOthers = new ConcurrentDictionary<SessionPlayerInfo, KillTracker>();
+        public ConcurrentDictionary<SessionPlayerInfo, KillTracker> killTrackersOnMe = new ConcurrentDictionary<SessionPlayerInfo, KillTracker>();
+
         public void TrackKill(string killType, UInt64 killHash, bool isReturn)
         {
             lock (trackedKillsLock)
@@ -349,6 +354,7 @@ namespace JKWatcher
     // gets reset on reconnect
     public class SessionPlayerInfo
     {
+
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
         #region score
         public PlayerScore score { get; set; } = new PlayerScore();
@@ -732,18 +738,19 @@ namespace JKWatcher
         public SessionPlayerInfo playerSessInfo;
         public Rating rating => chatCommandTrackingStuff.rating;
         public PlayerScore score => playerSessInfo.score;
-        public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
+        public ChatCommandTrackingStuff chatCommandTrackingStuff => thisGame ? playerSessInfo.chatCommandTrackingStuffThisGame : playerSessInfo.chatCommandTrackingStuff;
         public DateTime lastSeenActive = DateTime.Now;
+        public bool thisGame = false;
 
-        public IdentifiedPlayerStats(SessionPlayerInfo piS, ChatCommandTrackingStuff chatCommandTrackingStuffA)
+        public IdentifiedPlayerStats(SessionPlayerInfo piS, bool thisGameA)
         {
             playerSessInfo = piS;
-            UpdateFromPlayerInfo(chatCommandTrackingStuffA);
+            thisGame = thisGameA;
+            UpdateValid();
         }
 
-        public void UpdateFromPlayerInfo( ChatCommandTrackingStuff chatCommandTrackingStuffA)
+        public void UpdateValid()
         {
-            chatCommandTrackingStuff = chatCommandTrackingStuffA;
             lastSeenActive = DateTime.Now;
         }
     }
@@ -798,6 +805,7 @@ namespace JKWatcher
         public int ScoreBlue { get; set; }
         public List<WayPoint> wayPoints = new List<WayPoint>();
 
+        public object killTrackersLock = new object();
         public KillTracker[,] killTrackers;
         public KillTracker[,] killTrackersThisGame;
 
@@ -913,6 +921,31 @@ namespace JKWatcher
 
         private int _maxClients = 0;
         private bool jkaMode = false;
+        /*public void ResetKillTracker(int fromPlayer, int toPlayer, bool thisGame)
+        {
+            if (thisGame)
+            {
+                killTrackers[fromPlayer, toPlayer] = new KillTracker();
+            }
+            else
+            {
+                killTrackersThisGame[fromPlayer, toPlayer] = new KillTracker();
+            }
+        }*/
+
+        // TODO Rethink all calls to this function in terms of multithreading and race conditions...
+        // Right now the approach is to kinda bulldoze through it all and just call it whenever anything is done with a killtracker
+        // But we should probably do something way way smarter and more well thought out and more organized.
+        public void UpdateKillTrackerReferences(int p1, int p2)
+        {
+            KillTracker theTracker = killTrackers[p1, p2];
+            this.playerInfo[p1].session.chatCommandTrackingStuff.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
+            this.playerInfo[p2].session.chatCommandTrackingStuff.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
+            theTracker = killTrackersThisGame[p1, p2];
+            this.playerInfo[p1].session.chatCommandTrackingStuffThisGame.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
+            this.playerInfo[p2].session.chatCommandTrackingStuffThisGame.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
+        }
+
         public ServerSharedInformationPool(bool jkaModeA, int maxClients)
         {
             _maxClients = maxClients;

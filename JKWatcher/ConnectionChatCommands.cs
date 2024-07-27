@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -75,7 +76,7 @@ namespace JKWatcher
             List<KeyValuePair<string, int>> otherPersonData = new List<KeyValuePair<string, int>>();
 
 
-            KillTracker[,] kts = thisGame ? infoPool.killTrackersThisGame : infoPool.killTrackers;
+            /*KillTracker[,] kts = thisGame ? infoPool.killTrackersThisGame : infoPool.killTrackers;
 
             foreach(PlayerInfo pi in infoPool.playerInfo)
             {
@@ -87,6 +88,19 @@ namespace JKWatcher
                         KillTracker theTracker = victim ? kts[pi.clientNum, clientNum] : kts[clientNum, pi.clientNum];
                         otherPersonData.Add(new KeyValuePair<string, int>(name, rets ? theTracker.returns : theTracker.kills));
                     }
+                }
+            }*/
+            SessionPlayerInfo playerSession = infoPool.playerInfo[clientNum].session;
+            ChatCommandTrackingStuff trackingStuff = thisGame ? playerSession.chatCommandTrackingStuffThisGame : playerSession.chatCommandTrackingStuff;
+            ConcurrentDictionary<SessionPlayerInfo, KillTracker> trackers = victim ? trackingStuff.killTrackersOnMe : trackingStuff.killTrackersOnOthers;
+            foreach(KeyValuePair<SessionPlayerInfo, KillTracker> kvp in trackers)
+            {
+                if (kvp.Key == playerSession) continue; // dont count stuff on self. 
+                string name = Q3ColorFormatter.cleanupString(kvp.Key.GetNameOrLastNonPadaName());
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    KillTracker theTracker = kvp.Value;
+                    otherPersonData.Add(new KeyValuePair<string, int>(name, rets ? theTracker.returns : theTracker.kills));
                 }
             }
 

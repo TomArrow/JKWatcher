@@ -1454,8 +1454,10 @@ namespace JKWatcher
                 {
 
                     lock (infoPool.killTrackers) { // Just in case unlucky timing and mainchatconnection changes :) 
-                        
-                        if(mod == MeansOfDeath.MOD_SABER)
+
+                        infoPool.UpdateKillTrackerReferences(attacker, target); // make sure player session objects have updated references to killtrackers to other session objects
+
+                        if (mod == MeansOfDeath.MOD_SABER)
                         {
                             if (entityOrPSVisible[attacker])
                             {
@@ -3000,8 +3002,11 @@ namespace JKWatcher
                         Vector2 blockerPos = new Vector2() { X= lastPosition[i].X, Y= lastPosition[i].Y};
                         if (Vector2.Distance(blockerPos, blockedPos) < 50 && Vector3.Dot(lastPosition[i] - lastPosition[pbp.Key], pbp.Value) > 0)
                         {
+
                             if (infoPool.killTrackersThisGame[i, pbp.Key].blocksTracker.CountBlock(true))
                             {
+                                infoPool.UpdateKillTrackerReferences(i, pbp.Key);
+
                                 // that function also checks whether we already registered a block between these 2 in the last 500 ms, to avoid dupes. Returns true if it doesn't seem to be a dupe
                                 infoPool.killTrackers[i, pbp.Key].blocksTracker.CountBlock(true);
 
@@ -3537,22 +3542,22 @@ namespace JKWatcher
                 {
                     if (!infoPool.ratingsAndNames.ContainsKey(pi.session))
                     {
-                        infoPool.ratingsAndNames[pi.session] = new IdentifiedPlayerStats(pi.session, pi.session.chatCommandTrackingStuff) { };
+                        infoPool.ratingsAndNames[pi.session] = new IdentifiedPlayerStats(pi.session, false);
                         //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].name = pi.name;
                     }
                     if (!infoPool.ratingsAndNamesThisGame.ContainsKey(pi.session))
                     {
-                        infoPool.ratingsAndNamesThisGame[pi.session] = new IdentifiedPlayerStats(pi.session, pi.session.chatCommandTrackingStuffThisGame) {  };
+                        infoPool.ratingsAndNamesThisGame[pi.session] = new IdentifiedPlayerStats(pi.session, true);
                         //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].name = pi.name;
                     }
 
                     if (infoPool.ratingsAndNames.TryGetValue(pi.session, out IdentifiedPlayerStats val))
                     {
-                        val.UpdateFromPlayerInfo(pi.session.chatCommandTrackingStuff);
+                        val.UpdateValid();
                     }
                     if (infoPool.ratingsAndNamesThisGame.TryGetValue(pi.session, out IdentifiedPlayerStats val2))
                     {
-                        val.UpdateFromPlayerInfo(pi.session.chatCommandTrackingStuffThisGame);
+                        val.UpdateValid();
                     }
                     //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
                     //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
@@ -3640,14 +3645,22 @@ namespace JKWatcher
             CommitRatings();
             thisGameRatingCommitCount = 0;
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
-            for (int i=0;i< maxClients; i++)
+            lock (infoPool.killTrackers)
             {
-                for (int p = 0; p < maxClients; p++)
+                for (int i=0;i< maxClients; i++)
                 {
-                    infoPool.killTrackersThisGame[i, p] = new KillTracker();
-                    infoPool.killTrackersThisGame[p, i] = new KillTracker();
+                    infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
                 }
-                infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+                for (int i=0;i< maxClients; i++)
+                {
+                    for (int p = 0; p < maxClients; p++)
+                    {
+                        infoPool.killTrackersThisGame[i, p] = new KillTracker();
+                        infoPool.killTrackersThisGame[p, i] = new KillTracker();
+                        infoPool.UpdateKillTrackerReferences(i, p);
+                        infoPool.UpdateKillTrackerReferences(p, i);
+                    }
+                }
             }
             infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
             infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
@@ -3969,15 +3982,17 @@ namespace JKWatcher
                                 && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
                             if (!isReconnect)
                             {
+                                infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
                                 for (int p = 0; p < client.ClientHandler.MaxClients; p++)
                                 {
                                     infoPool.killTrackers[i, p] = new KillTracker();
                                     infoPool.killTrackers[p, i] = new KillTracker();
                                     infoPool.killTrackersThisGame[i, p] = new KillTracker();
                                     infoPool.killTrackersThisGame[p, i] = new KillTracker();
-                                }
-                                infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
-                                //infoPool.playerInfo[i].identity = new PlayerIdentity();
+
+                                    infoPool.UpdateKillTrackerReferences(i, p);
+                                    infoPool.UpdateKillTrackerReferences(p, i);
+                                }//infoPool.playerInfo[i].identity = new PlayerIdentity();
                                 //infoPool.playerInfo[i].score = new PlayerScore();
                                 //infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
                                 //infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
@@ -4077,19 +4092,19 @@ namespace JKWatcher
                     {
                         if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].session))
                         {
-                            infoPool.ratingsAndNames[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, infoPool.playerInfo[i].session.chatCommandTrackingStuff);
+                            infoPool.ratingsAndNames[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, false);
                         }
                         if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].session))
                         {
-                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame);
+                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, true);
                         }
                         if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val))
                         {
-                            val.UpdateFromPlayerInfo(infoPool.playerInfo[i].session.chatCommandTrackingStuff);
+                            val.UpdateValid();
                         }
                         if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val2))
                         {
-                            val2.UpdateFromPlayerInfo(infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame);
+                            val2.UpdateValid();
                         }
                         //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
                         //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
