@@ -120,14 +120,14 @@ namespace JKWatcher
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
 
-            List<KeyValuePair<Glicko2.Rating, Glicko2RatingInfo>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
-            ratingData.Sort((a, b) => { return -a.Key.GetRating(true).CompareTo(b.Key.GetRating(true)); });
+            List<KeyValuePair<SessionPlayerInfo, IdentifiedPlayerStats>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
+            ratingData.Sort((a, b) => { return -a.Value.rating.GetRating(true).CompareTo(b.Value.rating.GetRating(true)); });
 
             StringBuilder topRatingsString = new StringBuilder();
             int ratingsIndex = 0;
-            foreach (KeyValuePair<Glicko2.Rating, Glicko2RatingInfo> thisRating in ratingData)
+            foreach (KeyValuePair<SessionPlayerInfo, IdentifiedPlayerStats> thisRating in ratingData)
             {
-                if (thisRating.Key.GetNumberOfResults(true) <= 5) // dont count these, not relevant
+                if (thisRating.Value.rating.GetNumberOfResults(true) <= 5) // dont count these, not relevant
                 {
                     continue;
                 }
@@ -135,7 +135,7 @@ namespace JKWatcher
                 {
                     continue;
                 }
-                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.name);
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.playerSessInfo.GetNameOrLastNonPadaName());
                 if (strippedName is null) continue;
                 if ((topRatingsString.Length + strippedName.Length) > 150)
                 {
@@ -146,7 +146,7 @@ namespace JKWatcher
                     topRatingsString.Append(", ");
                 }
                 //topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating()}+-{(int)thisRating.Key.GetRatingDeviation()})");
-                topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating(true)}+-{(int)thisRating.Key.GetRatingDeviation(true)})");
+                topRatingsString.Append($"{strippedName} ({(int)thisRating.Value.rating.GetRating(true)}+-{(int)thisRating.Value.rating.GetRatingDeviation(true)})");
                 ratingsIndex++;
             }
             return topRatingsString.ToString();
@@ -558,7 +558,7 @@ namespace JKWatcher
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker !thots", true, true, true, true);
+                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker !thots !names", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -778,9 +778,11 @@ namespace JKWatcher
                             break;
                         case "!chicken":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
-                            int mostChickenRolls = 0;
                             PlayerInfo mostChickenRollsPlayer = null;
+                            int mostChickenRollsPlayerTotalRolls = 0;
                             bool isCTF = currentGameType >= GameType.CTF && currentGameType <= GameType.CTY;
+                            /*
+                            int mostChickenRolls = 0;
                             foreach (PlayerInfo pi in infoPool.playerInfo)
                             {
                                 int chickenrolls;
@@ -796,18 +798,41 @@ namespace JKWatcher
                                     mostChickenRolls = chickenrolls;
                                     mostChickenRollsPlayer = pi;
                                 }
+                            }*/
+                            
+                            double mostChickenRollsPerMinute = 0;
+                            foreach (PlayerInfo pi in infoPool.playerInfo)
+                            {
+                                int chickenrollsTotal;
+                                double chickenrollsPerMinute;
+                                if (isCTF)
+                                {
+                                    chickenrollsTotal = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.rollsWithFlag.value : pi.chatCommandTrackingStuff.rollsWithFlag.value;
+                                    chickenrollsPerMinute = chickenrollsTotal;
+                                } else
+                                {
+                                    chickenrollsTotal = thisGameParamFound ? pi.chatCommandTrackingStuffThisGame.rolls.value : pi.chatCommandTrackingStuff.rolls.value;
+                                    chickenrollsPerMinute = chickenrollsTotal;
+                                }
+                                chickenrollsPerMinute /= thisGameParamFound ? (DateTime.Now - pi.chatCommandTrackingStuffThisGame.onlineSince).TotalMinutes : (DateTime.Now - pi.chatCommandTrackingStuff.onlineSince).TotalMinutes;
+                                if (pi.infoValid && chickenrollsPerMinute > mostChickenRollsPerMinute)
+                                {
+                                    mostChickenRollsPerMinute = chickenrollsPerMinute;
+                                    mostChickenRollsPlayer = pi;
+                                    mostChickenRollsPlayerTotalRolls = chickenrollsTotal;
+                                }
                             }
-                            if(mostChickenRollsPlayer == null)
+                            if (mostChickenRollsPlayer == null)
                             {
                                 ChatCommandAnswer(pm, $"Haven't seen any chicken rolls yet.", true, true, true);
                             }
                             else if(isCTF)
                             {
-                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRolls} chicken rolls with flag.", true, true, true);
+                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRollsPerMinute.ToString("0.##")} chicken rolls per minute ({mostChickenRollsPlayerTotalRolls} total) with flag.", true, true, true);
                             }
                             else 
                             {
-                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRolls} chicken rolls.", true, true, true);
+                                ChatCommandAnswer(pm, $"{mostChickenRollsPlayer.name} is the biggest chicken with {mostChickenRollsPerMinute.ToString("0.##")} chicken rolls per minute ({mostChickenRollsPlayerTotalRolls} total).", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
@@ -1601,6 +1626,35 @@ namespace JKWatcher
                             {
                                 ChatCommandAnswer(pm, $"Total witnessed K/D for {infoPool.playerInfo[numberParams[0]].name}: {infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalKills}/{infoPool.playerInfo[numberParams[0]].chatCommandTrackingStuff.totalDeaths}", true, true, true);
                             }
+
+                            notDemoCommand = true;
+                            break;
+                        case "!names":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, "Call !names with a client number (see /clientlist)", true, true, true, true);
+                                return;
+                            }
+                            string[] names = infoPool.playerInfo[numberParams[0]].session.GetUsedNames();
+                            StringBuilder sb2 = new StringBuilder();
+                            int namesAdded = 0;
+                            string countQualifier = "";
+                            foreach(string name in names)
+                            {
+                                if(name != infoPool.playerInfo[numberParams[0]].name)
+                                {
+                                    if ((sb2.Length + name.Length) > 200)
+                                    {
+                                        countQualifier = $"{namesAdded}/{names.Length} ";
+                                        break;
+                                    }
+                                    sb2.Append(namesAdded > 0 ? " ," : "");
+                                    sb2.Append(name);
+                                    namesAdded++;
+                                }
+                            }
+                            ChatCommandAnswer(pm, $"{countQualifier}{infoPool.playerInfo[numberParams[0]].name} other names: {sb2.ToString()}", true, true, true);
 
                             notDemoCommand = true;
                             break;

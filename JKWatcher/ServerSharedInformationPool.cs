@@ -191,7 +191,7 @@ namespace JKWatcher
         public bool wantsBotFight;
         public bool berserkerVote;
         public DateTime lastBodyguardStart;
-        public DateTime onlineSince;
+        public DateTime onlineSince = DateTime.Now;
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];
@@ -344,12 +344,100 @@ namespace JKWatcher
         public Vector3 maxs;
     }
 
+    //public class PlayerIdentity { }
+
+    // gets reset on reconnect
+    public class SessionPlayerInfo
+    {
+        //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
+        #region score
+        public PlayerScore score { get; set; } = new PlayerScore();
+        public DateTime? lastScoreUpdated;
+        #endregion
+        public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
+        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
+        public void ResetChatCommandTrackingStuff(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
+        {
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+        }
+        public void ResetChatCommandTrackingStuffThisGame(RatingCalculator ratingCalculatorThisGame)
+        {
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+        }
+        public SessionPlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
+        {
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+        }
+        static readonly Regex PadawanNameMatch = new Regex(@"^\s*Padawan\s*[\(\[]\s*\d*[\)\]]\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private HashSet<string> usedNames = new HashSet<string>();
+        public string LastNonPadawanName { get; private set; }
+        private string _name = null;
+
+        public string[] GetUsedNames()
+        {
+            lock (usedNames)
+            {
+                return usedNames.ToArray();
+            }
+        }
+        public string GetNameOrLastNonPadaName()
+        {
+            string lastNonPadaName = LastNonPadawanName;
+            string currentName = _name;
+            if (lastNonPadaName == currentName)
+            {
+                return currentName;
+            } 
+            else if(!string.IsNullOrWhiteSpace(lastNonPadaName))
+            {
+                return lastNonPadaName;
+            }
+            else
+            {
+                return currentName;
+            }
+        }
+        public string name { 
+            get {
+                return _name;
+            } 
+            set {
+                lock (usedNames)
+                {
+                    usedNames.Add(value);
+                }
+                if (!PadawanNameMatch.Match(Q3ColorFormatter.cleanupString(value)).Success && !string.IsNullOrWhiteSpace(value))
+                {
+                    LastNonPadawanName = value;
+                }
+                _name = value;
+            } 
+        }
+        public Team team { get; set; }
+        public bool confirmedBot { get; set; } = false;
+        public bool confirmedJKWatcherFightbot { get; set; } = false;
+        public string model { get; set; }
+    }
+
+
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
     {
         public ServerSharedInformationPool infoPool { get; init; } = null;
 
-        public int ProbableRetCount => (infoPool?.serverSeemsToSupportRetsCountScoreboard).GetValueOrDefault(true) ? this.score.impressiveCount : this.chatCommandTrackingStuff.returns;
+        public int ProbableRetCount => (infoPool?.serverSeemsToSupportRetsCountScoreboard).GetValueOrDefault(true) ? this.session.score.impressiveCount : this.session.chatCommandTrackingStuff.returns;
+
+
+        public ChatCommandTrackingStuff chatCommandTrackingStuff => this.session.chatCommandTrackingStuff;
+        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame => this.session.chatCommandTrackingStuffThisGame;
+        public string name => this.session.name;
+        public string model => this.session.model;
+        public Team team => this.session.team;
+        public PlayerScore score => this.session.score;
+        public bool confirmedBot => this.session.confirmedBot;
+        public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
         #region position
         public Vector3 position;
@@ -392,22 +480,12 @@ namespace JKWatcher
         // For killtrackers/memes and such
         public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
         public DateTime? lastSeenValid = null;
-        public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
-        public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
-        public void ResetChatCommandTrackingStuff(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
-        {
-            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
-        }
-        public void ResetChatCommandTrackingStuffThisGame(RatingCalculator ratingCalculatorThisGame)
-        {
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
-        }
+
+        public SessionPlayerInfo session = null;
 
         public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
         {
-            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+            session = new SessionPlayerInfo(ratingCalculator, ratingCalculatorThisGame);
         }
 
         public AliveInfo lastAliveInfo = null;
@@ -415,10 +493,6 @@ namespace JKWatcher
 
         public VisiblePlayersTracker VisiblePlayers { get; init; } = new VisiblePlayersTracker(); // For vis check debug?
 
-        #region score
-        public PlayerScore score { get; set; } = new PlayerScore();
-        public DateTime? lastScoreUpdated;
-        #endregion
 
         #region nwh
         public int nwhSpectatedPlayer { get; set; }
@@ -426,18 +500,13 @@ namespace JKWatcher
         #endregion
 
         #region clientinfo
-        public string name { get; set; }
-        public Team team { get; set; }
         public bool infoValid { get; set; }
         public bool inactiveMOH { get; set; }
-        public bool confirmedBot { get; set; }
         public int clientNum { get; set; }
         public DateTime? lastClientInfoUpdate;
 
         public AngleDecoder angleDecoder = new AngleDecoder();
-        public bool confirmedJKWatcherFightbot { get; set; } = false;
 
-        public string model { get; set; }
         #endregion
 
         #region tinfo
@@ -448,8 +517,8 @@ namespace JKWatcher
         public volatile int powerUps;		// so can display quad/flag status
         #endregion
 
-        public string g2Rating => $"{(int)this.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)this.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}";
-        public string g2RatingThisGame => $"{(int)this.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
+        public string g2Rating => $"{(int)this.session.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}";
+        public string g2RatingThisGame => $"{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
     }
     public class PlayerScore
     {
@@ -659,9 +728,24 @@ namespace JKWatcher
         }
     }
 
-    public class Glicko2RatingInfo {
-        public string name = null;
+    public class IdentifiedPlayerStats {
+        public SessionPlayerInfo playerSessInfo;
+        public Rating rating => chatCommandTrackingStuff.rating;
+        public PlayerScore score => playerSessInfo.score;
+        public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
         public DateTime lastSeenActive = DateTime.Now;
+
+        public IdentifiedPlayerStats(SessionPlayerInfo piS, ChatCommandTrackingStuff chatCommandTrackingStuffA)
+        {
+            playerSessInfo = piS;
+            UpdateFromPlayerInfo(chatCommandTrackingStuffA);
+        }
+
+        public void UpdateFromPlayerInfo( ChatCommandTrackingStuff chatCommandTrackingStuffA)
+        {
+            chatCommandTrackingStuff = chatCommandTrackingStuffA;
+            lastSeenActive = DateTime.Now;
+        }
     }
 
 
@@ -723,8 +807,8 @@ namespace JKWatcher
         public RatingPeriodResults ratingPeriodResults = new RatingPeriodResults();
         public RatingPeriodResults ratingPeriodResultsThisGame = new RatingPeriodResults();
 
-        public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNames = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
-        public ConcurrentDictionary<Rating, Glicko2RatingInfo> ratingsAndNamesThisGame = new ConcurrentDictionary<Rating, Glicko2RatingInfo>();
+        public ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNames = new ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats>();
+        public ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNamesThisGame = new ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats>();
 
         public LevelShotData levelShot = new LevelShotData();
         public LevelShotData levelShotThisGame = new LevelShotData();
@@ -748,7 +832,7 @@ namespace JKWatcher
                 return 0;
             } else
             {
-                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].score.impressiveCount : this.playerInfo[clientNum].chatCommandTrackingStuff.returns;
+                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].session.score.impressiveCount : this.playerInfo[clientNum].session.chatCommandTrackingStuff.returns;
             }
         }
 
@@ -934,13 +1018,13 @@ namespace JKWatcher
 
             foreach (PlayerInfo pi in playerInfo)
             {
-                if (pi.infoValid && ((1 << (int)pi.team) & teamBitMask)>0)
+                if (pi.infoValid && ((1 << (int)pi.session.team) & teamBitMask)>0)
                 {
-                    string compareLowerCaseName = pi.name.ToLower();
-                    string compareNoColorName = Q3ColorFormatter.cleanupString(pi.name);
+                    string compareLowerCaseName = pi.session.name.ToLower();
+                    string compareNoColorName = Q3ColorFormatter.cleanupString(pi.session.name);
                     string compareNoColorLowercaseName = compareNoColorName.ToLower();
 
-                    if (pi.name.Contains(searchString))
+                    if (pi.session.name.Contains(searchString))
                     {
                         clientNumsMatch.Add(pi.clientNum);
                     }

@@ -134,7 +134,8 @@ namespace JKWatcher.CameraOperators
                 int matches = 0;
 
                 double timeSinceSpectatedPlayerUpdated = infoPool.playerInfo[spectatorToFollow].nwhSpectatedPlayerLastUpdate != null ? (DateTime.Now - infoPool.playerInfo[spectatorToFollow].nwhSpectatedPlayerLastUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
-                double timeSincePingUpdated = infoPool.playerInfo[spectatorToFollow].lastScoreUpdated != null ? (DateTime.Now - infoPool.playerInfo[spectatorToFollow].lastScoreUpdated.Value).TotalMilliseconds : double.PositiveInfinity;
+                DateTime? lastScoreUpdated = infoPool.playerInfo[spectatorToFollow].session.lastScoreUpdated;
+                double timeSincePingUpdated = lastScoreUpdated != null ? (DateTime.Now - lastScoreUpdated.Value).TotalMilliseconds : double.PositiveInfinity;
 
                 if (timeSinceSpectatedPlayerUpdated < 10000.0) // Nwh specs info gets priority. Because it's more reliable overall.
                 {

@@ -2148,7 +2148,7 @@ namespace JKWatcher
                     {
                         //serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) re-detected as fightbot (already known).");
                     }
-                    infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot = true;
+                    infoPool.playerInfo[clientNum].session.confirmedJKWatcherFightbot = true;
                     this.client?.SetClientAsBot(clientNum,true);
                 } else
                 {
@@ -2548,7 +2548,7 @@ namespace JKWatcher
                                 playerTeam = (int)Team.Red;
                                 break;
                         }
-                        infoPool.playerInfo[i].team = (Team)playerTeam;
+                        infoPool.playerInfo[i].session.team = (Team)playerTeam;
                     }
 
                     infoPool.playerInfo[i].powerUps = 0;
@@ -2768,7 +2768,7 @@ namespace JKWatcher
                         }
                         if (entityTeam != infoPool.playerInfo[i].team)
                         {
-                            infoPool.playerInfo[i].team = entityTeam;
+                            infoPool.playerInfo[i].session.team = entityTeam;
                             teamChangesDetected = true;
                         }
                     }
@@ -3535,24 +3535,24 @@ namespace JKWatcher
             {
                 if (pi.infoValid)  // update this so we can show ppl who recently disconnected and such
                 {
-                    if (!infoPool.ratingsAndNames.ContainsKey(pi.chatCommandTrackingStuff.rating))
+                    if (!infoPool.ratingsAndNames.ContainsKey(pi.session))
                     {
-                        infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating] = new Glicko2RatingInfo() { name = pi.name};
+                        infoPool.ratingsAndNames[pi.session] = new IdentifiedPlayerStats(pi.session, pi.session.chatCommandTrackingStuff) { };
                         //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].name = pi.name;
                     }
-                    if (!infoPool.ratingsAndNamesThisGame.ContainsKey(pi.chatCommandTrackingStuffThisGame.rating))
+                    if (!infoPool.ratingsAndNamesThisGame.ContainsKey(pi.session))
                     {
-                        infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo() { name = pi.name };
+                        infoPool.ratingsAndNamesThisGame[pi.session] = new IdentifiedPlayerStats(pi.session, pi.session.chatCommandTrackingStuffThisGame) {  };
                         //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].name = pi.name;
                     }
 
-                    if (infoPool.ratingsAndNames.TryGetValue(pi.chatCommandTrackingStuff.rating, out Glicko2RatingInfo val))
+                    if (infoPool.ratingsAndNames.TryGetValue(pi.session, out IdentifiedPlayerStats val))
                     {
-                        val.lastSeenActive = DateTime.Now;
+                        val.UpdateFromPlayerInfo(pi.session.chatCommandTrackingStuff);
                     }
-                    if (infoPool.ratingsAndNamesThisGame.TryGetValue(pi.chatCommandTrackingStuffThisGame.rating, out Glicko2RatingInfo val2))
+                    if (infoPool.ratingsAndNamesThisGame.TryGetValue(pi.session, out IdentifiedPlayerStats val2))
                     {
-                        val2.lastSeenActive = DateTime.Now;
+                        val.UpdateFromPlayerInfo(pi.session.chatCommandTrackingStuffThisGame);
                     }
                     //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
                     //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
@@ -3565,9 +3565,10 @@ namespace JKWatcher
 
         private bool playerIsLikelyBot(int clientNumber)
         {
+            DateTime? lastNonZeroPing = infoPool.playerInfo[clientNumber].score.lastNonZeroPing;
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
                 (infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
-                (!infoPool.playerInfo[clientNumber].score.lastNonZeroPing.HasValue || (DateTime.Now - infoPool.playerInfo[clientNumber].score.lastNonZeroPing.Value).TotalMilliseconds > 10000) 
+                (!lastNonZeroPing.HasValue || (DateTime.Now - lastNonZeroPing.Value).TotalMilliseconds > 10000) 
                 && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10);
         }
         private bool playerIsVeryAfk(int clientNumber, bool followed = false)
@@ -3639,9 +3640,6 @@ namespace JKWatcher
             CommitRatings();
             thisGameRatingCommitCount = 0;
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
-            infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
-            infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
-            infoPool.ratingsAndNamesThisGame.Clear();
             for (int i=0;i< maxClients; i++)
             {
                 for (int p = 0; p < maxClients; p++)
@@ -3649,8 +3647,11 @@ namespace JKWatcher
                     infoPool.killTrackersThisGame[i, p] = new KillTracker();
                     infoPool.killTrackersThisGame[p, i] = new KillTracker();
                 }
-                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+                infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
             }
+            infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
+            infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
+            infoPool.ratingsAndNamesThisGame.Clear();
         }
 
         private void resetAllFrozenStatus()
@@ -3951,24 +3952,13 @@ namespace JKWatcher
                         noActivePlayers = false;
                     }
 
-                    infoPool.playerInfo[i].inactiveMOH = (mohMode && mohExpansion) ? !client.ClientInfo[i].IsActiveMOH : false;
-
-                    if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
-                    {
-                        infoPool.playerInfo[i].team = client.ClientInfo[i].Team;
-                    } else if(oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
-                    {
-                        // MOHAA information on teams is non-existent, we have to derive it from scoreboard and entity flags. (cringe yea)
-                        // So whenever we have a confirmed connect or disconnect we set this to spectator here.
-                        infoPool.playerInfo[i].team = Team.Spectator;
-                    }
 
                     PlayerIdentification thisPlayerID = PlayerIdentification.FromClientInfo(client.ClientInfo[i]);
                     
                     // Whole JkWatcher instance based
                     if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
 
-                        infoPool.playerInfo[i].confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
+                        infoPool.playerInfo[i].session.confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
 
                         // Client connected/disconnected. Masybe reset some stats
                         if (client.ClientInfo[i].InfoValid)
@@ -3986,8 +3976,11 @@ namespace JKWatcher
                                     infoPool.killTrackersThisGame[i, p] = new KillTracker();
                                     infoPool.killTrackersThisGame[p, i] = new KillTracker();
                                 }
-                                infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
-                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+                                infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
+                                //infoPool.playerInfo[i].identity = new PlayerIdentity();
+                                //infoPool.playerInfo[i].score = new PlayerScore();
+                                //infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
+                                //infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
                             }
                             else
                             {
@@ -4001,6 +3994,24 @@ namespace JKWatcher
 
                         }
                         
+                    }
+
+
+                    infoPool.playerInfo[i].inactiveMOH = (mohMode && mohExpansion) ? !client.ClientInfo[i].IsActiveMOH : false;
+
+                    if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
+                    {
+                        if (client.ClientInfo[i].InfoValid)
+                        {
+                            // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
+                            infoPool.playerInfo[i].session.team = client.ClientInfo[i].Team;
+                        }
+                    }
+                    else if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
+                    {
+                        // MOHAA information on teams is non-existent, we have to derive it from scoreboard and entity flags. (cringe yea)
+                        // So whenever we have a confirmed connect or disconnect we set this to spectator here.
+                        infoPool.playerInfo[i].session.team = Team.Spectator;
                     }
 
                     if (client.ClientInfo[i].InfoValid)
@@ -4046,37 +4057,39 @@ namespace JKWatcher
                         this.demoRateLimiters[i] = new DemoRequestRateLimiter(); // Not part of infopool because its unique to each connection.
                     }
 
-                    if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].name != client.ClientInfo[i].Name)
+                    if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].session.name != client.ClientInfo[i].Name)
                     {
                         if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
                         {
-                            infoPool.playerInfo[i].chatCommandTrackingStuff.fightBotBlacklist = true;
+                            infoPool.playerInfo[i].session.chatCommandTrackingStuff.fightBotBlacklist = true;
                         }
                     }
 
-                    infoPool.playerInfo[i].name = client.ClientInfo[i].Name;
-                    infoPool.playerInfo[i].model = client.ClientInfo[i].Model;
+                    if (client.ClientInfo[i].InfoValid)
+                    {
+                        // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
+                        infoPool.playerInfo[i].session.name = client.ClientInfo[i].Name;
+                        infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
+                    }
 
                     // To track rating of ppl who disco. TODO add more than just name to this.
                     if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
                     {
-                        if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].chatCommandTrackingStuff.rating))
+                        if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].session))
                         {
-                            infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating] = new Glicko2RatingInfo();
+                            infoPool.ratingsAndNames[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, infoPool.playerInfo[i].session.chatCommandTrackingStuff);
                         }
-                        if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating))
+                        if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].session))
                         {
-                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating] = new Glicko2RatingInfo();
+                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame);
                         }
-                        if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].chatCommandTrackingStuff.rating, out Glicko2RatingInfo val))
+                        if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val))
                         {
-                            val.name = client.ClientInfo[i].Name;
-                            val.lastSeenActive = DateTime.Now;
+                            val.UpdateFromPlayerInfo(infoPool.playerInfo[i].session.chatCommandTrackingStuff);
                         }
-                        if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating, out Glicko2RatingInfo val2))
+                        if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val2))
                         {
-                            val2.name = client.ClientInfo[i].Name;
-                            val2.lastSeenActive = DateTime.Now;
+                            val2.UpdateFromPlayerInfo(infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame);
                         }
                         //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
                         //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
@@ -4095,7 +4108,7 @@ namespace JKWatcher
                         infoPool.playerInfo[i].IsFrozen = false;
                     }
                     infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
-                    infoPool.playerInfo[i].confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
+                    infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
 
                     if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
                     {
@@ -5177,31 +5190,32 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
+                        PlayerScore score = infoPool.playerInfo[iClientNum].score;
                         if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
                         if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
                         { // Freeze tag breaks the alive status in scoreboards for some reason
                             infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
                             infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         }
-                        infoPool.playerInfo[iClientNum].team = realTeam;
-                        infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        infoPool.playerInfo[iClientNum].session.team = realTeam;
+                        score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                         if(currentGameType > GameType.Team)
                         {
-                            infoPool.playerInfo[iClientNum].score.totalKills = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
-                            infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.totalKills;
+                            score.totalKills = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.score = score.totalKills;
                         } else
                         {
-                            infoPool.playerInfo[iClientNum].score.deaths = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
-                            infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.kills;
+                            score.deaths = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.score = score.kills;
                         }
-                        infoPool.playerInfo[iClientNum].score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
+                        score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
                         string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
                         if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                         {
 
                         } else
                         {
-                            infoPool.playerInfo[iClientNum].score.ping = pingString.Atoi();
+                            score.ping = pingString.Atoi();
                         }
 
                     } else if (bIsHeader && lastTeamHeader >= Team.Free && lastTeamHeader<= Team.Spectator)
@@ -5291,15 +5305,16 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
+                        PlayerScore score = infoPool.playerInfo[iClientNum].score;
                         if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
                         if ((int)lastTeamHeader != -1)
                         {
-                            infoPool.playerInfo[iClientNum].team = lastTeamHeader;
+                            infoPool.playerInfo[iClientNum].session.team = lastTeamHeader;
                         }
-                        infoPool.playerInfo[iClientNum].score.kills = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
-                        infoPool.playerInfo[iClientNum].score.deaths = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
-                        infoPool.playerInfo[iClientNum].score.score = infoPool.playerInfo[iClientNum].score.kills;
-                        infoPool.playerInfo[iClientNum].score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
+                        score.kills = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
+                        score.deaths = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        score.score = score.kills;
+                        score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
                         string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
                         if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                         {
@@ -5307,7 +5322,7 @@ namespace JKWatcher
                         }
                         else
                         {
-                            infoPool.playerInfo[iClientNum].score.ping = pingString.Atoi();
+                            score.ping = pingString.Atoi();
                         }
 
                     }
@@ -5421,68 +5436,69 @@ namespace JKWatcher
                 {
                     continue;
                 }
-                infoPool.playerInfo[clientNum].score.deathsIsFilled = false;
+                PlayerScore score = infoPool.playerInfo[clientNum].session.score;
+                score.deathsIsFilled = false;
                 if (!this.MBIIDetected) // Wtf is this i hear you say? MBII only has 9. And no, I have no idea which values are what for MBII anyway.
                 {
-                    infoPool.playerInfo[clientNum].score.shortScoresMBII = false;
+                    score.shortScoresMBII = false;
 
-                    infoPool.playerInfo[clientNum].score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                    infoPool.playerInfo[clientNum].score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
-                    infoPool.playerInfo[clientNum].score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
-                    infoPool.playerInfo[clientNum].score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
-                    infoPool.playerInfo[clientNum].score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
+                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                    score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
+                    score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
                     powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                    infoPool.playerInfo[clientNum].score.powerUps = powerups; // duplicated from entities?
+                    score.powerUps = powerups; // duplicated from entities?
                     infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
-                    infoPool.playerInfo[clientNum].score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                    infoPool.playerInfo[clientNum].score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                    score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
 
-                    if (infoPool.playerInfo[clientNum].score.impressiveCount > 0)
+                    if (score.impressiveCount > 0)
                     {
                         anyRetCounts = true;
                     }
 
-                    infoPool.playerInfo[clientNum].score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
+                    score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
 
-                    infoPool.playerInfo[clientNum].score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
-                    infoPool.playerInfo[clientNum].score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi();
-                    infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi();
-                    infoPool.playerInfo[clientNum].score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true;
-                    infoPool.playerInfo[clientNum].score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
+                    score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
+                    score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi();
+                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi();
+                    score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true;
+                    score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
 
                     if (scoreboardOffset == 15)
                     {
-                        infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
-                        infoPool.playerInfo[clientNum].score.deathsIsFilled = true;
+                        score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
+                        score.deathsIsFilled = true;
                     }
                 } else
                 {
-                    infoPool.playerInfo[clientNum].score.shortScoresMBII = true;
+                    score.shortScoresMBII = true;
                     // Scores in MBII appear to be: ClientNum, Ping, Remaining Lives, Score, R, K, D, A, 1(not sure what)
-                    infoPool.playerInfo[clientNum].score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                    infoPool.playerInfo[clientNum].score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
-                    infoPool.playerInfo[clientNum].score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
-                    infoPool.playerInfo[clientNum].score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
-                    infoPool.playerInfo[clientNum].score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
-                    infoPool.playerInfo[clientNum].score.kills = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                    infoPool.playerInfo[clientNum].score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                    infoPool.playerInfo[clientNum].score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
-                    infoPool.playerInfo[clientNum].score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
+                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
+                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                    score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
+                    score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                    score.kills = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                    score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
                 }
-                infoPool.playerInfo[clientNum].lastScoreUpdated = DateTime.Now;
+                infoPool.playerInfo[clientNum].session.lastScoreUpdated = DateTime.Now;
 
-                if(infoPool.playerInfo[clientNum].score.ping != 0)
+                if(score.ping != 0)
                 {
-                    infoPool.playerInfo[clientNum].score.lastNonZeroPing = DateTime.Now;
-                    infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing = 0;
+                    score.lastNonZeroPing = DateTime.Now;
+                    score.pingUpdatesSinceLastNonZeroPing = 0;
                 } else
                 {
-                    infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing++;
+                    score.pingUpdatesSinceLastNonZeroPing++;
                 }
                 if (infoPool.playerInfo[clientNum].team != Team.Spectator)
                 {
                     anyPlayersActive = true;
-                    if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (infoPool.playerInfo[clientNum].score.ping != 0 || infoPool.playerInfo[clientNum].score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (score.ping != 0 || score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
                     {
                         anyNonBotPlayerActive = true;
                     }
