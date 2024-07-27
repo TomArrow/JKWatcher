@@ -33,7 +33,7 @@ namespace JKWatcher
 
         DemoRequestRateLimiter[] demoRateLimiters = new DemoRequestRateLimiter[64];
         bool[] clientInfoValid = new bool[64];
-        Mutex infoPoolResetStuffMutex = new Mutex();
+        static object infoPoolResetStuffLock = new object();
 
         // For various kinda text processisng stuff / memes
         string lastPublicChat = "";

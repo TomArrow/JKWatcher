@@ -3957,180 +3957,182 @@ namespace JKWatcher
             }
             bool noActivePlayers = true;
             bool anyNonBotActivePlayers = false;
-            lock (infoPoolResetStuffMutex) { // Try to make sure various connections don't get in conflict here since we are doing some resetting by comparing previouss and new values.
-                for(int i = 0; i < client.ClientHandler.MaxClients; i++)
-                {
-                    if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
+            lock (infoPoolResetStuffLock) { // Try to make sure various connections don't get in conflict here since we are doing some resetting by comparing previouss and new values.
+                lock (infoPool.killTrackers) { 
+                    for(int i = 0; i < client.ClientHandler.MaxClients; i++)
                     {
-                        noActivePlayers = false;
-                    }
-
-
-                    PlayerIdentification thisPlayerID = PlayerIdentification.FromClientInfo(client.ClientInfo[i]);
-                    
-                    // Whole JkWatcher instance based
-                    if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
-
-                        infoPool.playerInfo[i].session.confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
-
-                        // Client connected/disconnected. Masybe reset some stats
-                        if (client.ClientInfo[i].InfoValid)
+                        if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                         {
-                            // Wasn't connected before, is connected now.
-                            // Is it a reconnect? If not, reset some stats.
-                            bool isReconnect = infoPool.playerInfo[i].lastSeenValid.HasValue && (DateTime.Now - infoPool.playerInfo[i].lastSeenValid.Value).TotalMilliseconds < 60000
-                                && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
-                            if (!isReconnect)
-                            {
-                                infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
-                                for (int p = 0; p < client.ClientHandler.MaxClients; p++)
-                                {
-                                    infoPool.killTrackers[i, p] = new KillTracker();
-                                    infoPool.killTrackers[p, i] = new KillTracker();
-                                    infoPool.killTrackersThisGame[i, p] = new KillTracker();
-                                    infoPool.killTrackersThisGame[p, i] = new KillTracker();
+                            noActivePlayers = false;
+                        }
 
-                                    infoPool.UpdateKillTrackerReferences(i, p);
-                                    infoPool.UpdateKillTrackerReferences(p, i);
-                                }//infoPool.playerInfo[i].identity = new PlayerIdentity();
-                                //infoPool.playerInfo[i].score = new PlayerScore();
-                                //infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
-                                //infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+
+                        PlayerIdentification thisPlayerID = PlayerIdentification.FromClientInfo(client.ClientInfo[i]);
+                    
+                        // Whole JkWatcher instance based
+                        if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
+
+                            infoPool.playerInfo[i].session.confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
+
+                            // Client connected/disconnected. Masybe reset some stats
+                            if (client.ClientInfo[i].InfoValid)
+                            {
+                                // Wasn't connected before, is connected now.
+                                // Is it a reconnect? If not, reset some stats.
+                                bool isReconnect = infoPool.playerInfo[i].lastSeenValid.HasValue && (DateTime.Now - infoPool.playerInfo[i].lastSeenValid.Value).TotalMilliseconds < 60000
+                                    && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
+                                if (!isReconnect)
+                                {
+                                    infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
+                                    for (int p = 0; p < client.ClientHandler.MaxClients; p++)
+                                    {
+                                        infoPool.killTrackers[i, p] = new KillTracker();
+                                        infoPool.killTrackers[p, i] = new KillTracker();
+                                        infoPool.killTrackersThisGame[i, p] = new KillTracker();
+                                        infoPool.killTrackersThisGame[p, i] = new KillTracker();
+
+                                        infoPool.UpdateKillTrackerReferences(i, p);
+                                        infoPool.UpdateKillTrackerReferences(p, i);
+                                    }//infoPool.playerInfo[i].identity = new PlayerIdentity();
+                                    //infoPool.playerInfo[i].score = new PlayerScore();
+                                    //infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
+                                    //infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+                                }
+                                else
+                                {
+                                    serverWindow.addToLog($"Reconnect detected: {i}: {client.ClientInfo[i].Name}");
+                                }
                             }
                             else
                             {
-                                serverWindow.addToLog($"Reconnect detected: {i}: {client.ClientInfo[i].Name}");
+                                // Player is disconnecting. Remember time to check for reconnect.
+                                infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
+
+                            }
+                        
+                        }
+
+
+                        infoPool.playerInfo[i].inactiveMOH = (mohMode && mohExpansion) ? !client.ClientInfo[i].IsActiveMOH : false;
+
+                        if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
+                        {
+                            if (client.ClientInfo[i].InfoValid)
+                            {
+                                // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
+                                infoPool.playerInfo[i].session.team = client.ClientInfo[i].Team;
                             }
                         }
-                        else
+                        else if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                         {
-                            // Player is disconnecting. Remember time to check for reconnect.
-                            infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
-
+                            // MOHAA information on teams is non-existent, we have to derive it from scoreboard and entity flags. (cringe yea)
+                            // So whenever we have a confirmed connect or disconnect we set this to spectator here.
+                            infoPool.playerInfo[i].session.team = Team.Spectator;
                         }
-                        
-                    }
 
-
-                    infoPool.playerInfo[i].inactiveMOH = (mohMode && mohExpansion) ? !client.ClientInfo[i].IsActiveMOH : false;
-
-                    if (!mohMode || mohExpansion) // Spearhead and Breakthrough actually do send valid team info in configstrings :)
-                    {
                         if (client.ClientInfo[i].InfoValid)
                         {
-                            // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
-                            infoPool.playerInfo[i].session.team = client.ClientInfo[i].Team;
+                            infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
+                            infoPool.playerInfo[i].lastValidPlayerData = thisPlayerID;
                         }
-                    }
-                    else if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
-                    {
-                        // MOHAA information on teams is non-existent, we have to derive it from scoreboard and entity flags. (cringe yea)
-                        // So whenever we have a confirmed connect or disconnect we set this to spectator here.
-                        infoPool.playerInfo[i].session.team = Team.Spectator;
-                    }
 
-                    if (client.ClientInfo[i].InfoValid)
-                    {
-                        infoPool.playerInfo[i].lastSeenValid = DateTime.Now;
-                        infoPool.playerInfo[i].lastValidPlayerData = thisPlayerID;
-                    }
-
-                    if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
-                    {
-                        clientsWhoDontWantTOrCannotoBeSpectated[i] = DateTime.Now - new TimeSpan(1, 0, 0); // Reset this if he connected/disconnected, or there will be a timeout on the slot next time someone connects
-                    }
-
-                    if (this.HandleAutoCommands) // Check conditional commands
-                    {
-                        bool playerBecameActive = false;
-                        if (client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
+                        if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                         {
-                            if (oldClientInfo[i].Team != client.ClientInfo[i].Team || oldClientInfo[i].Name != client.ClientInfo[i].Name || oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
-                            {
-                                playerBecameActive = true;
-                            }
+                            clientsWhoDontWantTOrCannotoBeSpectated[i] = DateTime.Now - new TimeSpan(1, 0, 0); // Reset this if he connected/disconnected, or there will be a timeout on the slot next time someone connects
                         }
-                        if (playerBecameActive)
+
+                        if (this.HandleAutoCommands) // Check conditional commands
                         {
-                            ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
-                            foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                            bool playerBecameActive = false;
+                            if (client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                             {
-                                if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                                if (oldClientInfo[i].Team != client.ClientInfo[i].Team || oldClientInfo[i].Name != client.ClientInfo[i].Name || oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
                                 {
-                                    string commands = cmd.commands
-                                        .Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase)
-                                        .Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase)
-                                        .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
-                                    ExecuteCommandList(commands, cmd.getRequestCategory(),cmd.GetSpamLevelAsRequestBehavior<string,RequestCategory>());
+                                    playerBecameActive = true;
+                                }
+                            }
+                            if (playerBecameActive)
+                            {
+                                ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+                                foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+                                {
+                                    if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                                    {
+                                        string commands = cmd.commands
+                                            .Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase)
+                                            .Replace("$clientnum", i.ToString(), StringComparison.OrdinalIgnoreCase)
+                                            .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
+                                        ExecuteCommandList(commands, cmd.getRequestCategory(),cmd.GetSpamLevelAsRequestBehavior<string,RequestCategory>());
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    // Connection based
-                    if (clientInfoValid[i] != client.ClientInfo[i].InfoValid) { 
-                        this.demoRateLimiters[i] = new DemoRequestRateLimiter(); // Not part of infopool because its unique to each connection.
-                    }
-
-                    if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].session.name != client.ClientInfo[i].Name)
-                    {
-                        if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
-                        {
-                            infoPool.playerInfo[i].session.chatCommandTrackingStuff.fightBotBlacklist = true;
+                        // Connection based
+                        if (clientInfoValid[i] != client.ClientInfo[i].InfoValid) { 
+                            this.demoRateLimiters[i] = new DemoRequestRateLimiter(); // Not part of infopool because its unique to each connection.
                         }
-                    }
 
-                    if (client.ClientInfo[i].InfoValid)
-                    {
-                        // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
-                        infoPool.playerInfo[i].session.name = client.ClientInfo[i].Name;
-                        infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
-                    }
-
-                    // To track rating of ppl who disco. TODO add more than just name to this.
-                    if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
-                    {
-                        if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].session))
+                        if (client.ClientInfo[i].InfoValid && infoPool.playerInfo[i].session.name != client.ClientInfo[i].Name)
                         {
-                            infoPool.ratingsAndNames[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, false);
+                            if (CheckPlayerBlacklist(client.ClientInfo[i].Name))
+                            {
+                                infoPool.playerInfo[i].session.chatCommandTrackingStuff.fightBotBlacklist = true;
+                            }
                         }
-                        if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].session))
-                        {
-                            infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, true);
-                        }
-                        if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val))
-                        {
-                            val.UpdateValid();
-                        }
-                        if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val2))
-                        {
-                            val2.UpdateValid();
-                        }
-                        //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
-                        //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
-                        //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].name = client.ClientInfo[i].Name;
-                        //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
-                    }
 
-                    clientInfoValid[i] = client.ClientInfo[i].InfoValid;
-                    if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
-                    {
-                        // Information about players coming from MOHAA is a bit worthless. 
-                        // We can only trust it if it's changing.
-                        // AKA: it wasn't valid before and now it is (player connected).
-                        // or it was valid before and now it isn't (rare server that does inform us, or got a new gamestate that resetted everything)
-                        infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
-                        infoPool.playerInfo[i].IsFrozen = false;
-                    }
-                    infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
-                    infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
+                        if (client.ClientInfo[i].InfoValid)
+                        {
+                            // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
+                            infoPool.playerInfo[i].session.name = client.ClientInfo[i].Name;
+                            infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
+                        }
 
-                    if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
-                    {
-                        anyNonBotActivePlayers = true;
-                    }
+                        // To track rating of ppl who disco. TODO add more than just name to this.
+                        if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
+                        {
+                            if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].session))
+                            {
+                                infoPool.ratingsAndNames[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, false);
+                            }
+                            if (!infoPool.ratingsAndNamesThisGame.ContainsKey(infoPool.playerInfo[i].session))
+                            {
+                                infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].session] = new IdentifiedPlayerStats(infoPool.playerInfo[i].session, true);
+                            }
+                            if(infoPool.ratingsAndNames.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val))
+                            {
+                                val.UpdateValid();
+                            }
+                            if(infoPool.ratingsAndNamesThisGame.TryGetValue(infoPool.playerInfo[i].session, out IdentifiedPlayerStats val2))
+                            {
+                                val2.UpdateValid();
+                            }
+                            //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].name = client.ClientInfo[i].Name;
+                            //infoPool.ratingsAndNames[infoPool.playerInfo[i].chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
+                            //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].name = client.ClientInfo[i].Name;
+                            //infoPool.ratingsAndNamesThisGame[infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
+                        }
 
-                    infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
+                        clientInfoValid[i] = client.ClientInfo[i].InfoValid;
+                        if(!mohMode || mohExpansion || (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid))
+                        {
+                            // Information about players coming from MOHAA is a bit worthless. 
+                            // We can only trust it if it's changing.
+                            // AKA: it wasn't valid before and now it is (player connected).
+                            // or it was valid before and now it isn't (rare server that does inform us, or got a new gamestate that resetted everything)
+                            infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
+                            infoPool.playerInfo[i].IsFrozen = false;
+                        }
+                        infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
+                        infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
+
+                        if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
+                        {
+                            anyNonBotActivePlayers = true;
+                        }
+
+                        infoPool.playerInfo[i].lastClientInfoUpdate = DateTime.Now;
+                    }
                 }
             }
             infoPool.botOnlyGuaranteed = !anyNonBotActivePlayers;

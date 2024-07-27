@@ -938,12 +938,15 @@ namespace JKWatcher
         // But we should probably do something way way smarter and more well thought out and more organized.
         public void UpdateKillTrackerReferences(int p1, int p2)
         {
-            KillTracker theTracker = killTrackers[p1, p2];
-            this.playerInfo[p1].session.chatCommandTrackingStuff.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
-            this.playerInfo[p2].session.chatCommandTrackingStuff.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
-            theTracker = killTrackersThisGame[p1, p2];
-            this.playerInfo[p1].session.chatCommandTrackingStuffThisGame.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
-            this.playerInfo[p2].session.chatCommandTrackingStuffThisGame.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
+            lock (killTrackers)
+            {
+                KillTracker theTracker = killTrackers[p1, p2];
+                this.playerInfo[p1].session.chatCommandTrackingStuff.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
+                this.playerInfo[p2].session.chatCommandTrackingStuff.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
+                theTracker = killTrackersThisGame[p1, p2];
+                this.playerInfo[p1].session.chatCommandTrackingStuffThisGame.killTrackersOnOthers[this.playerInfo[p2].session] = theTracker;
+                this.playerInfo[p2].session.chatCommandTrackingStuffThisGame.killTrackersOnMe[this.playerInfo[p1].session] = theTracker;
+            }
         }
 
         public ServerSharedInformationPool(bool jkaModeA, int maxClients)
