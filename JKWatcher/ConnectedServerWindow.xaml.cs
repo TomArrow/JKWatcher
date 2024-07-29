@@ -3256,9 +3256,9 @@ namespace JKWatcher
                 {
                     for (int c = 0; c < 3; c++)
                     {
-                        float valueHere = levelshotDataLocal[x, y, c];
+                        float valueHere = levelshotDataLocal[x, y, c] * multiplier;
                         //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
-                        float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere * multiplier) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                        float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
                         byte byteValue = (byte)Math.Clamp(gammaValue* 255.0f * 0.5f, 0, 255.0f);
                         int yInv = height - 1 - y;
                         int xInv = width - 1 - x;
