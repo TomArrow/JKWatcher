@@ -899,7 +899,7 @@ namespace JKWatcher
         public static Matrix4x4 createModelProjectionMatrix(Vector3 origin, Vector3 angles,float fovX, float width, float height)
         {
 
-            Matrix4x4 modelMatrtix = createModelMatrix(origin,angles);
+            Matrix4x4 modelMatrtix = createModelMatrix(origin,angles,true);
             Matrix4x4 projectionMatrix = createProjectionMatrix(width,height,fovX);
 
             return Matrix4x4.Multiply(modelMatrtix,projectionMatrix);
@@ -908,6 +908,37 @@ namespace JKWatcher
         public static float DEG2RAD(float a)
         {
             return ((a) * (float)(Math.PI / 180.0));
+        }
+        public static float normalizeAngle180(float angle)
+        {
+            angle %= 360.0f;
+            if (angle < 0.0f)
+            {
+                angle += 360.0f;
+            }
+            if (angle > 180.0f)
+            {
+                angle -= 360.0f;
+            }
+            return angle;
+        }
+        public static float GetIlluminationMultiplier(Vector3 modelSpaceOrigin)
+        {
+            float z = modelSpaceOrigin.Length();
+            z = Math.Max(1.0f, z / 100.0f); // we dont want a point near the camera to get boosted to near infinity.
+            z = z * z; // squared cuz area
+            modelSpaceOrigin = Vector3.Normalize(modelSpaceOrigin);
+            Vector3 angles = new Vector3();
+            Q3MathStuff.vectoangles(modelSpaceOrigin, ref angles);
+            angles *= (float)Math.PI / 180.0f;
+            float angleX = angles.Y;// normalizeAngle180(angles.Y);
+            float angleY = angles.X;// normalizeAngle180(angles.X);
+            // 1/cos squared is secant squared, which is the derivative of tangens. so we are calculating the relative increase per angle change here. 
+            double xMultiplier = 1.0 / Math.Cos(angleX);
+            xMultiplier = xMultiplier * xMultiplier; 
+            double yMultiplier = 1.0 / Math.Cos(angleY);
+            yMultiplier = yMultiplier * yMultiplier;
+            return (float)(xMultiplier * yMultiplier / (double)z); 
         }
 
         public static float CG_CalcFOVFromX(float fov_x, float width, float height)
@@ -974,7 +1005,7 @@ namespace JKWatcher
 
 
         }
-        public static Matrix4x4 createModelMatrix(Vector3 origin, Vector3 angles)
+        public static Matrix4x4 createModelMatrix(Vector3 origin, Vector3 angles, bool openGLFlip)
         {
             float[] viewerMatrix = new float[16];
             Vector3[] axis = new Vector3[3];
@@ -1000,7 +1031,7 @@ namespace JKWatcher
             viewerMatrix[15] = 1;
 
 
-            viewerMatrix = myGlMultMatrix(viewerMatrix, s_flipMatrix);
+            if(openGLFlip) viewerMatrix = myGlMultMatrix(viewerMatrix, s_flipMatrix);
 
 
 

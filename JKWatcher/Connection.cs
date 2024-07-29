@@ -2038,6 +2038,7 @@ namespace JKWatcher
         public Vector3 intermissionCamPos { get; private set; }  = new Vector3();
         public Vector3 intermissionCamAngles { get; private set; }  = new Vector3();
         Matrix4x4 intermissionCamTransform = new Matrix4x4();
+        Matrix4x4 intermissionCamModelMatrix = new Matrix4x4();
 
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
@@ -2087,6 +2088,9 @@ namespace JKWatcher
                 int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
                 if(posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                 {
+                    Vector4 modelSpacePos = Vector4.Transform(pos, intermissionCamModelMatrix);
+                    color *= ProjectionMatrixHelper.GetIlluminationMultiplier(new Vector3(modelSpacePos.X, modelSpacePos.Y, modelSpacePos.Z));
+
                     // bgr ordering.
                     infoPool.levelShot.data[posX, posY, 0] += color.Z;
                     infoPool.levelShot.data[posX, posY, 1] += color.Y;
@@ -2274,6 +2278,7 @@ namespace JKWatcher
                     }
                     intermissionCamPos = pos;
                     intermissionCamAngles = angles;
+                    intermissionCamModelMatrix = ProjectionMatrixHelper.createModelMatrix(pos, angles,false);
                     intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
 
                     intermissionCamSet = true;
@@ -2312,6 +2317,7 @@ namespace JKWatcher
                         Vector3 angles = new Vector3() { X = savedPosition.angX, Y = savedPosition.angY, Z = savedPosition.angZ };
                         intermissionCamPos = pos;
                         intermissionCamAngles = angles;
+                        intermissionCamModelMatrix = ProjectionMatrixHelper.createModelMatrix(pos, angles,false);
                         intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
                         intermissionCamSet = true;
                         intermissionCamTrueIntermission = savedPosition.trueIntermissionCam;

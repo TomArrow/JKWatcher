@@ -32,7 +32,7 @@ namespace Tests
         [TestMethod]
         public void TestProjectionMatrix2()
         {
-            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X=-100},new Vector3() { Y=0});
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X=-100},new Vector3() { Y=0},true);
             Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120);
             Trace.WriteLine($"{m1.ToString()}");
             Trace.WriteLine($"{m2.ToString()}");
@@ -59,7 +59,7 @@ namespace Tests
         [TestMethod]
         public void TestProjectionMatrix3()
         {
-            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X=-100},new Vector3() { Y=0});
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X=-100},new Vector3() { Y=0}, true);
             Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120);
             Trace.WriteLine($"{m1.ToString()}");
             Trace.WriteLine($"{m2.ToString()}");
@@ -83,7 +83,7 @@ namespace Tests
         [TestMethod]
         public void TestProjectionMatrixYavinCamTarget()
         {
-            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f });
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f }, true);
             Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120);
             Trace.WriteLine($"{m1.ToString()}");
             Trace.WriteLine($"{m2.ToString()}");
@@ -106,7 +106,7 @@ namespace Tests
         [TestMethod]
         public void TestProjectionMatrixYavinCamTargetTooFar()
         {
-            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f });
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f }, true);
             Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120, 100);
             Trace.WriteLine($"{m1.ToString()}");
             Trace.WriteLine($"{m2.ToString()}");
@@ -129,7 +129,7 @@ namespace Tests
         [TestMethod]
         public void TestProjectionMatrixYavinCamPositionBehind()
         {
-            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f });
+            Matrix4x4 m1 = ProjectionMatrixHelper.createModelMatrix(new Vector3() { X = 696.0f, Y = 2132, Z = 488 }, new Vector3() { X = 13.2550048828125f, Y = -163.970947265625f }, true);
             Matrix4x4 m2 = ProjectionMatrixHelper.createProjectionMatrix(1920, 1080, 120);
             Trace.WriteLine($"{m1.ToString()}");
             Trace.WriteLine($"{m2.ToString()}");
