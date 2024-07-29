@@ -828,6 +828,14 @@ namespace JKWatcher
                 {
                     if (pi.infoValid && !pi.inactiveMOH) activeClientCount++;
                 }
+            } else
+            {
+                activeClientCount = 0;
+                int[] myClientNums = this.getJKWatcherClientNums();
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
+                }
             }
 
             lock (serverInfoChangedLock)
