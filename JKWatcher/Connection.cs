@@ -2088,8 +2088,9 @@ namespace JKWatcher
                 int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
                 if(posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                 {
-                    Vector4 modelSpacePos = Vector4.Transform(pos, intermissionCamModelMatrix);
-                    color *= ProjectionMatrixHelper.GetIlluminationMultiplier(new Vector3(modelSpacePos.X, modelSpacePos.Y, modelSpacePos.Z));
+                    color *= LevelShotData.compensationMultipliers[posX, posY];
+                    //Vector4 modelSpacePos = Vector4.Transform(pos, intermissionCamModelMatrix);
+                    //color *= ProjectionMatrixHelper.GetIlluminationMultiplier2(new Vector3(modelSpacePos.X, modelSpacePos.Y, modelSpacePos.Z));
 
                     // bgr ordering.
                     infoPool.levelShot.data[posX, posY, 0] += color.Z;

@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
-    class ByteImage
+    public class ByteImage
     {
         public byte[] imageData;
         public int stride;

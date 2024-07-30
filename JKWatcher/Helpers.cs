@@ -116,7 +116,7 @@ namespace JKWatcher
         }
     }
 
-    static class Helpers
+    public static class Helpers
     {
 
         private static readonly Dictionary<string, string> cachedFileReadCache = new Dictionary<string, string>();
@@ -922,6 +922,23 @@ namespace JKWatcher
             }
             return angle;
         }
+
+        public static float GetIlluminationMultiplierPureNoZ(Vector3 modelSpaceOrigin)
+        {
+            modelSpaceOrigin = Vector3.Normalize(modelSpaceOrigin);
+            Vector3 angles = new Vector3();
+            Q3MathStuff.vectoangles(modelSpaceOrigin, ref angles);
+            angles *= (float)Math.PI / 180.0f;
+            float angleX = angles.Y;// normalizeAngle180(angles.Y);
+            float angleY = angles.X;// normalizeAngle180(angles.X);
+            // 1/cos squared is secant squared, which is the derivative of tangens. so we are calculating the relative increase per angle change here. 
+            double xMultiplier = 1.0 / Math.Cos(angleX);
+            xMultiplier = xMultiplier * xMultiplier; 
+            double yMultiplier = 1.0 / Math.Cos(angleY);
+            yMultiplier = yMultiplier * yMultiplier;
+            return (float)(xMultiplier * yMultiplier); 
+        }
+        //bad logic? need to do z per axis?
         public static float GetIlluminationMultiplier(Vector3 modelSpaceOrigin)
         {
             float z = modelSpaceOrigin.Length();
@@ -939,6 +956,28 @@ namespace JKWatcher
             double yMultiplier = 1.0 / Math.Cos(angleY);
             yMultiplier = yMultiplier * yMultiplier;
             return (float)(xMultiplier * yMultiplier / (double)z); 
+        }
+
+        // close stuff gets too bright tbh
+        public static float GetIlluminationMultiplier2(Vector3 modelSpaceOrigin)
+        {
+            //float z = modelSpaceOrigin.Length();
+            float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
+            float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
+            //z = Math.Max(1.0f, z / 100.0f); // we dont want a point near the camera to get boosted to near infinity.
+            //z = z * z; // squared cuz area
+            modelSpaceOrigin = Vector3.Normalize(modelSpaceOrigin);
+            Vector3 angles = new Vector3();
+            Q3MathStuff.vectoangles(modelSpaceOrigin, ref angles);
+            angles *= (float)Math.PI / 180.0f;
+            float angleX = angles.Y;// normalizeAngle180(angles.Y);
+            float angleY = angles.X;// normalizeAngle180(angles.X);
+            // 1/cos squared is secant squared, which is the derivative of tangens. so we are calculating the relative increase per angle change here. 
+            double xMultiplier = Math.Tan(angleX);
+            xMultiplier = (1.0 + xMultiplier * xMultiplier) / z1;
+            double yMultiplier = Math.Tan(angleY);
+            yMultiplier = (1.0 + yMultiplier * yMultiplier) / z2;
+            return (float)(xMultiplier * yMultiplier);
         }
 
         public static float CG_CalcFOVFromX(float fov_x, float width, float height)
