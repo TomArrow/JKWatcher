@@ -3373,10 +3373,10 @@ namespace JKWatcher
             bmp.Dispose();
 
 
-            filenameString = Helpers.MakeValidFileName(baseFilename) + ".tiff";
-            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
-            filenameString = Helpers.GetUnusedFilename(filenameString);
-            File.WriteAllBytes(filenameString,LevelShotData.createTiffImage(levelshotDataLocal));
+            //filenameString = Helpers.MakeValidFileName(baseFilename) + ".tiff";
+            //filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            //filenameString = Helpers.GetUnusedFilename(filenameString);
+            //File.WriteAllBytes(filenameString,LevelShotData.createTiffImage(levelshotDataLocal));
         }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
