@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using JKWatcher;
+using JKWatcher.RandomHelpers;
 using System.Numerics;
 using System.Diagnostics;
 using System.Drawing;
