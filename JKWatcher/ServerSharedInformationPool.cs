@@ -17,45 +17,7 @@ using System.Diagnostics;
 namespace JKWatcher
 {
 
-    public class LevelShotData
-    {
-        public const float levelShotFov = 140;
-        public const int levelShotWidth = 1920;
-        public const int levelShotHeight = 1080;
-        public float[,,] data = new float[levelShotWidth, levelShotHeight, 3];
-        public DateTime lastSaved = DateTime.Now;
-        public object lastSavedLock = new object();
-        public UInt64 changesSinceLastSaved = 0;
-
-        public static float[,] compensationMultipliers = null;
-        static LevelShotData()
-        {
-            CreateCompensationMultipliers();
-        }
-        private static void CreateCompensationMultipliers()
-        {
-            Matrix4x4 m = ProjectionMatrixHelper.createProjectionMatrix(levelShotWidth, levelShotHeight, levelShotFov);
-            Matrix4x4.Invert(m, out Matrix4x4 mInvert);
-            compensationMultipliers = new float[levelShotWidth, levelShotHeight];
-            float minMultiplier = float.PositiveInfinity;
-            float maxMultiplier = float.NegativeInfinity;
-            for (int x = 0; x < levelShotWidth; x++)
-            {
-                for (int y = 0; y < levelShotHeight; y++)
-                {
-                    float xProjected = 2.0f * ((float)x + 0.25f) / (float)levelShotWidth - 1.0f;
-                    float yProjected = 2.0f * ((float)y + 0.25f) / (float)levelShotHeight - 1.0f;
-                    Vector4 projectedPoint = new Vector4(xProjected, yProjected, 1.0f, 1.0f);
-                    Vector4 modelPoint = Vector4.Transform(projectedPoint, mInvert);
-                    float multiplier = ProjectionMatrixHelper.GetIlluminationMultiplierPureNoZ(new Vector3(-modelPoint.Z, modelPoint.X, modelPoint.Y));
-                    compensationMultipliers[x, y] = multiplier;
-                    minMultiplier = Math.Min(minMultiplier, multiplier);
-                    maxMultiplier = Math.Max(maxMultiplier, multiplier);
-                }
-            }
-            Debug.WriteLine($"Levelshot compensation multipliers calculated. Value range from {minMultiplier} to {maxMultiplier}");
-        }
-    }
+    
 
 
     // Two dimensional array that can be accessed in any order of indizi and return the same rsuult

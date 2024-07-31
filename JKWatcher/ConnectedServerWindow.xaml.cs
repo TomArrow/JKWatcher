@@ -24,6 +24,7 @@ using System.Text.RegularExpressions;
 using System.Numerics;
 using System.Windows.Shell;
 using System.IO;
+using JKWatcher.RandomHelpers;
 
 namespace JKWatcher
 {
@@ -1376,10 +1377,16 @@ namespace JKWatcher
             return clientOrFollowedNums;
         }
 
+        public enum MentionLevel
+        {
+            NoMention,
+            Mention,
+            MentionNotify
+        }
         public struct LogQueueItem {
             public string logString;
             public bool forceLogToFile;
-            public bool logAsMention;
+            public MentionLevel mentionLevel;
             public DateTime time;
         }
 
@@ -1736,19 +1743,21 @@ namespace JKWatcher
                         stringsToForceWriteToLogFile.Add(stringToAdd.logString);
                         lastTimeStringForced = timeString;
                     }
-                    if (stringToAdd.logAsMention)
+                    if (stringToAdd.mentionLevel >= MentionLevel.Mention)
                     {
                         if(lastTimeStringMentions != timeString) stringsToWriteToMentionLog.Add(timeString);
                         stringsToWriteToMentionLog.Add(stringToAdd.logString);
                         lastTimeStringMentions = timeString;
-                        try
-                        {
+                        if(stringToAdd.mentionLevel >= MentionLevel.MentionNotify) { 
+                            try
+                            {
 
-                            Helpers.FlashTaskBarIcon(this);
-                        } catch (Exception ex)
-                        {
-                            dequeuedStrings.Add($"Error flashing taskbar icon: {ex.ToString()}");
-                            stringsToForceWriteToLogFile.Add($"Error flashing taskbar icon: {ex.ToString()}");
+                                Helpers.FlashTaskBarIcon(this);
+                            } catch (Exception ex)
+                            {
+                                dequeuedStrings.Add($"Error flashing taskbar icon: {ex.ToString()}");
+                                stringsToForceWriteToLogFile.Add($"Error flashing taskbar icon: {ex.ToString()}");
+                            }
                         }
                     }
                     if (timeString != lastTimeString) dequeuedStrings.Add(timeString);
@@ -1887,7 +1896,7 @@ namespace JKWatcher
         ConcurrentDictionary<string,DateTime> rateLimitedErrorMessages = new ConcurrentDictionary<string,DateTime>();
         ConcurrentDictionary<string, int> rateLimitedErrorMessagesCount = new ConcurrentDictionary<string,int>();
         // Use timeout (milliseconds) for messages that might happen often.
-        public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, bool logAsMention = false)
+        public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, MentionLevel logAsMention = MentionLevel.NoMention)
         {
             if (logLevel > verboseOutput) return;
             if(timeOut != 0)
@@ -1915,7 +1924,7 @@ namespace JKWatcher
                     }
                 }
             }
-            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now,logAsMention= logAsMention });
+            logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now,mentionLevel= logAsMention });
         }
 
 
@@ -3269,11 +3278,18 @@ namespace JKWatcher
             bmp = Helpers.ByteArrayToBitmap(bi);
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
             Directory.CreateDirectory(imagesSubDir);
-            filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
-            filenameString = Helpers.GetUnusedFilename(filenameString);
+            string baseFilename = filenameString;
+            filenameString = Helpers.MakeValidFileName(baseFilename) + ".png";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            filenameString = Helpers.GetUnusedFilename(filenameString);
             bmp.Save(filenameString);
             bmp.Dispose();
+
+
+            filenameString = Helpers.MakeValidFileName(baseFilename) + ".tiff";
+            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            filenameString = Helpers.GetUnusedFilename(filenameString);
+            File.WriteAllBytes(filenameString,LevelShotData.createTiffImage(levelshotDataLocal));
         }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)

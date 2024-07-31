@@ -17,6 +17,7 @@ using JKClient;
 using PropertyChanged;
 using Client = JKClient.JKClient;
 using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
+using JKWatcher.RandomHelpers;
 
 namespace JKWatcher
 {
@@ -1030,19 +1031,20 @@ namespace JKWatcher
                 ConfigStringMismatch info = (ConfigStringMismatch)e;
                 serverWindow.addToLog($"DEBUG: Config string mismatch: \"{info.intendedString}\" became \"{info.actualString}\"",true);
                 TaskManager.TaskRun(()=> {
-                    MemoryStream ms = new MemoryStream();
-                    ms.Write(Encoding.UTF8.GetBytes($"{info.intendedString}\n{info.actualString}\n"));
-                    if(info.oldGsStringData != null)
-                    {
-                        ms.Write(info.oldGsStringData);
-                        ms.Write(Encoding.UTF8.GetBytes($"\n"));
+                    using(MemoryStream ms = new MemoryStream()) { 
+                        ms.Write(Encoding.UTF8.GetBytes($"{info.intendedString}\n{info.actualString}\n"));
+                        if(info.oldGsStringData != null)
+                        {
+                            ms.Write(info.oldGsStringData);
+                            ms.Write(Encoding.UTF8.GetBytes($"\n"));
+                        }
+                        if(info.newGsStringData != null)
+                        {
+                            ms.Write(info.newGsStringData);
+                            ms.Write(Encoding.UTF8.GetBytes($"\n"));
+                        }
+                        Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
                     }
-                    if(info.newGsStringData != null)
-                    {
-                        ms.Write(info.newGsStringData);
-                        ms.Write(Encoding.UTF8.GetBytes($"\n"));
-                    }
-                    Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
                 },$"Configstring Mismatch Logger ({ip},{serverWindow.ServerName})");
             } else if(e is NetDebug)
             {
@@ -4746,7 +4748,7 @@ namespace JKWatcher
                             string myName = infoPool.playerInfo[clientNum.Value].name;
                             if (myName != null && (message.Contains(myName,StringComparison.InvariantCultureIgnoreCase) || message.Contains(playerNameSpecialCharsRegex.Replace(myName,""), StringComparison.InvariantCultureIgnoreCase)))
                             {
-                                serverWindow.addToLog($"MOH CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                                serverWindow.addToLog($"MOH CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, ConnectedServerWindow.MentionLevel.MentionNotify);
                             }
                         }
                     }

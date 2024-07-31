@@ -444,13 +444,16 @@ namespace JKWatcher
                     }
                     string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
                     string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName), "");
+
+                    bool notifyIfMention = !pm.commandComesFromJKWatcher && !infoPool.playerInfo[pm.playerNum].confirmedBot && !infoPool.playerInfo[pm.playerNum].confirmedJKWatcherFightbot; // dont flash taskbar icon if its only some phrase from a bot or some response by us
                     if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
-                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, notifyIfMention ? ConnectedServerWindow.MentionLevel.MentionNotify : ConnectedServerWindow.MentionLevel.Mention);
                     } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
-                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, true);
+                        serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, notifyIfMention ? ConnectedServerWindow.MentionLevel.MentionNotify : ConnectedServerWindow.MentionLevel.Mention);
                     }
+                    
 
                     if (this.HandleAutoCommands && !pm.commandComesFromJKWatcher)
                     {
