@@ -1523,10 +1523,10 @@ namespace JKWatcher
                                 infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
                                 infoPool.killTrackers[attacker, target].returns++;
                                 infoPool.killTrackersThisGame[attacker, target].returns++;
-                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team]);
+                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
                             } else
                             {
-                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team]);
+                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
                             }
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
                             infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
@@ -2030,6 +2030,8 @@ namespace JKWatcher
             }
         }
 
+        
+
         private bool firstSpectatorSnapshotOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
         // private bool firstNonIntermissionOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
         private bool intermissionCSReceived = false;
@@ -2041,6 +2043,8 @@ namespace JKWatcher
         public Vector3 intermissionCamAngles { get; private set; }  = new Vector3();
         Matrix4x4 intermissionCamTransform = new Matrix4x4();
         Matrix4x4 intermissionCamModelMatrix = new Matrix4x4();
+        LevelShotAccumType levelshotAccumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion};
+
 
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
@@ -2079,7 +2083,7 @@ namespace JKWatcher
         public DateTime lastTemporaryRatingsCommit = DateTime.Now;
 
 
-        private void PrintPositionToLevelshot(Vector4 pos, Vector3 color)
+        private void PrintPositionToLevelshot(Vector4 pos, Vector3 color, bool isBot)
         {
             Vector4 levelshotPos = Vector4.Transform(pos, intermissionCamTransform);
             float theZ = levelshotPos.Z;
@@ -2091,8 +2095,6 @@ namespace JKWatcher
                 if(posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                 {
                     color *= LevelShotData.compensationMultipliers[posX, posY];
-                    //Vector4 modelSpacePos = Vector4.Transform(pos, intermissionCamModelMatrix);
-                    //color *= ProjectionMatrixHelper.GetIlluminationMultiplier2(new Vector3(modelSpacePos.X, modelSpacePos.Y, modelSpacePos.Z));
 
                     // bgr ordering.
                     infoPool.levelShot.data[posX, posY, 0] += color.Z;
@@ -2101,13 +2103,36 @@ namespace JKWatcher
                     infoPool.levelShotThisGame.data[posX, posY, 0] += color.Z;
                     infoPool.levelShotThisGame.data[posX, posY, 1] += color.Y;
                     infoPool.levelShotThisGame.data[posX, posY, 2] += color.X;
-                    lock (infoPool.levelShot.lastSavedLock)
+                    lock (infoPool.levelShot.lastSavedAndAccumTypeLock)
                     {
                         infoPool.levelShot.changesSinceLastSaved++;
                     }
-                    lock (infoPool.levelShotThisGame.lastSavedLock)
+                    lock (infoPool.levelShotThisGame.lastSavedAndAccumTypeLock)
                     {
                         infoPool.levelShotThisGame.changesSinceLastSaved++;
+                    }
+                    if (!isBot)
+                    {
+                        // z compensated stuff that's stacked for infinity, adding state to a HDR tiff file etc.
+                        // z compensation only looks good with ridiculously high amount of samples
+                        if (infoPool.levelShotZCompNoBot.IsAccumTypeOkayMaybeReset(ref levelshotAccumType, oldMapName ,out LevelShotData maybeOld))
+                        {
+                            if(maybeOld != null)
+                            {
+                                serverWindow.MaybeStackZCompLevelShot(maybeOld);
+                            }
+                            Vector4 modelSpaceOrigin = Vector4.Transform(pos, intermissionCamModelMatrix);
+                            float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
+                            float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
+                            color /= z1 * z2;
+                            infoPool.levelShotZCompNoBot.data[posX, posY, 0] += color.Z;
+                            infoPool.levelShotZCompNoBot.data[posX, posY, 1] += color.Y;
+                            infoPool.levelShotZCompNoBot.data[posX, posY, 2] += color.X;
+                            lock (infoPool.levelShotZCompNoBot.lastSavedAndAccumTypeLock)
+                            {
+                                infoPool.levelShotZCompNoBot.changesSinceLastSaved++;
+                            }
+                        }
                     }
                 }
             }
@@ -2284,6 +2309,7 @@ namespace JKWatcher
                     intermissionCamModelMatrix = ProjectionMatrixHelper.createModelMatrix(pos, angles,false);
                     intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
 
+                    levelshotAccumType = new LevelShotAccumType() { pos=pos,angles=angles, zCompensationVersion=ProjectionMatrixHelper.ZCompensationVersion, isRealValue = true };
                     intermissionCamSet = true;
                     intermissionCamTrueIntermission = mohMode? false: isIntermission; // MOH can never be trustd, and wont bother trying to get it from normal cam.
 
@@ -2324,6 +2350,7 @@ namespace JKWatcher
                         intermissionCamTransform = ProjectionMatrixHelper.createModelProjectionMatrix(pos, angles, LevelShotData.levelShotFov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
                         intermissionCamSet = true;
                         intermissionCamTrueIntermission = savedPosition.trueIntermissionCam;
+                        levelshotAccumType = savedPosition.GetLevelShotAccumType();
                     } else
                     {
                         lastIntermissionCamCachedReadTry = DateTime.Now;
@@ -2536,7 +2563,7 @@ namespace JKWatcher
                             Y = snap.PlayerState.Origin[1],
                             Z = snap.PlayerState.Origin[2],
                             W = 1
-                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team]);
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot);
                     }
                     
 
@@ -2766,7 +2793,7 @@ namespace JKWatcher
                             Y = snap.Entities[snapEntityNum].Position.Base[1],
                             Z = snap.Entities[snapEntityNum].Position.Base[2],
                             W = 1
-                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team]);
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot);
                     }
 
 

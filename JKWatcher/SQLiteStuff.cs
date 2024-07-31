@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using JKClient;
+using JKWatcher.RandomHelpers;
 using SQLite;
 using System;
 using System.Collections.Generic;
@@ -44,7 +45,12 @@ namespace JKWatcher
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-    }
+
+		public LevelShotAccumType GetLevelShotAccumType()
+        {
+			return new LevelShotAccumType() { pos=position,angles=angles,zCompensationVersion= ProjectionMatrixHelper.ZCompensationVersion,isRealValue=true };
+        }
+	}
 
 
 

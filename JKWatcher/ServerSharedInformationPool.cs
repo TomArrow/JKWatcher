@@ -811,6 +811,7 @@ namespace JKWatcher
         public ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNamesThisGame = new ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats>();
 
         public LevelShotData levelShot = new LevelShotData();
+        public LevelShotData levelShotZCompNoBot = new LevelShotData();
         public LevelShotData levelShotThisGame = new LevelShotData();
 
         public void resetLevelShot(bool thisGame, bool normal)

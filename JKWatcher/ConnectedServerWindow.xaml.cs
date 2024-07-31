@@ -807,6 +807,7 @@ namespace JKWatcher
             {
                 if(obj.MapName != lastMapName)
                 {
+                    MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
                     SaveLevelshot(infoPool.levelShot, 200, 10.0);
                     infoPool.resetLevelShot(false, true);
                     if (lastMapName != null)
@@ -2489,6 +2490,7 @@ namespace JKWatcher
                 if (isDestroyed) return;
                 isDestroyed = true;
 
+                MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
                 SaveLevelshot(infoPool.levelShot, 200, 10);
 
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
@@ -3162,6 +3164,91 @@ namespace JKWatcher
                 connectionsDataGrid.SelectedItem = null;
             }
         }
+        
+        // This one doesn't clone the array. Make sure it's not in use anymore!
+        public void MaybeStackZCompLevelShot(LevelShotData levelshotData)
+        {
+            string tiffName = null;
+            float[,,] lsData = null;
+            lock (levelshotData.lastSavedAndAccumTypeLock)
+            {
+                // don't stack really tiny amounts of changes. 
+                LevelShotAccumType accumType = levelshotData.accumType;
+                if (!accumType.isRealValue || levelshotData.changesSinceLastSaved < 2000)
+                {
+                    return;
+                }
+                string lsMapName = levelshotData.mapname;
+                if (string.IsNullOrWhiteSpace(lsMapName))
+                {
+                    return;
+                }
+                tiffName = $"{lsMapName.ToLowerInvariant()}_{accumType.GetIdentifierString()}";
+                lsData = levelshotData.data;
+
+                // just do a soft reset here so we don't accidentally do this twice with the same image.
+                // don't overwrite the data array tho, we might never need this LevelShotData again, so it would waste memory to create a new array
+                // just let the LevelShotData handle that on its own if something is drawn to it again. It will force a reset due to different mapname and accumtype.
+                levelshotData.mapname = null;
+                levelshotData.accumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion};
+                levelshotData.changesSinceLastSaved = 0;
+
+            }
+            TaskManager.TaskRun(() => {
+
+                int tries = 0;
+                while (!DoAccumShot(tiffName,lsData))
+                {
+                    tries++;
+                    Helpers.logToFile($"Failed DoAccumShot (try {tries}/10)");
+                    System.Threading.Thread.Sleep(5000);
+                    if(tries >= 10)
+                    {
+                        break;
+                    }
+                }
+
+            }, $"Accum shot saver ({netAddress},{ServerName})");
+        }
+
+        private bool DoAccumShot(string tiffName, float[,,] lsData)
+        {
+            try
+            {
+                string mutexAddress = netAddress is null ? "" : netAddress.ToString().Replace('.', '_').Replace(':', '_');
+
+                //lock (forcedLogFileName)
+                using (new GlobalMutexHelper($"JKWatcherAccumLevelshotFilenameMutex"))
+                {
+
+                    string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "accumShots");
+                    Directory.CreateDirectory(imagesSubDir);
+
+                    string filenameString = Helpers.MakeValidFileName(tiffName) + ".tiff";
+                    filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+                    LevelShotData oldTiff = null;
+                    if (File.Exists(filenameString))
+                    {
+                        oldTiff = LevelShotData.FromTiff(File.ReadAllBytes(filenameString));
+                        if (oldTiff == null) return false;
+                    }
+                    if(oldTiff != null)
+                    {
+                        LevelShotData.SumData(lsData,oldTiff.data);
+                    }
+                    byte[] tiff = LevelShotData.createTiffImage(lsData);
+                    if (tiff is null) return false;
+                    File.WriteAllBytes(filenameString,tiff);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.logToFile($"Failed to do accumshot : {ex.ToString()}");
+                // Failed to get  mutex, weird...
+            }
+            return false;
+        }
 
         private void levelshotBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -3184,7 +3271,7 @@ namespace JKWatcher
         public void SaveLevelshot(LevelShotData levelshotData, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0)
         {
             if (levelshotData is null) return;
-            lock (levelshotData.lastSavedLock)
+            lock (levelshotData.lastSavedAndAccumTypeLock)
             {
                 if (blockIfOtherLevelshotInPastSeconds != 0.0 && (DateTime.Now - levelshotData.lastSaved).TotalSeconds < blockIfOtherLevelshotInPastSeconds)
                 {

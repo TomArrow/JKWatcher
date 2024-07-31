@@ -9,7 +9,7 @@ namespace JKWatcher.RandomHelpers
 {
     public static class ProjectionMatrixHelper
     {
-
+        public const int ZCompensationVersion = 1;
 
         static float[] s_flipMatrix = {
 	        // convert from our coordinate system (looking down X)
