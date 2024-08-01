@@ -32,7 +32,7 @@ namespace JKWatcher.RandomHelpers
 
     static class BSPHelper
     {
-        public const int nonIntermissionEntityAlgorithmVersion = 4;
+        public const int nonIntermissionEntityAlgorithmVersion = 6;
 
         // \{(\s*"[^"]+"\s*){2,}\s*\}
         // gets stuck in weird inexplicable infinite loop on some maps
@@ -246,6 +246,7 @@ namespace JKWatcher.RandomHelpers
                 const int rows = 3;
                 const int cols = 3;
                 float[] visibleItemsTable = new float[rows * cols];
+                //float[] visibleItemsTable = new float[rows + cols];
                 int visibleTotal = 0;
                 Vector3 optionOri = feasibleSpots[i].props.origin;
                 Vector3 optionAngles = feasibleSpots[i].props.angles;
@@ -263,6 +264,8 @@ namespace JKWatcher.RandomHelpers
                         if (row >= 0 && row < rows && col >= 0 && col < cols)
                         {
                             visibleItemsTable[row * cols + col] += 1.0f;
+                            //visibleItemsTable[row] += 1.0f;
+                            //visibleItemsTable[rows + col] += 1.0f;
                             visibleTotal++;
                         }
                     }
