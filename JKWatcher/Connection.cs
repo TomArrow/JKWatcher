@@ -3513,6 +3513,7 @@ namespace JKWatcher
 
                             if (((myClientNums & (1L << player.clientNum)) == 0 /*|| isDefragCameraOperator*/) // Don't follow ourselves or someone another connection of ours is already following;// strike this: except in Defrag since defrag is weird and otherwise extra connections don't despawn quickly enough
                                 && (DateTime.Now-clientsWhoDontWantTOrCannotoBeSpectated[player.clientNum]).TotalMilliseconds > 120000 && player.infoValid && player.team != Team.Spectator 
+                                //&& (!this.MBIIDetected || player.score.remainingLives > 0) // this was just a test but wrong i think
                                 && (onlyBotsActive || !playerIsLikelyBot(player.clientNum)) 
                                 && (player.clientNum != SpectatedPlayer || !spectatedPlayerIsVeryAfk) // TODO: Why allow spectating currently spectated at all? That's the whole point we're in this loop - to find someone else?
                                 && afkCriteriaSatisfied

@@ -3221,6 +3221,7 @@ namespace JKWatcher
                 using (new GlobalMutexHelper($"JKWatcherAccumLevelshotFilenameMutex"))
                 {
 
+                    System.Threading.Thread.Sleep(5000); // just to make sure previous use of the mutex wasnt so shortly ago thata the old file is still inaccessible. prolly not a real real issue but eh.
                     string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "accumShots");
                     Directory.CreateDirectory(imagesSubDir);
 

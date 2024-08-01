@@ -229,6 +229,58 @@ namespace JKWatcher
             return data;
         }
 
+        public static string printArray(float[] vals)
+        {
+            if (vals is null) return null;
+            StringBuilder sb = new StringBuilder();
+            foreach (float val in vals)
+            {
+                sb.Append($"{val} ");
+            }
+            return sb.ToString().Trim();
+        }
+        public static float CoolMedian(float[] values)
+        {
+            if (values is null || values.Length == 0) return float.NaN;
+
+            // totalweight = ((singlepointratio+1)/2)*valueCount
+            // totalweight = (singlepointratio/2+0.5)*valueCount
+            // totalweight = singlepointratio*valueCount/2 + 0.5*valueCount
+            // totalweight = singlepointratio*valueCount/2 + 0.5*valueCount
+            // singlepointratio = totalweight/valueCount/desiredDivider
+            // totalweight = totalweight/valueCount/desiredDivider*valueCount/2 + 0.5*valueCount
+            // totalweight = totalweight/2/desiredDivider + 0.5*valueCount
+            // totalweight - totalweight*0.5/desiredDivider = 0.5*valueCount
+            // totalweight - totalweight*0.5/desiredDivider = 0.5*valueCount
+            // totalweight * (1-0.5/desiredDivider) = 0.5*valueCount
+            // totalweight = (0.5*valuecount)/(1-0.5/desiredDivider)
+            // totalweight = (valuecount)/(2-1/desiredDivider)
+
+            // TODO my predictedtotalweight is actually not quite correct. relatively close but not quite right. maybe fix?
+
+            float desiredDivider = (float)values.Length;
+            float predictedTotalWeight = (float)values.Length / (2f - 1f / desiredDivider);
+            float singlePointRatio = predictedTotalWeight / (float)values.Length / desiredDivider;
+            float singlePointRatioInv = 1.0f - singlePointRatio;
+
+            singlePointRatio = 1.0f - singlePointRatioInv;
+            Array.Sort(values);
+            bool even = values.Length % 2 == 0;
+            float centerVal = values.Length / 2;
+            if (even) centerVal -= 0.5f;
+            float sum = 0.0f;
+            float sumWeight = 0.0f;
+            float weight;
+            for (int i = 0; i < values.Length; i++)
+            {
+                float centerDistanceFactor = (1.0f - Math.Abs((float)(centerVal - i) / centerVal));
+                weight = singlePointRatio + singlePointRatioInv * centerDistanceFactor;
+                sum += values[i] * weight;
+                sumWeight += weight;
+            }
+            return sum / sumWeight;
+        }
+
         public static DateTime? ToEST(this DateTime dateTime)
         {
             try

@@ -10,10 +10,29 @@ using System.Threading.Tasks;
 
 namespace JKWatcher.RandomHelpers
 {
-    using EntityAndCount = Tuple<EntityProperties, int, int>;
+    //using EntityAndCount = Tuple<EntityProperties, int, int>;
+
+    class EntityAndCount
+    {
+        public EntityProperties props;
+        public int count;
+        public float coolMedian;
+        public int originalIndex;
+        public float[] visMatrix;
+        public EntityAndCount(EntityProperties propsA, int whateverA)
+        {
+            props = propsA;
+            originalIndex = whateverA;
+        }
+        public override string ToString()
+        {
+            return $"visMatrix = {Helpers.printArray(visMatrix)}, coolMedian = {coolMedian}, count = {count}, originalIndex = {originalIndex}, props = {props}";
+        }
+    }
+
     static class BSPHelper
     {
-        public const int nonIntermissionEntityAlgorithmVersion = 3;
+        public const int nonIntermissionEntityAlgorithmVersion = 4;
 
         // \{(\s*"[^"]+"\s*){2,}\s*\}
         // gets stuck in weird inexplicable infinite loop on some maps
@@ -215,7 +234,7 @@ namespace JKWatcher.RandomHelpers
             EntityAndCount[] feasibleSpots = new EntityAndCount[feasibleCount];
             for(i=0;i< feasibleCount; i++)
             {
-                feasibleSpots[i] = new EntityAndCount(list_spot[i],0,i);
+                feasibleSpots[i] = new EntityAndCount(list_spot[i],i);
             }
 
             // Ok now, for each feasible spot, check how many other entities it sees
@@ -224,7 +243,36 @@ namespace JKWatcher.RandomHelpers
             Vector3 up = new Vector3();
             for (i = 0; i < feasibleCount; i++)
             {
-                Vector3 optionOri = feasibleSpots[i].Item1.origin;
+                const int rows = 3;
+                const int cols = 3;
+                float[] visibleItemsTable = new float[rows * cols];
+                int visibleTotal = 0;
+                Vector3 optionOri = feasibleSpots[i].props.origin;
+                Vector3 optionAngles = feasibleSpots[i].props.angles;
+                Matrix4x4 m = ProjectionMatrixHelper.createModelProjectionMatrix(optionOri,optionAngles,LevelShotData.levelShotFov,LevelShotData.levelShotWidth,LevelShotData.levelShotHeight);
+                for (j = 0; j < allEnts.Count; j++)
+                {
+                    if (!allEnts[j].originSet) continue;
+                    Vector4 projected= Vector4.Transform(new Vector4(allEnts[j].origin, 1), m); 
+                    float theZ = projected.Z;
+                    projected /= projected.W;
+                    if (theZ > 0 && projected.X >= -1.0f && projected.X <= 1.0f && projected.Y >= -1.0f && projected.Y <= 1.0f)
+                    {
+                        int row = (int)(((projected.X + 1.0f) / 2.0f) * (float)rows);
+                        int col = (int)(((projected.Y + 1.0f) / 2.0f) * (float)cols);
+                        if (row >= 0 && row < rows && col >= 0 && col < cols)
+                        {
+                            visibleItemsTable[row * cols + col] += 1.0f;
+                            visibleTotal++;
+                        }
+                    }
+                    
+                }
+
+                feasibleSpots[i].count = visibleTotal;
+                feasibleSpots[i].visMatrix = visibleItemsTable;
+                feasibleSpots[i].coolMedian = Helpers.CoolMedian(visibleItemsTable);
+                /*Vector3 optionOri = feasibleSpots[i].Item1.origin;
                 Connection.AngleVectors(feasibleSpots[i].Item1.angles,out forward, out right, out up);
                 for (j = 0; j < allEnts.Count; j++)
                 {
@@ -235,17 +283,17 @@ namespace JKWatcher.RandomHelpers
                     {
                         feasibleSpots[i] = new EntityAndCount(feasibleSpots[i].Item1, feasibleSpots[i].Item2 + 1, feasibleSpots[i].Item3);
                     }
-                }
+                }*/
             }
 
             // Sort by amount of visible entities. If count same, favor the smaller original index.
-            Array.Sort(feasibleSpots, (a, b) => { return a.Item2==b.Item2 ? a.Item3.CompareTo(b.Item3) : b.Item2.CompareTo(a.Item2); });
+            Array.Sort(feasibleSpots, (a, b) => { return a.coolMedian == b.coolMedian ?( a.count==b.count ? a.originalIndex.CompareTo(b.originalIndex) : a.count.CompareTo(b.count)) : b.coolMedian.CompareTo(a.coolMedian); });
 
 
-            origin = feasibleSpots[0].Item1.origin;
+            origin = feasibleSpots[0].props.origin;
             origin.Y += 9;
-            angles = feasibleSpots[0].Item1.angles;
-            return feasibleSpots[0].Item1;
+            angles = feasibleSpots[0].props.angles;
+            return feasibleSpots[0].props;
 
         }
 
