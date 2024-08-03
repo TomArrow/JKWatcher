@@ -265,11 +265,15 @@ namespace JKWatcher.RandomHelpers
             }
         }
 
+        public byte[] createTiffImage(Predictor predictor)
+        {
+            return createTiffImage(this.data, predictor);
+        }
         public byte[] createTiffImage()
         {
-            return createTiffImage(this.data);
+            return createTiffImage(this.data, null);
         }
-        public static byte[] createTiffImage(float[,,] imageData)
+        public static byte[] createTiffImage(float[,,] imageData, Predictor? predictor = null)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -286,6 +290,10 @@ namespace JKWatcher.RandomHelpers
                     tiff.SetField(TiffTag.PHOTOMETRIC, Photometric.RGB);
                     tiff.SetField(TiffTag.COMPRESSION, Compression.DEFLATE);
                     tiff.SetField(TiffTag.FILLORDER, FillOrder.MSB2LSB);
+                    if (predictor.HasValue)
+                    {
+                        tiff.SetField(TiffTag.PREDICTOR, predictor.Value);
+                    }
 
                     for (int y = 0; y < levelShotHeight; y++)
                     {

@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using System.IO;
 using System.Windows.Media;
 using JKWatcher.RandomHelpers;
+using BitMiracle.LibTiff.Classic;
 
 namespace Tests
 {
@@ -71,6 +72,30 @@ namespace Tests
                 }
             }
             Assert.IsTrue(isSame); // doesnt work gg. 32 bit float apparently doesnt support lossless
+
+            Assert.IsTrue(true);
+        }
+        [TestMethod]
+        public void TestTIFF3()
+        {
+            Random rnd = new Random();
+            
+            LevelShotData ls = new LevelShotData();
+            for (int y = 0; y < 1080 / 2; y++)
+            {
+                for (int x = 0; x < 1920 / 2; x++)
+                {
+                    ls.data[x,y,0] = 1.0f * ((float)x / 100.0f) + (float)rnd.NextDouble() * 999999.0f;
+                }
+            }
+
+            byte[] tiff = ls.createTiffImage(Predictor.FLOATINGPOINT);
+            Trace.WriteLine($"Size with Floating Point predictor: {tiff.Length}");
+            tiff = ls.createTiffImage(Predictor.HORIZONTAL);
+            Trace.WriteLine($"Size with Horizontal predictor: {tiff.Length}");
+            tiff = ls.createTiffImage(Predictor.NONE);
+            Trace.WriteLine($"Size with None predictor: {tiff.Length}");
+
 
             Assert.IsTrue(true);
         }
