@@ -144,11 +144,16 @@ namespace JKWatcher.RandomHelpers
 
         public static void DrawScoreboard(
             Bitmap bmp,
+            bool thisGame,
             ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNames, 
             ServerSharedInformationPool infoPool,
             bool all
             )
         {
+
+            if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
+            else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
+
             int redScore = infoPool.ScoreRed;
             int blueScore = infoPool.ScoreBlue;
             List<ScoreboardEntry> entries = new List<ScoreboardEntry>();
