@@ -3380,6 +3380,21 @@ namespace JKWatcher
             //File.WriteAllBytes(filenameString,LevelShotData.createTiffImage(levelshotDataLocal));
         }
 
+        private void testScoreboardBtn_Click(object sender, RoutedEventArgs e)
+        {
+            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName+"_SCORETEST";
+
+            Bitmap bmp = new Bitmap(1920, 1080, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            ScoreboardRenderer.DrawScoreboard(bmp,infoPool.ratingsAndNames, infoPool, true);
+            string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "tests");
+            Directory.CreateDirectory(imagesSubDir);
+            filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
+            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            filenameString = Helpers.GetUnusedFilename(filenameString);
+            bmp.Save(filenameString);
+            bmp.Dispose();
+        }
+
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();

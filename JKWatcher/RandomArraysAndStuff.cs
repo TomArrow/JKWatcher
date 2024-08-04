@@ -411,6 +411,200 @@ namespace JKWatcher
 	  {SaberMovesGeneral.LS_REFLECT_LR_GENERAL, "_PREFLECT"},
 	  {SaberMovesGeneral.LS_REFLECT_LL_GENERAL, "_PREFLECT"},
 		};
+        public static Dictionary<SaberMovesGeneral, string> saberMoveNamesGeneralShort = new Dictionary<SaberMovesGeneral, string>() {
+			{SaberMovesGeneral.LS_INVALID_GENERAL, "_INV"},
+	  {SaberMovesGeneral.LS_NONE_GENERAL, "_WEIRD"},
+
+	  // General movements with saber
+	  {SaberMovesGeneral.LS_READY_GENERAL, "_IDLE"},
+	  {SaberMovesGeneral.LS_DRAW_GENERAL, "_DRAW"},
+	  {SaberMovesGeneral.LS_PUTAWAY_GENERAL, "_PUTAW"},
+
+	  // Attacks
+	  {SaberMovesGeneral.LS_A_TL2BR_GENERAL, ""},//4
+	  {SaberMovesGeneral.LS_A_L2R_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_BL2TR_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_BR2TL_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_R2L_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_TR2BL_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_T2B_GENERAL, ""},
+	  {SaberMovesGeneral.LS_A_BACKSTAB_GENERAL, "_BLUBS"},
+	  {SaberMovesGeneral.LS_A_BACK_GENERAL, "_BS"},
+	  {SaberMovesGeneral.LS_A_BACK_CR_GENERAL, "_DBS"},
+
+	  {SaberMovesGeneral.LS_ROLL_STAB_GENERAL, "_RLSTB"}, // JKA
+
+	  {SaberMovesGeneral.LS_A_LUNGE_GENERAL, "_UPCUT"},
+	  {SaberMovesGeneral.LS_A_JUMP_T__B__GENERAL, "_DFA"},
+	  {SaberMovesGeneral.LS_A_FLIP_STAB_GENERAL, "_YDFA"},
+	  {SaberMovesGeneral.LS_A_FLIP_SLASH_GENERAL, "_YDFA"},
+
+	  // JKA
+		{SaberMovesGeneral.LS_JUMPATTACK_DUAL_GENERAL,"_BFLY"}, // Flip forward attack
+		{SaberMovesGeneral.LS_JUMPATTACK_ARIAL_LEFT_GENERAL,"_CRTW"},
+		{SaberMovesGeneral.LS_JUMPATTACK_ARIAL_RIGHT_GENERAL,"_CRTW"},
+		{SaberMovesGeneral.LS_JUMPATTACK_CART_LEFT_GENERAL,"_CRTW"},
+		{SaberMovesGeneral.LS_JUMPATTACK_CART_RIGHT_GENERAL,"_CRTW"},
+		{SaberMovesGeneral.LS_JUMPATTACK_STAFF_LEFT_GENERAL,"_BFLY"}, // Official butterfly but sabermoveData calls it dual jump attack staff(?!)
+		{SaberMovesGeneral.LS_JUMPATTACK_STAFF_RIGHT_GENERAL,"_BFLY"},
+		{SaberMovesGeneral.LS_BUTTERFLY_LEFT_GENERAL,"_BFLY"}, // Not the official butterfly but actually named butterfly.. wtf
+		{SaberMovesGeneral.LS_BUTTERFLY_RIGHT_GENERAL,"_BFLY"},
+		{SaberMovesGeneral.LS_A_BACKFLIP_ATK_GENERAL,"_BFATK"},
+		{SaberMovesGeneral.LS_SPINATTACK_DUAL_GENERAL,"_KATA"}, // Dual spin attack
+		{SaberMovesGeneral.LS_SPINATTACK_GENERAL,"_KATA"}, // Saber staff twirl
+		{SaberMovesGeneral.LS_LEAP_ATTACK_GENERAL,"_LLEAP"}, // idk wtf this is
+		{SaberMovesGeneral.LS_SWOOP_ATTACK_RIGHT_GENERAL,"_SWOOP"}, // Idk if this is an actual attack. The animation is a guy sitting and swooping.. ?!?
+		{SaberMovesGeneral.LS_SWOOP_ATTACK_LEFT_GENERAL,"_SWOOP"},	// Ooh. It might be if sitting on an animal or in a vehicle otherwise? Oh are they called "swoop bikes" ?
+		{SaberMovesGeneral.LS_TAUNTAUN_ATTACK_RIGHT_GENERAL,"_TAUN"}, // thes are also sitting... hmm. sitting on a tauntaun? 
+		{SaberMovesGeneral.LS_TAUNTAUN_ATTACK_LEFT_GENERAL,"_TAUN"},
+		{SaberMovesGeneral.LS_KICK_F_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_B_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_R_GENERAL,"_KICK"}, // what difference does it make...
+		{SaberMovesGeneral.LS_KICK_L_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_S_GENERAL,"_KICK"}, // I havent investigated this too deeply. Idk how to do it
+		{SaberMovesGeneral.LS_KICK_BF_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_RL_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_F_AIR_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_B_AIR_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_R_AIR_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_KICK_L_AIR_GENERAL,"_KICK"},
+		{SaberMovesGeneral.LS_STABDOWN_GENERAL,"_STBDN"},
+		{SaberMovesGeneral.LS_STABDOWN_STAFF_GENERAL,"_STBDN"},
+		{SaberMovesGeneral.LS_STABDOWN_DUAL_GENERAL,"_STBDN"},
+		{SaberMovesGeneral.LS_DUAL_SPIN_PROTECT_GENERAL,"_DUALBR"},	// Dual saber barrier (spinning sabers)
+		{SaberMovesGeneral.LS_STAFF_SOULCAL_GENERAL,"_KATA"},
+		{SaberMovesGeneral.LS_A1_SPECIAL_GENERAL,"_KATA"}, // Fast attack kata
+		{SaberMovesGeneral.LS_A2_SPECIAL_GENERAL,"_KATA"},
+		{SaberMovesGeneral.LS_A3_SPECIAL_GENERAL,"_KATA"},
+		{SaberMovesGeneral.LS_UPSIDE_DOWN_ATTACK_GENERAL,"_FLIPATK"}, // Can't find info on this. Animation looks like a vampire hanging upside down and wiggling a saber downwards
+		{SaberMovesGeneral.LS_PULL_ATTACK_STAB_GENERAL,"_PULLSTB"},	// Can't find info on this either. 
+		{SaberMovesGeneral.LS_PULL_ATTACK_SWING_GENERAL,"_PULLSWNG"},	// Some kind of animation that pulls someone in and stabs? Idk if its actually usable or how...
+		{SaberMovesGeneral.LS_SPINATTACK_ALORA_GENERAL,"_ALORA"}, // "Alora Spin slash"? No info on it either idk. Might just all be single player stuff
+		{SaberMovesGeneral.LS_DUAL_FB_GENERAL,"_DUALSTB"}, // Dual stab front back
+		{SaberMovesGeneral.LS_DUAL_LR_GENERAL,"_DUALSTB"}, // dual stab left right
+		{SaberMovesGeneral.LS_HILT_BASH_GENERAL,"_HILT"}, // Staff handle bashed into face (like darth maul i guess?)
+		// JKA end
+
+	  //starts
+		  {SaberMovesGeneral.LS_S_TL2BR_GENERAL, ""},//26
+		  {SaberMovesGeneral.LS_S_L2R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_S_BL2TR_GENERAL, ""},//# Start of attack chaining to SLASH LR2UL
+		  {SaberMovesGeneral.LS_S_BR2TL_GENERAL, ""},//# Start of attack chaining to SLASH LR2UL
+		  {SaberMovesGeneral.LS_S_R2L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_S_TR2BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_S_T2B_GENERAL, ""},
+
+		  //returns
+		  {SaberMovesGeneral.LS_R_TL2BR_GENERAL, ""},//33
+		  {SaberMovesGeneral.LS_R_L2R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_R_BL2TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_R_BR2TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_R_R2L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_R_TR2BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_R_T2B_GENERAL, ""},
+
+		  //transitions
+		  {SaberMovesGeneral.LS_T1_BR__R_GENERAL, ""},//40
+		  {SaberMovesGeneral.LS_T1_BR_TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BR_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BR_TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BR__L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BR_BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__R_BR_GENERAL, ""},//46
+		  {SaberMovesGeneral.LS_T1__R_TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__R_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__R_TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__R__L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__R_BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TR_BR_GENERAL, ""},//52
+		  {SaberMovesGeneral.LS_T1_TR__R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TR_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TR_TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TR__L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TR_BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_T__BR_GENERAL, ""},//58
+		  {SaberMovesGeneral.LS_T1_T___R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_T__TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_T__TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_T___L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_T__BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TL_BR_GENERAL, ""},//64
+		  {SaberMovesGeneral.LS_T1_TL__R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TL_TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TL_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TL__L_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_TL_BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__L_BR_GENERAL, ""},//70
+		  {SaberMovesGeneral.LS_T1__L__R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__L_TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__L_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__L_TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1__L_BL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BL_BR_GENERAL, ""},//76
+		  {SaberMovesGeneral.LS_T1_BL__R_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BL_TR_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BL_T__GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BL_TL_GENERAL, ""},
+		  {SaberMovesGeneral.LS_T1_BL__L_GENERAL, ""},
+
+		  //Bounces
+		  {SaberMovesGeneral.LS_B1_BR_GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1__R_GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1_TR_GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1_T__GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1_TL_GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1__L_GENERAL, "_BNCE"},
+		  {SaberMovesGeneral.LS_B1_BL_GENERAL, "_BNCE"},
+
+		  //Deflected attacks
+		  {SaberMovesGeneral.LS_D1_BR_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1__R_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1_TR_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1_T__GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1_TL_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1__L_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1_BL_GENERAL, "_DFL"},
+		  {SaberMovesGeneral.LS_D1_B__GENERAL, "_DFL"},
+
+		  //Reflected attacks
+		  {SaberMovesGeneral.LS_V1_BR_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1__R_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1_TR_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1_T__GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1_TL_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1__L_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1_BL_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_V1_B__GENERAL, "_RFL"},
+
+		  // Broken parries
+		  {SaberMovesGeneral.LS_H1_T__GENERAL, "_PARR"},//
+		  {SaberMovesGeneral.LS_H1_TR_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_H1_TL_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_H1_BR_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_H1_B__GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_H1_BL_GENERAL, "_PARR"},
+
+		  // Knockaways
+		  {SaberMovesGeneral.LS_K1_T__GENERAL, "_KNCK"},//
+		  {SaberMovesGeneral.LS_K1_TR_GENERAL, "_KNCK"},
+		  {SaberMovesGeneral.LS_K1_TL_GENERAL, "_KNCK"},
+		  {SaberMovesGeneral.LS_K1_BR_GENERAL, "_KNCK"},
+		  {SaberMovesGeneral.LS_K1_BL_GENERAL, "_KNCK"},
+
+		  // Parries
+		  {SaberMovesGeneral.LS_PARRY_UP_GENERAL, "_PARR"},//
+		  {SaberMovesGeneral.LS_PARRY_UR_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_PARRY_UL_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_PARRY_LR_GENERAL, "_PARR"},
+		  {SaberMovesGeneral.LS_PARRY_LL_GENERAL, "_PARR"},
+
+		  // Projectile Reflections
+		  {SaberMovesGeneral.LS_REFLECT_UP_GENERAL, "_RFL"},//
+		  {SaberMovesGeneral.LS_REFLECT_UR_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_REFLECT_UL_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_REFLECT_LR_GENERAL, "_RFL"},
+		  {SaberMovesGeneral.LS_REFLECT_LL_GENERAL, "_RFL"},
+		};
 
 		private static SaberMovesGeneral[] jk2ToSaberMoveGeneral = new SaberMovesGeneral[] { // First entry is for -1
 			SaberMovesGeneral.LS_INVALID_GENERAL,

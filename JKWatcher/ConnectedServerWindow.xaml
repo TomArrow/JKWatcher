@@ -139,6 +139,7 @@
             <CheckBox x:Name="noActivePlayersCheck" IsEnabled="False" IsChecked="{Binding NoActivePlayers,Mode=OneWay}" ToolTip="No active players">NAP</CheckBox>
             <Button x:Name="levelshotBtn" Click="levelshotBtn_Click">Levelshot</Button>
             <Button x:Name="levelshotBtnOver200" Click="levelshotBtnOver200_Click">200</Button>
+            <Button x:Name="testScoreboardBtn" Click="testScoreboardBtn_Click">Test</Button>
         </WrapPanel>
         <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="1">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">

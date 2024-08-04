@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 using static JKWatcher.ConnectedServerWindow;
 using JKWatcher.RandomHelpers;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace JKWatcher
 {
@@ -194,15 +195,16 @@ namespace JKWatcher
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
-        private Dictionary<string,int> killTypes = new Dictionary<string, int>();
-        private Dictionary<string,int> killTypesReturns = new Dictionary<string, int>();
+        private Dictionary<KillType, int> killTypes = new Dictionary<KillType, int>();
+        private Dictionary<KillType, int> killTypesReturns = new Dictionary<KillType, int>();
 
         // This is just saved in here as a reference, we access them via infoPool.killTrackers, but this way we can keep track even of stuff with players that disconnected.
         public ConcurrentDictionary<SessionPlayerInfo, KillTracker> killTrackersOnOthers = new ConcurrentDictionary<SessionPlayerInfo, KillTracker>();
         public ConcurrentDictionary<SessionPlayerInfo, KillTracker> killTrackersOnMe = new ConcurrentDictionary<SessionPlayerInfo, KillTracker>();
 
-        public void TrackKill(string killType, UInt64 killHash, bool isReturn)
+        public void TrackKill(KillType killType, UInt64 killHash, bool isReturn)
         {
+            killType.Internize();
             lock (trackedKillsLock)
             {
                 if (trackedKills.Add(killHash))
@@ -228,14 +230,14 @@ namespace JKWatcher
                 }
             }
         }
-        public Dictionary<string, int> GetKillTypes()
+        public Dictionary<KillType, int> GetKillTypes()
         {
             lock (trackedKillsLock)
             {
                 return killTypes.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
             }
         }
-        public Dictionary<string, int> GetKillTypesReturns()
+        public Dictionary<KillType, int> GetKillTypesReturns()
         {
             lock (trackedKillsLock)
             {
@@ -350,6 +352,8 @@ namespace JKWatcher
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
         #region score
         public PlayerScore score { get; set; } = new PlayerScore();
+
+        public int clientNum { get; set; }
         public DateTime? lastScoreUpdated;
         #endregion
         public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
@@ -363,10 +367,11 @@ namespace JKWatcher
         {
             chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
         }
-        public SessionPlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
+        public SessionPlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame,int clientNumA)
         {
             chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
             chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+            clientNum = clientNumA;
         }
         static readonly Regex PadawanNameMatch = new Regex(@"^\s*Padawan\s*[\(\[]\s*\d*[\)\]]\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private HashSet<string> usedNames = new HashSet<string>();
@@ -411,9 +416,24 @@ namespace JKWatcher
                     LastNonPadawanName = value;
                 }
                 _name = value;
-            } 
+            }
         }
-        public Team team { get; set; }
+        public Team LastNonSpectatorTeam { get; private set; } = Team.Spectator; // xd
+        private Team _team;
+        public Team team
+        {
+            get {
+                return _team;
+            }
+            set
+            {
+                if (value != Team.Spectator)
+                {
+                    LastNonSpectatorTeam = value;
+                }
+                _team = value;
+            }
+        }
         public bool confirmedBot { get; set; } = false;
         public bool confirmedJKWatcherFightbot { get; set; } = false;
         public string model { get; set; }
@@ -481,9 +501,9 @@ namespace JKWatcher
 
         public SessionPlayerInfo session = null;
 
-        public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
+        public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame, int clientNumA)
         {
-            session = new SessionPlayerInfo(ratingCalculator, ratingCalculatorThisGame);
+            session = new SessionPlayerInfo(ratingCalculator, ratingCalculatorThisGame, clientNumA);
         }
 
         public AliveInfo lastAliveInfo = null;
@@ -500,7 +520,7 @@ namespace JKWatcher
         #region clientinfo
         public bool infoValid { get; set; }
         public bool inactiveMOH { get; set; }
-        public int clientNum { get; set; }
+        public int clientNum => this.session.clientNum;
         public DateTime? lastClientInfoUpdate;
 
         public AngleDecoder angleDecoder = new AngleDecoder();
@@ -666,6 +686,16 @@ namespace JKWatcher
 
     }
 
+    public record KillType
+    {
+        public string name;
+        public string shortname;
+        public void Internize()
+        {
+            name = string.Intern(name);
+            shortname = string.Intern(shortname);
+        }
+    }
 
     public class KillTracker
     {
@@ -680,10 +710,11 @@ namespace JKWatcher
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
-        private Dictionary<string, int> killTypes = new Dictionary<string, int>();
-        private Dictionary<string, int> killTypesReturns = new Dictionary<string, int>();
-        public void TrackKill(string killType, UInt64 killHash, bool isReturn)
+        private Dictionary<KillType, int> killTypes = new Dictionary<KillType, int>();
+        private Dictionary<KillType, int> killTypesReturns = new Dictionary<KillType, int>();
+        public void TrackKill(KillType killType, UInt64 killHash, bool isReturn)
         {
+            killType.Internize();
             lock (trackedKillsLock)
             {
                 if (trackedKills.Add(killHash))
@@ -710,14 +741,14 @@ namespace JKWatcher
                 }
             }
         }
-        public Dictionary<string, int> GetKillTypes()
+        public Dictionary<KillType, int> GetKillTypes()
         {
             lock (trackedKillsLock)
             {
                 return killTypes.ToDictionary(blah => blah.Key, blah => blah.Value); // Make a copy for thread safety.
             }
         }
-        public Dictionary<string, int> GetKillTypesReturns()
+        public Dictionary<KillType, int> GetKillTypesReturns()
         {
             lock (trackedKillsLock)
             {
@@ -969,7 +1000,7 @@ namespace JKWatcher
 
             for (int i = 0; i < playerInfo.Length; i++)
             {
-                playerInfo[i] = new PlayerInfo(ratingCalculator,ratingCalculatorThisGame) { infoPool=this};
+                playerInfo[i] = new PlayerInfo(ratingCalculator,ratingCalculatorThisGame,i) { infoPool=this};
             }
             jkaMode = jkaModeA;
             if (jkaMode)

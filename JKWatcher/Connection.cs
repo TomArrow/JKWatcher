@@ -1469,48 +1469,64 @@ namespace JKWatcher
 
                                 //string killType = Enum.GetName(typeof(SaberMovesGeneral), generalized);
                                 string killType = RandomArraysAndStuff.saberMoveNamesGeneral.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneral[generalized] : "WEIRDSABER";
+                                string killTypeShort = RandomArraysAndStuff.saberMoveNamesGeneralShort.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneralShort[generalized] : "SABR";
                                 if (killType.StartsWith("_"))
                                 {
                                     killType = killType.Substring(1);
+                                }
+                                if (killTypeShort.StartsWith("_"))
+                                {
+                                    killTypeShort = killTypeShort.Substring(1);
                                 }
                                 if(killType == "")
                                 {
                                     switch (saberStyle[attacker]) {
                                         case 1:
                                             killType = "BLUE";
+                                            killTypeShort = "BLU";
                                             break;
                                         case 2:
                                             killType = "YELLOW";
+                                            killTypeShort = "YEL";
                                             break;
                                         case 3:
                                             killType = "RED";
+                                            killTypeShort = "RED";
                                             break;
                                         default:
                                             killType = "SABER";
+                                            killTypeShort = "SABR";
                                             break;
                                     }
 
                                 }
                                 UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
-                                infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.killTrackersThisGame[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                KillType kt = new KillType() { name=killType, shortname=killTypeShort };
+                                infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.killTrackers[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                infoPool.killTrackersThisGame[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             }
                         } else
                         {
                             string killType = Enum.GetName(typeof(MeansOfDeath), mod);
+                            string killTypeShort = (mod >= 0 && (int)mod<modNames.Length) ? modNames[(int)mod] : "WEIRD";
                             if (killType == null) {
                                 killType = "WEIRD_UNKNOWN";
                             } else if (killType.StartsWith("MOD_"))
                             {
                                 killType = killType.Substring(4);
                             }
+                            if (killTypeShort.StartsWith("MOD_"))
+                            {
+                                killTypeShort = killTypeShort.Substring(4);
+                            }
                             UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
-                            infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                            infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                            infoPool.killTrackers[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                            infoPool.killTrackersThisGame[attacker, target].TrackKill(killType, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            KillType kt = new KillType() { name = killType, shortname = killTypeShort };
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackers[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackersThisGame[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                         }
 
                         if (this.IsMainChatConnection) {  // Avoid dupes.
@@ -4020,7 +4036,7 @@ namespace JKWatcher
                                     && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
                                 if (!isReconnect)
                                 {
-                                    infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame); // resets everything session based: name, team, ratings, score, various stats etc
+                                    infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame,i); // resets everything session based: name, team, ratings, score, various stats etc
                                     for (int p = 0; p < client.ClientHandler.MaxClients; p++)
                                     {
                                         infoPool.killTrackers[i, p] = new KillTracker();
@@ -4123,6 +4139,7 @@ namespace JKWatcher
                             // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
                             infoPool.playerInfo[i].session.name = client.ClientInfo[i].Name;
                             infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
+                            infoPool.playerInfo[i].session.clientNum = client.ClientInfo[i].ClientNum;
                         }
 
                         // To track rating of ppl who disco. TODO add more than just name to this.
@@ -4160,7 +4177,6 @@ namespace JKWatcher
                             infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                             infoPool.playerInfo[i].IsFrozen = false;
                         }
-                        infoPool.playerInfo[i].clientNum = client.ClientInfo[i].ClientNum;
                         infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
 
                         if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
@@ -5771,9 +5787,95 @@ namespace JKWatcher
             serverWindow.addToLog("Demo recording stopped.");
         }
 
+
+        readonly public static string[] modNames = {
+            "UNKN",
+            "STUN",
+            "MELE",
+            "SBR",
+            "BRYR",
+            "BRYR",
+            "BLST",
+            "DISR",
+            "DISR",
+            "DISR",
+            "BOW",
+            "REP",
+            "REP",
+            "REP",
+            "DEMP",
+            "DEMP",
+            "FLCH",
+            "FLCH",
+            "RKT",
+            "RKT",
+            "RKT",
+            "RKT",
+            "THRM",
+            "THRM",
+            "MINE",
+            "MINE",
+            "DTPK",
+            "DARK",
+            "TUR",
+            "WATR",
+            "SLIM",
+            "LAVA",
+            "CRSH",
+            "TELE",
+            "DOOM",
+            "SUIC",
+            "LASR",
+            "TRIG",
+            "MOD_MAX"
+        };
+
     }
 
     // means of death
+    enum MeansOfDeath {
+        MOD_UNKNOWN,//MOD_UNKNOWN //MOD_UNKNOWN,//MOD_UNKNOWN
+        MOD_STUN_BATON,//MOD_STUN_BATON
+        MOD_MELEE,//MOD_MELEE
+        MOD_SABER,//MOD_SABER
+        MOD_BRYAR_PISTOL,//MOD_BRYAR_PISTOL
+        MOD_BRYAR_PISTOL_ALT,//MOD_BRYAR_PISTOL_ALT
+        MOD_BLASTER,//MOD_BLASTER
+        MOD_DISRUPTOR,//MOD_DISRUPTOR
+        MOD_DISRUPTOR_SPLASH,//MOD_DISRUPTOR_SPLASH
+        MOD_DISRUPTOR_SNIPER,//MOD_DISRUPTOR_SNIPER
+        MOD_BOWCASTER,//MOD_BOWCASTER
+        MOD_REPEATER,//MOD_REPEATER
+        MOD_REPEATER_ALT,//MOD_REPEATER_ALT
+        MOD_REPEATER_ALT_SPLASH,//MOD_REPEATER_ALT_SPLASH
+        MOD_DEMP2,//MOD_DEMP2
+        MOD_DEMP2_ALT,//MOD_DEMP2_ALT
+        MOD_FLECHETTE,//MOD_FLECHETTE
+        MOD_FLECHETTE_ALT_SPLASH,//MOD_FLECHETTE_ALT_SPLASH
+        MOD_ROCKET,//MOD_ROCKET
+        MOD_ROCKET_SPLASH,//MOD_ROCKET_SPLASH
+        MOD_ROCKET_HOMING,//MOD_ROCKET_HOMING
+        MOD_ROCKET_HOMING_SPLASH,//MOD_ROCKET_HOMING_SPLASH
+        MOD_THERMAL,//MOD_THERMAL
+        MOD_THERMAL_SPLASH,//MOD_THERMAL_SPLASH
+        MOD_TRIP_MINE_SPLASH,//MOD_TRIP_MINE_SPLASH
+        MOD_TIMED_MINE_SPLASH,//MOD_TIMED_MINE_SPLASH
+        MOD_DET_PACK_SPLASH,//MOD_DET_PACK_SPLASH
+        MOD_FORCE_DARK,//MOD_FORCE_DARK
+        MOD_SENTRY,//MOD_SENTRY
+        MOD_WATER,//MOD_WATER
+        MOD_SLIME,//MOD_SLIME
+        MOD_LAVA,//MOD_LAVA
+        MOD_CRUSH,//MOD_CRUSH
+        MOD_TELEFRAG,//MOD_TELEFRAG
+        MOD_FALLING,//MOD_FALLING
+        MOD_SUICIDE,//MOD_SUICIDE
+        MOD_TARGET_LASER,//MOD_TARGET_LASER
+        MOD_TRIGGER_HURT,//MOD_TRIGGER_HURT
+        MOD_MAX
+    }
+    
+    /*
     enum MeansOfDeath {
         MOD_UNKNOWN,
         MOD_STUN_BATON,
@@ -5814,5 +5916,5 @@ namespace JKWatcher
         MOD_TARGET_LASER,
         MOD_TRIGGER_HURT,
         MOD_MAX
-    }
+    }*/
 }

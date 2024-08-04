@@ -43,20 +43,20 @@ namespace JKWatcher
 
         Queue<string> calmSayQueue = new Queue<string>();
 
-        private string MakeKillTypesString(Dictionary<string, int> killTypes)
+        public static string MakeKillTypesString(Dictionary<KillType, int> killTypes, int lengthLimit = 150)
         {
-            List<KeyValuePair<string, int>> killTypesData = killTypes.ToList();
+            List<KeyValuePair<KillType, int>> killTypesData = killTypes.ToList();
             killTypesData.Sort((a, b) => { return -a.Value.CompareTo(b.Value); });
 
             StringBuilder killTypesString = new StringBuilder();
             int killTypeIndex = 0;
-            foreach (KeyValuePair<string, int> killTypeInfo in killTypesData)
+            foreach (KeyValuePair<KillType, int> killTypeInfo in killTypesData)
             {
                 if (killTypeInfo.Value <= 0)
                 {
                     continue;
                 }
-                if ((killTypesString.Length + killTypeInfo.Key.Length) > 150)
+                if ((killTypesString.Length + killTypeInfo.Key.name.Length) > lengthLimit)
                 {
                     break;
                 }
@@ -64,7 +64,7 @@ namespace JKWatcher
                 {
                     killTypesString.Append(", ");
                 }
-                killTypesString.Append($"{killTypeInfo.Value}x{killTypeInfo.Key}");
+                killTypesString.Append($"{killTypeInfo.Value}x{killTypeInfo.Key.name}");
                 killTypeIndex++;
             }
             return killTypesString.ToString();
