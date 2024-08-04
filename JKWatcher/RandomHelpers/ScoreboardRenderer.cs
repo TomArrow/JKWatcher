@@ -288,6 +288,7 @@ namespace JKWatcher.RandomHelpers
             columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
             columns.Add(new ColumnInfo("PING", 0, 40, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
             columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.stats.score.time.ToString(); }));
+            columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
 
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 
