@@ -84,7 +84,7 @@ namespace JKWatcher.RandomHelpers
         Func<ScoreboardEntry, string> fetcher = null;
         string name = null;
         float topOffset = 0;
-        public float width { get; private set; } = 0;
+        public float width = 0;
         Font font = null;
         public ColumnInfo(string nameA, float topOffsetA, float widthA, Font fontA ,Func<ScoreboardEntry, string> fetchFunc)
         {
@@ -271,6 +271,14 @@ namespace JKWatcher.RandomHelpers
                 }
             }
 
+
+
+            Graphics g = Graphics.FromImage(bmp);
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+
+
+
             List<ColumnInfo> columns = new List<ColumnInfo>();
 
 
@@ -300,7 +308,8 @@ namespace JKWatcher.RandomHelpers
             foreach (string killTypeColumn in columnizedKillTypes)
             {
                 string stringLocal = killTypeColumn;
-                columns.Add(new ColumnInfo(stringLocal, 0, 40, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
+                float width = Math.Max(g.MeasureString(stringLocal, normalFont).Width+2f,20);
+                columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
             }
 
             columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 180, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }));
@@ -309,11 +318,28 @@ namespace JKWatcher.RandomHelpers
             columns.Add(new ColumnInfo("KILLED BY", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,true); }));
 
 
-
-            Graphics g = Graphics.FromImage(bmp);
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
             const float sidePadding = 90;
+            const float totalWidth = 1920 - sidePadding - sidePadding;
+            float neededWidth = 0;
+
+            // Check that it all fits in
+            for (int i = 0; i < columns.Count; i++)
+            {
+                float thisWidth = columns[i].width;
+                if(neededWidth + thisWidth > totalWidth)
+                {
+                    // overflow. truncate this column and ditch rest.
+                    columns[i].width = totalWidth - neededWidth;
+                    if(columns.Count > (i + 1))
+                    {
+                        columns.RemoveRange(i + 1, columns.Count - i - 1);
+                    }
+                    break;
+                }
+                neededWidth += thisWidth + horzPadding;
+            }
+
+
             float posXStart = sidePadding;
             float posX = posXStart;
             float posY = 20;
