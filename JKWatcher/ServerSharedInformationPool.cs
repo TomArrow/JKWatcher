@@ -373,7 +373,7 @@ namespace JKWatcher
             chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
             clientNum = clientNumA;
         }
-        static readonly Regex PadawanNameMatch = new Regex(@"^\s*Padawan\s*[\(\[]\s*\d*[\)\]]\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        static readonly Regex PadawanNameMatch = new Regex(@"^\s*Padawan\s*(?:[\(\[]\s*\d*[\)\]]\s*)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private HashSet<string> usedNames = new HashSet<string>();
         public string LastNonPadawanName { get; private set; }
         private string _name = null;
