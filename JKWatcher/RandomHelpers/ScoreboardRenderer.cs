@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -86,6 +87,8 @@ namespace JKWatcher.RandomHelpers
         float topOffset = 0;
         public float width = 0;
         Font font = null;
+        public bool autoScale = false;
+        public bool allowWrap = true;
         public ColumnInfo(string nameA, float topOffsetA, float widthA, Font fontA ,Func<ScoreboardEntry, string> fetchFunc)
         {
             if(nameA is null || fetchFunc is null || fontA is null)
@@ -106,14 +109,48 @@ namespace JKWatcher.RandomHelpers
         StringFormat defaultStringFormat = new StringFormat() { };
         StringFormat noWrapStringFormat = new StringFormat() { FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.NoClip};
 
+
+        private static byte floatColorToByte(float color)
+        {
+            return (byte)Math.Clamp(color * 255f, 0f, 255f);
+        }
+        private static Color vectorToDrawingColor(Vector4 input)
+        {
+            Color retVal = Color.FromArgb(floatColorToByte(input.W), floatColorToByte(input.X), floatColorToByte(input.Y), floatColorToByte(input.Z));
+            return retVal;
+        }
+
+        static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
+        static readonly Brush bgBrush = new SolidBrush(vectorToDrawingColor(v4DKGREY2));
+
         public void DrawString(Graphics g, bool header, float x, float y, ScoreboardEntry entry=  null )
         {
             string theString = header ? this.name : GetValueString(entry);
-            theString = Q3ColorFormatter.cleanupString(theString);
             if (theString is null) return;
             Font fontToUse = header ? headerFont : font;
-            g.DrawString(theString, fontToUse, System.Drawing.Brushes.Black, new RectangleF(2f + x, 2f + y + topOffset, width, ScoreboardRenderer.recordHeight), header? noWrapStringFormat : defaultStringFormat);
-            g.DrawString(theString, fontToUse, System.Drawing.Brushes.White, new RectangleF(x, y + topOffset, width, ScoreboardRenderer.recordHeight), header ? noWrapStringFormat : defaultStringFormat);
+
+            StringFormat formatToUse = (header || !allowWrap) ? noWrapStringFormat : defaultStringFormat;
+
+            string cleanString = null;
+            const float reductionDecrements = 0.5f;
+            if (autoScale)
+            {
+                cleanString = Q3ColorFormatter.cleanupString(theString);
+                float trySize = fontToUse.Size;
+                while (g.MeasureString(cleanString, fontToUse, new PointF(x,y),formatToUse).Width > width && trySize >= 8)
+                {
+                    trySize -= reductionDecrements;
+                    fontToUse = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
+                }
+            }
+
+            if (!theString.Contains('^') || !g.DrawStringQ3(theString, fontToUse,  new RectangleF(x, y + topOffset, width, ScoreboardRenderer.recordHeight), formatToUse, true,false/*entry?.team == Team.Spectator ? true : false*/))
+            {
+                theString = cleanString is null ? Q3ColorFormatter.cleanupString(theString) : cleanString;
+                if (theString is null) return;
+                g.DrawString(theString, fontToUse, bgBrush, new RectangleF(2f + x, 2f + y + topOffset, width, ScoreboardRenderer.recordHeight), formatToUse);
+                g.DrawString(theString, fontToUse, System.Drawing.Brushes.White, new RectangleF(x, y + topOffset, width, ScoreboardRenderer.recordHeight), formatToUse);
+            }
         }
     }
 
@@ -141,6 +178,7 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush redTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 255, color0_2, color0_2));
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
+        static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
 
         public static void DrawScoreboard(
             Bitmap bmp,
@@ -283,7 +321,7 @@ namespace JKWatcher.RandomHelpers
 
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
-            columns.Add(new ColumnInfo("NAME",0,270,nameFont,(a)=> { return a.stats.playerSessInfo.LastNonPadawanName; }));
+            columns.Add(new ColumnInfo("NAME", 0, 270, nameFont, (a) => { return a.stats.playerSessInfo.LastNonPadawanName; }) {  autoScale = true, allowWrap =false});
             columns.Add(new ColumnInfo("SCORE",0,60,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
             columns.Add(new ColumnInfo("C",0, 25, normalFont,(a)=> { return a.stats.score.captures.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
@@ -364,6 +402,9 @@ namespace JKWatcher.RandomHelpers
                     case Team.Free:
                         brush = freeTeamBrush;
                         break;
+                    case Team.Spectator:
+                        brush = spectatorTeamBrush;
+                        break;
                 }
 
                 if(brush != null)
@@ -379,7 +420,7 @@ namespace JKWatcher.RandomHelpers
                 }
             }
             g.Flush();
-
+            g.Dispose();
 
         }
 
@@ -462,11 +503,11 @@ namespace JKWatcher.RandomHelpers
                 }
                 if(otherPersonInfo.Value.Item2 > 0)
                 {
-                    otherPeopleString.Append($"{otherPersonInfo.Value.Item1}/^1{otherPersonInfo.Value.Item2}^7x{otherPersonInfo.Key}");
+                    otherPeopleString.Append($"^7{otherPersonInfo.Value.Item1}/^1{otherPersonInfo.Value.Item2}^7x{otherPersonInfo.Key}");
                 }
                 else
                 {
-                    otherPeopleString.Append($"{otherPersonInfo.Value.Item1}x{otherPersonInfo.Key}");
+                    otherPeopleString.Append($"^7{otherPersonInfo.Value.Item1}x{otherPersonInfo.Key}");
                 }
                 otherPersonIndex++;
             }

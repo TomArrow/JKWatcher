@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Drawing = System.Drawing;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -21,6 +22,104 @@ namespace JKWatcher
         static Regex hexColorRegex = new Regex("^x[0-9a-fA-F]{3}|^y[0-9a-fA-F]{4}|^X[0-9a-fA-F]{6}|^Y[0-9a-fA-F]{8}", RegexOptions.Compiled);
 
         static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
+
+        public struct ColoredChar
+        {
+            public char character;
+            //public Drawing.Brush color;
+            public Drawing.Color color;
+            //public static implicit operator char(ColoredChar c) =>c.character;
+        }
+        public class ColoredString
+        {
+            public string text;
+            public Drawing.Color color = Drawing.Color.White;
+            public Drawing.Color backgroundColor = vectorToDrawingColor(v4DKGREY2);
+        }
+
+
+        // Cringe but what can you do :)
+        public static Drawing.Region[] MeasureCharacterRangesUnlimited(this Drawing.Graphics g, Drawing.CharacterRange[] allRanges, string text, Drawing.Font font, Drawing.RectangleF layoutRectangle, Drawing.StringFormat format)
+        {
+            List< Drawing.Region> regions = new List<Drawing.Region>();
+            Queue<Drawing.CharacterRange> rangesQueue = new Queue<Drawing.CharacterRange>(allRanges);
+            List<Drawing.CharacterRange> currentRanges = new List<Drawing.CharacterRange>();
+            while (rangesQueue.Count>0 || currentRanges.Count > 0)
+            {
+                bool flush = false;
+                if(rangesQueue.Count > 0)
+                {
+                    currentRanges.Add(rangesQueue.Dequeue());
+                    if(currentRanges.Count == 32)
+                    {
+                        flush = true;
+                    }
+                }
+                else
+                {
+                    flush = true;
+                }
+                if (flush)
+                {
+                    format.SetMeasurableCharacterRanges(currentRanges.ToArray());
+                    regions.AddRange(g.MeasureCharacterRanges(text, font, layoutRectangle, format));
+                    currentRanges.Clear();
+                }
+            }
+            return regions.ToArray();
+        }
+        public static bool DrawStringQ3(this Drawing.Graphics g, string? s, Drawing.Font font, Drawing.RectangleF layoutRectangle, Drawing.StringFormat? format, bool hexSupport = true, bool contrastSafety = true)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return true;
+
+            //string cleanString = cleanupString(s, hexSupport);
+            (ColoredChar[] chars, ColoredChar[] charsBg) =  Q3StringToColoredCharArrays(s,hexSupport,contrastSafety);
+            if (chars is null || charsBg is null || chars.Length != charsBg.Length) return false;
+
+            List<char> charsRaw = new List<char>();
+
+            string cleanString = new string(Array.ConvertAll<ColoredChar, char>(chars, (a) => { return a.character; }));
+
+            if (cleanString is null) return false;
+
+            List<Drawing.CharacterRange> ranges = new List<Drawing.CharacterRange>();
+            for(int i = 0; i < cleanString.Length; i++)
+            {
+                ranges.Add(new Drawing.CharacterRange(i,1));
+            }
+
+            if(format is null)
+            {
+                format = new Drawing.StringFormat();
+            }
+            //format.SetMeasurableCharacterRanges(ranges.ToArray()); // don't do this. if more than 32, we get overflow exception
+
+            Drawing.Region[] regions = g.MeasureCharacterRangesUnlimited(ranges.ToArray(),cleanString, font, layoutRectangle, format);
+
+            if (regions is null || regions.Length != chars.Length) return false;
+
+            var oldAlignment = format.Alignment;
+            format.Alignment = Drawing.StringAlignment.Center;
+            for (int i = 0; i < chars.Length; i++)
+            {
+                Drawing.RectangleF where = regions[i].GetBounds(g);
+                Drawing.RectangleF whereBg = where;
+                whereBg.X += 2.0f;
+                whereBg.Y += 2.0f;
+                using(Drawing.SolidBrush brushBg = new Drawing.SolidBrush(charsBg[i].color))
+                {
+                    g.DrawString(charsBg[i].character.ToString(), font, brushBg, whereBg, format);
+                }
+                using(Drawing.SolidBrush brushFg = new Drawing.SolidBrush(chars[i].color))
+                {
+                    g.DrawString(chars[i].character.ToString(), font, brushFg, where, format);
+                }
+            }
+            format.Alignment = oldAlignment;
+
+
+            return true;
+        }
 
         public static Run[] Q3StringToInlineArray(string q3String, bool hexSupport = true, bool contrastSafety=true)
         {
@@ -127,6 +226,138 @@ namespace JKWatcher
                     }
                     newRun.Foreground = new SolidColorBrush(vectorToColor(fgColor));
                     newRun.Background = new SolidColorBrush(vectorToColor(bgColor));
+                }
+                runs.Add(newRun);
+                sb.Clear();
+                foregroundColor = null;
+                backgroundColor = null;
+            }
+            return runs.ToArray();
+        }
+
+        // Returns arrays of chars for fore- and background
+        public static (ColoredChar[], ColoredChar[]) Q3StringToColoredCharArrays(string q3String, bool hexSupport = true, bool contrastSafety = true)
+        {
+            List<ColoredChar> chars = new List<ColoredChar>();
+            List<ColoredChar> charsBg = new List<ColoredChar>();
+            ColoredString[] strings = Q3StringToColoredStringArray(q3String, hexSupport, contrastSafety);
+            foreach(ColoredString text in strings)
+            {
+                if (text.text is null) continue;
+                foreach (char character in text.text)
+                {
+                    chars.Add(new ColoredChar() { character = character, color = text.color});
+                    charsBg.Add(new ColoredChar() { character = character, color = text.backgroundColor});
+                }
+            }
+            return (chars.ToArray(),charsBg.ToArray());
+        }
+
+        public static ColoredString[] Q3StringToColoredStringArray(string q3String, bool hexSupport = true, bool contrastSafety=true)
+        {
+            List<ColoredString> runs = new List<ColoredString>();
+            StringBuilder sb = new StringBuilder();
+            int colorsParsed = 0;
+            Vector4? foregroundColor = null;
+            Vector4? backgroundColor = null;
+
+            for (int i = 0; i < q3String.Length; i++)
+            {
+                int charsLeft = q3String.Length - 1 - i;
+                char curChar = q3String[i];
+                if (curChar == '^')
+                {
+                    if(charsLeft == 0)
+                    {
+                        break; // Nuthing to do, just a lonely ^ at the end
+                    }
+                    char nextChar = q3String[i + 1];
+                    if (nextChar == '^') // Just an escaped ^ we actually want to see
+                    {
+                        sb.Append('^');
+                        i++;
+                        colorsParsed = 0;
+                    } else 
+                    {
+                        if(colorsParsed == 0)
+                        {
+                            if(sb.Length == 0)
+                            {
+                                // First time, do nothing.
+                            } else
+                            {
+                                // String is finished. Write it out.
+                                ColoredString newRun = new ColoredString() { text = sb.ToString() };
+                                if (foregroundColor.HasValue)
+                                {
+                                    // set a default background color in case none was specified
+                                    // Because default background is too bright for most names probably.
+                                    if (!backgroundColor.HasValue)
+                                    {
+                                        backgroundColor = v4DKGREY2;
+                                    }
+                                    Vector4 fgColor = foregroundColor.Value, bgColor = backgroundColor.Value;
+
+                                    if (contrastSafety)
+                                    {
+                                        ensureContrast(ref fgColor, ref bgColor);
+                                    }
+                                    newRun.color = vectorToDrawingColor(fgColor);
+                                    newRun.backgroundColor = vectorToDrawingColor(bgColor);
+                                }
+
+                                runs.Add(newRun);
+                                sb.Clear();
+                                foregroundColor = null;
+                                backgroundColor = null;
+                            }
+                        }
+
+                        // Color is being specified. This
+                        int length;
+                        Vector4 color = parseColor(ref q3String,i+1,out length,hexSupport);
+                        i += length;
+                        if(colorsParsed %2 == 0)
+                        {
+                            foregroundColor = color;
+                        } else if(colorsParsed % 2 == 1)
+                        {
+                            backgroundColor = color;
+                        } // Todo: maybe make option to handle chat prepended ^6 more gracefully like CG_ChatBox_AddString in eternaljk2mv
+                        colorsParsed++;
+                    }
+                } else
+                {
+                    sb.Append(curChar);
+                    colorsParsed = 0;
+                }
+            }
+            // We're done. Repeat what we did above
+            // Sad to duplicate the code but not sure what else to do.
+            if (sb.Length == 0)
+            {
+                // Hmm guess nothing came anymore
+            }
+            else
+            {
+                // String is finished. Write it out.
+                ColoredString newRun = new ColoredString() { text = sb.ToString() };
+                if (foregroundColor.HasValue)
+                {
+                    // set a default background color in case none was specified
+                    // Because default background is too bright for most names probably.
+                    if (!backgroundColor.HasValue)
+                    {
+                        backgroundColor = v4DKGREY2;
+                    }
+                    Vector4 fgColor = foregroundColor.Value, bgColor = backgroundColor.Value;
+
+                    if (contrastSafety)
+                    {
+                        ensureContrast(ref fgColor, ref bgColor);
+                    }
+                    newRun.color = vectorToDrawingColor(fgColor);
+                    newRun.backgroundColor = vectorToDrawingColor(bgColor);
                 }
                 runs.Add(newRun);
                 sb.Clear();
@@ -348,6 +579,11 @@ namespace JKWatcher
             retVal.G = floatColorToByte(input.Y);
             retVal.B = floatColorToByte(input.Z);
             retVal.A = floatColorToByte(input.W);
+            return retVal;
+        }
+        private static Drawing.Color vectorToDrawingColor(Vector4 input)
+        {
+            Drawing.Color retVal = Drawing.Color.FromArgb(floatColorToByte(input.W), floatColorToByte(input.X), floatColorToByte(input.Y), floatColorToByte(input.Z));
             return retVal;
         }
         private static byte floatColorToByte(float color)

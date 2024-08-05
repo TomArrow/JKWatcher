@@ -46,6 +46,7 @@ namespace JKWatcher.RandomHelpers
                 g.DrawString(i.ToString(), theFont, System.Drawing.Brushes.Black,new RectangleF(0f+leftOffset,0f+ topOffset, width,height));
                 g.DrawString(i.ToString(), theFont, System.Drawing.Brushes.White,new RectangleF(1f + leftOffset, 1f + topOffset, width,height));
                 g.Flush();
+                g.Dispose();
                 imageSources[i] = Helpers.BitmapToImageSource(numberImage);
                 imageSources[i].Freeze();
                 //if(i == 50)
