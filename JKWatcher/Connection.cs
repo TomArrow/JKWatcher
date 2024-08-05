@@ -4140,10 +4140,11 @@ namespace JKWatcher
                             infoPool.playerInfo[i].session.name = client.ClientInfo[i].Name;
                             infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
                             infoPool.playerInfo[i].session.clientNum = client.ClientInfo[i].ClientNum;
+                            infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
                         }
 
                         // To track rating of ppl who disco. TODO add more than just name to this.
-                        if(client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
+                        if (client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
                         {
                             if (!infoPool.ratingsAndNames.ContainsKey(infoPool.playerInfo[i].session))
                             {
@@ -4177,8 +4178,6 @@ namespace JKWatcher
                             infoPool.playerInfo[i].infoValid = client.ClientInfo[i].InfoValid;
                             infoPool.playerInfo[i].IsFrozen = false;
                         }
-                        infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
-
                         if (!infoPool.playerInfo[i].confirmedBot && infoPool.playerInfo[i].team != Team.Spectator && infoPool.playerInfo[i].infoValid)
                         {
                             anyNonBotActivePlayers = true;
