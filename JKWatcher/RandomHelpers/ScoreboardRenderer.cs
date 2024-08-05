@@ -100,7 +100,7 @@ namespace JKWatcher.RandomHelpers
 
     class ColumnInfo
     {
-        private static readonly Font headerFont = new Font("Segoe UI", 10, FontStyle.Bold);
+        public static readonly Font headerFont = new Font("Segoe UI", 10, FontStyle.Bold);
         Func<ScoreboardEntry, string> fetcher = null;
         string name = null;
         float topOffset = 0;
@@ -365,7 +365,7 @@ namespace JKWatcher.RandomHelpers
             foreach (string killTypeColumn in columnizedKillTypes)
             {
                 string stringLocal = killTypeColumn;
-                float width = Math.Max(g.MeasureString(stringLocal, normalFont).Width+2f,20);
+                float width = Math.Max(g.MeasureString(stringLocal, ColumnInfo.headerFont).Width+2f,20);
                 columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
             }
 
