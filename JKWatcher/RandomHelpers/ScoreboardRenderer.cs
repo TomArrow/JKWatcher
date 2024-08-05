@@ -340,7 +340,7 @@ namespace JKWatcher.RandomHelpers
 
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
-            columns.Add(new ColumnInfo("NAME", 0, 270, nameFont, (a) => { return a.stats.playerSessInfo.LastNonPadawanName; }) {  autoScale = true, allowWrap =false});
+            columns.Add(new ColumnInfo("NAME", 0, 270, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) {  autoScale = true, allowWrap =false});
             columns.Add(new ColumnInfo("SCORE",0,60,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
             columns.Add(new ColumnInfo("C",0, 25, normalFont,(a)=> { return a.stats.score.captures.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
