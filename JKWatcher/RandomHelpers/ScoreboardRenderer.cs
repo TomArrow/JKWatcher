@@ -50,18 +50,37 @@ namespace JKWatcher.RandomHelpers
             int bTeam = normalizedTeamNumber(b.team);
             return aTeam.CompareTo(bTeam);
         }
-        public static int PureScoreComparer(ScoreboardEntry a, ScoreboardEntry b)
+        public static int CountReductionComparer(ScoreboardEntry a, ScoreboardEntry b) // this sorts by which players we most want to keep, not neccessarily by which order they should be displayed in.
         {
+            bool aSpec = a.team == Team.Spectator;
+            bool bSpec = b.team == Team.Spectator;
+
+            if(aSpec != bSpec)
+            {
+                return aSpec.CompareTo(bSpec); // spectators always last
+            }
+
+            if(a.isStillActivePlayer != b.isStillActivePlayer)
+            {
+                return bSpec.CompareTo(aSpec); // disconnected players also gonna have lower rank
+            }
+
             int aScore = a.score;
             int bScore = b.score;
-            if(a.team == Team.Spectator)
+            return bScore.CompareTo(aScore);
+        }
+        public static int CountReductionComparerIgnoreActivity(ScoreboardEntry a, ScoreboardEntry b) // this sorts by which players we most want to keep, not neccessarily by which order they should be displayed in.
+        {
+            bool aSpec = a.team == Team.Spectator;
+            bool bSpec = b.team == Team.Spectator;
+
+            if(aSpec != bSpec)
             {
-                aScore = -1;
+                return aSpec.CompareTo(bSpec); // spectators always last
             }
-            if(b.team == Team.Spectator)
-            {
-                bScore = -1;
-            }
+
+            int aScore = a.score;
+            int bScore = b.score;
             return bScore.CompareTo(aScore);
         }
         private static int normalizedTeamNumber(Team team)
@@ -268,13 +287,13 @@ namespace JKWatcher.RandomHelpers
                 entries.Add(entry);
             }
 
-            const int maxScoreEntries = 30;
+            const int maxScoreEntries = 32;
 
             ScoreboardEntry[] removedEntries = null;
             if (entries.Count > maxScoreEntries)
             {
                 // If we have too many, only keep those with highest scores
-                entries.Sort(ScoreboardEntry.PureScoreComparer);
+                entries.Sort(ScoreboardEntry.CountReductionComparer);
                 removedEntries = entries.GetRange(maxScoreEntries, entries.Count - maxScoreEntries).ToArray(); // maybe we'll just give them a "honorable mention" text at the bottom with names.
                 entries.RemoveRange(30, entries.Count - maxScoreEntries);
             }
@@ -350,7 +369,10 @@ namespace JKWatcher.RandomHelpers
                 columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
             }
 
-            columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 180, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }));
+            if(killTypesCounts.Count > 0)
+            {
+                columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 180, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }));
+            }
 
             columns.Add(new ColumnInfo("KILLED PLAYERS", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,false); }));
             columns.Add(new ColumnInfo("KILLED BY", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,true); }));
