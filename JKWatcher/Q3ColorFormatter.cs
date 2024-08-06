@@ -39,11 +39,26 @@ namespace JKWatcher
 
 
         // Cringe but what can you do :)
-        public static Drawing.Region[] MeasureCharacterRangesUnlimited(this Drawing.Graphics g, Drawing.CharacterRange[] allRanges, string text, Drawing.Font font, Drawing.RectangleF layoutRectangle, Drawing.StringFormat format)
+        public static Drawing.Region[] MeasureCharacterRangesUnlimited<T>(this Drawing.Graphics g, Drawing.CharacterRange[] allRanges, string text, Drawing.Font font, T? layoutRectangle, Drawing.StringFormat format)
         {
             List< Drawing.Region> regions = new List<Drawing.Region>();
             Queue<Drawing.CharacterRange> rangesQueue = new Queue<Drawing.CharacterRange>(allRanges);
             List<Drawing.CharacterRange> currentRanges = new List<Drawing.CharacterRange>();
+
+
+            Drawing.RectangleF? rectangle = null;
+            Drawing.PointF? point = null;
+            if (layoutRectangle is Drawing.RectangleF)
+            {
+                rectangle = layoutRectangle as Drawing.RectangleF?;
+            }
+            else if (layoutRectangle is Drawing.PointF)
+            {
+                point = layoutRectangle as Drawing.PointF?;
+            }
+            if (rectangle is null && layoutRectangle is null) throw new InvalidOperationException("MeasureCharacterRangesUnlimited<T> only works with Drawing.RectangleF/Drawing.PointF");
+
+            Drawing.RectangleF rectangleFinal = rectangle.HasValue ? rectangle.Value : new Drawing.RectangleF(point.Value.X,point.Value.Y,9999,9999);
             while (rangesQueue.Count>0 || currentRanges.Count > 0)
             {
                 bool flush = false;
@@ -62,13 +77,14 @@ namespace JKWatcher
                 if (flush)
                 {
                     format.SetMeasurableCharacterRanges(currentRanges.ToArray());
-                    regions.AddRange(g.MeasureCharacterRanges(text, font, layoutRectangle, format));
+                    regions.AddRange(g.MeasureCharacterRanges(text, font, rectangleFinal, format));
                     currentRanges.Clear();
                 }
             }
             return regions.ToArray();
         }
-        public static bool DrawStringQ3(this Drawing.Graphics g, string? s, Drawing.Font font, Drawing.RectangleF layoutRectangle, Drawing.StringFormat? format, bool hexSupport = true, bool contrastSafety = true)
+        
+        public static bool DrawStringQ3<T>(this Drawing.Graphics g, string? s, Drawing.Font font, T layoutRectangle, Drawing.StringFormat? format, bool hexSupport = true, bool contrastSafety = true)
         {
             if (string.IsNullOrWhiteSpace(s)) return true;
 
@@ -100,13 +116,15 @@ namespace JKWatcher
 
             var oldAlignment = format.Alignment;
             format.Alignment = Drawing.StringAlignment.Center;
+            float shadowDist = 2f * font.Size / 14f;
             for (int i = 0; i < chars.Length; i++)
             {
                 Drawing.RectangleF where = regions[i].GetBounds(g);
                 Drawing.RectangleF whereBg = where;
-                whereBg.X += 2.0f;
-                whereBg.Y += 2.0f;
-                using(Drawing.SolidBrush brushBg = new Drawing.SolidBrush(charsBg[i].color))
+                whereBg.X += shadowDist;
+                whereBg.Y += shadowDist;
+
+                using (Drawing.SolidBrush brushBg = new Drawing.SolidBrush(charsBg[i].color))
                 {
                     g.DrawString(charsBg[i].character.ToString(), font, brushBg, whereBg, format);
                 }

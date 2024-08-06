@@ -3376,7 +3376,7 @@ namespace JKWatcher
             filenameString = Helpers.MakeValidFileName(baseFilename) + "_SCORES.png";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
             filenameString = Helpers.GetUnusedFilename(filenameString);
-            ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true);
+            ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType);
             bmp.Save(filenameString);
 
             bmp.Dispose();
@@ -3393,7 +3393,7 @@ namespace JKWatcher
             string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName+"_SCORETEST";
 
             Bitmap bmp = new Bitmap(1920, 1080, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            ScoreboardRenderer.DrawScoreboard(bmp,false,infoPool.ratingsAndNames, infoPool, true);
+            ScoreboardRenderer.DrawScoreboard(bmp,false,infoPool.ratingsAndNames, infoPool, true, gameType);
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "tests");
             Directory.CreateDirectory(imagesSubDir);
             filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
