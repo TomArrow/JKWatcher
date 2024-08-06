@@ -1450,7 +1450,8 @@ namespace JKWatcher
                     }
                 }
 
-                MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
+                //MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
+                MeansOfDeathGeneral mod = RandomArraysAndStuff.GeneralizeMod(e.Entity.CurrentState.EventParm,jkaMode,this.MBIIDetected);
 
                 if (attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target) // Kill tracking, only do on one connection to keep things consistent.
                 {
@@ -1459,63 +1460,65 @@ namespace JKWatcher
 
                         infoPool.UpdateKillTrackerReferences(attacker, target); // make sure player session objects have updated references to killtrackers to other session objects
 
-                        if (mod == MeansOfDeath.MOD_SABER)
+                        if (mod == MeansOfDeathGeneral.MOD_SABER_GENERAL && entityOrPSVisible[attacker])
                         {
-                            if (entityOrPSVisible[attacker])
+
+                            int saberMoveAttacker = saberMove[attacker];
+                            SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(saberMoveAttacker,jkaMode);
+
+                            //string killType = Enum.GetName(typeof(SaberMovesGeneral), generalized);
+                            string killType = RandomArraysAndStuff.saberMoveNamesGeneral.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneral[generalized] : "WEIRDSABER";
+                            string killTypeShort = RandomArraysAndStuff.saberMoveNamesGeneralShort.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneralShort[generalized] : "SABR";
+                            if (killType.StartsWith("_"))
                             {
-
-                                int saberMoveAttacker = saberMove[attacker];
-                                SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(saberMoveAttacker,jkaMode);
-
-                                //string killType = Enum.GetName(typeof(SaberMovesGeneral), generalized);
-                                string killType = RandomArraysAndStuff.saberMoveNamesGeneral.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneral[generalized] : "WEIRDSABER";
-                                string killTypeShort = RandomArraysAndStuff.saberMoveNamesGeneralShort.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneralShort[generalized] : "SABR";
-                                if (killType.StartsWith("_"))
-                                {
-                                    killType = killType.Substring(1);
-                                }
-                                if (killTypeShort.StartsWith("_"))
-                                {
-                                    killTypeShort = killTypeShort.Substring(1);
-                                }
-                                if(killType == "")
-                                {
-                                    switch (saberStyle[attacker]) {
-                                        case 1:
-                                            killType = "BLUE";
-                                            killTypeShort = "BLU";
-                                            break;
-                                        case 2:
-                                            killType = "YELLOW";
-                                            killTypeShort = "YEL";
-                                            break;
-                                        case 3:
-                                            killType = "RED";
-                                            killTypeShort = "RED";
-                                            break;
-                                        default:
-                                            killType = "SABER";
-                                            killTypeShort = "SABR";
-                                            break;
-                                    }
-
-                                }
-                                UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
-                                KillType kt = new KillType() { name=killType, shortname=killTypeShort };
-                                infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.killTrackers[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                                infoPool.killTrackersThisGame[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                                killType = killType.Substring(1);
                             }
+                            if (killTypeShort.StartsWith("_"))
+                            {
+                                killTypeShort = killTypeShort.Substring(1);
+                            }
+                            if(killType == "")
+                            {
+                                switch (saberStyle[attacker]) {
+                                    case 1:
+                                        killType = "BLUE";
+                                        killTypeShort = "BLU";
+                                        break;
+                                    case 2:
+                                        killType = "YELLOW";
+                                        killTypeShort = "YEL";
+                                        break;
+                                    case 3:
+                                        killType = "RED";
+                                        killTypeShort = "RED";
+                                        break;
+                                    default:
+                                        killType = "SABER";
+                                        killTypeShort = "SABR";
+                                        break;
+                                }
+
+                            }
+                            UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
+                            KillType kt = new KillType() { name=killType, shortname=killTypeShort };
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackers[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            infoPool.killTrackersThisGame[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
+                            
                         } else
                         {
-                            string killType = Enum.GetName(typeof(MeansOfDeath), mod);
-                            string killTypeShort = (mod >= 0 && (int)mod<modNames.Length) ? modNames[(int)mod] : "WEIRD";
+                            string killType = Enum.GetName(typeof(MeansOfDeathGeneral), mod);
+                            string killTypeShort = (mod >= 0 && (int)mod< modNamesGeneral.Length) ? modNamesGeneral[(int)mod] : "WEIRD";
                             if (killType == null) {
                                 killType = "WEIRD_UNKNOWN";
                             } else if (killType.StartsWith("MOD_"))
                             {
                                 killType = killType.Substring(4);
+                            }
+                            if (killType.EndsWith("_GENERAL"))
+                            {
+                                killType = killType.Substring(0,killType.Length-8);
                             }
                             if (killTypeShort.StartsWith("MOD_"))
                             {
@@ -1555,7 +1558,7 @@ namespace JKWatcher
 
                             if ((DateTime.Now-infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
                             {
-                                if (!jkaMode && (mod == MeansOfDeath.MOD_TRIP_MINE_SPLASH || mod == MeansOfDeath.MOD_TIMED_MINE_SPLASH || mod == MeansOfDeath.MOD_DET_PACK_SPLASH || mod == MeansOfDeath.MOD_SENTRY)) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
+                                if (!jkaMode && (mod == MeansOfDeathGeneral.MOD_TRIP_MINE_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_TIMED_MINE_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_DET_PACK_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_SENTRY_GENERAL)) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
                                 AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
 
                                 if (/*!targetWasFlagCarrier && !attackerWasFlagCarrier &&*/ infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY)) // flag carrier kills (both returns and killed by flag carrier) always count
@@ -1697,7 +1700,7 @@ namespace JKWatcher
                 string targetName = infoPool.playerInfo[target].name;
 
 
-                if (this.IsMainChatConnection && MeansOfDeath.MOD_FALLING == mod && attacker!=target && attacker>=0 && attacker< client.ClientHandler.MaxClients)
+                if (this.IsMainChatConnection && MeansOfDeathGeneral.MOD_FALLING_GENERAL == mod && attacker!=target && attacker>=0 && attacker< client.ClientHandler.MaxClients)
                 {
                     infoPool.playerInfo[attacker].chatCommandTrackingStuff.doomkills++;
                     infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.doomkills++;
@@ -1707,89 +1710,89 @@ namespace JKWatcher
                 bool generic = false;
                 switch (mod)
                 {
-                    case MeansOfDeath.MOD_STUN_BATON:
+                    case MeansOfDeathGeneral.MOD_STUN_BATON_GENERAL:
                         killString = "stunned";
                         break;
-                    case MeansOfDeath.MOD_MELEE:
+                    case MeansOfDeathGeneral.MOD_MELEE_GENERAL:
                         killString = "beat down";
                         break;
-                    case MeansOfDeath.MOD_SABER:
+                    case MeansOfDeathGeneral.MOD_SABER_GENERAL:
                         killString = "sabered";
                         break;
-                    case MeansOfDeath.MOD_BRYAR_PISTOL:
-                    case MeansOfDeath.MOD_BRYAR_PISTOL_ALT:
-                    case MeansOfDeath.MOD_BLASTER:
-                    case MeansOfDeath.MOD_BOWCASTER:
-                    case MeansOfDeath.MOD_REPEATER:
-                    case MeansOfDeath.MOD_REPEATER_ALT:
-                    case MeansOfDeath.MOD_REPEATER_ALT_SPLASH:
-                    case MeansOfDeath.MOD_DEMP2:
-                    case MeansOfDeath.MOD_DEMP2_ALT:
-                    case MeansOfDeath.MOD_FLECHETTE:
-                    case MeansOfDeath.MOD_FLECHETTE_ALT_SPLASH:
+                    case MeansOfDeathGeneral.MOD_BRYAR_PISTOL_GENERAL:
+                    case MeansOfDeathGeneral.MOD_BRYAR_PISTOL_ALT_GENERAL:
+                    case MeansOfDeathGeneral.MOD_BLASTER_GENERAL:
+                    case MeansOfDeathGeneral.MOD_BOWCASTER_GENERAL:
+                    case MeansOfDeathGeneral.MOD_REPEATER_GENERAL:
+                    case MeansOfDeathGeneral.MOD_REPEATER_ALT_GENERAL:
+                    case MeansOfDeathGeneral.MOD_REPEATER_ALT_SPLASH_GENERAL:
+                    case MeansOfDeathGeneral.MOD_DEMP2_GENERAL:
+                    case MeansOfDeathGeneral.MOD_DEMP2_ALT_GENERAL:
+                    case MeansOfDeathGeneral.MOD_FLECHETTE_GENERAL:
+                    case MeansOfDeathGeneral.MOD_FLECHETTE_ALT_SPLASH_GENERAL:
                         killString = "shot";
                         generic = true;
                         break;
-                    case MeansOfDeath.MOD_DISRUPTOR:
-                    case MeansOfDeath.MOD_DISRUPTOR_SPLASH:
-                    case MeansOfDeath.MOD_DISRUPTOR_SNIPER:
+                    case MeansOfDeathGeneral.MOD_DISRUPTOR_GENERAL:
+                    case MeansOfDeathGeneral.MOD_DISRUPTOR_SPLASH_GENERAL:
+                    case MeansOfDeathGeneral.MOD_DISRUPTOR_SNIPER_GENERAL:
                         generic = true;
                         killString = "sniped";
                         break;
-                    case MeansOfDeath.MOD_ROCKET:
-                    case MeansOfDeath.MOD_ROCKET_SPLASH:
-                    case MeansOfDeath.MOD_ROCKET_HOMING:
-                    case MeansOfDeath.MOD_ROCKET_HOMING_SPLASH:
+                    case MeansOfDeathGeneral.MOD_ROCKET_GENERAL:
+                    case MeansOfDeathGeneral.MOD_ROCKET_SPLASH_GENERAL:
+                    case MeansOfDeathGeneral.MOD_ROCKET_HOMING_GENERAL:
+                    case MeansOfDeathGeneral.MOD_ROCKET_HOMING_SPLASH_GENERAL:
                         generic = true;
                         killString = "rocketed";
                         break;
-                    case MeansOfDeath.MOD_THERMAL:
-                    case MeansOfDeath.MOD_THERMAL_SPLASH:
-                    case MeansOfDeath.MOD_DET_PACK_SPLASH:
+                    case MeansOfDeathGeneral.MOD_THERMAL_GENERAL:
+                    case MeansOfDeathGeneral.MOD_THERMAL_SPLASH_GENERAL:
+                    case MeansOfDeathGeneral.MOD_DET_PACK_SPLASH_GENERAL:
                         generic = true;
                         killString = "detonated";
                         break;
-                    case MeansOfDeath.MOD_TRIP_MINE_SPLASH:
-                    case MeansOfDeath.MOD_TIMED_MINE_SPLASH:
+                    case MeansOfDeathGeneral.MOD_TRIP_MINE_SPLASH_GENERAL:
+                    case MeansOfDeathGeneral.MOD_TIMED_MINE_SPLASH_GENERAL:
                         generic = true;
                         killString = "tripped";
                         break;
-                    case MeansOfDeath.MOD_FORCE_DARK:
+                    case MeansOfDeathGeneral.MOD_FORCE_DARK_GENERAL:
                         killString = "annihilated";
                         break;
-                    case MeansOfDeath.MOD_SENTRY:
+                    case MeansOfDeathGeneral.MOD_SENTRY_GENERAL:
                         killString = "sentry-killed";
                         break;
-                    case MeansOfDeath.MOD_WATER:
+                    case MeansOfDeathGeneral.MOD_WATER_GENERAL:
                         killString = "drowned";
                         break;
-                    case MeansOfDeath.MOD_SLIME:
+                    case MeansOfDeathGeneral.MOD_SLIME_GENERAL:
                         killString = "slimed";
                         break;
-                    case MeansOfDeath.MOD_LAVA:
+                    case MeansOfDeathGeneral.MOD_LAVA_GENERAL:
                         killString = "lava-burned";
                         break;
-                    case MeansOfDeath.MOD_CRUSH:
+                    case MeansOfDeathGeneral.MOD_CRUSH_GENERAL:
                         killString = "crushed";
                         break;
-                    case MeansOfDeath.MOD_TELEFRAG:
+                    case MeansOfDeathGeneral.MOD_TELEFRAG_GENERAL:
                         killString = "admin-killed";
                         break;
-                    case MeansOfDeath.MOD_FALLING:
+                    case MeansOfDeathGeneral.MOD_FALLING_GENERAL:
                         killString = "doomed";
                         break;
-                    case MeansOfDeath.MOD_SUICIDE:
+                    case MeansOfDeathGeneral.MOD_SUICIDE_GENERAL:
                         killString = "anheroed";
                         break;
-                    case MeansOfDeath.MOD_TARGET_LASER:
+                    case MeansOfDeathGeneral.MOD_TARGET_LASER_GENERAL:
                         killString = "lasered";
                         break;
-                    case MeansOfDeath.MOD_TRIGGER_HURT:
+                    case MeansOfDeathGeneral.MOD_TRIGGER_HURT_GENERAL:
                         killString = "triggered";
                         break;
-                    case MeansOfDeath.MOD_MAX:
+                    case MeansOfDeathGeneral.MOD_MAX_GENERAL:
                         break;
-                    case MeansOfDeath.MOD_UNKNOWN:
+                    case MeansOfDeathGeneral.MOD_UNKNOWN_GENERAL:
                     default:
                         break;
                 }
@@ -5831,7 +5834,7 @@ namespace JKWatcher
             serverWindow.addToLog("Demo recording stopped.");
         }
 
-
+        /*
         readonly public static string[] modNames = {
             "UNKN",
             "STUN",
@@ -5872,10 +5875,173 @@ namespace JKWatcher
             "LASR",
             "TRIG",
             "MOD_MAX"
+        };*/
+        readonly public static string[] modNamesGeneral = {
+            "UNKN",
+            "STUN",
+            "MELE",
+            "SABR",
+            "BRYR",
+            "BRYR",
+            "BLST",
+            "DISR",
+            "DISR",
+            "DISR",
+            "BOW",
+            "REP",
+            "REP",
+            "REP",
+            "DEMP",
+            "DEMP",
+            "FLCH",
+            "FLCH",
+            "RKT",
+            "RKT",
+            "RKT",
+            "RKT",
+            "THRM",
+            "THRM",
+            "MINE",
+            "MINE",
+            "DTPK",
+            "DARK",
+            "TUR",
+            "WATR",
+            "SLIM",
+            "LAVA",
+            "CRSH",
+            "TELE",
+            "DOOM",
+            "SUIC",
+            "LASR",
+            "TRIG",
+
+		    // JK3
+		    "TUR",
+            "VEH",
+            "CONC",
+            "CONC",
+            "COLL",
+            "VEH",
+            "TEAM",
+
+		    //q3
+		    "SHTGN",
+            "GNTLT",
+            "MG",
+            "GREN",
+            "GREN",
+            "PLAS",
+            "PLAS",
+            "RAIL",
+            "LGHTN",
+            "BFG",
+            "BFG",
+		    //#ifdef MISSIONPACK
+		    "NAIL",
+            "CHNGN",
+            "MINe",
+            "KMKZ",
+            "JUIC",
+		    //#endif
+		    "GRPPL",
+
+		    //quake live:
+		    "TEAM",  // 29
+		    "THAW",
+            "LGHTN",  // demo?
+		    "HMG",
+            "RAIL",
+
+		    //jk2sp:
+		    "BLST",
+            "DISR", // this is when energy crackle kills yu?!?
+		    "BOW",
+            "SEEKR",
+            "GRIP",
+            "MNT",
+            "ELEC",
+            "EXPL",
+            "EXPL",
+            "KNCK",
+            "ENERG",
+            "ENERG",
+            "IMPCT",
+
+		    // MOHAA:
+		    "CRSH",
+            "LSTSLF",
+            "EXPL",
+            "EXPL",
+            "ELEC",
+            "ELEC",
+            "THRWOBJ",
+            "GREN",
+            "BEAM",
+            "BULL",
+            "FBULL",
+            "FIRE",
+            "FLSHBNG",
+            "FIRE",
+            "GIB",
+            "IMPALE",
+            "BASH",
+            "MINE",
+
+            // MB II
+            "TEAM", // technically class change but whatever
+            "TEAM",
+            "TEAM",
+            "TKPUN",
+            "EXPL",
+            "SPAC",
+            "LGHTN",
+            "TRIG",
+            "TRIG",
+            "TRIG",
+            "ELEC",
+            "DARK",
+            "DARK",
+            "DARK",
+            "BRYR",
+            "BRYR",
+            "BOW",
+            "SEEKR",
+            "LASR",
+            "FLAM",
+            "ICE",
+            "ION",
+            "SBD",
+            "CONC",
+            "CONC",
+            "CONC",
+            "T21",
+            "T21",
+            "THRM",
+            "THRM",
+            "GREN",
+            "GREN",
+            "DTPK",
+            "BLST",
+            "BLST",
+            "BLST",
+            "BLST",
+            "DART",
+            "DART",
+            "DART",
+            "ACID",
+            "MELE",
+            "MELE",
+            "ASSA",
+            "SABR",
+            "SABR",
+            "SHCK",
+
+            "MAX",
         };
 
     }
-
+    /*
     // means of death
     enum MeansOfDeath {
         MOD_UNKNOWN,//MOD_UNKNOWN //MOD_UNKNOWN,//MOD_UNKNOWN
@@ -5917,7 +6083,7 @@ namespace JKWatcher
         MOD_TARGET_LASER,//MOD_TARGET_LASER
         MOD_TRIGGER_HURT,//MOD_TRIGGER_HURT
         MOD_MAX
-    }
+    }*/
     
     /*
     enum MeansOfDeath {

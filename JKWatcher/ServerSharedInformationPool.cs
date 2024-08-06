@@ -73,7 +73,8 @@ namespace JKWatcher
 
             int target = es.OtherEntityNum;
             int attacker = es.OtherEntityNum2;
-            MeansOfDeath mod = (MeansOfDeath)es.EventParm;
+            //MeansOfDeath mod = (MeansOfDeath)es.EventParm;
+            string mod = $"MOD{es.EventParm}";
             Vector3 locationOfDeath;
             locationOfDeath.X = es.Position.Base[0];
             locationOfDeath.Y = es.Position.Base[1];

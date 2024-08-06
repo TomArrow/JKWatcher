@@ -30,6 +30,8 @@ namespace JKWatcher.RandomHelpers
     // TODO MOH special fields and deal with K/D or whatever
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot. like for BOT etc. Bot, fightbot, disconnected, wentspec
     // TODO highlight best number in each column?
+    // TODO Only cap column if any caps
+    // TODO only other kill types if any
 
     // TODO dont show kills on who in moh (since we dont have that info) or if there are no logged kills DONE
     // TODO dont count non-spec team of connecting clients? -- not sure how MAYBE DONE
