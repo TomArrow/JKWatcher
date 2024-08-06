@@ -249,6 +249,7 @@ namespace JKWatcher
         {
             rating = new Rating(ratingCalculator);
         }
+        public Team LastNonSpectatorTeam { get; set; } = Team.Spectator; // xd
     }
 
     public struct PlayerIdentification
@@ -352,6 +353,9 @@ namespace JKWatcher
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
         #region score
         public PlayerScore score { get; set; } = new PlayerScore();
+        public PlayerScore spectatingScore { get; set; } = new PlayerScore(); // score data we receive for people on spectator team. can't really trust it. does not apply to MOH.
+
+        public bool lastScoreWasSpectating = false;
 
         public int clientNum { get; set; }
         public DateTime? lastScoreUpdated;
@@ -418,7 +422,6 @@ namespace JKWatcher
                 _name = value;
             }
         }
-        public Team LastNonSpectatorTeam { get; private set; } = Team.Spectator; // xd
         private Team _team;
         public Team team
         {
@@ -429,7 +432,8 @@ namespace JKWatcher
             {
                 if (value != Team.Spectator)
                 {
-                    LastNonSpectatorTeam = value;
+                    this.chatCommandTrackingStuff.LastNonSpectatorTeam = value;
+                    this.chatCommandTrackingStuffThisGame.LastNonSpectatorTeam = value;
                 }
                 _team = value;
             }
@@ -454,6 +458,7 @@ namespace JKWatcher
         public string model => this.session.model;
         public Team team => this.session.team;
         public PlayerScore score => this.session.score;
+        public PlayerScore currentScore => this.session.lastScoreWasSpectating ? this.session.spectatingScore: this.session.score;
         public bool confirmedBot => this.session.confirmedBot;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 

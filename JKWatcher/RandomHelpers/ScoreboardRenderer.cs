@@ -10,6 +10,31 @@ using System.Threading.Tasks;
 
 namespace JKWatcher.RandomHelpers
 {
+    // TODO average value for ping?
+    // TODO angled top columns to make them closer together
+    // TODO other used names
+    // TODO glicko 2 lines to save space?
+    // TODO more possible values that are mod specific?
+    // TODO make all overflow by default unless specified otherwise? or all autoscale?
+    // TODO Mark Bot/fightbot on scoreboard
+    // TODO dont show ppl as member of team who were shortly in tem at start of game but never really did much playing. maybe only count non spec team if score > 0?
+    // TODO sum up time column?
+    // TODO MOH has no score and such
+    // TODO do sth different for defrag? 
+    // TODO what about VERY old scoreboard entries? treat them same?
+    // TODO scale shadow distance with font size
+    // TODO correct MOD for jka and mb2?
+    // TODO maybe: blocks, rolls, strafestyle
+    // TODO Suicide count?
+    // TODO Show team score in team modes?
+
+    // TODO dont show kills on who in moh (since we dont have that info) or if there are no logged kills DONE
+    // TODO dont count non-spec team of connecting clients? -- not sure how MAYBE DONE
+    // TODO LastNonSpecTeam: make that also specifically thisgame DONE
+    // TODO killtypes not being counted properly for some reason, very low numbers in columns - DONE
+    // TODO spectators are getting same score as players. EW and then if last team is remembered they have the wrong thing dispalyed. can we only save score if not spec team? DONE
+
+
     using KillsRets = Tuple<int, int>;
     class ScoreboardEntry
     {
@@ -208,6 +233,8 @@ namespace JKWatcher.RandomHelpers
             )
         {
 
+            bool anyKillsLogged = false;
+
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
 
@@ -221,8 +248,17 @@ namespace JKWatcher.RandomHelpers
             {
                 ScoreboardEntry entry   = new ScoreboardEntry();
                 entry.stats = kvp.Value;
-                entry.team = kvp.Value.playerSessInfo.LastNonSpectatorTeam;
+                entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.score = kvp.Value.playerSessInfo.score.score;
+                entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
+                anyKillsLogged = anyKillsLogged || kvp.Value.chatCommandTrackingStuff.totalKills > 0 || kvp.Value.chatCommandTrackingStuff.totalDeaths > 0;
+                if (entry.team != Team.Spectator && kvp.Value.playerSessInfo.team == Team.Spectator && (entry.score <= 0 || kvp.Value.playerSessInfo.score.time == 0))
+                {
+                    // we do want to show anyone who played, but if someone just showed up as player while connecting or just auto-joined quickly at the start and promptly
+                    // went spec, we don't wanna list him as a player of that match.
+                    // TODO maybe also always do if bot? or naw?
+                    entry.team = Team.Spectator;
+                }
                 entry.teamScore = 0;
                 entry.returns = kvp.Value.chatCommandTrackingStuff.returns < kvp.Value.playerSessInfo.score.impressiveCount ? kvp.Value.playerSessInfo.score.impressiveCount : kvp.Value.chatCommandTrackingStuff.returns;
                 if(entry.returns > 0)
@@ -237,7 +273,6 @@ namespace JKWatcher.RandomHelpers
                 {
                     foundFields |= (1 << (int)ScoreFields.ASSIST);
                 }
-                entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 switch (entry.team)
                 {
                     case Team.Red:
@@ -267,12 +302,12 @@ namespace JKWatcher.RandomHelpers
                     {
                         killTypesCounts[keyName] = 0;
                     }
-                    killTypesCounts[keyName]++;
+                    killTypesCounts[keyName] += kt.Value;
                     if (!entry.killTypes.ContainsKey(keyName))
                     {
                         entry.killTypes[keyName] = 0;
                     }
-                    entry.killTypes[keyName]++;
+                    entry.killTypes[keyName] += kt.Value;
                 }
                 foreach (var kt in killTypesRets)
                 {
@@ -281,7 +316,7 @@ namespace JKWatcher.RandomHelpers
                     {
                         entry.killTypesRets[keyName] = 0;
                     }
-                    entry.killTypesRets[keyName]++;
+                    entry.killTypesRets[keyName]+= kt.Value;
                 }
 
                 entries.Add(entry);
@@ -369,13 +404,15 @@ namespace JKWatcher.RandomHelpers
                 columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
             }
 
-            if(killTypesCounts.Count > 0)
-            {
-                columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 180, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }));
-            }
+            if (anyKillsLogged) { 
+                if(killTypesCounts.Count > 0)
+                {
+                    columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 180, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }));
+                }
 
-            columns.Add(new ColumnInfo("KILLED PLAYERS", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,false); }));
-            columns.Add(new ColumnInfo("KILLED BY", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,true); }));
+                columns.Add(new ColumnInfo("KILLED PLAYERS", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,false); }));
+                columns.Add(new ColumnInfo("KILLED BY", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,true); }));
+            }
 
 
             const float sidePadding = 90;

@@ -62,16 +62,16 @@
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="Name" Binding="{Binding name,Converter={StaticResource q3StringToPlaintextConverter}}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Team" Binding="{Binding team}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Ping" Binding="{Binding score.ping}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Score" Binding="{Binding score.score}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Time" Binding="{Binding score.time}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="S/T" Binding="{Binding score.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="S/D" Binding="{Binding score.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="KDm" Binding="{Binding score.kdMod, StringFormat=N2}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="D" Binding="{Binding score.deaths}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Caps" Binding="{Binding score.captures}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Ping" Binding="{Binding currentScore.ping}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Score" Binding="{Binding currentScore.score}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Time" Binding="{Binding currentScore.time}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="S/T" Binding="{Binding currentScore.scorePerMinute, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="S/D" Binding="{Binding currentScore.scorePerDeaths, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="KDm" Binding="{Binding currentScore.kdMod, StringFormat=N2}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="D" Binding="{Binding currentScore.deaths}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Caps" Binding="{Binding currentScore.captures}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Rets" Binding="{Binding ProbableRetCount}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="BC" Binding="{Binding score.defendCount}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="BC" Binding="{Binding currentScore.defendCount}"></DataGridTextColumn>
                     <DataGridTextColumn Header="VP" Binding="{Binding VisiblePlayers.VisiblePlayersString}"></DataGridTextColumn>
                     <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
                     <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>

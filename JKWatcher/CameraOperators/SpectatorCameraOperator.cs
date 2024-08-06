@@ -148,7 +148,7 @@ namespace JKWatcher.CameraOperators
                     {
                         if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].team != Team.Spectator)
                         {
-                            if (infoPool.playerInfo[i].score.ping == infoPool.playerInfo[spectatorToFollow].score.ping) // Write it out to have higher chance of temporal coherence? (if one is currently being updated and the other not yet). Not a full solution but worst case is we get the result wrong and it's fixed on the next frame.
+                            if (infoPool.playerInfo[i].score.ping == infoPool.playerInfo[spectatorToFollow].session.spectatingScore.ping) // Write it out to have higher chance of temporal coherence? (if one is currently being updated and the other not yet). Not a full solution but worst case is we get the result wrong and it's fixed on the next frame.
                             {
                                 matches++;
                                 guyToFollow = i;

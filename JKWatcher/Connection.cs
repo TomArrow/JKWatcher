@@ -3743,9 +3743,19 @@ namespace JKWatcher
 
         DateTime lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
 
+        int csPlayers = 9999999;
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
+            csPlayers = this.client.GetMappedConfigstringNumber(ClientGame.Configstring.Players).GetValueOrDefault(9999999);
+
+            if (newGameState)
+            {
+                serverWindow.addToLog("New gamestate received. Resetting pendingPlayerSpectatorTeam");
+                pendingPlayerSpectatorTeam = new bool[128]; // lets forget all about this.
+            }
+
             if (obj.SendsAllEntities && !infoPool.serverSendsAllEntities)
             {
                 serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES ACTIVATED!", false, 5000);
@@ -4074,6 +4084,10 @@ namespace JKWatcher
                             {
                                 // hmm can we do this? just keep the last valid values in there and never overwwrite with null and such?
                                 infoPool.playerInfo[i].session.team = client.ClientInfo[i].Team;
+                                if(client.ClientInfo[i].Team == Team.Spectator)
+                                {
+                                    pendingPlayerSpectatorTeam[i] = false;
+                                }
                             }
                         }
                         else if (oldClientInfo[i].InfoValid != client.ClientInfo[i].InfoValid)
@@ -4512,11 +4526,31 @@ namespace JKWatcher
             }
         }
 
+        bool[] pendingPlayerSpectatorTeam = new bool[128];
+
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
             if (mohMode) return; // MOH Doesn't have flag status.
 
             int num = commandEventArgs.Command.Argv(1).Atoi();
+
+            int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
+
+            if(num >= csPlayers && num < csPlayers + maxClients)
+            {
+                // TODO what about MOH?
+                // we get this configstring command way before we get the serverinfochanged with the new client info.
+                // but let's say a player changes his team to spectator, and on the same frame we get scores.
+                // now the player will be following someone potentially and his scores thus cannot be trusted.
+                // but the scores command will reach us before the new client info will.
+                // so we wanna make sure to skip this client when evaluating score even if his team is officially still non-spectator
+                // The pendingPlayerSpectatorTeam will be reset either here with next cs that has him in a team, or when we see him in spectator team, 
+                // or on new gamestate
+                int clientNum = num - csPlayers;
+                string info = commandEventArgs.Command.Argv(2);
+                pendingPlayerSpectatorTeam[clientNum] = info.Contains("\\t\\3",StringComparison.InvariantCultureIgnoreCase) || info.StartsWith("t\\3", StringComparison.InvariantCultureIgnoreCase);
+                return;
+            }
 
             switch (num)
             {
@@ -5505,35 +5539,46 @@ namespace JKWatcher
                 {
                     continue;
                 }
-                PlayerScore score = infoPool.playerInfo[clientNum].session.score;
+                bool playerIsLikelySpectator = false;
+                if (infoPool.playerInfo[clientNum].team == Team.Spectator)
+                {
+                    playerIsLikelySpectator = true;
+                }
+                else if (pendingPlayerSpectatorTeam[clientNum] )
+                {
+                    serverWindow.addToLog($"WARNING: Skipping score info for {clientNum} due to pendingPlayerSpectatorTeam[clientNum].",true);
+                    playerIsLikelySpectator = true;
+                } 
+                PlayerScore score = playerIsLikelySpectator ? infoPool.playerInfo[clientNum].session.spectatingScore : infoPool.playerInfo[clientNum].session.score;
+                infoPool.playerInfo[clientNum].session.lastScoreWasSpectating = playerIsLikelySpectator;
                 score.deathsIsFilled = false;
                 if (!this.MBIIDetected) // Wtf is this i hear you say? MBII only has 9. And no, I have no idea which values are what for MBII anyway.
                 {
                     score.shortScoresMBII = false;
 
-                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
-                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
-                    score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
-                    score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi(); // client num
+                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
+                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
+                    score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
+                    score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
                     powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
                     score.powerUps = powerups; // duplicated from entities?
                     infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
-                    score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                    score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi(); // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
+                    score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
 
                     if (score.impressiveCount > 0)
                     {
                         anyRetCounts = true;
                     }
 
-                    score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
+                    score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
 
-                    score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi();
-                    score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi();
-                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi();
-                    score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true;
-                    score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();
+                    score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
+                    score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
+                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
+                    score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true; // means u never died and are highest rank. not that realistic/useful to us rly.
+                    score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();  // captures
 
                     if (scoreboardOffset == 15)
                     {
