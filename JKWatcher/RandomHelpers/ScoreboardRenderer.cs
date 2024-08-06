@@ -28,6 +28,8 @@ namespace JKWatcher.RandomHelpers
     // TODO Suicide count?
     // TODO Show team score in team modes?
     // TODO MOH special fields and deal with K/D or whatever
+    // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot. like for BOT etc. Bot, fightbot, disconnected, wentspec
+    // TODO highlight best number in each column?
 
     // TODO dont show kills on who in moh (since we dont have that info) or if there are no logged kills DONE
     // TODO dont count non-spec team of connecting clients? -- not sure how MAYBE DONE
@@ -227,6 +229,11 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
         static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
 
+        private static string block0(string input)
+        {
+            return input == "0" ? "" : input;
+        }
+
         public static void DrawScoreboard(
             Bitmap bmp,
             bool thisGame,
@@ -390,26 +397,26 @@ namespace JKWatcher.RandomHelpers
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
             columns.Add(new ColumnInfo("NAME", 0, 270, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) {  autoScale = true, allowWrap =false});
             columns.Add(new ColumnInfo("SCORE",0,60,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
-            columns.Add(new ColumnInfo("C",0, 25, normalFont,(a)=> { return a.stats.score.captures.ToString(); }));
+            columns.Add(new ColumnInfo("C",0, 25, normalFont,(a)=> { return block0(a.stats.score.captures.ToString()); }));
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
-                columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { return a.returns.ToString(); }));
+                columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { return block0(a.returns.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.DEFEND)) >0)
             {
-                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return a.stats.score.defendCount.ToString(); }));
+                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return block0(a.stats.score.defendCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ASSIST)) >0)
             {
-                columns.Add(new ColumnInfo("A", 0, 25, normalFont, (a) => { return a.stats.score.assistCount.ToString(); }));
+                columns.Add(new ColumnInfo("A", 0, 25, normalFont, (a) => { return block0(a.stats.score.assistCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
             {
-                columns.Add(new ColumnInfo("»", 0, 25, normalFont, (a) => { return a.stats.score.excellentCount.ToString(); }));
+                columns.Add(new ColumnInfo("»", 0, 25, normalFont, (a) => { return block0(a.stats.score.excellentCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
-                columns.Add(new ColumnInfo("%", 0, 25, normalFont, (a) => { return a.stats.score.accuracy.ToString(); }));
+                columns.Add(new ColumnInfo("%", 0, 25, normalFont, (a) => { return block0(a.stats.score.accuracy.ToString()); }));
             }
             columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
             columns.Add(new ColumnInfo("PING", 0, 40, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
@@ -424,7 +431,9 @@ namespace JKWatcher.RandomHelpers
             {
                 string stringLocal = killTypeColumn;
                 float width = Math.Max(g.MeasureString(stringLocal, ColumnInfo.headerFont).Width+2f,20);
-                columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => { return a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""); }));
+                columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) => {
+                    return block0(a.killTypes.GetValueOrDefault(stringLocal,0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""));
+                }));
             }
 
             if (anyKillsLogged) { 
@@ -459,6 +468,8 @@ namespace JKWatcher.RandomHelpers
                 neededWidth += thisWidth + horzPadding;
             }
 
+            // for little optional notes like DISCONNECTED or such
+            ColumnInfo preColumn = new ColumnInfo("", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a, true); });
 
             float posXStart = sidePadding;
             float posX = posXStart;
