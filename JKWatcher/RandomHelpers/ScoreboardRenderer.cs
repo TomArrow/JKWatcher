@@ -25,10 +25,10 @@ namespace JKWatcher.RandomHelpers
     // TODO max/avg speed, sd, blocks?
 
     // TODO Mark Bot/fightbot on scoreboard
-    // TODO make all overflow by default unless specified otherwise? or all autoscale?
-    // TODO angled top columns to make them closer together
     // TODO more possible values that are mod specific?
 
+    // TODO make all overflow by default unless specified otherwise? or all autoscale? DONE
+    // TODO angled top columns to make them closer together DONE
     // TODO dont show ppl as member of team who were shortly in tem at start of game but never really did much playing. maybe only count non spec team if score > 0? MAYBE DONE
     // TODO MOH has no score and such KINDA DONE?
     // TODO scale shadow distance with font size MABE DONE
@@ -150,6 +150,7 @@ namespace JKWatcher.RandomHelpers
         //public bool autoScale = false;
         //public bool allowWrap = true;
         public bool angledHeader = false;
+        public bool needsLeftLine = false;
         public ColumnInfo(string nameA, float topOffsetA, float widthA, Font fontA ,Func<ScoreboardEntry, string> fetchFunc)
         {
             if(nameA is null || fetchFunc is null || fontA is null)
@@ -216,7 +217,7 @@ namespace JKWatcher.RandomHelpers
             if (header && angledHeader)
             {
                 float maxHeight = 45f-5f;
-                float maxWidth = (float)Math.Sqrt(2f * 45f * 45f);
+                float maxWidth = (float)Math.Sqrt(2f * maxHeight * maxHeight);
                 cleanString = cleanString is null ? Q3ColorFormatter.cleanupString(theString) : cleanString;
                 float trySize = fontToUse.Size;
                 while (g.MeasureString(cleanString, fontToUse, new PointF(x, y), formatToUse).Width > maxWidth && trySize >= 8)
@@ -280,7 +281,7 @@ namespace JKWatcher.RandomHelpers
         private static readonly string[] killTypesAlways = new string[] {string.Intern("DBS"), /*"DFA", "BS", "DOOM",*/ string.Intern("MINE") }; // these will always get a column if at least 1 was found.
 
         public const float recordHeight = 30;
-        public const float horzPadding = 5;
+        public const float horzPadding = 3;
         public const float vertPadding = 1;
 
         enum ScoreFields
@@ -303,6 +304,7 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
         static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
+        static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
         private static string block0(string input)
         {
@@ -501,7 +503,7 @@ namespace JKWatcher.RandomHelpers
 
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
-            columns.Add(new ColumnInfo("NAME", 0, 270, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
+            columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
             columns.Add(new ColumnInfo("SCORE",0,50,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.CAPTURES)) >0)
             {
@@ -562,6 +564,7 @@ namespace JKWatcher.RandomHelpers
             }
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 
+            bool firstKillType = true;
             foreach (string killTypeColumn in columnizedKillTypes)
             {
                 string stringLocal = killTypeColumn;
@@ -572,8 +575,10 @@ namespace JKWatcher.RandomHelpers
                     return block0(a.killTypes.GetValueOrDefault(stringLocal, 0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""));
                 })
                 {
-                    angledHeader = true
+                    angledHeader = true,
+                    needsLeftLine = !firstKillType
                 });
+                firstKillType = false;
             }
 
             if (anyKillsLogged) { 
@@ -640,7 +645,18 @@ namespace JKWatcher.RandomHelpers
                         break;
                 }
 
-                if(brush != null)
+                foreach (var column in columns)
+                {
+                    if (column.needsLeftLine)
+                    {
+                        g.DrawLine(linePen, posX-0.5f* horzPadding, posY, posX- 0.5f * horzPadding, posY + 30f);
+                        //g.FillRectangle(Brushes.White32fg, new RectangleF(posX, posY, 0.5f, 30.0f));
+                    }
+                    posX += column.width + horzPadding;
+                }
+                posX = posXStart;
+
+                if (brush != null)
                 {
                     g.FillRectangle(brush,new RectangleF(posX,posY,1920.0f- sidePadding - sidePadding,30.0f));
                 }

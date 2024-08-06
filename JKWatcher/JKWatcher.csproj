@@ -19,12 +19,16 @@
 
   <ItemGroup>
     <Compile Remove="2\**" />
+    <Compile Remove="3\**" />
     <Compile Remove="jka\**" />
     <EmbeddedResource Remove="2\**" />
+    <EmbeddedResource Remove="3\**" />
     <EmbeddedResource Remove="jka\**" />
     <None Remove="2\**" />
+    <None Remove="3\**" />
     <None Remove="jka\**" />
     <Page Remove="2\**" />
+    <Page Remove="3\**" />
     <Page Remove="jka\**" />
   </ItemGroup>
 
