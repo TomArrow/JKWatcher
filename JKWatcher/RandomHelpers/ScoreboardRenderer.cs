@@ -27,6 +27,7 @@ namespace JKWatcher.RandomHelpers
     // TODO maybe: blocks, rolls, strafestyle
     // TODO Suicide count?
     // TODO Show team score in team modes?
+    // TODO MOH special fields and deal with K/D or whatever
 
     // TODO dont show kills on who in moh (since we dont have that info) or if there are no logged kills DONE
     // TODO dont count non-spec team of connecting clients? -- not sure how MAYBE DONE
@@ -214,6 +215,8 @@ namespace JKWatcher.RandomHelpers
             RETURNS,
             DEFEND,
             ASSIST,
+            SPREEKILLS,
+            ACCURACY
         }
 
         const int bgAlpha = (int)((float)255 * 0.33f);
@@ -234,6 +237,7 @@ namespace JKWatcher.RandomHelpers
         {
 
             bool anyKillsLogged = false;
+            bool anyValidGlicko2 = false;
 
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
@@ -251,6 +255,7 @@ namespace JKWatcher.RandomHelpers
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.score = kvp.Value.playerSessInfo.score.score;
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
+                anyValidGlicko2 = anyValidGlicko2 || kvp.Value.chatCommandTrackingStuff.rating.GetNumberOfResults(true) > 0;
                 anyKillsLogged = anyKillsLogged || kvp.Value.chatCommandTrackingStuff.totalKills > 0 || kvp.Value.chatCommandTrackingStuff.totalDeaths > 0;
                 if (entry.team != Team.Spectator && kvp.Value.playerSessInfo.team == Team.Spectator && (entry.score <= 0 || kvp.Value.playerSessInfo.score.time == 0))
                 {
@@ -272,6 +277,14 @@ namespace JKWatcher.RandomHelpers
                 if(kvp.Value.playerSessInfo.score.assistCount > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.ASSIST);
+                }
+                if(kvp.Value.playerSessInfo.score.excellentCount > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.SPREEKILLS);
+                }
+                if(kvp.Value.playerSessInfo.score.accuracy > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.ACCURACY);
                 }
                 switch (entry.team)
                 {
@@ -390,11 +403,21 @@ namespace JKWatcher.RandomHelpers
             {
                 columns.Add(new ColumnInfo("A", 0, 25, normalFont, (a) => { return a.stats.score.assistCount.ToString(); }));
             }
+            if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
+            {
+                columns.Add(new ColumnInfo("»", 0, 25, normalFont, (a) => { return a.stats.score.excellentCount.ToString(); }));
+            }
+            if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
+            {
+                columns.Add(new ColumnInfo("%", 0, 25, normalFont, (a) => { return a.stats.score.accuracy.ToString(); }));
+            }
             columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
             columns.Add(new ColumnInfo("PING", 0, 40, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
             columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.stats.score.time.ToString(); }));
-            columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
-
+            if (anyValidGlicko2)
+            {
+                columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
+            }
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 
             foreach (string killTypeColumn in columnizedKillTypes)
