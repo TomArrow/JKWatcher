@@ -75,7 +75,7 @@ namespace JKWatcher
         private Mutex mutex = null;
         private bool active = false;
 
-        public GlobalMutexHelper(string mutexNameWithoutGlobal,int? timeout=5000)
+        public GlobalMutexHelper(string mutexNameWithoutGlobal,int? timeout=20000)
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -92,11 +92,11 @@ namespace JKWatcher
                 active = true;
             }
 
+            Int64 elapsed = sw.ElapsedMilliseconds;
             if (!active)
             {
-                throw new Exception($"Failed to acquire acquire mutex \"{mutexNameWithoutGlobal}\".");
+                throw new Exception($"Failed to acquire acquire mutex \"{mutexNameWithoutGlobal}\" after {elapsed} milliseconds.");
             }
-            Int64 elapsed = sw.ElapsedMilliseconds;
             sw.Stop();
             if(elapsed > 500)
             {
