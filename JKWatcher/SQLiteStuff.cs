@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using JKClient;
 using JKWatcher.RandomHelpers;
+using PropertyChanged;
 using SQLite;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,115 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+
+	class DefragAverageMapTime : INotifyPropertyChanged
+	{
+		[PrimaryKey]
+		public string MapName { get; set; }
+
+		[Ignore]
+		public double sum { get; set; }
+		[Ignore]
+		public double divider { get; set; }
+
+		object recordLock = new object();
+		public Int64 record { get; set; } = Int64.MaxValue;
+		public string recordHolder { get; set; } = null;
+		public Int64 unloggedRecord { get; set; } = Int64.MaxValue;
+		public string unloggedRecordHolder { get; set; } = null;
+
+		public void LogTime(string player, int milliseconds, bool logged, bool isNumber1)
+        {
+            lock (recordLock)
+			{
+				if (logged)
+				{
+					if(isNumber1 && milliseconds < record)// milliseconds < record)
+                    {
+						record = milliseconds;
+						recordHolder = player;
+					}
+				}
+				else
+				{
+					if (milliseconds < unloggedRecord && isNumber1)
+					{
+						unloggedRecord = milliseconds;
+						unloggedRecordHolder = player;
+					}
+				}
+			}
+			AddSample(milliseconds);
+        }
+
+		[DependsOn("sum")]
+		public byte[] SumPersist
+        {
+            get
+            {
+				return BitConverter.GetBytes(sum);
+            }
+			set
+            {
+				sum = BitConverter.ToDouble(value);
+            }
+		}
+		[DependsOn("divider")]
+		public byte[] DividerPersist
+        {
+            get
+            {
+				return BitConverter.GetBytes(divider);
+            }
+			set
+            {
+				divider = BitConverter.ToDouble(value);
+            }
+        }
+
+		[DependsOn("sum","divider")]
+		public float ReadableAverage
+        {
+            get
+            {
+				return (float)( sum / divider);
+            }
+			set
+            {
+				// We just need to trick sqlite into saving this so we can read it nicely in db
+            }
+		}
+		[DependsOn("divider")]
+		public Int64 ReadableDivider
+        {
+            get
+            {
+				return (Int64)(Math.Round(divider)+0.5f);
+            }
+			set
+            {
+				// We just need to trick sqlite into saving this so we can read it nicely in db. We aren't restoring this value
+            }
+        }
+
+		public double CurrentAverage => divider == 0 ? 0 : sum / divider;
+
+		public event PropertyChangedEventHandler PropertyChanged;
+		void AddSample(double value)
+		{
+			this.sum += value;
+			this.divider++;
+		}
+		public DefragAverageMapTime()
+        {
+		}
+		public DefragAverageMapTime(string map)
+        {
+			MapName = map;
+
+		}
+
+	}
 	class IntermissionCamPosition : INotifyPropertyChanged
 	{
 		[PrimaryKey]

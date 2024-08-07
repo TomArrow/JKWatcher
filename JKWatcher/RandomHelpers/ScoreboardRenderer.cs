@@ -25,6 +25,8 @@ namespace JKWatcher.RandomHelpers
     // TODO decision on which fields based on prefiltered (when count too high) not on all
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
 
+    // TODO Defrag: runs: total, top 10, #1, total run time. map WRs, map top 10s. average deviation + per map
+
     // TODO more possible values that are mod specific?
     // TODO Show team score in team modes?
     // TODO do sth different for defrag? maybe max speed? Do count of defrag runs for sorting. average/max speed. maps that were run and how often. how many top 10 runs. or sth like that. 
@@ -52,6 +54,7 @@ namespace JKWatcher.RandomHelpers
 
 
     using KillsRets = Tuple<int, int>;
+    using RunsTop10WR = Tuple<int, int, int>;
     class ScoreboardEntry
     {
         public IdentifiedPlayerStats stats;
@@ -71,12 +74,30 @@ namespace JKWatcher.RandomHelpers
         public bool fightBot;
         public bool isBot;
 
+        public int runs;
+        public int top10s;
+        public int wrs;
+
         public int returns;// This is just for convenience.
 
         public PlayerScore scoreCopy;
 
         public static int Comparer(ScoreboardEntry a, ScoreboardEntry b)
         {
+            // In case of defrag
+            if (a.wrs != b.wrs)
+            {
+                return b.wrs.CompareTo(a.wrs);
+            }
+            if (a.top10s != b.top10s)
+            {
+                return b.top10s.CompareTo(a.top10s);
+            }
+            if (a.runs != b.runs)
+            {
+                return b.runs.CompareTo(a.runs);
+            }
+
             if (a.team == b.team)
             {
                 if(a.isBot != b.isBot)
@@ -97,6 +118,20 @@ namespace JKWatcher.RandomHelpers
         }
         public static int CountReductionComparer(ScoreboardEntry a, ScoreboardEntry b) // this sorts by which players we most want to keep, not neccessarily by which order they should be displayed in.
         {
+            // In case of defrag
+            if (a.wrs != b.wrs)
+            {
+                return b.wrs.CompareTo(a.wrs);
+            }
+            if (a.top10s != b.top10s)
+            {
+                return b.top10s.CompareTo(a.top10s);
+            }
+            if (a.runs != b.runs)
+            {
+                return b.runs.CompareTo(a.runs);
+            }
+
             bool aSpec = a.team == Team.Spectator;
             bool bSpec = b.team == Team.Spectator;
 
@@ -116,6 +151,20 @@ namespace JKWatcher.RandomHelpers
         }
         public static int CountReductionComparerIgnoreActivity(ScoreboardEntry a, ScoreboardEntry b) // this sorts by which players we most want to keep, not neccessarily by which order they should be displayed in.
         {
+            // In case of defrag
+            if (a.wrs != b.wrs)
+            {
+                return b.wrs.CompareTo(a.wrs);
+            }
+            if (a.top10s != b.top10s)
+            {
+                return b.top10s.CompareTo(a.top10s);
+            }
+            if (a.runs != b.runs)
+            {
+                return b.runs.CompareTo(a.runs);
+            }
+
             bool aSpec = a.team == Team.Spectator;
             bool bSpec = b.team == Team.Spectator;
 
@@ -309,7 +358,10 @@ namespace JKWatcher.RandomHelpers
             ACCURACY,
             DEATHS,
             KILLS,
-            TOTALKILLS
+            TOTALKILLS,
+            DEFRAG,
+            DEFRAGTOP10,
+            DEFRAGWR,
         }
 
         const int bgAlpha = (int)((float)255 * 0.33f);
@@ -358,6 +410,9 @@ namespace JKWatcher.RandomHelpers
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.realTeam = kvp.Value.playerSessInfo.team;
                 entry.score = kvp.Value.playerSessInfo.score.score;
+                entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
+                entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
+                entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.fightBot = kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.scoreCopy = kvp.Value.playerSessInfo.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
@@ -408,6 +463,18 @@ namespace JKWatcher.RandomHelpers
                 if(kvp.Value.playerSessInfo.score.totalKills > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.TOTALKILLS);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.defragRunsFinished > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.DEFRAG);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.defragTop10RunCount > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.DEFRAGTOP10);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.defragWRCount > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.DEFRAGWR);
                 }
                 switch (entry.team)
                 {
@@ -552,6 +619,34 @@ namespace JKWatcher.RandomHelpers
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
                 columns.Add(new ColumnInfo("%", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.accuracy.ToString()); }));
+            }
+            if ((foundFields & (1 << (int)ScoreFields.DEFRAG)) >0)
+            {
+                columns.Add(new ColumnInfo("DEFRAG", 0, 80, normalFont, (a) => {
+                    if (a.stats.chatCommandTrackingStuff.defragRunsFinished <= 0) {
+                        return "";
+                    }
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append($"^yfff8{a.stats.chatCommandTrackingStuff.defragRunsFinished.ToString()}");
+                    if (a.stats.chatCommandTrackingStuff.defragTop10RunCount > 0)
+                    {
+                        sb.Append($"^7/{a.stats.chatCommandTrackingStuff.defragTop10RunCount.ToString()}");
+                    }
+                    if (a.stats.chatCommandTrackingStuff.defragWRCount > 0)
+                    {
+                        sb.Append($"^2/{a.stats.chatCommandTrackingStuff.defragMapsWR.ToString()}");
+                    }
+                    sb.Append(GetAverageDefragDeviation(a));
+                    return sb.ToString(); 
+                }));
+                columns.Add(new ColumnInfo("RUNTIME", 0, 80, normalFont, (a) => {
+                    Int64 totalRunTime = a.stats.chatCommandTrackingStuff.defragTotalRunTime;
+                    if (totalRunTime <= 0) return "";
+                    return FormatTime(totalRunTime);
+                }));
+                columns.Add(new ColumnInfo("MAPS", 0, 270, normalFont, (a) => {
+                    return MakeDefragMapsString(a);
+                }));
             }
             if (anyKillsLogged)
             {
@@ -839,6 +934,153 @@ namespace JKWatcher.RandomHelpers
                 otherPersonIndex++;
             }
             return otherPeopleString.ToString();
+        }
+
+        private static string GetAverageDefragDeviation(ScoreboardEntry entry)
+        {
+            AverageHelper averageHelper = new AverageHelper();
+            foreach (KeyValuePair<string, AverageHelper> kvp in entry.stats.chatCommandTrackingStuff.defragAverageMapTimes)
+            {
+                double? mapAveragePlayer = kvp.Value.GetAverage();
+                if (mapAveragePlayer.HasValue)
+                {
+                    DefragAverageMapTime mapData = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(kvp.Key);
+                    double? mapAverageAll = mapData?.CurrentAverage;
+                    if (mapAverageAll.HasValue)
+                    {
+                        double percentageDiff = 100.0 * (mapAveragePlayer.Value - mapAverageAll.Value) / mapAverageAll.Value;
+                        averageHelper.AddValue(percentageDiff);
+                    }
+                }
+            }
+            double? avg = averageHelper.GetAverage();
+            if (!avg.HasValue)
+            {
+                return "";
+            }
+
+            return $"^7(^3{(int)avg.Value}%^7)";
+        }
+        private static string MakeDefragMapsString(ScoreboardEntry entry, int lengthLimit = 99999)
+        {
+
+            List<KeyValuePair<string, RunsTop10WR>> mapsRun = new List<KeyValuePair<string, RunsTop10WR>>();
+
+            SessionPlayerInfo playerSession = entry.stats.playerSessInfo;
+            ChatCommandTrackingStuff trackingStuff = entry.stats.chatCommandTrackingStuff;
+            foreach (KeyValuePair<string, int> kvp in trackingStuff.defragMapsRun)
+            {
+                int runs = kvp.Value;
+                int top10 = 0;
+                int wr = 0;
+
+                if (trackingStuff.defragMapsTop10.TryGetValue(kvp.Key,out int value))
+                {
+                    top10 = value;
+                }
+                if (trackingStuff.defragMapsWR.TryGetValue(kvp.Key,out int value2))
+                {
+                    wr = value2;
+                }
+
+                mapsRun.Add(new KeyValuePair<string, RunsTop10WR>(kvp.Key, new RunsTop10WR(runs,top10,wr)));
+            }
+
+            mapsRun.Sort((a, b) => { 
+                // WR most important. Top10 then. Then run count.
+                if(a.Value.Item3 != a.Value.Item3)
+                {
+                    return b.Value.Item3.CompareTo(a.Value.Item3);
+                }
+                if(a.Value.Item2 != a.Value.Item2)
+                {
+                    return b.Value.Item2.CompareTo(a.Value.Item2);
+                }
+                return b.Value.Item1.CompareTo(a.Value.Item1); 
+            });
+
+            StringBuilder mapsString = new StringBuilder();
+            int mapIndex = 0;
+            foreach (KeyValuePair<string, RunsTop10WR> mapInfo in mapsRun)
+            {
+                if (mapInfo.Value.Item1 <= 0 && mapInfo.Value.Item2 <= 0 && mapInfo.Value.Item3 <= 0)
+                {
+                    continue;
+                }
+                if ((mapsString.Length + mapInfo.Key.Length) > lengthLimit)
+                {
+                    break;
+                }
+                if (mapIndex != 0)
+                {
+                    mapsString.Append(", ");
+                }
+                mapsString.Append($"^yfff8{mapInfo.Value.Item1}");
+                if(mapInfo.Value.Item2 > 0)
+                {
+                    mapsString.Append($"^7/{mapInfo.Value.Item2}");
+                }
+                if(mapInfo.Value.Item3 > 0)
+                {
+                    mapsString.Append($"^7/^2{mapInfo.Value.Item3}");
+                }
+
+                mapsString.Append($"^7x{mapInfo.Key}");
+
+                // See if we can calculate average deviation
+                if (entry.stats.chatCommandTrackingStuff.defragAverageMapTimes.TryGetValue(mapInfo.Key, out AverageHelper avg))
+                {
+                    double? mapAveragePlayer = avg.GetAverage();
+                    if (mapAveragePlayer.HasValue)
+                    {
+                        DefragAverageMapTime mapData = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(mapInfo.Key);
+                        double? mapAverageAll = mapData?.CurrentAverage;
+                        if(mapAverageAll.HasValue)
+                        {
+                            double percentageDiff = 100.0* (mapAveragePlayer.Value - mapAverageAll.Value)/ mapAverageAll.Value;
+
+                            mapsString.Append($"^7(^3{(int)percentageDiff}%^7)");
+                        }
+                    }
+                }
+
+                mapIndex++;
+            }
+            return mapsString.ToString();
+        }
+
+        public static string FormatTime(Int64 milliseconds)
+        {
+            const Int64 hour = 1000 * 60 * 60;
+            const Int64 minute = 1000 * 60;
+            Int64 hours = 0;
+            Int64 minutes = 0;
+            Int64 seconds = 0;
+
+            bool must = false;
+            StringBuilder sb = new StringBuilder();
+            if(milliseconds > hour )
+            {
+                hours = milliseconds / hour;
+                milliseconds -= hours * hour;
+                sb.Append(hours.ToString("00"));
+                sb.Append(":");
+                must = true;
+            }
+            if(must || milliseconds > minute)
+            {
+                minutes = milliseconds / minute;
+                milliseconds -= minutes * minute;
+                sb.Append(minutes.ToString("00"));
+                sb.Append(":");
+            }
+            seconds = milliseconds / 1000;
+            milliseconds -= seconds * 1000;
+            sb.Append(seconds.ToString("00"));
+            sb.Append(".");
+            sb.Append(milliseconds.ToString("000"));
+            return sb.ToString();
+
         }
 
     }

@@ -18,7 +18,7 @@ using System.Runtime.InteropServices;
 namespace JKWatcher
 {
 
-    
+
 
 
     // Two dimensional array that can be accessed in any order of indizi and return the same rsuult
@@ -48,9 +48,9 @@ namespace JKWatcher
         public ArbitraryOrder2DArray(int maxCount)
         {
             theArray = new T[maxCount][];
-            for(int i=0; i < maxCount; i++)
+            for (int i = 0; i < maxCount; i++)
             {
-                theArray[i] = new T[i+1]; // We can save a bit of space here. Since the first index is always the biggest, the second array can't contain any index bigger than the first index
+                theArray[i] = new T[i + 1]; // We can save a bit of space here. Since the first index is always the biggest, the second array can't contain any index bigger than the first index
             }
         }
     }
@@ -115,7 +115,7 @@ namespace JKWatcher
         {
             lock (ourLock)
             {
-                if (!rateLimit || (DateTime.Now-lastBlockRegistered).TotalMilliseconds > 500)
+                if (!rateLimit || (DateTime.Now - lastBlockRegistered).TotalMilliseconds > 500)
                 {
                     blocks++;
                     lastBlockRegistered = DateTime.Now;
@@ -128,7 +128,7 @@ namespace JKWatcher
         {
             lock (ourLock)
             {
-                if (!rateLimit || (DateTime.Now-lastBlockedRegistered).TotalMilliseconds > 500)
+                if (!rateLimit || (DateTime.Now - lastBlockedRegistered).TotalMilliseconds > 500)
                 {
                     blockeds++;
                     lastBlockedRegistered = DateTime.Now;
@@ -138,7 +138,7 @@ namespace JKWatcher
             }
         }
     }
-    
+
     public class RateLimitedTracker
     {
         public int value { get; private set; } = 0;
@@ -149,7 +149,7 @@ namespace JKWatcher
         {
             lock (ourLock)
             {
-                if (!rateLimit || (DateTime.Now- lastChange).TotalMilliseconds > _rateLimit)
+                if (!rateLimit || (DateTime.Now - lastChange).TotalMilliseconds > _rateLimit)
                 {
                     value++;
                     lastChange = DateTime.Now;
@@ -164,8 +164,60 @@ namespace JKWatcher
         }
     }
 
+    public class AverageHelper
+    {
+        private double total;
+        private double divider = 0.0;
+        public void AddValue(double value, double weight = 1.0)
+        {
+            if(weight <= 0.0)
+            {
+                throw new InvalidOperationException("Cannot call AverageHelper with a weight of 0");
+            }
+            total += value;
+            divider += weight;
+        }
+        public double? GetAverage()
+        {
+            return divider == 0.0 ? null : total / divider;
+        }
+    }
+
+    public class AveragingDictionary<T> : ConcurrentDictionary<T, AverageHelper>
+    {
+        public void AddSample(T key, double value)
+        {
+            this.AddOrUpdate(key,(a)=> { 
+                AverageHelper helper = new AverageHelper();
+                helper.AddValue(value);
+                return helper;
+            },(a,b)=> { 
+                b.AddValue(value);
+                return b;
+            });
+        }
+        public double? GetAverage(T key)
+        {
+            if (this.TryGetValue(key, out AverageHelper helper))
+            {
+                return helper.GetAverage();
+            }
+            return null;
+        }
+    }
+
     public class ChatCommandTrackingStuff
     {
+        // defrag
+        public int defragRunsFinished;
+        public int defragTop10RunCount;
+        public int defragWRCount;
+        public Int64 defragTotalRunTime;
+        public ConcurrentDictionary<string, int> defragMapsRun = new ConcurrentDictionary<string, int>();
+        public ConcurrentDictionary<string, int> defragMapsTop10 = new ConcurrentDictionary<string, int>();
+        public ConcurrentDictionary<string, int> defragMapsWR = new ConcurrentDictionary<string, int>();
+        public AveragingDictionary<string> defragAverageMapTimes = new AveragingDictionary<string>();
+
         public float maxDbsSpeed;
         public int kickDeaths;
         public RateLimitedTracker rolls = new RateLimitedTracker();
@@ -457,6 +509,11 @@ namespace JKWatcher
 
         public ChatCommandTrackingStuff chatCommandTrackingStuff => this.session.chatCommandTrackingStuff;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame => this.session.chatCommandTrackingStuffThisGame;
+        public IEnumerable<ChatCommandTrackingStuff> GetChatCommandTrackers()
+        {
+            yield return this.chatCommandTrackingStuff;
+            yield return this.chatCommandTrackingStuffThisGame;
+        }
         public string name => this.session.name;
         public string model => this.session.model;
         public Team team => this.session.team;
@@ -856,6 +913,9 @@ namespace JKWatcher
         public LevelShotData levelShot = new LevelShotData();
         public LevelShotData levelShotZCompNoBot = new LevelShotData();
         public LevelShotData levelShotThisGame = new LevelShotData();
+
+        // we do this with sqlite instead
+        //public AveragingDictionary<string> averageMapTimes = new AveragingDictionary<string>();
 
         public void resetLevelShot(bool thisGame, bool normal)
         {

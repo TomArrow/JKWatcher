@@ -2295,6 +2295,11 @@ namespace JKWatcher
         }
 
 
+        public string GetMapName()
+        {
+            return client?.ServerInfo?.MapName;
+        }
+
         // Should kinda merge it with the above because cringe.. oh well
         public void MarkDemoManual(int markMinutes, bool reframeRequested, int reframeClientNum = -1, string playernameOverride=null, string demoNoteString = null)
         {

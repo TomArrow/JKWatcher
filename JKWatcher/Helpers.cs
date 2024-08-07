@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -932,7 +933,22 @@ namespace JKWatcher
         }
 
 
-
+        public static void AddOrIncrement<TKey>(this ConcurrentDictionary<TKey,double> dict, TKey key, double value)
+        {
+            dict.AddOrUpdate(key,(a)=> { return value; },(a,b)=> { return value+b; });
+        }
+        public static void AddOrIncrement<TKey>(this ConcurrentDictionary<TKey,float> dict, TKey key, float value)
+        {
+            dict.AddOrUpdate(key,(a)=> { return value; },(a,b)=> { return value+b; });
+        }
+        public static void AddOrIncrement<TKey>(this ConcurrentDictionary<TKey, int> dict, TKey key, int value)
+        {
+            dict.AddOrUpdate(key,(a)=> { return value; },(a,b)=> { return value+b; });
+        }
+        public static void AddOrIncrement<TKey>(this ConcurrentDictionary<TKey, Int64> dict, TKey key, Int64 value)
+        {
+            dict.AddOrUpdate(key,(a)=> { return value; },(a,b)=> { return value+b; });
+        }
 
     }
 

@@ -164,6 +164,7 @@ namespace JKWatcher
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             AsyncPersistentDataManager<IntermissionCamPosition>.Init();
+            AsyncPersistentDataManager<DefragAverageMapTime>.Init();
 
             RandomHelpers.NumberImages.Init();
 

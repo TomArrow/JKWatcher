@@ -68,6 +68,40 @@ namespace JKWatcher.CameraOperators
                 allMinutes++;
             }
 
+            string mapname = this.connections[0].GetMapName();
+            foreach (PlayerInfo pi in infoPool.playerInfo)
+            {
+                if(pi.infoValid && pi.name == playerName)
+                {
+                    foreach (var tracker in pi.GetChatCommandTrackers())
+                    {
+                        tracker.defragRunsFinished++;
+                        tracker.defragMapsRun.AddOrIncrement(mapname, 1);
+                        if (isNumber1)
+                        {
+                            tracker.defragWRCount++;
+                            tracker.defragMapsWR.AddOrIncrement(mapname, 1);
+                        }
+                        else if (isLogged)
+                        {
+                            tracker.defragTop10RunCount++;
+                            tracker.defragMapsTop10.AddOrIncrement(mapname, 1);
+                        }
+                        tracker.defragTotalRunTime += milliseconds;
+                        tracker.defragAverageMapTimes.AddSample(mapname, milliseconds);
+
+                    }
+
+                    DefragAverageMapTime maptime = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(mapname);
+                    if (maptime == null)
+                    {
+                        maptime = new DefragAverageMapTime(mapname);
+                        AsyncPersistentDataManager<DefragAverageMapTime>.addItem(maptime);
+                    }
+                    maptime.LogTime(playerName,milliseconds, isLogged, isNumber1);
+                }
+            }
+
             if (isNumber1)
             {
                 this.connections[0].MarkDemoManual(allMinutes,false,-1,playerName,"World Record Run");

@@ -46,7 +46,7 @@ namespace JKWatcher
         static string databasePath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "persistentData.db");
 
         static ConcurrentDictionary<object, T> items = new ConcurrentDictionary<object,T>(new PrimaryKeyEqualityComparer());
-        static ConcurrentBag<T> itemsToPersist = new ConcurrentBag<T>();
+        static ConcurrentQueue<T> itemsToPersist = new ConcurrentQueue<T>();
 
         static System.Reflection.PropertyInfo primaryKeyProperty = null;
         public static void Init()
@@ -70,7 +70,7 @@ namespace JKWatcher
             {
                 setupChangedListener(item);
                 items[primaryKeyValue] = item;
-                itemsToPersist.Add(item);
+                itemsToPersist.Enqueue(item);
             }
         }
 
@@ -95,7 +95,7 @@ namespace JKWatcher
                         db.BeginTransaction();
                         while(itemsToPersist.Count > 0)
                         {
-                            while (itemsToPersist.TryTake(out T entry))
+                            while (itemsToPersist.TryDequeue(out T entry))
                             {
                                 if (items.Values.Contains(entry))
                                 {
@@ -117,7 +117,7 @@ namespace JKWatcher
 
         private static void Item_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            itemsToPersist.Add(sender as T);
+            itemsToPersist.Enqueue(sender as T);
         }
 
         static AsyncPersistentDataManager(){
