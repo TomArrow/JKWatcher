@@ -25,6 +25,7 @@ using System.Numerics;
 using System.Windows.Shell;
 using System.IO;
 using JKWatcher.RandomHelpers;
+using System.Security.Cryptography;
 
 namespace JKWatcher
 {
@@ -3215,10 +3216,20 @@ namespace JKWatcher
         {
             try
             {
-                string mutexAddress = netAddress is null ? "" : netAddress.ToString().Replace('.', '_').Replace(':', '_');
+                //string mutexAddress = netAddress is null ? "" : netAddress.ToString().Replace('.', '_').Replace(':', '_');
+
+                string mutexNameEnd = "";
+                using (SHA512 sha512 = new SHA512Managed())
+                {
+                    mutexNameEnd = BitConverter.ToString(sha512.ComputeHash(Encoding.Latin1.GetBytes(tiffName))).Replace("-","");
+                    if(mutexNameEnd.Length > 10)
+                    {
+                        mutexNameEnd = mutexNameEnd.Substring(0,10);
+                    }
+                }
 
                 //lock (forcedLogFileName)
-                using (new GlobalMutexHelper($"JKWatcherAccumLevelshotFilenameMutex",40000))
+                using (new GlobalMutexHelper($"JKWatcherAccumLevelshotFilenameMutex{mutexNameEnd}",40000))
                 {
 
                     System.Threading.Thread.Sleep(5000); // just to make sure previous use of the mutex wasnt so shortly ago thata the old file is still inaccessible. prolly not a real real issue but eh.

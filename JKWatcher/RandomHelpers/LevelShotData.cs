@@ -54,10 +54,12 @@ namespace JKWatcher.RandomHelpers
                     bw.Write(angles.Z);
                 }
 
-                SHA512 sha512 = new SHA512Managed();
-                string hashString = BitConverter.ToString(sha512.ComputeHash(ms.ToArray())).Replace("-", "");
-                hashString = $"z{zCompensationVersion}_{hashString}";
-                return hashString.Length > 12 ? hashString.Substring(0,12) : hashString;
+                using (SHA512 sha512 = new SHA512Managed())
+                {
+                    string hashString = BitConverter.ToString(sha512.ComputeHash(ms.ToArray())).Replace("-", "");
+                    hashString = $"z{zCompensationVersion}_{hashString}";
+                    return hashString.Length > 12 ? hashString.Substring(0, 12) : hashString;
+                }
             }
         }
 

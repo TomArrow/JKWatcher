@@ -96,8 +96,10 @@ namespace JKWatcher
             sb.Append(locationOfDeath.Y);
             sb.Append("_");
             sb.Append(locationOfDeath.Z);
-            SHA512 sha512 = new SHA512Managed();
-            return BitConverter.ToUInt64(sha512.ComputeHash(Encoding.Latin1.GetBytes(sb.ToString())));
+            using (SHA512 sha512 = new SHA512Managed())
+            {
+                return BitConverter.ToUInt64(sha512.ComputeHash(Encoding.Latin1.GetBytes(sb.ToString())));
+            }
         }
     }
 

@@ -23,6 +23,12 @@ namespace JKWatcher.RandomHelpers
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot. like for BOT etc. Bot, fightbot, disconnected, wentspec
     // TODO highlight best number in each column?
     // TODO max/avg speed, sd, blocks?
+    // TODO keystroke speeds, jump held durations, dbs speed
+    // TODO dynamic killtypes size
+    // TODO make K/D a bit bigger
+    // TODO dynamic sizes for all fields?
+    // TODO decision on which fields based on prefiltered (when count too high) not on all
+    // TODO sort in dbs according to counts while making sure its used at all?
 
     // TODO Mark Bot/fightbot on scoreboard
     // TODO more possible values that are mod specific?
@@ -531,7 +537,7 @@ namespace JKWatcher.RandomHelpers
             }
             if (anyKillsLogged)
             {
-                columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
+                columns.Add(new ColumnInfo("K/D", 0, 50, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
             } else if(gameType > GameType.Team && ((foundFields & (1 << (int)ScoreFields.KILLS)) > 0 || (foundFields & (1 << (int)ScoreFields.TOTALKILLS)) > 0))
             {
                 // MOH
