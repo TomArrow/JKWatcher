@@ -3324,6 +3324,7 @@ namespace JKWatcher
                 catch (Exception ex)
                 {
                     // Failed to get  mutex, weird...
+                    addToLog($"Error saving levelshot: {ex.ToString()}", true);
                 }
 
             }, $"Levelshot saver ({netAddress},{ServerName})");

@@ -546,7 +546,7 @@ namespace JKWatcher
         public string g2Rating => $"{(int)this.session.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}";
         public string g2RatingThisGame => $"{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
     }
-    public class PlayerScore
+    public class PlayerScore : ICloneable
     {
         public volatile int client;
         private volatile int _score = -9999;
@@ -616,6 +616,10 @@ namespace JKWatcher
         public volatile int mbIImysteryValue; 
         public volatile bool shortScoresMBII; // Indicate if only 9 score info things were sent.
 
+        public object Clone()
+        {
+            return this.MemberwiseClone();
+        }
     }
 
 

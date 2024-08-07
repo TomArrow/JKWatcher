@@ -15,25 +15,26 @@ namespace JKWatcher.RandomHelpers
     // TODO other used names
     // TODO glicko 2 lines to save space?
     // TODO sum up time column?
-    // TODO do sth different for defrag? maybe max speed? Do count of defrag runs for sorting. average/max speed. maps that were run and how often. how many top 10 runs. or sth like that. 
     // TODO what about VERY old scoreboard entries? treat them same?
     // TODO maybe: blocks, rolls, strafestyle
     // TODO Suicide count?
-    // TODO Show team score in team modes?
-    // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot. like for BOT etc. Bot, fightbot, disconnected, wentspec
     // TODO highlight best number in each column?
     // TODO max/avg speed, sd, blocks?
     // TODO keystroke speeds, jump held durations, dbs speed
-    // TODO dynamic killtypes size
-    // TODO make K/D a bit bigger
     // TODO dynamic sizes for all fields?
     // TODO decision on which fields based on prefiltered (when count too high) not on all
-    // TODO sort in dbs according to counts while making sure its used at all?
-    // TODO slightly alternating text color for columns?
+    // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
 
-    // TODO Mark Bot/fightbot on scoreboard
+    // TODO dynamic killtypes size
     // TODO more possible values that are mod specific?
+    // TODO Show team score in team modes?
+    // TODO do sth different for defrag? maybe max speed? Do count of defrag runs for sorting. average/max speed. maps that were run and how often. how many top 10 runs. or sth like that. 
 
+    // TODO make K/D a bit bigger DONE
+    // TODO sort in dbs according to counts while making sure its used at all? DONE
+    // TODO slightly alternating text color for columns? DONE (bg color)
+    // TODO Mark Bot/fightbot on scoreboard DONE
+    // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot. like for BOT etc. Bot, fightbot, disconnected, wentspec DONE
     // TODO make all overflow by default unless specified otherwise? or all autoscale? DONE
     // TODO angled top columns to make them closer together DONE
     // TODO dont show ppl as member of team who were shortly in tem at start of game but never really did much playing. maybe only count non spec team if score > 0? MAYBE DONE
@@ -60,15 +61,19 @@ namespace JKWatcher.RandomHelpers
         // sorting might throw an exception, so we first create copies of the sort-relevant data.
         public bool isStillActivePlayer;
         public Team team;
+        public Team realTeam;
         public int score;
         public DateTime lastSeen;
         public int teamScore;
         public Dictionary<string, int> killTypes = new Dictionary<string, int>();
         public Dictionary<string, int> killTypesRets = new Dictionary<string, int>();
 
+        public bool fightBot;
         public bool isBot;
 
         public int returns;// This is just for convenience.
+
+        public PlayerScore scoreCopy;
 
         public static int Comparer(ScoreboardEntry a, ScoreboardEntry b)
         {
@@ -158,6 +163,7 @@ namespace JKWatcher.RandomHelpers
         //public bool allowWrap = true;
         public bool angledHeader = false;
         public bool needsLeftLine = false;
+        public bool rightAlign = false;
         public ColumnInfo(string nameA, float topOffsetA, float widthA, Font fontA ,Func<ScoreboardEntry, string> fetchFunc)
         {
             if(nameA is null || fetchFunc is null || fontA is null)
@@ -176,7 +182,9 @@ namespace JKWatcher.RandomHelpers
             return fetcher(session);
         }
         StringFormat defaultStringFormat = new StringFormat() { };
+        StringFormat defaultStringFormatRightAlign = new StringFormat() { Alignment = StringAlignment.Far };
         StringFormat noWrapStringFormat = new StringFormat() { FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.NoClip};
+        StringFormat noWrapStringFormatRightAlign = new StringFormat() { FormatFlags = StringFormatFlags.NoWrap | StringFormatFlags.NoClip,Alignment = StringAlignment.Far };
 
 
         private static byte floatColorToByte(float color)
@@ -198,7 +206,7 @@ namespace JKWatcher.RandomHelpers
             if (theString is null) return;
             Font fontToUse = header ? headerFont : font;
 
-            StringFormat formatToUse = (header || (overflowMode != OverflowMode.WrapClip)) ? noWrapStringFormat : defaultStringFormat;
+            StringFormat formatToUse = (header || (overflowMode != OverflowMode.WrapClip)) ? (rightAlign ? noWrapStringFormatRightAlign: noWrapStringFormat) : ( rightAlign ? defaultStringFormatRightAlign: defaultStringFormat);
 
             string cleanString = null;
             bool fontWasReplaced = false;
@@ -311,6 +319,7 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
         static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
+        static readonly Brush brighterBGBrush = new SolidBrush(Color.FromArgb(bgAlpha / 4, 128, 128, 128));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
         private static string block0(string input)
@@ -347,8 +356,12 @@ namespace JKWatcher.RandomHelpers
                 ScoreboardEntry entry   = new ScoreboardEntry();
                 entry.stats = kvp.Value;
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
+                entry.realTeam = kvp.Value.playerSessInfo.team;
                 entry.score = kvp.Value.playerSessInfo.score.score;
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
+                entry.fightBot = kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
+                entry.scoreCopy = kvp.Value.playerSessInfo.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
+                if (entry.scoreCopy is null) entry.scoreCopy = kvp.Value.playerSessInfo.score; // idk why this should happen but lets be safe
                 anyValidGlicko2 = anyValidGlicko2 || kvp.Value.chatCommandTrackingStuff.rating.GetNumberOfResults(true) > 0;
                 anyKillsLogged = anyKillsLogged || kvp.Value.chatCommandTrackingStuff.totalKills > 0 || kvp.Value.chatCommandTrackingStuff.totalDeaths > 0;
                 if (entry.team != Team.Spectator && kvp.Value.playerSessInfo.team == Team.Spectator && (entry.score <= 0 || kvp.Value.playerSessInfo.score.time == 0))
@@ -473,31 +486,35 @@ namespace JKWatcher.RandomHelpers
             List<KeyValuePair<string, int>> killTypesList = killTypesCounts.ToList();
             killTypesList.Sort((a,b)=> { return b.Value.CompareTo(a.Value); });
 
-            // decide which killtypes should get their own column
-            // a few that should always, and then just the ones that happened the most often.
             const int killTypeColumnCount = 8;
-            List<string> killTypesColumns = new List<string>();
-            foreach(string column in killTypesAlways)
+
+            int removeNeeded = killTypesList.Count() > killTypeColumnCount ? killTypesList.Count()- killTypeColumnCount : 0;
+            bool killTypesAllCovered = true;
+            if (removeNeeded > 0)
             {
-                if (killTypesCounts.ContainsKey(column))
+                int removed = 0;
+                for (int i = killTypesList.Count-1; i >= 0; i--)
                 {
-                    killTypesColumns.Add(column);
+                    if (removed >= removeNeeded) break;
+                    if (!killTypesAlways.Contains(killTypesList[i].Key))
+                    {
+                        killTypesList.RemoveAt(i);
+                        removed++;
+                        killTypesAllCovered = false;
+                    }
                 }
             }
-            bool killTypesAllCovered = true;
+
+            // decide which killtypes should get their own column
+            // a few that should always, and then just the ones that happened the most often.
+            List<string> killTypesColumns = new List<string>();
             foreach(KeyValuePair<string, int> column in killTypesList)
             {
                 if (!killTypesColumns.Contains(column.Key))
                 {
-                    if (killTypesColumns.Count >= killTypeColumnCount)
-                    {
-                        killTypesAllCovered = false;
-                        break;
-                    }
                     killTypesColumns.Add(column.Key);
                 }
             }
-
 
 
             Graphics g = Graphics.FromImage(bmp);
@@ -511,10 +528,10 @@ namespace JKWatcher.RandomHelpers
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
             columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
-            columns.Add(new ColumnInfo("SCORE",0,50,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
+            columns.Add(new ColumnInfo("SCORE",0,50,normalFont,(a)=> { return a.scoreCopy.score == -9999 ? "--" : a.scoreCopy.score.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.CAPTURES)) >0)
             {
-                columns.Add(new ColumnInfo("C", 0, 15, normalFont, (a) => { return block0(a.stats.score.captures.ToString()); }));
+                columns.Add(new ColumnInfo("C", 0, 15, normalFont, (a) => { return block0(a.scoreCopy.captures.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
@@ -522,19 +539,19 @@ namespace JKWatcher.RandomHelpers
             }
             if ((foundFields & (1 << (int)ScoreFields.DEFEND)) >0)
             {
-                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return block0(a.stats.score.defendCount.ToString()); }));
+                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return block0(a.scoreCopy.defendCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ASSIST)) >0)
             {
-                columns.Add(new ColumnInfo("A", 0, 20, normalFont, (a) => { return block0(a.stats.score.assistCount.ToString()); }));
+                columns.Add(new ColumnInfo("A", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.assistCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
             {
-                columns.Add(new ColumnInfo("»", 0, 20, normalFont, (a) => { return block0(a.stats.score.excellentCount.ToString()); }));
+                columns.Add(new ColumnInfo("»", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.excellentCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
-                columns.Add(new ColumnInfo("%", 0, 20, normalFont, (a) => { return block0(a.stats.score.accuracy.ToString()); }));
+                columns.Add(new ColumnInfo("%", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.accuracy.ToString()); }));
             }
             if (anyKillsLogged)
             {
@@ -544,27 +561,27 @@ namespace JKWatcher.RandomHelpers
                 // MOH
                 if ((foundFields & (1 << (int)ScoreFields.TOTALKILLS)) > 0)
                 {
-                    columns.Add(new ColumnInfo("K/T", 0, 40, normalFont, (a) => { if (a.stats.playerSessInfo.score.kills == 0 && a.stats.playerSessInfo.score.totalKills == 0) {return ""; } return $"{a.stats.playerSessInfo.score.kills}/{a.stats.playerSessInfo.score.totalKills}"; }));
+                    columns.Add(new ColumnInfo("K/T", 0, 40, normalFont, (a) => { if (a.scoreCopy.kills == 0 && a.scoreCopy.totalKills == 0) {return ""; } return $"{a.scoreCopy.kills}/{a.scoreCopy.totalKills}"; }));
                 }
                 else
                 {
-                    columns.Add(new ColumnInfo("K", 0, 40, normalFont, (a) => { return block0(a.stats.playerSessInfo.score.kills.ToString()); }));
+                    columns.Add(new ColumnInfo("K", 0, 40, normalFont, (a) => { return block0(a.scoreCopy.kills.ToString()); }));
                 }
             } else if(gameType > GameType.Team && ((foundFields & (1 << (int)ScoreFields.KILLS)) > 0 || (foundFields & (1 << (int)ScoreFields.DEATHS)) > 0))
             {
                 // MOH
                 if((foundFields & (1 << (int)ScoreFields.DEATHS)) > 0)
                 {
-                    columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { if (a.stats.playerSessInfo.score.kills == 0 && a.stats.playerSessInfo.score.deaths == 0) { return ""; } return $"{a.stats.playerSessInfo.score.kills}/{a.stats.playerSessInfo.score.deaths}"; }));
+                    columns.Add(new ColumnInfo("K/D", 0, 40, normalFont, (a) => { if (a.scoreCopy.kills == 0 && a.scoreCopy.deaths == 0) { return ""; } return $"{a.scoreCopy.kills}/{a.scoreCopy.deaths}"; }));
                 }
                 else
                 {
-                    columns.Add(new ColumnInfo("K", 0, 40, normalFont, (a) => { return block0(a.stats.playerSessInfo.score.kills.ToString()); }));
+                    columns.Add(new ColumnInfo("K", 0, 40, normalFont, (a) => { return block0(a.scoreCopy.kills.ToString()); }));
                 }
             }
 
-            columns.Add(new ColumnInfo("PING", 0, 35, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
-            columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.stats.score.time.ToString(); }));
+            columns.Add(new ColumnInfo("PING", 0, 35, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }));
+            columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.scoreCopy.time.ToString(); }));
             if (anyValidGlicko2)
             {
                 columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
@@ -621,7 +638,51 @@ namespace JKWatcher.RandomHelpers
             }
 
             // for little optional notes like DISCONNECTED or such
-            ColumnInfo preColumn = new ColumnInfo("", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a, true); });
+            ColumnInfo preColumn = new ColumnInfo("", 0, 270, tinyFont, (a) =>
+            {
+                List<string> markers = new List<string>();
+                if (a.fightBot) markers.Add("FIGHTBOT");
+                else if (a.isBot) markers.Add("BOT");
+                if (a.realTeam == Team.Spectator && a.team != Team.Spectator) markers.Add("WENTSPEC");
+                if (!a.isStillActivePlayer)
+                {
+                    string lastSeenString = "";
+                    TimeSpan timeSince = DateTime.Now - a.lastSeen;
+                    if (timeSince.TotalDays > 0)
+                    {
+                        lastSeenString = $"{(int)timeSince.TotalDays}D";
+                    }
+                    else if (timeSince.TotalHours > 0)
+                    {
+                        lastSeenString = $"{(int)timeSince.TotalHours}H";
+                    }
+                    else if (timeSince.TotalMinutes > 0)
+                    {
+                        lastSeenString = $"{(int)timeSince.TotalMinutes}M";
+                    }
+                    else if (timeSince.TotalSeconds > 0)
+                    {
+                        lastSeenString = $"{(int)timeSince.TotalSeconds}S";
+                    }
+                    else if (timeSince.TotalMilliseconds > 0)
+                    {
+                        lastSeenString = $"{(int)timeSince.TotalMilliseconds}MS";
+                    }
+                    markers.Add($"DISC{lastSeenString}");
+                }
+                if (markers.Count == 0) return "";
+                int halfMarkers = markers.Count / 2;
+                string[] row1 = markers.GetRange(0, halfMarkers).ToArray();
+                string[] row2 = markers.GetRange(halfMarkers, markers.Count - halfMarkers).ToArray();
+                if (row1 is null || row1.Length == 0) {
+                    row1 = row2;
+                    row2 = null;
+                } 
+                if (row1 is null) row1 = new string[0];
+                if (row2 is null) row2 = new string[0];
+                return $"{string.Join(',', row1)}\r\n{string.Join(',', row2)}";
+            })
+            {  overflowMode= ColumnInfo.OverflowMode.WrapClip, rightAlign = true};
 
             float posXStart = sidePadding;
             float posX = posXStart;
@@ -631,10 +692,12 @@ namespace JKWatcher.RandomHelpers
                 column.DrawString(g,true,posX,posY+10);
                 posX += column.width+ horzPadding;
             }
-            foreach (var entry in entries)
+            foreach (ScoreboardEntry entry in entries)
             {
                 posY += recordHeight+ vertPadding;
                 posX = posXStart;
+
+                preColumn.DrawString(g,false,posX- preColumn.width-horzPadding, posY, entry);
 
                 Brush brush = null;
                 switch (entry.team) {
@@ -652,14 +715,20 @@ namespace JKWatcher.RandomHelpers
                         break;
                 }
 
+                bool brighterBg = true;
                 foreach (var column in columns)
                 {
+                    if (brighterBg)
+                    {
+                        g.FillRectangle(brighterBGBrush, new RectangleF(posX- 0.5f * horzPadding, posY, column.width + horzPadding, 30.0f));
+                    }
                     if (column.needsLeftLine)
                     {
-                        g.DrawLine(linePen, posX-0.5f* horzPadding, posY, posX- 0.5f * horzPadding, posY + 30f);
+                        //g.DrawLine(linePen, posX-0.5f* horzPadding, posY, posX- 0.5f * horzPadding, posY + 30f);
                         //g.FillRectangle(Brushes.White32fg, new RectangleF(posX, posY, 0.5f, 30.0f));
                     }
                     posX += column.width + horzPadding;
+                    brighterBg = !brighterBg;
                 }
                 posX = posXStart;
 
