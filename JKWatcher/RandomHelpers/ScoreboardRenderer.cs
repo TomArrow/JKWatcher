@@ -25,11 +25,11 @@ namespace JKWatcher.RandomHelpers
     // TODO decision on which fields based on prefiltered (when count too high) not on all
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
 
-    // TODO dynamic killtypes size
     // TODO more possible values that are mod specific?
     // TODO Show team score in team modes?
     // TODO do sth different for defrag? maybe max speed? Do count of defrag runs for sorting. average/max speed. maps that were run and how often. how many top 10 runs. or sth like that. 
 
+    // TODO dynamic killtypes size DONE
     // TODO make K/D a bit bigger DONE
     // TODO sort in dbs according to counts while making sure its used at all? DONE
     // TODO slightly alternating text color for columns? DONE (bg color)
@@ -608,7 +608,9 @@ namespace JKWatcher.RandomHelpers
             if (anyKillsLogged) { 
                 if(killTypesCounts.Count > 0 && !killTypesAllCovered)
                 {
-                    columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, 130, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }) { overflowMode = ColumnInfo.OverflowMode.WrapClip });
+                    string referenceMaxString = MakeKillTypesString(killTypesCountsMax, killTypesCountsRetsMax, columnizedKillTypes);
+                    float width = Math.Min(g.MeasureString(referenceMaxString, tinyFont).Width/2f + 2f, 180);// Sorta kinda make sure the column isn't much bigger than needed
+                    columns.Add(new ColumnInfo("OTHER KILLTYPES", 0, width, tinyFont, (a) => { return MakeKillTypesString(a.killTypes, a.killTypesRets, columnizedKillTypes); }) { overflowMode = ColumnInfo.OverflowMode.WrapClip });
                 }
 
                 columns.Add(new ColumnInfo("KILLED PLAYERS", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,false); }) { overflowMode = ColumnInfo.OverflowMode.WrapClip });
