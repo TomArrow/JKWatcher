@@ -2054,7 +2054,11 @@ namespace JKWatcher
                 }
 
                 // We flip imageHeight and imageWidth because it's more efficient to work on rows than on columns. We later rotate the image into the proper position
-                    ByteImage miniMapImage = Helpers.BitmapToByteArray(new Bitmap(imageWidth, imageHeight, System.Drawing.Imaging.PixelFormat.Format24bppRgb));
+                ByteImage miniMapImage = null;
+                using (Bitmap bmp = new Bitmap(imageWidth, imageHeight, System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+                {
+                    miniMapImage = Helpers.BitmapToByteArray(bmp);
+                }
                 int stride = miniMapImage.stride;
 
                 // Pass 1: Get bounds of all player entities

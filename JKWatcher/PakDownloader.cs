@@ -66,9 +66,12 @@ namespace JKWatcher
                         // Do the actual download
                         try
                         {
-                            byte[] fileData = new WebClient().DownloadData(currentDownload.pak);
-                            Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads"));
-                            File.WriteAllBytes(targetPath,fileData);
+                            using(WebClient wc = new WebClient())
+                            {
+                                byte[] fileData = .DownloadData(currentDownload.pak);
+                                Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads"));
+                                File.WriteAllBytes(targetPath, fileData);
+                            }
                         } catch(Exception e)
                         {
                             // Whatever. If it didnt work it didnt work, don't care. Downloading the pk3s is a nice-to-have, not a top priority.

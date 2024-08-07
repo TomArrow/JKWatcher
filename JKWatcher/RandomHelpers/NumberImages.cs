@@ -40,6 +40,7 @@ namespace JKWatcher.RandomHelpers
                     else
                     {
                         fontSize--;
+                        theFont.Dispose();
                         theFont = new Font("Segoe UI", fontSize);
                     }
                 }
@@ -58,6 +59,7 @@ namespace JKWatcher.RandomHelpers
                 //numberImage.Save($"numberImgsDebug/{i}.png");
 #endif
                 numberImage.Dispose();
+                theFont.Dispose();
             }
         }
         public static ImageSource getImageSource(int number)

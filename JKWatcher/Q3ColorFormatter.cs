@@ -88,6 +88,7 @@ namespace JKWatcher
         {
             if (string.IsNullOrWhiteSpace(s)) return true;
 
+            bool mustDisposeStringFormat = false;
             //string cleanString = cleanupString(s, hexSupport);
             (ColoredChar[] chars, ColoredChar[] charsBg) =  Q3StringToColoredCharArrays(s,hexSupport,contrastSafety);
             if (chars is null || charsBg is null || chars.Length != charsBg.Length) return false;
@@ -107,12 +108,19 @@ namespace JKWatcher
             if(format is null)
             {
                 format = new Drawing.StringFormat();
+                mustDisposeStringFormat = true;
             }
             //format.SetMeasurableCharacterRanges(ranges.ToArray()); // don't do this. if more than 32, we get overflow exception
 
             Drawing.Region[] regions = g.MeasureCharacterRangesUnlimited(ranges.ToArray(),cleanString, font, layoutRectangle, format);
 
-            if (regions is null || regions.Length != chars.Length) return false;
+            if (regions is null || regions.Length != chars.Length) {
+                if (mustDisposeStringFormat)
+                {
+                    format.Dispose();
+                }
+                return false;
+            }
 
             var oldAlignment = format.Alignment;
             format.Alignment = Drawing.StringAlignment.Center;
@@ -135,6 +143,10 @@ namespace JKWatcher
             }
             format.Alignment = oldAlignment;
 
+            if (mustDisposeStringFormat)
+            {
+                format.Dispose();
+            }
 
             return true;
         }

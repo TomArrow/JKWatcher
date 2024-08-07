@@ -1,0 +1,2 @@
+﻿
+To find IDisposable that aren't disposed: CA2000 in treat as errors in compile. Be aware that it can throw false positives.

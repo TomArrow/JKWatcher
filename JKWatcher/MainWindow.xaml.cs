@@ -467,10 +467,14 @@ namespace JKWatcher
                     {
                         serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                         // Just in case getting servers crashes or sth.
+                        serverBrowser.Dispose();
                         continue;
                     }
 
-                    if (servers == null) continue;
+                    if (servers == null) {
+                        serverBrowser.Dispose();
+                        continue;
+                    }
 
                     List<ServerInfo> baselineFilteredServers = new List<ServerInfo>();
                     foreach (ServerInfo serverInfo in servers)
@@ -731,7 +735,7 @@ namespace JKWatcher
             {
 
                 System.Threading.Thread.Sleep(500);
-                if (ct.IsCancellationRequested) return;
+                if (ct.IsCancellationRequested) goto cleanUp;
                 bool delayedConnecterActive = true;
                 Dispatcher.Invoke(() => {
                     delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
@@ -851,6 +855,10 @@ namespace JKWatcher
 
 
             }
+            
+            cleanUp:
+            serverBrowser.Dispose();
+            serverBrowserMOH.Dispose();
         }
 
         private double lastTaskbarPlayerCountState = -1;
@@ -998,10 +1006,14 @@ namespace JKWatcher
             {
                 serverBrowser.InternalTaskStarted -= ServerBrowser_InternalTaskStarted;
                 // Just in case getting servers crashes or sth.
+                serverBrowser.Dispose();
                 return;
             }
 
-            if (servers == null) return;
+            if (servers == null) {
+                serverBrowser.Dispose();
+                return;
+            }
 
             List<ServerInfo> filteredServers = new List<ServerInfo>();
 

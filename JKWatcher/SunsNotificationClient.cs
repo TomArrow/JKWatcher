@@ -136,11 +136,11 @@ namespace JKWatcher
                 }
             }
         }
-
+        static CancellationTokenSource tokenSource;
         static SunsNotificationClient()
         {
             InitSocket();
-            CancellationTokenSource tokenSource = new CancellationTokenSource();
+            tokenSource = new CancellationTokenSource();
             CancellationToken ct = tokenSource.Token;
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { sunsMessageChecker(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
