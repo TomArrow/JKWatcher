@@ -15,7 +15,7 @@ namespace JKWatcher.RandomHelpers
     // TODO other used names
     // TODO glicko 2 lines to save space?
     // TODO sum up time column?
-    // TODO do sth different for defrag? maybe max speed?
+    // TODO do sth different for defrag? maybe max speed? Do count of defrag runs for sorting. average/max speed. maps that were run and how often. how many top 10 runs. or sth like that. 
     // TODO what about VERY old scoreboard entries? treat them same?
     // TODO maybe: blocks, rolls, strafestyle
     // TODO Suicide count?
