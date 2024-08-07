@@ -68,7 +68,7 @@ namespace JKWatcher
                         {
                             using(WebClient wc = new WebClient())
                             {
-                                byte[] fileData = .DownloadData(currentDownload.pak);
+                                byte[] fileData = wc.DownloadData(currentDownload.pak);
                                 Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads"));
                                 File.WriteAllBytes(targetPath, fileData);
                             }

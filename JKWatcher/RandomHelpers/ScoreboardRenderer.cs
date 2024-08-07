@@ -513,7 +513,7 @@ namespace JKWatcher.RandomHelpers
             columns.Add(new ColumnInfo("SCORE",0,50,normalFont,(a)=> { return a.stats.score.score.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.CAPTURES)) >0)
             {
-                columns.Add(new ColumnInfo("C", 0, 25, normalFont, (a) => { return block0(a.stats.score.captures.ToString()); }));
+                columns.Add(new ColumnInfo("C", 0, 15, normalFont, (a) => { return block0(a.stats.score.captures.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
@@ -525,19 +525,19 @@ namespace JKWatcher.RandomHelpers
             }
             if ((foundFields & (1 << (int)ScoreFields.ASSIST)) >0)
             {
-                columns.Add(new ColumnInfo("A", 0, 25, normalFont, (a) => { return block0(a.stats.score.assistCount.ToString()); }));
+                columns.Add(new ColumnInfo("A", 0, 20, normalFont, (a) => { return block0(a.stats.score.assistCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
             {
-                columns.Add(new ColumnInfo("»", 0, 25, normalFont, (a) => { return block0(a.stats.score.excellentCount.ToString()); }));
+                columns.Add(new ColumnInfo("»", 0, 20, normalFont, (a) => { return block0(a.stats.score.excellentCount.ToString()); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
-                columns.Add(new ColumnInfo("%", 0, 25, normalFont, (a) => { return block0(a.stats.score.accuracy.ToString()); }));
+                columns.Add(new ColumnInfo("%", 0, 20, normalFont, (a) => { return block0(a.stats.score.accuracy.ToString()); }));
             }
             if (anyKillsLogged)
             {
-                columns.Add(new ColumnInfo("K/D", 0, 50, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
+                columns.Add(new ColumnInfo("K/D", 0, 55, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }));
             } else if(gameType > GameType.Team && ((foundFields & (1 << (int)ScoreFields.KILLS)) > 0 || (foundFields & (1 << (int)ScoreFields.TOTALKILLS)) > 0))
             {
                 // MOH
@@ -562,11 +562,11 @@ namespace JKWatcher.RandomHelpers
                 }
             }
 
-            columns.Add(new ColumnInfo("PING", 0, 40, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
+            columns.Add(new ColumnInfo("PING", 0, 35, normalFont, (a) => { return a.stats.score.ping.ToString(); }));
             columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.stats.score.time.ToString(); }));
             if (anyValidGlicko2)
             {
-                columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
+                columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
             }
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 
