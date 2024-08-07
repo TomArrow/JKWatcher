@@ -745,23 +745,23 @@ namespace JKWatcher.RandomHelpers
                 {
                     string lastSeenString = "";
                     TimeSpan timeSince = DateTime.Now - a.lastSeen;
-                    if (timeSince.TotalDays > 0)
+                    if (timeSince.TotalDays > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalDays}D";
                     }
-                    else if (timeSince.TotalHours > 0)
+                    else if (timeSince.TotalHours > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalHours}H";
                     }
-                    else if (timeSince.TotalMinutes > 0)
+                    else if (timeSince.TotalMinutes > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalMinutes}M";
                     }
-                    else if (timeSince.TotalSeconds > 0)
+                    else if (timeSince.TotalSeconds > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalSeconds}S";
                     }
-                    else if (timeSince.TotalMilliseconds > 0)
+                    else if (timeSince.TotalMilliseconds > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalMilliseconds}MS";
                     }
