@@ -999,7 +999,7 @@ namespace JKWatcher
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
 
-            serverWindow.SaveLevelshot(infoPool.levelShot, false, 200, 10.0);
+            serverWindow.SaveLevelshot(infoPool.levelShot, false, 200, 10.0, "_SVC_MAPCHANGE");
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -2414,7 +2414,7 @@ namespace JKWatcher
             {
                 if(!mohMode && currentGameType != GameType.Duel && currentGameType != GameType.PowerDuel)
                 {
-                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 0, 10);
+                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 0, 10, "_INTERMISSION");
                 }
                 if (!_connectionOptions.silentMode)
                 {
@@ -3671,11 +3671,11 @@ namespace JKWatcher
                     string trimmedCmd = mutableCmd.Trim();
                     if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 200, 10.0);
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 200, 10.0, "_CCMD");
                     }
                     else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShot, false,200, 10.0);
+                        serverWindow.SaveLevelshot(infoPool.levelShot, false,200, 10.0, "_CCMD");
                     }
                     else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {

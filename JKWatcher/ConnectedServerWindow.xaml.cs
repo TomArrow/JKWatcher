@@ -809,7 +809,7 @@ namespace JKWatcher
                 if(obj.MapName != lastMapName)
                 {
                     MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
-                    SaveLevelshot(infoPool.levelShot, false, 200, 10.0);
+                    SaveLevelshot(infoPool.levelShot, false, 200, 10.0,"_SI_MAPCHANGE");
                     infoPool.resetLevelShot(false, true);
                     if (lastMapName != null)
                     {
@@ -2496,7 +2496,7 @@ namespace JKWatcher
                 isDestroyed = true;
 
                 MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
-                SaveLevelshot(infoPool.levelShot, false, 200, 10);
+                SaveLevelshot(infoPool.levelShot, false, 200, 10, "_CLOSEDOWN");
 
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 this.Closed -= ConnectedServerWindow_Closed;
@@ -3268,12 +3268,16 @@ namespace JKWatcher
 
         private void levelshotBtn_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot,false,0);
+            SaveLevelshot(infoPool.levelShot,false,0,0, "_BTN");
         }
 
         private void levelshotBtnOver200_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot, false, 200,10);
+            SaveLevelshot(infoPool.levelShot, false, 200,10, "_BTN200");
+        }
+        private void levelshotThisGameBtnOver200_Click(object sender, RoutedEventArgs e)
+        {
+            SaveLevelshot(infoPool.levelShot, true, 200, 10, "_BTNTG200");
         }
 
         private float above1To2SoftApproach(float value) // the result of this will approach 2 but never reach it. perfection
@@ -3284,7 +3288,7 @@ namespace JKWatcher
         private const float invGamma = 1f / 2.4f;
         private const float invGamma5 = 1f / 5f;
         private const float invGamma10 = 1f / 10f;
-        public void SaveLevelshot(LevelShotData levelshotData, bool thisGame, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0)
+        public void SaveLevelshot(LevelShotData levelshotData, bool thisGame, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0,string filenameAdd = null)
         {
             if (levelshotData is null) return;
             lock (levelshotData.lastSavedAndAccumTypeLock)
@@ -3303,7 +3307,7 @@ namespace JKWatcher
                     levelshotData.changesSinceLastSaved=0;
                 }
             }
-            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName;
+            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName + (thisGame ? $"_TG{filenameAdd}" : $"{filenameAdd}");
             float[,,] levelshotDataLocal = (float[,,])levelshotData.data.Clone();
             TaskManager.TaskRun(()=> {
 
@@ -3417,6 +3421,7 @@ namespace JKWatcher
             bmp.Save(filenameString);
             bmp.Dispose();
         }
+
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
         {

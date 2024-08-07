@@ -29,6 +29,7 @@ namespace JKWatcher.RandomHelpers
     // TODO dynamic sizes for all fields?
     // TODO decision on which fields based on prefiltered (when count too high) not on all
     // TODO sort in dbs according to counts while making sure its used at all?
+    // TODO slightly alternating text color for columns?
 
     // TODO Mark Bot/fightbot on scoreboard
     // TODO more possible values that are mod specific?
