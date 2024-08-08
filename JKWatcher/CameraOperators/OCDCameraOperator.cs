@@ -89,7 +89,7 @@ namespace JKWatcher.CameraOperators
                         }
                         tracker.defragTotalRunTime += milliseconds;
                         tracker.defragAverageMapTimes.AddSample(mapname, milliseconds);
-
+                        tracker.defragBestTimes.AddOrPickLower(mapname,milliseconds);
                     }
 
                     DefragAverageMapTime maptime = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(mapname);

@@ -950,6 +950,35 @@ namespace JKWatcher
             dict.AddOrUpdate(key,(a)=> { return value; },(a,b)=> { return value+b; });
         }
 
+        public static void AddOrIncrement<TKey>(this Dictionary<TKey, int> dict, TKey key, int value)
+        {
+            if (dict.ContainsKey(key))
+            {
+                dict[key] += value;
+            }
+            else
+            {
+                dict[key] = value;
+            }
+        }
+
+        public static void AddOrPickLower<TKey>(this ConcurrentDictionary<TKey, double> dict, TKey key, double value)
+        {
+            dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
+        }
+        public static void AddOrPickLower<TKey>(this ConcurrentDictionary<TKey, float> dict, TKey key, float value)
+        {
+            dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
+        }
+        public static void AddOrPickLower<TKey>(this ConcurrentDictionary<TKey, int> dict, TKey key, int value)
+        {
+            dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
+        }
+        public static void AddOrPickLower<TKey>(this ConcurrentDictionary<TKey, Int64> dict, TKey key, Int64 value)
+        {
+            dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
+        }
+
     }
 
     

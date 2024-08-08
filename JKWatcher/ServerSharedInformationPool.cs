@@ -187,11 +187,11 @@ namespace JKWatcher
     {
         public void AddSample(T key, double value)
         {
-            this.AddOrUpdate(key,(a)=> { 
+            this.AddOrUpdate(key, (a) => {
                 AverageHelper helper = new AverageHelper();
                 helper.AddValue(value);
                 return helper;
-            },(a,b)=> { 
+            }, (a, b) => {
                 b.AddValue(value);
                 return b;
             });
@@ -204,6 +204,8 @@ namespace JKWatcher
             }
             return null;
         }
+        public AveragingDictionary(IEqualityComparer<T> comparer) : base(comparer){
+        }
     }
 
     public class ChatCommandTrackingStuff
@@ -213,10 +215,11 @@ namespace JKWatcher
         public int defragTop10RunCount;
         public int defragWRCount;
         public Int64 defragTotalRunTime;
-        public ConcurrentDictionary<string, int> defragMapsRun = new ConcurrentDictionary<string, int>();
-        public ConcurrentDictionary<string, int> defragMapsTop10 = new ConcurrentDictionary<string, int>();
-        public ConcurrentDictionary<string, int> defragMapsWR = new ConcurrentDictionary<string, int>();
-        public AveragingDictionary<string> defragAverageMapTimes = new AveragingDictionary<string>();
+        public ConcurrentDictionary<string, int> defragMapsRun = new ConcurrentDictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+        public ConcurrentDictionary<string, int> defragMapsTop10 = new ConcurrentDictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+        public ConcurrentDictionary<string, int> defragMapsWR = new ConcurrentDictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+        public ConcurrentDictionary<string, int> defragBestTimes = new ConcurrentDictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+        public AveragingDictionary<string> defragAverageMapTimes = new AveragingDictionary<string>(StringComparer.InvariantCultureIgnoreCase);
 
         public float maxDbsSpeed;
         public int kickDeaths;

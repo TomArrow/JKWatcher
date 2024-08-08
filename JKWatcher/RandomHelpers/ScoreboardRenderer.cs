@@ -208,11 +208,14 @@ namespace JKWatcher.RandomHelpers
         public float width = 0;
         Font font = null;
         public OverflowMode overflowMode = OverflowMode.AllowOverflow;
+        public OverflowMode overflowModeHeader = OverflowMode.AllowOverflow;
         //public bool autoScale = false;
         //public bool allowWrap = true;
         public bool angledHeader = false;
         public bool needsLeftLine = false;
         public bool rightAlign = false;
+        public float headerYOffset = 10.0f;
+        public bool noAdvanceAfter = false; // if u want to add a second line or such
         public ColumnInfo(string nameA, float topOffsetA, float widthA, Font fontA ,Func<ScoreboardEntry, string> fetchFunc)
         {
             if(nameA is null || fetchFunc is null || fontA is null)
@@ -255,16 +258,26 @@ namespace JKWatcher.RandomHelpers
             if (theString is null) return;
             Font fontToUse = header ? headerFont : font;
 
-            StringFormat formatToUse = (header || (overflowMode != OverflowMode.WrapClip)) ? (rightAlign ? noWrapStringFormatRightAlign: noWrapStringFormat) : ( rightAlign ? defaultStringFormatRightAlign: defaultStringFormat);
+            if (header)
+            {
+                y += headerYOffset;
+            }
+
+            OverflowMode overflowModeHere = header ? overflowModeHeader : overflowMode;
+
+            //StringFormat formatToUse = (header || (overflowMode != OverflowMode.WrapClip)) ? (rightAlign ? noWrapStringFormatRightAlign: noWrapStringFormat) : ( rightAlign ? defaultStringFormatRightAlign: defaultStringFormat);
+            StringFormat formatToUse = (overflowModeHeader != OverflowMode.WrapClip) ? (rightAlign ? noWrapStringFormatRightAlign: noWrapStringFormat) : ( rightAlign ? defaultStringFormatRightAlign: defaultStringFormat);
 
             string cleanString = null;
             bool fontWasReplaced = false;
             const float reductionDecrements = 0.5f;
-            if (overflowMode == OverflowMode.AutoScale && !header)
+            //if (overflowMode == OverflowMode.AutoScale && !header)
+            if (overflowModeHere == OverflowMode.AutoScale)
             {
                 cleanString = Q3ColorFormatter.cleanupString(theString);
                 float trySize = fontToUse.Size;
-                while (g.MeasureString(cleanString, fontToUse, new PointF(x,y),formatToUse).Width > width && trySize >= 8)
+                bool tooBig = false;
+                while ((tooBig=g.MeasureString(cleanString, fontToUse, new PointF(x,y),formatToUse).Width > width) && trySize >= 5)
                 {
                     trySize -= reductionDecrements;
                     if (fontWasReplaced)
@@ -273,6 +286,16 @@ namespace JKWatcher.RandomHelpers
                     }
                     fontToUse = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
                     fontWasReplaced = true;
+                }
+                if (tooBig)
+                {
+                    // nvm this doesnt work. it doesnt wrap on individual characters
+                    // still too big. wrap.
+                    //overflowModeHere = OverflowMode.WrapClip;
+                    //if (header)
+                    //{
+                    //    y -= headerYOffset;
+                    //}
                 }
             }
 
@@ -307,7 +330,8 @@ namespace JKWatcher.RandomHelpers
 
             float shadowDist = 2f * fontToUse.Size / 14f;
 
-            if (overflowMode == OverflowMode.AllowOverflow || angledHeader)
+            //if (overflowMode == OverflowMode.AllowOverflow || angledHeader)
+            if (overflowModeHere == OverflowMode.AllowOverflow || angledHeader && header)
             {
                 if (!theString.Contains('^') || !g.DrawStringQ3(theString, fontToUse, new PointF(0, 0), formatToUse, true, false/*entry?.team == Team.Spectator ? true : false*/))
                 {
@@ -401,6 +425,7 @@ namespace JKWatcher.RandomHelpers
             Dictionary<string, int> killTypesCounts = new Dictionary<string, int>();
             Dictionary<string, int> killTypesCountsMax = new Dictionary<string, int>();
             Dictionary<string, int> killTypesCountsRetsMax = new Dictionary<string, int>();
+            Dictionary<string, int> defragBestTimesPlayerCount = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
             bool serverSendsRets = infoPool.serverSeemsToSupportRetsCountScoreboard;
             Int64 foundFields = 0;
             foreach(var kvp in ratingsAndNames)
@@ -496,6 +521,12 @@ namespace JKWatcher.RandomHelpers
                 }
                 entry.lastSeen = kvp.Value.lastSeenActive;
 
+                // keep track of all defrag maps that we have runs of
+                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragBestTimes)
+                {
+                    defragBestTimesPlayerCount.AddOrIncrement(dt.Key,1);
+                }
+
                 Dictionary<KillType, int> killTypes = kvp.Value.chatCommandTrackingStuff.GetKillTypes();
                 Dictionary<KillType, int> killTypesRets = kvp.Value.chatCommandTrackingStuff.GetKillTypesReturns();
                 foreach (var kt in killTypes)
@@ -548,6 +579,26 @@ namespace JKWatcher.RandomHelpers
 
             // Sort entries, including by team
             entries.Sort(ScoreboardEntry.Comparer);
+
+            // Sort defrag maps (by how many players have a logged best time in them)
+            List<KeyValuePair<string, int>> defragMapsList = defragBestTimesPlayerCount.ToList();
+            defragMapsList.Sort((a,b)=> { return b.Value.CompareTo(a.Value); });
+            const int mapTimesColumnCount = 8;
+
+            List<string> mapTimeColumns = new List<string>();
+            HashSet<string> mapsWithoutTimeColumns = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+            foreach (var dt in defragMapsList)
+            {
+                if (mapTimeColumns.Count >= mapTimesColumnCount)
+                {
+                    mapsWithoutTimeColumns.Add(dt.Key);
+                }
+                else
+                {
+                    mapTimeColumns.Add(dt.Key);
+                }
+            }
+
 
             // Sort kill types
             List<KeyValuePair<string, int>> killTypesList = killTypesCounts.ToList();
@@ -639,14 +690,52 @@ namespace JKWatcher.RandomHelpers
                     sb.Append(GetAverageDefragDeviation(a));
                     return sb.ToString(); 
                 }));
-                columns.Add(new ColumnInfo("RUNTIME", 0, 80, normalFont, (a) => {
+                foreach(string map in mapTimeColumns)
+                {
+                    columns.Add(new ColumnInfo($"^3{map.ToUpperInvariant()}", 0, 80, normalFont, (a) =>
+                    {
+                        if(a.stats.chatCommandTrackingStuff.defragBestTimes.TryGetValue(map,out int besttime))
+                        {
+                            return FormatTime(besttime);
+                        }
+                        return "";
+                    })
+                    {  overflowModeHeader = ColumnInfo.OverflowMode.AutoScale, noAdvanceAfter = true });
+                    // second row: runs/top10/wr/% relative to average
+                    columns.Add(new ColumnInfo($"", 15, 80, tinyFont, (a) =>
+                    {
+                        var tracker = a.stats.chatCommandTrackingStuff;
+                        if (!tracker.defragMapsRun.ContainsKey(map))
+                        {
+                            return "";
+                        }
+                        StringBuilder sb = new StringBuilder();
+                        sb.Append($"^yfff8{tracker.defragMapsRun[map].ToString()}");
+                        if (tracker.defragMapsTop10.TryGetValue(map,out int val))
+                        {
+                            sb.Append($"^7/{val}");
+                        }
+                        if (tracker.defragMapsWR.TryGetValue(map,out int val2))
+                        {
+                            sb.Append($"^2/{val2}");
+                        }
+                        sb.Append(GetAverageDefragDeviation(a,map));
+                        return sb.ToString();
+                    }));
+                }
+                columns.Add(new ColumnInfo("SUM RUNS", 0, 80, normalFont, (a) => {
                     Int64 totalRunTime = a.stats.chatCommandTrackingStuff.defragTotalRunTime;
                     if (totalRunTime <= 0) return "";
                     return FormatTime(totalRunTime);
                 }));
-                columns.Add(new ColumnInfo("MAPS", 0, 270, normalFont, (a) => {
-                    return MakeDefragMapsString(a);
-                }));
+                if(mapsWithoutTimeColumns.Count > 0)
+                {
+                    columns.Add(new ColumnInfo("MAPS", 0, 350, tinyFont, (a) =>
+                    {
+                        return MakeDefragMapsString(a, mapsWithoutTimeColumns);
+                    })
+                    { overflowMode = ColumnInfo.OverflowMode.WrapClip });
+                }
             }
             if (anyKillsLogged)
             {
@@ -720,6 +809,7 @@ namespace JKWatcher.RandomHelpers
             // Check that it all fits in
             for (int i = 0; i < columns.Count; i++)
             {
+                if (columns[i].noAdvanceAfter) continue;
                 float thisWidth = columns[i].width;
                 if(neededWidth + thisWidth > totalWidth)
                 {
@@ -786,8 +876,11 @@ namespace JKWatcher.RandomHelpers
             float posY = 20;
             foreach (var column in columns)
             {
-                column.DrawString(g,true,posX,posY+10);
-                posX += column.width+ horzPadding;
+                column.DrawString(g,true,posX,posY);
+                if (!column.noAdvanceAfter)
+                {
+                    posX += column.width + horzPadding;
+                }
             }
             foreach (ScoreboardEntry entry in entries)
             {
@@ -815,6 +908,11 @@ namespace JKWatcher.RandomHelpers
                 bool brighterBg = true;
                 foreach (var column in columns)
                 {
+
+                    if (column.noAdvanceAfter)
+                    {
+                        continue;
+                    }
                     if (brighterBg)
                     {
                         g.FillRectangle(brighterBGBrush, new RectangleF(posX- 0.5f * horzPadding, posY, column.width + horzPadding, 30.0f));
@@ -838,7 +936,10 @@ namespace JKWatcher.RandomHelpers
                 foreach (var column in columns)
                 {
                     column.DrawString(g, false, posX, posY, entry);
-                    posX += column.width + horzPadding;
+                    if (!column.noAdvanceAfter)
+                    {
+                        posX += column.width + horzPadding;
+                    }
                 }
             }
             g.Flush();
@@ -961,7 +1062,28 @@ namespace JKWatcher.RandomHelpers
 
             return $"^7(^3{(int)avg.Value}%^7)";
         }
-        private static string MakeDefragMapsString(ScoreboardEntry entry, int lengthLimit = 99999)
+        private static string GetAverageDefragDeviation(ScoreboardEntry entry, string map)
+        {
+            AverageHelper averageHelper = new AverageHelper();
+            if(entry.stats.chatCommandTrackingStuff.defragAverageMapTimes.TryGetValue(map,out AverageHelper helper))
+            //foreach (KeyValuePair<string, AverageHelper> kvp in entry.stats.chatCommandTrackingStuff.defragAverageMapTimes)
+            {
+                double? mapAveragePlayer = helper.GetAverage();
+                if (mapAveragePlayer.HasValue)
+                {
+                    DefragAverageMapTime mapData = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(map);
+                    double? mapAverageAll = mapData?.CurrentAverage;
+                    if (mapAverageAll.HasValue)
+                    {
+                        double percentageDiff = 100.0 * (mapAveragePlayer.Value - mapAverageAll.Value) / mapAverageAll.Value;
+
+                        return $"^7(^3{(int)percentageDiff}%^7)";
+                    }
+                }
+            }
+            return "";
+        }
+        private static string MakeDefragMapsString(ScoreboardEntry entry, HashSet<string> requiredMaps, int lengthLimit = 99999)
         {
 
             List<KeyValuePair<string, RunsTop10WR>> mapsRun = new List<KeyValuePair<string, RunsTop10WR>>();
@@ -1003,6 +1125,10 @@ namespace JKWatcher.RandomHelpers
             int mapIndex = 0;
             foreach (KeyValuePair<string, RunsTop10WR> mapInfo in mapsRun)
             {
+                if (!requiredMaps.Contains(mapInfo.Key))
+                {
+                    continue;
+                }
                 if (mapInfo.Value.Item1 <= 0 && mapInfo.Value.Item2 <= 0 && mapInfo.Value.Item3 <= 0)
                 {
                     continue;
@@ -1041,6 +1167,14 @@ namespace JKWatcher.RandomHelpers
 
                             mapsString.Append($"^7(^3{(int)percentageDiff}%^7)");
                         }
+                    }
+                }
+
+                
+                {
+                    if (entry.stats.chatCommandTrackingStuff.defragBestTimes.TryGetValue(mapInfo.Key, out int besttime))
+                    {
+                        mapsString.Append($"^7({FormatTime(besttime)})");
                     }
                 }
 
