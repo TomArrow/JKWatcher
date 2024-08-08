@@ -28,9 +28,22 @@ namespace JKWatcher
 		object recordLock = new object();
 		public Int64 record { get; set; } = Int64.MaxValue;
 		public string recordHolder { get; set; } = null;
+		public bool recordHolderIsUserName { get; set; } = false;
 		public Int64 unloggedRecord { get; set; } = Int64.MaxValue;
 		public string unloggedRecordHolder { get; set; } = null;
 
+		public void SetLoggedUserNameRecord(string username, int milliseconds)
+        {
+			lock (recordLock)
+			{
+				if( milliseconds < record || (milliseconds == record && !recordHolderIsUserName))// milliseconds < record)
+				{
+					record = milliseconds;
+					recordHolder = username;
+					recordHolderIsUserName = true;
+				}
+			}
+		}
 		public void LogTime(string player, int milliseconds, bool logged, bool isNumber1)
         {
             lock (recordLock)
@@ -41,6 +54,7 @@ namespace JKWatcher
                     {
 						record = milliseconds;
 						recordHolder = player;
+						recordHolderIsUserName = false;
 					}
 				}
 				else

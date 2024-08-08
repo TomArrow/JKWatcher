@@ -34,36 +34,71 @@ namespace JKWatcher.CameraOperators
         }
 
         Regex ocDefrag = new Regex(@"\^2\[\^7OC-System\^2\]: (.*?)\^7 has finished in \[\^2(\d+):(\d+.\d+)\^7\]( which is his personal best time)?.( \^2Top10 time!\^7)? Difference to best: \[((\^200:00.000\^7)|(\^2(\d+):(\d+.\d+)\^7))\]\.",RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
+        Regex ocDefragTop = new Regex(@"\^7\[\^2(?<num>\d+)\^7\]\s*(?<name>[^\s]+)\s*(?<min>\d+):(?<sec>\d+.\d+)", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
 
-        private void OCDCameraOperator_ServerCommandRan(CommandEventArgs obj)
+        private int OCDTimeStringToMilliseconds(string minutesString, string secondsString)
         {
-            if(obj.Command.Argc < 2 || !obj.Command.Argv(0).Equals("print",StringComparison.InvariantCultureIgnoreCase))
-            {
-                return;
-            }
-            Match match = ocDefrag.Match(obj.Command.Argv(1));
+
+            //int minutes = match.Groups[2].Value.Atoi();
+            int minutes = minutesString.Atoi();
+            //std::string secondString = vec_num[matchNum][3];
+            //float seconds = match.Groups[3].Value.Atof();
+            float seconds = secondsString.Atof();
+            int milliSeconds = (int)((1000.0f * seconds) + 0.5f);
+            //int pureMilliseconds = milliSeconds % 1000;
+            //int pureSeconds = milliSeconds / 1000;
+
+            int milliseconds = milliSeconds + minutes * 60 * 1000;
+            return milliseconds;
+        }
+        private bool TryTopMatch(string cmdArg)
+        {
+            Match match = ocDefragTop.Match(cmdArg);
 
             if (!match.Success)
             {
-                return;
+                return false;
             }
 
-            string playerName = match.Groups[1].Value;
-            int minutes = match.Groups[2].Value.Atoi();
-            //std::string secondString = vec_num[matchNum][3];
-            float seconds = match.Groups[3].Value.Atof();
-            int milliSeconds = (int)((1000.0f * seconds) + 0.5f);
-            int pureMilliseconds = milliSeconds % 1000;
-            int pureSeconds = milliSeconds / 1000;
+            int milliseconds = OCDTimeStringToMilliseconds(match.Groups["min"].Value, match.Groups["sec"].Value);
+            int rank = match.Groups["num"].Value.Atoi();
+            string username  = match.Groups["name"].Value;
+            if (rank != 1) return true;
 
-            int milliseconds = milliSeconds + minutes * 60 * 1000;
+
+            string mapname = this.connections[0].GetMapName();
+
+
+            DefragAverageMapTime maptime = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(mapname);
+            if (maptime == null)
+            {
+                maptime = new DefragAverageMapTime(mapname);
+                AsyncPersistentDataManager<DefragAverageMapTime>.addItem(maptime);
+            }
+            maptime.SetLoggedUserNameRecord(username, milliseconds);
+
+            return true;
+        }
+        
+        private bool TryRunFinishMatch(string cmdArg)
+        {
+            Match match = ocDefrag.Match(cmdArg);
+
+            if (!match.Success)
+            {
+                return false;
+            }
+
+            int milliseconds = OCDTimeStringToMilliseconds(match.Groups[2].Value, match.Groups[3].Value);
+            string playerName = match.Groups[1].Value;
             bool isLogged = match.Groups[5].Value.Length > 0;
             bool isNumber1 = match.Groups[7].Value.Length > 0;
             bool isPersonalBest = match.Groups[4].Value.Length > 0;
 
             int allMinutes = milliseconds / 1000 / 60 + 1;
 
-            if((allMinutes * 1000 * 60- milliSeconds) < 10000)
+            //if((allMinutes * 1000 * 60- milliSeconds) < 10000)
+            if ((allMinutes * 1000 * 60 - milliseconds) < 10000)
             {
                 allMinutes++;
             }
@@ -71,7 +106,7 @@ namespace JKWatcher.CameraOperators
             string mapname = this.connections[0].GetMapName();
             foreach (PlayerInfo pi in infoPool.playerInfo)
             {
-                if(pi.infoValid && pi.name == playerName)
+                if (pi.infoValid && pi.name == playerName)
                 {
                     foreach (var tracker in pi.GetChatCommandTrackers())
                     {
@@ -89,7 +124,7 @@ namespace JKWatcher.CameraOperators
                         }
                         tracker.defragTotalRunTime += milliseconds;
                         tracker.defragAverageMapTimes.AddSample(mapname, milliseconds);
-                        tracker.defragBestTimes.AddOrPickLower(mapname,milliseconds);
+                        tracker.defragBestTimes.AddOrPickLower(mapname, milliseconds);
                     }
 
                     DefragAverageMapTime maptime = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(mapname);
@@ -98,15 +133,33 @@ namespace JKWatcher.CameraOperators
                         maptime = new DefragAverageMapTime(mapname);
                         AsyncPersistentDataManager<DefragAverageMapTime>.addItem(maptime);
                     }
-                    maptime.LogTime(playerName,milliseconds, isLogged, isNumber1);
+                    maptime.LogTime(playerName, milliseconds, isLogged, isNumber1);
                 }
             }
 
             if (isNumber1)
             {
-                this.connections[0].MarkDemoManual(allMinutes,false,-1,playerName,"World Record Run");
+                this.connections[0].MarkDemoManual(allMinutes, false, -1, playerName, "World Record Run");
+            }
+            return true;
+        }
+        
+        private void OCDCameraOperator_ServerCommandRan(CommandEventArgs obj)
+        {
+            if(obj.Command.Argc < 2 || !obj.Command.Argv(0).Equals("print",StringComparison.InvariantCultureIgnoreCase))
+            {
+                return;
+            }
+            string arg = obj.Command.Argv(1);
+            if (TryRunFinishMatch(arg))
+            {
+                //serverWindow.addToLog($"Finished run detected.");
+            } else if(TryTopMatch(arg))
+            {
+                //serverWindow.addToLog($"Top10 entry detected.");
             }
         }
+
 
         private void startBackground()
         {

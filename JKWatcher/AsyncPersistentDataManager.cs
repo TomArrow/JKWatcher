@@ -62,6 +62,10 @@ namespace JKWatcher
             }
             return null;
         }
+        public static T[] getAllItems()
+        {
+            return items.Values.ToArray();
+        }
 
         public static void addItem(T item, bool overwrite = false)
         {

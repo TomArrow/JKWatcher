@@ -54,7 +54,46 @@ namespace JKWatcher.RandomHelpers
 
 
     using KillsRets = Tuple<int, int>;
-    using RunsTop10WR = Tuple<int, int, int>;
+    //using RunsTop10WR = Tuple<int, int, int>;
+
+    class RunsTop10WR {
+        public int runs;
+        public int top10s;
+        public int wrs;
+        public RunsTop10WR(int runsA,int top10sA,int wrsA)
+        {
+            runs = runsA;
+            top10s = top10sA;
+            wrs = wrsA;
+        }
+        public static int Comparer(RunsTop10WR a, RunsTop10WR b)
+        {
+            // WR most important. Top10 then. Then run count.
+            if (a.wrs != b.wrs)
+            {
+                return b.wrs.CompareTo(a.wrs);
+            }
+            if (a.top10s != b.top10s)
+            {
+                return b.top10s.CompareTo(a.top10s);
+            }
+            return b.runs.CompareTo(a.runs);
+        }
+        public static int Comparer<T>(KeyValuePair<T,RunsTop10WR> a, KeyValuePair<T, RunsTop10WR> b)
+        {
+            // WR most important. Top10 then. Then run count.
+            if (a.Value.wrs != b.Value.wrs)
+            {
+                return b.Value.wrs.CompareTo(a.Value.wrs);
+            }
+            if (a.Value.top10s != b.Value.top10s)
+            {
+                return b.Value.top10s.CompareTo(a.Value.top10s);
+            }
+            return b.Value.runs.CompareTo(a.Value.runs);
+        }
+    }
+
     class ScoreboardEntry
     {
         public IdentifiedPlayerStats stats;
@@ -425,7 +464,7 @@ namespace JKWatcher.RandomHelpers
             Dictionary<string, int> killTypesCounts = new Dictionary<string, int>();
             Dictionary<string, int> killTypesCountsMax = new Dictionary<string, int>();
             Dictionary<string, int> killTypesCountsRetsMax = new Dictionary<string, int>();
-            Dictionary<string, int> defragBestTimesPlayerCount = new Dictionary<string, int>(StringComparer.InvariantCultureIgnoreCase);
+            Dictionary<string, RunsTop10WR> defragBestTimesPlayerCount = new Dictionary<string, RunsTop10WR>(StringComparer.InvariantCultureIgnoreCase);
             bool serverSendsRets = infoPool.serverSeemsToSupportRetsCountScoreboard;
             Int64 foundFields = 0;
             foreach(var kvp in ratingsAndNames)
@@ -522,9 +561,38 @@ namespace JKWatcher.RandomHelpers
                 entry.lastSeen = kvp.Value.lastSeenActive;
 
                 // keep track of all defrag maps that we have runs of
-                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragBestTimes)
+                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragMapsRun)
                 {
-                    defragBestTimesPlayerCount.AddOrIncrement(dt.Key,1);
+                    if (!defragBestTimesPlayerCount.ContainsKey(dt.Key))
+                    {
+                        defragBestTimesPlayerCount[dt.Key] = new RunsTop10WR(1,0,0);
+                    }
+                    else
+                    {
+                        defragBestTimesPlayerCount[dt.Key].runs++; // we are not counting the amount of runs. just how many players ran it (or got top10 etc)
+                    }
+                }
+                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragMapsTop10)
+                {
+                    if (!defragBestTimesPlayerCount.ContainsKey(dt.Key))
+                    {
+                        defragBestTimesPlayerCount[dt.Key] = new RunsTop10WR(0,1,0);
+                    }
+                    else
+                    {
+                        defragBestTimesPlayerCount[dt.Key].top10s++; // we are not counting the amount of runs. just how many players ran it (or got top10 etc)
+                    }
+                }
+                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragMapsWR)
+                {
+                    if (!defragBestTimesPlayerCount.ContainsKey(dt.Key))
+                    {
+                        defragBestTimesPlayerCount[dt.Key] = new RunsTop10WR(0,0,1);
+                    }
+                    else
+                    {
+                        defragBestTimesPlayerCount[dt.Key].wrs++; // we are not counting the amount of runs. just how many players ran it (or got top10 etc)
+                    }
                 }
 
                 Dictionary<KillType, int> killTypes = kvp.Value.chatCommandTrackingStuff.GetKillTypes();
@@ -581,8 +649,8 @@ namespace JKWatcher.RandomHelpers
             entries.Sort(ScoreboardEntry.Comparer);
 
             // Sort defrag maps (by how many players have a logged best time in them)
-            List<KeyValuePair<string, int>> defragMapsList = defragBestTimesPlayerCount.ToList();
-            defragMapsList.Sort((a,b)=> { return b.Value.CompareTo(a.Value); });
+            List<KeyValuePair<string, RunsTop10WR>> defragMapsList = defragBestTimesPlayerCount.ToList();
+            defragMapsList.Sort(RunsTop10WR.Comparer); // columns with most players that got wr first. most players that got top10 then. etc. to see most relevant columns.
             const int mapTimesColumnCount = 8;
 
             List<string> mapTimeColumns = new List<string>();
@@ -685,7 +753,7 @@ namespace JKWatcher.RandomHelpers
                     }
                     if (a.stats.chatCommandTrackingStuff.defragWRCount > 0)
                     {
-                        sb.Append($"^2/{a.stats.chatCommandTrackingStuff.defragMapsWR.ToString()}");
+                        sb.Append($"^7/^2{a.stats.chatCommandTrackingStuff.defragWRCount.ToString()}");
                     }
                     sb.Append(GetAverageDefragDeviation(a));
                     return sb.ToString(); 
@@ -717,7 +785,7 @@ namespace JKWatcher.RandomHelpers
                         }
                         if (tracker.defragMapsWR.TryGetValue(map,out int val2))
                         {
-                            sb.Append($"^2/{val2}");
+                            sb.Append($"^7/^2{val2}");
                         }
                         sb.Append(GetAverageDefragDeviation(a,map));
                         return sb.ToString();
@@ -1108,18 +1176,7 @@ namespace JKWatcher.RandomHelpers
                 mapsRun.Add(new KeyValuePair<string, RunsTop10WR>(kvp.Key, new RunsTop10WR(runs,top10,wr)));
             }
 
-            mapsRun.Sort((a, b) => { 
-                // WR most important. Top10 then. Then run count.
-                if(a.Value.Item3 != a.Value.Item3)
-                {
-                    return b.Value.Item3.CompareTo(a.Value.Item3);
-                }
-                if(a.Value.Item2 != a.Value.Item2)
-                {
-                    return b.Value.Item2.CompareTo(a.Value.Item2);
-                }
-                return b.Value.Item1.CompareTo(a.Value.Item1); 
-            });
+            mapsRun.Sort(RunsTop10WR.Comparer);
 
             StringBuilder mapsString = new StringBuilder();
             int mapIndex = 0;
@@ -1129,7 +1186,7 @@ namespace JKWatcher.RandomHelpers
                 {
                     continue;
                 }
-                if (mapInfo.Value.Item1 <= 0 && mapInfo.Value.Item2 <= 0 && mapInfo.Value.Item3 <= 0)
+                if (mapInfo.Value.runs <= 0 && mapInfo.Value.top10s <= 0 && mapInfo.Value.wrs <= 0)
                 {
                     continue;
                 }
@@ -1141,14 +1198,14 @@ namespace JKWatcher.RandomHelpers
                 {
                     mapsString.Append(", ");
                 }
-                mapsString.Append($"^yfff8{mapInfo.Value.Item1}");
-                if(mapInfo.Value.Item2 > 0)
+                mapsString.Append($"^yfff8{mapInfo.Value.runs}");
+                if(mapInfo.Value.top10s > 0)
                 {
-                    mapsString.Append($"^7/{mapInfo.Value.Item2}");
+                    mapsString.Append($"^7/{mapInfo.Value.top10s}");
                 }
-                if(mapInfo.Value.Item3 > 0)
+                if(mapInfo.Value.wrs > 0)
                 {
-                    mapsString.Append($"^7/^2{mapInfo.Value.Item3}");
+                    mapsString.Append($"^7/^2{mapInfo.Value.wrs}");
                 }
 
                 mapsString.Append($"^7x{mapInfo.Key}");
