@@ -42,6 +42,11 @@ namespace JKWatcher
 					recordHolder = username;
 					recordHolderIsUserName = true;
 				}
+				if (milliseconds < unloggedRecord) // unlogged is always applied.
+				{
+					unloggedRecord = milliseconds;
+					unloggedRecordHolder = username;
+				}
 			}
 		}
 		public void LogTime(string player, int milliseconds, bool logged, bool isNumber1)
@@ -57,13 +62,10 @@ namespace JKWatcher
 						recordHolderIsUserName = false;
 					}
 				}
-				else
+				if (milliseconds < unloggedRecord && isNumber1)// unlogged is always applied so we dont end up with unlogged record smaller than logged. makes no sense.
 				{
-					if (milliseconds < unloggedRecord && isNumber1)
-					{
-						unloggedRecord = milliseconds;
-						unloggedRecordHolder = player;
-					}
+					unloggedRecord = milliseconds;
+					unloggedRecordHolder = player;
 				}
 			}
 			AddSample(milliseconds);

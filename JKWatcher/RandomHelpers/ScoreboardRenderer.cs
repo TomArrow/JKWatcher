@@ -776,7 +776,20 @@ namespace JKWatcher.RandomHelpers
                     {
                         if(a.stats.chatCommandTrackingStuff.defragBestTimes.TryGetValue(map,out int besttime))
                         {
-                            return FormatTime(besttime);
+                            DefragAverageMapTime mapInfo = AsyncPersistentDataManager<DefragAverageMapTime>.getByPrimaryKey(map);
+                            string color = "";
+                            if(mapInfo!= null)
+                            {
+                                // TODO make sure someone who has unlogged best time with same number doesnt accidentally get green color?
+                                if(mapInfo.recordHolder != null && mapInfo.record == besttime)
+                                {
+                                    color = "^2";
+                                } else if(mapInfo.unloggedRecordHolder != null && mapInfo.unloggedRecord == besttime)
+                                {
+                                    color = "^3";
+                                }
+                            }
+                            return $"{color}{FormatTime(besttime)}";
                         }
                         return "";
                     })
