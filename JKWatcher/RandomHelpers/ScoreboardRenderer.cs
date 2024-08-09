@@ -26,6 +26,7 @@ namespace JKWatcher.RandomHelpers
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
 
     // TODO highlight top time in defrag
+    // TODO what a re values when connecting/laoding map?
 
     // TODO Defrag: runs: total, top 10, #1, total run time. map WRs, map top 10s. average deviation + per map
 

@@ -362,6 +362,7 @@ namespace JKWatcher
             leakyBucketRequester.CommandExecuting += LeakyBucketRequester_CommandExecuting; ;
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
+            initFightbotValues();
         }
 
         internal static int GameTypeStringToBitMask(string gameTypesString)
@@ -3010,6 +3011,7 @@ namespace JKWatcher
 
             foreach(int swinger in swingers)
             {
+                infoPool.playerInfo[swinger].lastSwing = DateTime.Now;
                 Vector3 swingerPos = infoPool.playerInfo[swinger].position;
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {

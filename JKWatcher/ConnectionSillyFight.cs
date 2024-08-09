@@ -348,11 +348,23 @@ namespace JKWatcher
 			}
 		}
 
+		private void initFightbotValues()
+        {
+			for(int i=0;i< lastPlayerDoesntBoost.Length; i++)
+            {
+				lastPlayerDoesntBoost[i] = DateTime.Now - new TimeSpan(1, 0, 0);
+			}
+		}
+
 
 		Queue<Vector2> angleMessageQueue = new Queue<Vector2>(); // jkwatcherBotStringBytesAngleSequence
 		int angleConfirmedCount = 0;
 		DateTime lastTimeAngleMessageQueueChanged = DateTime.Now;
 		DateTime lastTimeSelfIdentified = DateTime.Now - new TimeSpan(1, 0, 0);
+
+		DateTime lastNonBoostMovement = DateTime.Now;
+		DateTime[] lastPlayerDoesntBoost = new DateTime[128];
+		DateTime lastNotBoosted = DateTime.Now - new TimeSpan(1, 0, 0);
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
 		{
 
@@ -369,6 +381,8 @@ namespace JKWatcher
 			PlayerInfo myself = infoPool.playerInfo[myNum];
 			PlayerInfo closestPlayer = null;
 			float closestDistance = float.PositiveInfinity;
+			PlayerInfo closestFriend = null;
+			float closestFriendDistance = float.PositiveInfinity;
 			PlayerInfo closestPlayerAfk = null;
 			float closestDistanceAfk = float.PositiveInfinity;
 			WayPoint[] closestWayPointPath = null;
@@ -553,8 +567,18 @@ namespace JKWatcher
 							grippingPlayers.Add(pi);
 						}
 
+						bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
+
 						if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
-						if (this.currentGameType >= GameType.Team && pi.team == myself.team) continue;
+						if (this.currentGameType >= GameType.Team && pi.team == myself.team) {
+							if (!pi.confirmedJKWatcherFightbot && !pi.confirmedBot && curdistance < closestFriendDistance && !playerIsAfk && (DateTime.Now - lastPlayerDoesntBoost[pi.clientNum]).TotalSeconds > 120)
+							{
+								// this guy could maybe boost us
+								closestFriendDistance = curdistance;
+								closestFriend = pi;
+							}
+							continue;
+						}
 
 						if (pi.chatCommandTrackingStuff.fightBotBlacklist)
 						{
@@ -594,7 +618,6 @@ namespace JKWatcher
 						if (thisPlayerNearStrongIgnore) continue;
 
 
-						bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
 
 						if (findShortestBotPathWalkDistance && myClosestWayPoint != null && this.pathFinder != null)
 						{
@@ -755,8 +778,9 @@ namespace JKWatcher
 				lastTimeAnyPlayerSeen = DateTime.Now;
 			}
 
+			Vector3 closestFriendPosition = closestFriend is null ? new Vector3() : closestFriend.position;
 			Vector3 closestPlayerPosition = closestPlayer.position;
-			Vector3 closestPlayerPositionRawUnpredicted = closestPlayer.position;
+			//Vector3 closestPlayerPositionRawUnpredicted = closestPlayer.position;
             if (infoPool.deluxePredict > 0.0f)
             {
 				DateTime? lastFullPosUpdate = closestPlayer.lastFullPositionUpdate;
@@ -765,7 +789,15 @@ namespace JKWatcher
 					closestPlayerPosition = closestPlayer.position + closestPlayer.velocity * ((float)(DateTime.Now-lastFullPosUpdate.Value).TotalMilliseconds+(float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
 					closestDistance = (closestPlayerPosition - myPosition).Length();
 				}
-
+				if(closestFriend != null)
+				{
+					lastFullPosUpdate = closestFriend.lastFullPositionUpdate;
+					if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
+					{
+						closestFriendPosition = closestFriend.position + closestFriend.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+						closestFriendDistance = (closestFriendPosition - myPosition).Length();
+					}
+				}
 			}
 
 			bool enemyLikelyOnSamePlane = closestDistance < 300 && Math.Abs(closestPlayerPosition.Z - myPosition.Z) < 10.0f && lastPlayerState.GroundEntityNum == Common.MaxGEntities - 2 && closestPlayer.groundEntityNum == Common.MaxGEntities - 2;
@@ -806,17 +838,80 @@ namespace JKWatcher
 			Vector3 vecToClosestPlayer = closestPlayerPosition - myPosition;
 			Vector2 vecToClosestPlayer2D = new Vector2() { X=vecToClosestPlayer.X,Y=vecToClosestPlayer.Y};
 			Vector2 enemyPosition2D = new Vector2() { X= closestPlayerPosition.X,Y= closestPlayerPosition.Y};
-			Vector2 enemyVelocity2D = new Vector2() { X= closestPlayer.velocity.X,Y= closestPlayer.velocity.Y};
+			//Vector2 enemyVelocity2D = new Vector2() { X= closestPlayer.velocity.X,Y= closestPlayer.velocity.Y};
 			// Predict where other player is going and how I can get there.
 			// The problem is, I can't just predict 1 second into the future.
 			// I need to ideally predict the point of intercept, which might be any arbitrary amount of time into the future.
 			//
 			// Let's first find out if me intercepting is theoretically possible (if he is not moving away from me faster than my speed)
-			Vector2 normalizedVecToPlayer2D = Vector2.Normalize(vecToClosestPlayer2D);
-			float dotProduct = Vector2.Dot(enemyVelocity2D, vecToClosestPlayer2D);
+			//Vector2 normalizedVecToPlayer2D = Vector2.Normalize(vecToClosestPlayer2D);
+			//float dotProduct = Vector2.Dot(enemyVelocity2D, vecToClosestPlayer2D);
 			Vector3 moveVector = vecToClosestPlayer;
-			float distance2D = (enemyPosition2D - myPosition2D).Length();
-			
+			float enemyDistance2D = (enemyPosition2D - myPosition2D).Length();
+
+			// Abstract this so we can decide to elegantly track something else than enemy player
+			Vector3 moveTargetPosition = closestPlayerPosition; // might not always be the enemy.
+			Vector3 moveTargetVelocity = closestPlayer.velocity; // might not always be the enemy.
+
+			bool tryingBoost = false;
+            if (closestFriend != null && closestDistance < 2000 && (
+				closestFriendDistance < 200 && closestDistance > 200 && closestDistance/closestFriendDistance > 2.0f
+				|| closestFriendDistance < 400 && closestDistance > 400 && closestDistance / closestFriendDistance > 3.0f
+				) 
+				&& (DateTime.Now - lastNotBoosted).TotalSeconds > 30
+				)
+            {
+				// maybe go for a boost
+				Vector3 friendToFoeVector = closestPlayerPosition - closestFriendPosition;
+				friendToFoeVector = Vector3.Normalize(friendToFoeVector);
+
+				Vector3 friendForward, friendRight, friendUp;
+				AngleVectors(closestFriend.angles, out friendForward, out friendRight, out friendUp);
+
+				// hes moving and looking in a different direction. skip
+				if (Vector3.Dot(friendForward, friendToFoeVector) < 0 && Vector3.Dot(closestFriend.velocity, friendToFoeVector) < 0) goto skipboost;
+
+				// he's moving away from our desired target
+				if (Vector3.Dot(closestFriend.velocity, friendToFoeVector) < -300.0f) goto skipboost;
+
+				//if ((DateTime.Now - closestFriend.lastSwing).TotalSeconds > 10.0f) goto skipboost;
+
+				Vector3 boostPosition = closestFriendPosition + 80.0f * friendToFoeVector;// 80 distance from boosting palyer seems a decent distance to get boosted
+
+				Vector3 vecToBoostPosition = closestPlayerPosition - myPosition;
+				Vector3 closestPlayerDirection = Vector3.Normalize(vecToClosestPlayer);
+
+				if (Vector3.Dot(vecToBoostPosition, vecToClosestPlayer) < -50) goto skipboost; // I'd need to move more than 30 units backwards to try and get a boost. not worth
+
+				moveTargetPosition = boostPosition; 
+				moveTargetVelocity = closestFriend.velocity;
+				tryingBoost = true;
+			}
+			skipboost:
+            if (tryingBoost)
+            {
+				if((DateTime.Now - lastNonBoostMovement).TotalSeconds > 3)
+                {
+					lastNotBoosted = DateTime.Now;
+					if(closestFriend != null && (DateTime.Now- closestPlayer.lastSwing).TotalSeconds > 3)
+                    {
+						lastPlayerDoesntBoost[closestFriend.clientNum] = DateTime.Now;
+                    }
+				}
+            } else
+            {
+				lastNonBoostMovement = DateTime.Now;
+            }
+
+			Vector3 vecToMoveTargetPosition = moveTargetPosition - myPosition;
+			Vector2 vecToMoveTargetPosition2D = new Vector2() { X = vecToMoveTargetPosition.X, Y = vecToMoveTargetPosition.Y };
+			Vector2 moveTargetPosition2D = new Vector2() { X = moveTargetPosition.X, Y = moveTargetPosition.Y };
+			Vector2 moveTargetVelocity2D = new Vector2() { X = moveTargetVelocity.X, Y = moveTargetVelocity.Y };
+			float moveTargetDotProduct = Vector2.Dot(moveTargetVelocity2D, vecToMoveTargetPosition2D);
+
+
+
+
 			int knockDownLower = jkaMode ? -2 : 829; // TODO Adapt to 1.04 too? But why, its so different.
 			int knockDownUpper = jkaMode ? -2 : 848;
 
@@ -864,10 +959,12 @@ namespace JKWatcher
 			bool heIsStandingOnTopOfMyFullHeight = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPosition.Z <= (myPosition.Z + 40 + hisMin + standingOnTopTolerance) && closestPlayerPosition.Z > (myPosition.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
 			//bool heIsStandingOnTopOfMyFullHeightUnpredicted = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPositionRawUnpredicted.Z <= (myPositionRawUnpredicted.Z + 40 + hisMin + 10.0f) && closestPlayerPositionRawUnpredicted.Z > (myPositionRawUnpredicted.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
 			//bool heIsStandingOnTopOfMeUnpredicted = closestPlayer.groundEntityNum == myself.clientNum ||( vecToClosestPlayer2D.Length() < 15 && closestPlayerPositionRawUnpredicted.Z <= (myPositionRawUnpredicted.Z + myMax + hisMin + 8.0f) && closestPlayerPositionRawUnpredicted.Z > (myPositionRawUnpredicted.Z + myMax + hisMin - 1.0f) && closestPlayer.velocity.Z < 300.0f);
-			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z > (closestPlayerPosition.Z - hisMin) && myPosition.Z < (closestPlayerPosition.Z + hisMax);
+			bool dbsPossiblePositionWise = !heIsStandingOnTopOfMe && enemyDistance2D < dbsTriggerDistance && myPosition.Z > (closestPlayerPosition.Z - hisMin) && myPosition.Z < (closestPlayerPosition.Z + hisMax);
 			bool dbsPossible = dbsPossiblePositionWise && !grippingSomebody && !amGripped; // Don't dbs while gripped. Is it even possible?
-			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && distance2D < dbsTriggerDistance && myPosition.Z < (closestPlayerPosition.Z - hisMin) && (myPosition.Z + 96) > (closestPlayerPosition.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
+			bool dbsPossibleWithJumpPositionWise = !heIsStandingOnTopOfMe && enemyDistance2D < dbsTriggerDistance && myPosition.Z < (closestPlayerPosition.Z - hisMin) && (myPosition.Z + 96) > (closestPlayerPosition.Z - hisMin); // 96 is force level 1 jump height. adapt to different force jump heights?
 			bool dbsPossibleWithJump = dbsPossibleWithJumpPositionWise && !grippingSomebody; // Don't dbs while gripped. Is it even possible?
+
+			bool gettingBoostedPossible = closestFriend != null && closestFriendDistance < 200.0;
 
 			bool doingGripDefense = false;
 
@@ -1174,7 +1271,7 @@ namespace JKWatcher
 				moveVector = viewHeightMoveVector;
 				debugLine?.Append("; customkisspossible");
 			}
-			else if (dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
+			/*else if (dotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
 				// Do a simplified thing.
@@ -1230,6 +1327,70 @@ namespace JKWatcher
 					if(strafe && !dbsPossible)
 					{
 						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = closestPlayerPosition.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						debugLine?.Append("; strafetoIntercept");
+					} else
+                    {
+						moveVector = new Vector3() { X = moveVector2d.X, Y = moveVector2d.Y, Z = moveVector.Z };
+						debugLine?.Append("; moveToIntercept");
+					}
+                }
+            }*/
+			else if (moveTargetDotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
+            {
+				// I can never intercept him. He's moving away from me faster than I can move towards him.
+				// Do a simplified thing.
+				// Just predict his position in 1 second and move there.
+				if(strafe && !dbsPossible)
+                {
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(moveTargetPosition + moveTargetVelocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+					debugLine?.Append("; strafetoPosPlus1second");
+				}
+				else
+                {
+					moveVector = (moveTargetPosition + moveTargetVelocity) - myPositionMaybePredicted;
+					debugLine?.Append("; movetoPosPlus1second");
+				}
+			} else
+            {
+				Vector2 moveVector2d = new Vector2();
+				// Do some fancy shit.
+				// Do a shitty iterative approach for now. Improve in future if possible.
+				// Remember that the dotProduct is the minimum speed we must have in his direction.
+				bool foundSolution = false;
+				Vector2 interceptPos = new Vector2();
+				for(float interceptTime=0.1f; interceptTime < 10.0f; interceptTime+= 0.1f)
+                {
+					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
+					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
+					Vector2 hisPosThen = moveTargetPosition2D + moveTargetVelocity2D * (interceptTime+ (0.0f < infoPool.deluxePredict? 0.0f : halfPingInSeconds));
+					interceptPos = hisPosThen + Vector2.Normalize(moveTargetVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
+					moveVector2d = (interceptPos - myPosition2DMaybePredicted);
+					if (moveVector2d.Length() <= mySpeed * interceptTime)
+					{
+						foundSolution = true;
+						moveSpeedMultiplier = moveVector2d.Length() / (mySpeed * interceptTime);
+						break;
+					}
+				}
+                if (!foundSolution)
+                {
+					Vector3 targetPos = moveTargetPosition + moveTargetVelocity;
+                    // Sad. ok just fall back to the usual.
+                    if (strafe && !dbsPossible)
+                    {
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						debugLine?.Append("; strafetoPosPlus1second_failedSolution");
+					} else
+                    {
+						moveVector = targetPos - myPositionMaybePredicted;
+						debugLine?.Append("; movetoPosPlus1second_failedSolution");
+					}
+                }
+                else
+                {
+					if(strafe && !dbsPossible)
+					{
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = moveTargetPosition.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 						debugLine?.Append("; strafetoIntercept");
 					} else
                     {
@@ -1401,7 +1562,7 @@ namespace JKWatcher
 						float dot = Vector2.Dot(myVelocity2D, moveVector2DNormalized);
 						float myVelocity2DAbs = myVelocity2D.Length();
 						float maxSpeed = mySpeed * moveSpeedMultiplier * 1.1f;
-						if (dot < maxSpeed && dot > (150*moveSpeedMultiplier) && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || distance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayerPosition.Z > (myPosition.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
+						if (dot < maxSpeed && dot > (150*moveSpeedMultiplier) && ((dot > mySpeed * 0.75f && dot > myVelocity2DAbs * 0.95f) || enemyDistance2D <= 32 || (closestPlayer.groundEntityNum == Common.MaxGEntities-2 &&(closestPlayerPosition.Z > (myPosition.Z + 10.0f))))) // Make sure we are at least 75% in the right direction, or ignore if we are very close to player or if other player is standing on higher ground than us.
                         {
 							// Gotta jump
 							userCmd.Upmove = 127;
@@ -1775,6 +1936,8 @@ namespace JKWatcher
                 }
 			}
 
+			bool letFriendBoost = gettingBoostedPossible && closestDistance > 200;
+
 			if (lastPlayerState.Stats[0] <= 0) // Respawn no matter what if dead.
 			{
 				debugLine?.Append("; deadclearpoints");
@@ -1805,7 +1968,7 @@ namespace JKWatcher
 					debugLine?.Append("; allowgripdefense_throw");
 				}
 				userCmd.Upmove = userCmd.Upmove > 0 ? (sbyte)0 : userCmd.Upmove;
-			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && ((sillyMode != SillyMode.CUSTOM && sillyMode != SillyMode.LOVER) || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
+			} else if (userCmd.GenericCmd == 0 && lastPlayerState.SaberHolstered && ((sillyMode != SillyMode.CUSTOM && sillyMode != SillyMode.LOVER && !letFriendBoost) || (closestDistance>200 && sillyMode == SillyMode.LOVER)))
             {
 				if((DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
 				{
@@ -1814,6 +1977,15 @@ namespace JKWatcher
 					lastSaberSwitchCommand = DateTime.Now;
 				} 
 
+			} else if (userCmd.GenericCmd == 0 && !lastPlayerState.SaberHolstered && sillyMode != SillyMode.CUSTOM && sillyMode != SillyMode.LOVER && letFriendBoost)
+            {
+				// If we are more than 200 units away from our enemy, go saber down
+				if ((DateTime.Now - lastSaberSwitchCommand).TotalMilliseconds > (lastSnapshot.ping + 100))
+				{
+					debugLine?.Append("; saberoff_letfriendboost");
+					userCmd.GenericCmd = (byte)GenericCommandJK2.SABERSWITCH; // switch it back on.
+					lastSaberSwitchCommand = DateTime.Now;
+				}
 			}
 
             if (amStrafing)

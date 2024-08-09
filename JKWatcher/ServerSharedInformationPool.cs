@@ -563,6 +563,8 @@ namespace JKWatcher
         public DateTime?[] lastProximitySwing = new DateTime?[64]; // When have we last swung our saber within 200 units distance of other players?
         public DateTime?[] inProximitySince = new DateTime?[64]; // When is the last time this player came into proximity to another player (within 400 units)
 
+        public DateTime lastSwing;
+
         // For killtrackers/memes and such
         public PlayerIdentification lastValidPlayerData = new PlayerIdentification();
         public DateTime? lastSeenValid = null;
