@@ -3171,7 +3171,7 @@ namespace JKWatcher
         }
         
         // This one doesn't clone the array. Make sure it's not in use anymore!
-        public void MaybeStackZCompLevelShot(LevelShotData levelshotData)
+        public void MaybeStackZCompLevelShot(LevelShotData levelshotData, bool zCompensated=true)
         {
             string tiffName = null;
             float[,,] lsData = null;

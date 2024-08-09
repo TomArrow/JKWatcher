@@ -3789,9 +3789,9 @@ namespace JKWatcher
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
                     pi.score.score = 0; // Reset after map changes so we don't think about following timed out players who still have the old high score remembered.
-                    pi.score.totalKills = 0;
-                    pi.score.kills = 0;
-                    pi.score.deaths = 0;
+                    pi.score.totalKills += 0;
+                    pi.score.kills += 0;
+                    pi.score.deaths += 0;
                 }
             }
 
@@ -5304,24 +5304,24 @@ namespace JKWatcher
                             infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                         }
                         infoPool.playerInfo[iClientNum].session.team = realTeam;
-                        score.kills = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        score.kills += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                         if(currentGameType > GameType.Team)
                         {
-                            score.totalKills = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.totalKills += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
                             score.score = score.totalKills;
                         } else
                         {
-                            score.deaths = commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.deaths += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
                             score.score = score.kills;
                         }
-                        score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
+                        score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
                         string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
                         if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                         {
 
                         } else
                         {
-                            score.ping = pingString.Atoi();
+                            score.ping += pingString.Atoi();
                         }
 
                     } else if (bIsHeader && lastTeamHeader >= Team.Free && lastTeamHeader<= Team.Spectator)
@@ -5417,10 +5417,10 @@ namespace JKWatcher
                         {
                             infoPool.playerInfo[iClientNum].session.team = lastTeamHeader;
                         }
-                        score.kills = commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
-                        score.deaths = commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                        score.kills += commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
+                        score.deaths += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                         score.score = score.kills;
-                        score.time = mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
+                        score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
                         string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
                         if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                         {
@@ -5428,7 +5428,7 @@ namespace JKWatcher
                         }
                         else
                         {
-                            score.ping = pingString.Atoi();
+                            score.ping += pingString.Atoi();
                         }
 
                     }
@@ -5561,31 +5561,31 @@ namespace JKWatcher
 
                     score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi(); // client num
                     score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
-                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
-                    score.time = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
+                    score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
+                    score.time += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
                     score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
                     powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
                     score.powerUps = powerups; // duplicated from entities?
                     infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
                     score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi(); // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
-                    score.impressiveCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
+                    score.impressiveCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
 
                     if (score.impressiveCount > 0)
                     {
                         anyRetCounts = true;
                     }
 
-                    score.excellentCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
+                    score.excellentCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
 
-                    score.guantletCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
-                    score.defendCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
-                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
+                    score.guantletCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
+                    score.defendCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
+                    score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
                     score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true; // means u never died and are highest rank. not that realistic/useful to us rly.
-                    score.captures = commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();  // captures
+                    score.captures += commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();  // captures
 
                     if (scoreboardOffset == 15)
                     {
-                        score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
+                        score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
                         score.deathsIsFilled = true;
                     }
                 } else
@@ -5593,13 +5593,13 @@ namespace JKWatcher
                     score.shortScoresMBII = true;
                     // Scores in MBII appear to be: ClientNum, Ping, Remaining Lives, Score, R, K, D, A, 1(not sure what)
                     score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                    score.ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                    score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
                     score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
                     score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
                     score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
-                    score.kills = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                    score.deaths = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                    score.assistCount = commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                    score.kills += commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                    score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                    score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
                     score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
                 }
                 infoPool.playerInfo[clientNum].session.lastScoreUpdated = DateTime.Now;

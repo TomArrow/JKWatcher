@@ -606,10 +606,113 @@ namespace JKWatcher
         public string g2Rating => $"{(int)this.session.chatCommandTrackingStuff.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}";
         public string g2RatingThisGame => $"{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
     }
+
+    public enum ResetValueMode { 
+        ResetOnSmaller,
+        ResetOn0
+    }
+
+
+    // Very silly?
+    public interface IOldNewValueCondition {
+        public bool ConditionTrue(int oldValue, int newValue);
+    }
+
+    public class ResetValueOnDecrease : IOldNewValueCondition
+    {
+        public bool ConditionTrue(int oldValue, int newValue)
+        {
+            return newValue < oldValue;
+        }
+    }
+    public class ResetValueOnZero : IOldNewValueCondition
+    {
+        public bool ConditionTrue(int oldValue, int newValue)
+        {
+            return newValue == 0;
+        }
+    }
+
+    // Basically we keep a sum of the previous values in addition to the current value,
+    // but only when we detect a "reset" which can be specified in more detail via IResetValueCondition
+    // e.g. if a value decreases that means it was reset, and thus we add the old value to the sum.
+    // A bit counter-intuitively, you can't use the assing operator but just use +=
+    //
+    // When IOldNewValueCondition returns true, new value is added to sum of old
+    //
+    // DON'T EVER CHANGE THIS FROM STRUCT TO CLASS!!!!!
+    public struct ConditionalResetValueSummer<T> where T : IOldNewValueCondition, new()
+    {
+        int value;
+        public int oldSum { get; private set; }
+
+        private static T resetValueCondition = new T();
+        public static ConditionalResetValueSummer<T> operator +(ConditionalResetValueSummer<T> a, int b)
+        {
+            if(resetValueCondition.ConditionTrue(a.value,b))
+            {
+                a.oldSum += a.value;
+            }
+            a.value = b;
+            return a;
+        }
+        public static implicit operator int(ConditionalResetValueSummer<T> a) => a.value;
+        public override string ToString()
+        {
+            return this.value.ToString();
+        }
+        public ConditionalResetValueSummer(int startValue)
+        {
+            value = startValue;
+            oldSum = 0;
+        }
+    }
+
+    public class AveragePositiveNon999 : IOldNewValueCondition
+    {
+        public bool ConditionTrue(int oldValue, int newValue)
+        {
+            return newValue >= 0 && newValue <= 999;
+        }
+    }
+    public struct ValueAverager<T> where T : IOldNewValueCondition, new()
+    {
+
+        int value;
+        Int64 total;
+        Int64 divider;
+        private static T addToAverageCondition = new T();
+        public static ValueAverager<T> operator +(ValueAverager<T> a, int b)
+        {
+            if (addToAverageCondition.ConditionTrue(a.value, b))
+            {
+                a.total += a;
+                a.divider++;
+            }
+            a.value = b;
+            return a;
+        }
+        public static implicit operator int(ValueAverager<T> a) => a.value;
+        public override string ToString()
+        {
+            return this.value.ToString();
+        }
+        public float? GetPreciseAverage()
+        {
+            if (divider == 0) return null;
+            return (float)((double)total / (double)divider);
+        }
+        public int? GetAverage()
+        {
+            if (divider == 0) return null;
+            return (int)(total / divider);
+        }
+    }
+
     public class PlayerScore : ICloneable
     {
         public volatile int client;
-        private volatile int _score = -9999;
+        private ConditionalResetValueSummer<ResetValueOnZero> _score = new ConditionalResetValueSummer<ResetValueOnZero>(-9999);
         public DateTime lastScoreValueChanged = DateTime.Now - new TimeSpan(1,0,0);
         public int score { 
             get {
@@ -620,11 +723,12 @@ namespace JKWatcher
                 {
                     lastScoreValueChanged = DateTime.Now;
                 }
-                _score = value;
+                _score += value;
             }
         }
-        public int ping { get; set; }
-        public int time { get; set; }
+        public int oldScoreSum => _score.oldSum;
+        public ValueAverager<AveragePositiveNon999> ping { get; set; }
+        public ConditionalResetValueSummer<ResetValueOnDecrease> time { get; set; }
         public float scorePerMinute { 
             get
             {
@@ -653,26 +757,26 @@ namespace JKWatcher
         public volatile int scoreFlags;
         public volatile int powerUps;
         public volatile int accuracy;
-        public int impressiveCount { get; set; } // rets?
-        public volatile int excellentCount;
-        public volatile int guantletCount;
-        public int defendCount { get; set; } // bc?
-        public volatile int assistCount;
-        public int captures { get; set; } // captures
+        public ConditionalResetValueSummer<ResetValueOnDecrease> impressiveCount { get; set; } // rets?
+        public ConditionalResetValueSummer<ResetValueOnDecrease> excellentCount;
+        public ConditionalResetValueSummer<ResetValueOnDecrease> guantletCount;
+        public ConditionalResetValueSummer<ResetValueOnDecrease> defendCount { get; set; } // bc?
+        public ConditionalResetValueSummer<ResetValueOnDecrease> assistCount;
+        public ConditionalResetValueSummer<ResetValueOnDecrease> captures { get; set; } // captures
 
         public volatile bool perfect;
         public volatile int team;
         public DateTime? lastNonZeroPing;
         public volatile int pingUpdatesSinceLastNonZeroPing;
 
-        public int deaths { get; set; } // times he got killed. Some JKA mods and some MOH gametypes send this.
+        public ConditionalResetValueSummer<ResetValueOnDecrease> deaths { get; set; } // times he got killed. Some JKA mods and some MOH gametypes send this.
         public volatile bool deathsIsFilled; // Indicate if killed value was sent
 
         // Special values only MB II uses.
         public volatile int mbIIrounds; // shows as "R" on scoreboard 
         public volatile int remainingLives; 
-        public volatile int kills; 
-        public volatile int totalKills; // MOHAA
+        public ConditionalResetValueSummer<ResetValueOnDecrease> kills; 
+        public ConditionalResetValueSummer<ResetValueOnDecrease> totalKills; // MOHAA
         public volatile int mbIImysteryValue; 
         public volatile bool shortScoresMBII; // Indicate if only 9 score info things were sent.
 
