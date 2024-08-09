@@ -25,6 +25,8 @@ namespace JKWatcher.RandomHelpers
     // TODO decision on which fields based on prefiltered (when count too high) not on all
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
 
+    // TODO highlight top time in defrag
+
     // TODO Defrag: runs: total, top 10, #1, total run time. map WRs, map top 10s. average deviation + per map
 
     // TODO more possible values that are mod specific?
@@ -474,7 +476,7 @@ namespace JKWatcher.RandomHelpers
                 entry.stats = kvp.Value;
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.realTeam = kvp.Value.playerSessInfo.team;
-                entry.score = kvp.Value.playerSessInfo.score.score;
+                entry.score = kvp.Value.playerSessInfo.score.score + kvp.Value.playerSessInfo.score.oldScoreSum;
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
@@ -555,7 +557,7 @@ namespace JKWatcher.RandomHelpers
                 entry.isStillActivePlayer = false;
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    if(pi.session == kvp.Key)
+                    if(pi.session == kvp.Key && pi.infoValid)
                     {
                         entry.isStillActivePlayer = true;
                         break;
@@ -841,15 +843,16 @@ namespace JKWatcher.RandomHelpers
                 }
             }
 
-            columns.Add(new ColumnInfo("PING", 0, 35, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }) { noAdvanceAfter=true });
-            columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { var avg = a.scoreCopy.ping.GetAverage(); return avg.HasValue ? $"^yfff8μ{avg}" : ""; }));
+            columns.Add(new ColumnInfo("PING", 0, 50, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }) { noAdvanceAfter=true });
+            //columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { var avg = a.scoreCopy.ping.GetAverage(); return avg.HasValue ? $"^yfff8μ{avg}" : ""; }));
+            columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { string meansd = a.scoreCopy.ping.GetMeanSDString(); return !string.IsNullOrEmpty(meansd) ? $"^yfff8{meansd}" : ""; }));
             columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.scoreCopy.time.ToString(); }) { noAdvanceAfter = true });
             columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => { var oldsum = a.scoreCopy.time.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
             if (anyValidGlicko2)
             {
                 //columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
-                columns.Add(new ColumnInfo("G2", 0, 50, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }) { noAdvanceAfter=true});
-                columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
+                columns.Add(new ColumnInfo("G2", 0, 35, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }) { noAdvanceAfter=true});
+                columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
             }
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 

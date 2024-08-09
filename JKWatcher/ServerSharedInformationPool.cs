@@ -607,11 +607,6 @@ namespace JKWatcher
         public string g2RatingThisGame => $"{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRating(true)}±{(int)this.session.chatCommandTrackingStuffThisGame.rating.GetRatingDeviation(true)}";
     }
 
-    public enum ResetValueMode { 
-        ResetOnSmaller,
-        ResetOn0
-    }
-
 
     // Very silly?
     public interface IOldNewValueCondition {
@@ -629,7 +624,7 @@ namespace JKWatcher
     {
         public bool ConditionTrue(int oldValue, int newValue)
         {
-            return newValue == 0;
+            return 0 < oldValue &&  newValue == 0;
         }
     }
 
@@ -681,13 +676,23 @@ namespace JKWatcher
         int value;
         Int64 total;
         Int64 divider;
+        double m2;
         private static T addToAverageCondition = new T();
         public static ValueAverager<T> operator +(ValueAverager<T> a, int b)
         {
             if (addToAverageCondition.ConditionTrue(a.value, b))
             {
-                a.total += a;
+                // very inefficient way of doing welford :) 
+                // but at least we keep the raw int values for total and divider.
+                double mean = a.divider == 0.0 ? 0.0 : (double)a.total / (double)a.divider;
+                double delta1 = (double)b - mean;
+                a.total += b;
                 a.divider++;
+
+                // Welford standard deviation stuff. don't ask me how/why it works, im just applying it.
+                mean = (double)a.total / (double)a.divider;
+                double delta2 = (double)b - mean;
+                a.m2 += delta1 * delta2;
             }
             a.value = b;
             return a;
@@ -697,15 +702,49 @@ namespace JKWatcher
         {
             return this.value.ToString();
         }
-        public float? GetPreciseAverage()
+        public double? GetPreciseAverage()
         {
             if (divider == 0) return null;
-            return (float)((double)total / (double)divider);
+            return (double)((double)total / (double)divider);
         }
         public int? GetAverage()
         {
             if (divider == 0) return null;
             return (int)(total / divider);
+        }
+        public double? GetStandardDeviation()
+        {
+            if (divider < 2) return null;
+            return Math.Sqrt(m2 / (double)divider);
+        }
+        // Mean + standar deviation
+        public string GetMeanSDString()
+        {
+            StringBuilder sb = new StringBuilder();
+            double? avg = this.GetPreciseAverage();
+            if (!avg.HasValue || double.IsNaN(avg.Value)) return "";
+            int roundedValue = (int)(Math.Round(avg.Value) + 0.5);
+            sb.Append($"μ{roundedValue}");
+            double? sd = this.GetStandardDeviation();
+            if (!sd.HasValue || double.IsNaN(sd.Value)) return sb.ToString();
+            roundedValue = (int)(Math.Round(sd.Value) + 0.5);
+            if (roundedValue == 0) return sb.ToString();
+            sb.Append($"σ{roundedValue}");
+            return sb.ToString();
+        }
+        // Mean + standar deviation
+        public string GetPreciseMeanSDString()
+        {
+            StringBuilder sb = new StringBuilder();
+            double? avg = this.GetPreciseAverage();
+            if (!avg.HasValue) return "";
+            sb.Append("μ");
+            sb.Append(avg.Value.ToString("0.##"));
+            double? sd = this.GetStandardDeviation();
+            if (!sd.HasValue || double.IsNaN(sd.Value)) return sb.ToString();
+            sb.Append("σ");
+            sb.Append(sd.Value.ToString("0.##"));
+            return sb.ToString();
         }
     }
 
