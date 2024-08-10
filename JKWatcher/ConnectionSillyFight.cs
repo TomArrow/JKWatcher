@@ -889,6 +889,9 @@ namespace JKWatcher
 				
 				if (vecToBoostPosition.Length() > Vector3.Distance(closestFriendPosition,myPosition) && closestFriendPosition.DistanceToLine(boostPosition, myPosition) < playerDiagonalHalf) goto skipboost; // we would run into this player trying to get his boost. not good.
 
+				Vector3 friendDirection = Vector3.Normalize(closestFriend.velocity);
+				if (Vector3.Dot(myself.velocity, friendDirection) < (closestFriend.velocity.Length() - 100.0f)) goto skipboost; // We would likely our friend
+
 				moveTargetPosition = boostPosition; 
 				moveTargetVelocity = closestFriend.velocity;
 				tryingBoost = true;
