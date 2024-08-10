@@ -477,17 +477,17 @@ namespace JKWatcher.RandomHelpers
                 entry.stats = kvp.Value;
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.realTeam = kvp.Value.playerSessInfo.team;
-                entry.score = kvp.Value.playerSessInfo.score.score + kvp.Value.playerSessInfo.score.oldScoreSum;
+                entry.score = kvp.Value.chatCommandTrackingStuff.score.score + kvp.Value.chatCommandTrackingStuff.score.oldScoreSum;
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.fightBot = kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
-                entry.scoreCopy = kvp.Value.playerSessInfo.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
-                if (entry.scoreCopy is null) entry.scoreCopy = kvp.Value.playerSessInfo.score; // idk why this should happen but lets be safe
+                entry.scoreCopy = kvp.Value.chatCommandTrackingStuff.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
+                if (entry.scoreCopy is null) entry.scoreCopy = kvp.Value.chatCommandTrackingStuff.score; // idk why this should happen but lets be safe
                 anyValidGlicko2 = anyValidGlicko2 || kvp.Value.chatCommandTrackingStuff.rating.GetNumberOfResults(true) > 0;
                 anyKillsLogged = anyKillsLogged || kvp.Value.chatCommandTrackingStuff.totalKills > 0 || kvp.Value.chatCommandTrackingStuff.totalDeaths > 0;
-                if (entry.team != Team.Spectator && kvp.Value.playerSessInfo.team == Team.Spectator && (entry.score <= 0 || kvp.Value.playerSessInfo.score.time == 0))
+                if (entry.team != Team.Spectator && kvp.Value.playerSessInfo.team == Team.Spectator && (entry.score <= 0 || kvp.Value.chatCommandTrackingStuff.score.time == 0))
                 {
                     // we do want to show anyone who played, but if someone just showed up as player while connecting or just auto-joined quickly at the start and promptly
                     // went spec, we don't wanna list him as a player of that match.
@@ -495,42 +495,42 @@ namespace JKWatcher.RandomHelpers
                     entry.team = Team.Spectator;
                 }
                 entry.teamScore = 0;
-                bool returnScoreValue = kvp.Value.chatCommandTrackingStuff.returns < kvp.Value.playerSessInfo.score.impressiveCount;
-                entry.returns = returnScoreValue ? kvp.Value.playerSessInfo.score.impressiveCount : kvp.Value.chatCommandTrackingStuff.returns;
-                entry.returnsOldSum = returnScoreValue ? kvp.Value.playerSessInfo.score.impressiveCount.oldSum : 0;
+                bool returnScoreValue = kvp.Value.chatCommandTrackingStuff.returns < kvp.Value.chatCommandTrackingStuff.score.impressiveCount;
+                entry.returns = returnScoreValue ? kvp.Value.chatCommandTrackingStuff.score.impressiveCount : kvp.Value.chatCommandTrackingStuff.returns;
+                entry.returnsOldSum = returnScoreValue ? kvp.Value.chatCommandTrackingStuff.score.impressiveCount.oldSum : 0;
                 if(entry.returns > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.RETURNS);
                 }
-                if(kvp.Value.playerSessInfo.score.captures > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.captures > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.CAPTURES);
                 }
-                if(kvp.Value.playerSessInfo.score.defendCount > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.defendCount > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.DEFEND);
                 }
-                if(kvp.Value.playerSessInfo.score.assistCount > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.assistCount > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.ASSIST);
                 }
-                if(kvp.Value.playerSessInfo.score.excellentCount > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.excellentCount > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.SPREEKILLS);
                 }
-                if(kvp.Value.playerSessInfo.score.accuracy > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.accuracy > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.ACCURACY);
                 }
-                if(kvp.Value.playerSessInfo.score.deaths > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.deaths > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.DEATHS);
                 }
-                if(kvp.Value.playerSessInfo.score.kills > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.kills > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.KILLS);
                 }
-                if(kvp.Value.playerSessInfo.score.totalKills > 0)
+                if(kvp.Value.chatCommandTrackingStuff.score.totalKills > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.TOTALKILLS);
                 }

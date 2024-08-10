@@ -134,7 +134,7 @@ namespace JKWatcher.CameraOperators
                 int matches = 0;
 
                 double timeSinceSpectatedPlayerUpdated = infoPool.playerInfo[spectatorToFollow].nwhSpectatedPlayerLastUpdate != null ? (DateTime.Now - infoPool.playerInfo[spectatorToFollow].nwhSpectatedPlayerLastUpdate.Value).TotalMilliseconds : double.PositiveInfinity;
-                DateTime? lastScoreUpdated = infoPool.playerInfo[spectatorToFollow].session.lastScoreUpdated;
+                DateTime? lastScoreUpdated = infoPool.playerInfo[spectatorToFollow].chatCommandTrackingStuff.lastScoreUpdated;
                 double timeSincePingUpdated = lastScoreUpdated != null ? (DateTime.Now - lastScoreUpdated.Value).TotalMilliseconds : double.PositiveInfinity;
 
                 if (timeSinceSpectatedPlayerUpdated < 10000.0) // Nwh specs info gets priority. Because it's more reliable overall.
@@ -148,7 +148,7 @@ namespace JKWatcher.CameraOperators
                     {
                         if (infoPool.playerInfo[i].infoValid && infoPool.playerInfo[i].team != Team.Spectator)
                         {
-                            if (infoPool.playerInfo[i].score.ping == infoPool.playerInfo[spectatorToFollow].session.spectatingScore.ping) // Write it out to have higher chance of temporal coherence? (if one is currently being updated and the other not yet). Not a full solution but worst case is we get the result wrong and it's fixed on the next frame.
+                            if (infoPool.playerInfo[i].scoreAll.ping == infoPool.playerInfo[spectatorToFollow].chatCommandTrackingStuff.spectatingScore.ping) // Write it out to have higher chance of temporal coherence? (if one is currently being updated and the other not yet). Not a full solution but worst case is we get the result wrong and it's fixed on the next frame.
                             {
                                 matches++;
                                 guyToFollow = i;

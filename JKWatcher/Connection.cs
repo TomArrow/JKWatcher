@@ -3039,7 +3039,7 @@ namespace JKWatcher
             if(currentPs.ClientNum >= 0 && currentPs.ClientNum < client.ClientHandler.MaxClients) // Dunno why it shouldnt be but i dont want any crashes.
             {
                 // Update the followed player's score in realtime.
-                infoPool.playerInfo[currentPs.ClientNum].score.score = currentPs.Persistant[(int)PersistantEnum.PERS_SCORE];
+                infoPool.playerInfo[currentPs.ClientNum].scoreAll.score = infoPool.playerInfo[currentPs.ClientNum].scoreThisGame.score = currentPs.Persistant[(int)PersistantEnum.PERS_SCORE];
             }
 
 
@@ -3338,7 +3338,7 @@ namespace JKWatcher
                         if (!player.lastFullPositionUpdate.HasValue || (DateTime.Now - player.lastFullPositionUpdate.Value).TotalMinutes > 5) continue; // Player is probably gone... but MOH failed to tell us :)
                         if (!player.IsAlive && (!player.lastAliveStatusUpdated.HasValue || (DateTime.Now - player.lastAliveStatusUpdated.Value).TotalSeconds < 10)) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
                         if (player.team == Team.Spectator) continue; // MOH is a difficult beast. We can't follow dead ppl or we get flipped away. To avoid an endless loop ... avoid players we KNOW were dead within last 10 seconds and of whom we don't have any confirmation of being alive
-                        if (player.score.ping >= 999) continue; 
+                        if (player.scoreAll.ping >= 999) continue; 
                         if (!player.infoValid || player.inactiveMOH) continue; // We can't rely on infovalid true to mean actually valid, but we can somewhat rely on not true to be invalid.
                         if (player.IsFrozen && mohFreezeTagDetected)
                         {
@@ -3354,17 +3354,17 @@ namespace JKWatcher
                         if(currentGameType > GameType.Team)
                         {
                             // Total kill count. We don't get death count here.
-                            currentScore = player.score.totalKills;
+                            currentScore = player.scoreAll.totalKills;
                         } else if(currentGameType > GameType.FFA)
                         {
                             // K/D
                             //currentScore = (float)player.score.kills/ Math.Max(1.0f,(float)player.score.deaths);
-                            currentScore = (float)(Math.Pow((double)player.score.kills,1.5)/ Math.Max(1.0,(double)player.score.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
+                            currentScore = (float)(Math.Pow((double)player.scoreAll.kills,1.5)/ Math.Max(1.0,(double)player.scoreAll.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
                         } else
                         {
                             // K/D
                             //currentScore = (float)player.score.kills / Math.Max(1.0f, (float)player.score.deaths);
-                            currentScore = (float)(Math.Pow((double)player.score.kills, 1.5) / Math.Max(1.0, (double)player.score.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
+                            currentScore = (float)(Math.Pow((double)player.scoreAll.kills, 1.5) / Math.Max(1.0, (double)player.scoreAll.deaths)); // Modified K/D with more emphasis on kills. 30/10 would be similar to 10/2 for example. We recognize that players can get lucky at the start of a game, and also that campers might get a better K/D but more boring gameplay. Nice side effect: At equal kill counts, this still behaves linearly when comparing two players, e.g. the player with only half the deaths will have 2x as good of a ratio.
                         }
                         if(currentScore > bestScore || preferredPlayer == player.clientNum)
                         {
@@ -3541,17 +3541,17 @@ namespace JKWatcher
                                 //&& (!playerIsVeryAfk(player.clientNum, false) || allowAFK)
                             )
                             {
-                                if (player.score.score > highestScore || highestScorePlayer.Count == 0)
+                                if (player.scoreAll.score > highestScore || highestScorePlayer.Count == 0)
                                 {
-                                    highestScore = player.score.score;
+                                    highestScore = player.scoreAll.score;
                                     //highestScorePlayer = player.clientNum;
                                     highestScorePlayer.Clear();
                                     highestScorePlayer.Add(player.clientNum);
-                                } else if (player.score.score == highestScore)
+                                } else if (player.scoreAll.score == highestScore)
                                 {
                                     highestScorePlayer.Add(player.clientNum);
                                 }
-                                int thisPlayerScoreTime = player.score.time;
+                                int thisPlayerScoreTime = player.scoreAll.time;
                                 if (thisPlayerScoreTime > 5) // we try to find the player with highest score ratio (score per time in game) if we can. but don't count people under 5 minutes, their values might not be statistically representative? Also avoid division by 0 that way
                                 {
                                     // Would be even cooler if we could remove afk time from the equation since that distorts the score/time ratio. 
@@ -3559,7 +3559,7 @@ namespace JKWatcher
                                     // For example we might act like someone is afk because we aren't seeing him but he's actually there.
                                     // Alternatively, we could just track confirmed afk time - player visible and afk. And subtract that?
                                     // Similarly to tracking total time visible for some other stats.
-                                    float thisPlayerScoreRatio = (float)player.score.score / (float)thisPlayerScoreTime;
+                                    float thisPlayerScoreRatio = (float)player.scoreAll.score / (float)thisPlayerScoreTime;
                                     if (thisPlayerScoreRatio > highestScoreRatio || highestScoreRatioPlayer.Count == 0)
                                     {
                                         highestScoreRatio = thisPlayerScoreRatio;
@@ -3628,11 +3628,11 @@ namespace JKWatcher
 
         private bool playerIsLikelyBot(int clientNumber)
         {
-            DateTime? lastNonZeroPing = infoPool.playerInfo[clientNumber].score.lastNonZeroPing;
+            DateTime? lastNonZeroPing = infoPool.playerInfo[clientNumber].scoreAll.lastNonZeroPing;
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
                 (infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
                 (!lastNonZeroPing.HasValue || (DateTime.Now - lastNonZeroPing.Value).TotalMilliseconds > 10000) 
-                && infoPool.playerInfo[clientNumber].score.pingUpdatesSinceLastNonZeroPing > 10);
+                && infoPool.playerInfo[clientNumber].scoreAll.pingUpdatesSinceLastNonZeroPing > 10);
         }
         private bool playerIsVeryAfk(int clientNumber, bool followed = false)
         {
@@ -3707,7 +3707,7 @@ namespace JKWatcher
             {
                 for (int i=0;i< maxClients; i++)
                 {
-                    infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+                    infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame,infoPool) { onlineSince = DateTime.Now };
                 }
                 for (int i=0;i< maxClients; i++)
                 {
@@ -3790,10 +3790,13 @@ namespace JKWatcher
                 resetAllFrozenStatus();
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    pi.score.score = 0; // Reset after map changes so we don't think about following timed out players who still have the old high score remembered.
-                    pi.score.totalKills += 0;
-                    pi.score.kills += 0;
-                    pi.score.deaths += 0;
+                    foreach(var tracker in pi.GetChatCommandTrackers())
+                    {
+                        tracker.score.score = 0; // Reset after map changes so we don't think about following timed out players who still have the old high score remembered.
+                        tracker.score.totalKills += 0;
+                        tracker.score.kills += 0;
+                        tracker.score.deaths += 0;
+                    }
                 }
             }
 
@@ -4051,7 +4054,7 @@ namespace JKWatcher
                                     && infoPool.playerInfo[i].lastValidPlayerData == thisPlayerID;
                                 if (!isReconnect)
                                 {
-                                    infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame,i); // resets everything session based: name, team, ratings, score, various stats etc
+                                    infoPool.playerInfo[i].session = new SessionPlayerInfo(infoPool.ratingCalculator, infoPool.ratingCalculatorThisGame,i,infoPool); // resets everything session based: name, team, ratings, score, various stats etc
                                     for (int p = 0; p < client.ClientHandler.MaxClients; p++)
                                     {
                                         infoPool.killTrackers[i, p] = new KillTracker();
@@ -5299,32 +5302,38 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
-                        PlayerScore score = infoPool.playerInfo[iClientNum].score;
-                        if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
-                        if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
-                        { // Freeze tag breaks the alive status in scoreboards for some reason
-                            infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
-                            infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
-                        }
-                        infoPool.playerInfo[iClientNum].session.team = realTeam;
-                        score.kills += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
-                        if(currentGameType > GameType.Team)
-                        {
-                            score.totalKills += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
-                            score.score = score.totalKills;
-                        } else
-                        {
-                            score.deaths += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
-                            score.score = score.kills;
-                        }
-                        score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
-                        string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
-                        if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                        foreach (var tracker in infoPool.playerInfo[iClientNum].GetChatCommandTrackers())
                         {
 
-                        } else
-                        {
-                            score.ping += pingString.Atoi();
+                            //PlayerScore score = infoPool.playerInfo[iClientNum].score;
+                            PlayerScore score = tracker.score;
+                            if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
+                            if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
+                            { // Freeze tag breaks the alive status in scoreboards for some reason
+                                infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                                infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
+                            }
+                            infoPool.playerInfo[iClientNum].session.team = realTeam;
+                            score.kills += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                            if(currentGameType > GameType.Team)
+                            {
+                                score.totalKills += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                                score.score = score.totalKills;
+                            } else
+                            {
+                                score.deaths += commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i).Atoi();
+                                score.score = score.kills;
+                            }
+                            score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
+                            string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
+                            if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                            {
+                                infoPool.playerInfo[iClientNum].session.confirmedBot = true;
+                            } else
+                            {
+                                infoPool.playerInfo[iClientNum].session.confirmedBot = false;
+                                score.ping += pingString.Atoi();
+                            }
                         }
 
                     } else if (bIsHeader && lastTeamHeader >= Team.Free && lastTeamHeader<= Team.Spectator)
@@ -5414,24 +5423,30 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog($"Retrieved scoreboard entry for player {iClientNum} but player {iClientNum}'s infoValid is false. Player name: {infoPool.playerInfo[iClientNum].name}. Setting to true.");
                         }
-                        PlayerScore score = infoPool.playerInfo[iClientNum].score;
-                        if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
-                        if ((int)lastTeamHeader != -1)
-                        {
-                            infoPool.playerInfo[iClientNum].session.team = lastTeamHeader;
-                        }
-                        score.kills += commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
-                        score.deaths += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
-                        score.score = score.kills;
-                        score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
-                        string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
-                        if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                        foreach (var tracker in infoPool.playerInfo[iClientNum].GetChatCommandTrackers())
                         {
 
-                        }
-                        else
-                        {
-                            score.ping += pingString.Atoi();
+                            //PlayerScore score = infoPool.playerInfo[iClientNum].score;
+                            PlayerScore score = tracker.score;
+                            if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
+                            if ((int)lastTeamHeader != -1)
+                            {
+                                infoPool.playerInfo[iClientNum].session.team = lastTeamHeader;
+                            }
+                            score.kills += commandEventArgs.Command.Argv(1 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.deaths += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
+                            score.score = score.kills;
+                            score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
+                            string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
+                            if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
+                            {
+                                infoPool.playerInfo[iClientNum].session.confirmedBot = true;
+                            }
+                            else
+                            {
+                                infoPool.playerInfo[iClientNum].session.confirmedBot = false;
+                                score.ping += pingString.Atoi();
+                            }
                         }
 
                     }
@@ -5554,90 +5569,100 @@ namespace JKWatcher
                 {
                     serverWindow.addToLog($"WARNING: Skipping score info for {clientNum} due to pendingPlayerSpectatorTeam[clientNum].",true);
                     playerIsLikelySpectator = true;
-                } 
-                PlayerScore score = playerIsLikelySpectator ? infoPool.playerInfo[clientNum].session.spectatingScore : infoPool.playerInfo[clientNum].session.score;
-                infoPool.playerInfo[clientNum].session.lastScoreWasSpectating = playerIsLikelySpectator;
-                score.deathsIsFilled = false;
-                if (!this.MBIIDetected) // Wtf is this i hear you say? MBII only has 9. And no, I have no idea which values are what for MBII anyway.
+                }
+                int trackerIndex = -1;
+                foreach (var tracker in infoPool.playerInfo[clientNum].GetChatCommandTrackers())
                 {
-                    score.shortScoresMBII = false;
+                    trackerIndex++;
 
-                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi(); // client num
-                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
-                    score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
-                    score.time += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
-                    score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
-                    powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                    score.powerUps = powerups; // duplicated from entities?
-                    infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
-                    score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi(); // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
-                    score.impressiveCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
-
-                    if (score.impressiveCount > 0)
+                    //PlayerScore score = playerIsLikelySpectator ? infoPool.playerInfo[clientNum].session.spectatingScore : infoPool.playerInfo[clientNum].session.score;
+                    PlayerScore score = playerIsLikelySpectator ? tracker.spectatingScore : tracker.score;
+                    tracker.lastScoreWasSpectating = playerIsLikelySpectator;
+                    score.deathsIsFilled = false;
+                    if (!this.MBIIDetected) // Wtf is this i hear you say? MBII only has 9. And no, I have no idea which values are what for MBII anyway.
                     {
-                        anyRetCounts = true;
+                        score.shortScoresMBII = false;
+
+                        score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi(); // client num
+                        score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
+                        score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
+                        score.time += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
+                        score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
+                        powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                        score.powerUps = powerups; // duplicated from entities?
+                        infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
+                        score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi(); // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
+                        score.impressiveCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
+
+                        if (score.impressiveCount > 0)
+                        {
+                            anyRetCounts = true;
+                        }
+
+                        score.excellentCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
+
+                        score.guantletCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
+                        score.defendCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
+                        score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
+                        score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true; // means u never died and are highest rank. not that realistic/useful to us rly.
+                        score.captures += commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();  // captures
+
+                        if (scoreboardOffset == 15)
+                        {
+                            score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
+                            score.deathsIsFilled = true;
+                        }
+                    } else
+                    {
+                        score.shortScoresMBII = true;
+                        // Scores in MBII appear to be: ClientNum, Ping, Remaining Lives, Score, R, K, D, A, 1(not sure what)
+                        score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
+                        score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                        score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                        score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
+                        score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
+                        score.kills += commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
+                        score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+                        score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
+                        score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
+                    }
+                    tracker.lastScoreUpdated = DateTime.Now;
+
+                    if(score.ping != 0)
+                    {
+                        score.lastNonZeroPing = DateTime.Now;
+                        score.pingUpdatesSinceLastNonZeroPing = 0;
+                    } else if(trackerIndex == 0)
+                    {
+                        score.pingUpdatesSinceLastNonZeroPing++;
+                    }
+                    if (infoPool.playerInfo[clientNum].team != Team.Spectator)
+                    {
+                        anyPlayersActive = true;
+                        if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (score.ping != 0 || score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                        {
+                            anyNonBotPlayerActive = true;
+                        }
                     }
 
-                    score.excellentCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
-
-                    score.guantletCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
-                    score.defendCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
-                    score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
-                    score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true; // means u never died and are highest rank. not that realistic/useful to us rly.
-                    score.captures += commandEventArgs.Command.Argv(i * scoreboardOffset + 17).Atoi();  // captures
-
-                    if (scoreboardOffset == 15)
+                    if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
-                        score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 18).Atoi();
-                        score.deathsIsFilled = true;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                     }
-                } else
-                {
-                    score.shortScoresMBII = true;
-                    // Scores in MBII appear to be: ClientNum, Ping, Remaining Lives, Score, R, K, D, A, 1(not sure what)
-                    score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi();
-                    score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
-                    score.remainingLives = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
-                    score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi();
-                    score.mbIIrounds = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi();
-                    score.kills += commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
-                    score.deaths += commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
-                    score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi();
-                    score.mbIImysteryValue = commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi();
-                }
-                infoPool.playerInfo[clientNum].session.lastScoreUpdated = DateTime.Now;
-
-                if(score.ping != 0)
-                {
-                    score.lastNonZeroPing = DateTime.Now;
-                    score.pingUpdatesSinceLastNonZeroPing = 0;
-                } else
-                {
-                    score.pingUpdatesSinceLastNonZeroPing++;
-                }
-                if (infoPool.playerInfo[clientNum].team != Team.Spectator)
-                {
-                    anyPlayersActive = true;
-                    if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (score.ping != 0 || score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                    else if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
-                        anyNonBotPlayerActive = true;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
+                        infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                     }
+
                 }
 
-                if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
-                {
-                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
-                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
-                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
-                    infoPool.teamInfo[(int)Team.Red].lastFlagCarrierUpdate = DateTime.Now;
-                }
-                else if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
-                {
-                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
-                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
-                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
-                    infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
-                }
+
 
                 // Serverside:
                 //cl->ps.persistant[PERS_SCORE], // score
@@ -5653,7 +5678,6 @@ namespace JKWatcher
                 //cl->ps.persistant[PERS_ASSIST_COUNT],  // assist count 
                 //perfect, // perfect count 
                 //cl->ps.persistant[PERS_CAPTURES] // captures
-
 
             }
 

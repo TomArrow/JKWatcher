@@ -314,7 +314,7 @@ namespace JKWatcher.CameraOperators
                             if (b != i && connections[b].client.playerStateClientNum == currentlySpeccedPlayer) othersFollowingSamePlayer++;
                         }
 
-                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].score.lastScoreValueChanged).TotalSeconds > 10 && othersFollowingSamePlayer > 0))
+                        if(activePlayers.Count() == 0 || connections[i].client.playerStateClientNum == connections[i].ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].scoreAll.score == 0 && (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].scoreAll.lastScoreValueChanged).TotalSeconds > 10 && othersFollowingSamePlayer > 0))
                         {
                             // We destroy the connection if there are no active players OR if it isn't spectating anyone anyway OR:
                             // Explanation for the velocity part:
@@ -414,7 +414,7 @@ namespace JKWatcher.CameraOperators
                     if (activeButUnfollowedPlayers.Count == 0 && !isIndex0 && destructionDelayMs < (DateTime.Now - lastFollowedPlayerChanges[myClientNum]).TotalMilliseconds)
                     {
                         // Safe to destroy. Don't destroy in middle of run.
-                        if (activePlayers.Count() == 0 || conn.client.playerStateClientNum == conn.ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].score.score == 0 && (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex || (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].score.lastScoreValueChanged).TotalSeconds > 10))) {
+                        if (activePlayers.Count() == 0 || conn.client.playerStateClientNum == conn.ClientNum || (infoPool.playerInfo[currentlySpeccedPlayer].velocity.Length() < 0.0000001f && infoPool.playerInfo[currentlySpeccedPlayer].scoreAll.score == 0 && (anyOtherConnectionBeenSpeccingLonger || anyOtherConnectionBeenSpeccingEquallyLongAndSmallerIndex || (DateTime.Now-infoPool.playerInfo[currentlySpeccedPlayer].scoreAll.lastScoreValueChanged).TotalSeconds > 10))) {
                             
                             connectionsToDestroyList.Enqueue(conn);
                         }

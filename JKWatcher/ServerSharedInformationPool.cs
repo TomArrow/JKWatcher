@@ -302,12 +302,26 @@ namespace JKWatcher
                 return killTypesReturns.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
             }
         }
-
-        public ChatCommandTrackingStuff(RatingCalculator ratingCalculator)
+        ServerSharedInformationPool infoPool;
+        public ChatCommandTrackingStuff(RatingCalculator ratingCalculator, ServerSharedInformationPool infoPoolA)
         {
+            infoPool = infoPoolA;
             rating = new Rating(ratingCalculator);
         }
         public Team LastNonSpectatorTeam { get; set; } = Team.Spectator; // xd
+
+
+        #region score
+        public PlayerScore score { get; set; } = new PlayerScore();
+        public PlayerScore spectatingScore { get; set; } = new PlayerScore(); // score data we receive for people on spectator team. can't really trust it. does not apply to MOH.
+
+        public bool lastScoreWasSpectating = false;
+
+        public DateTime? lastScoreUpdated;
+        #endregion
+
+        public int ProbableRetCount => (infoPool?.serverSeemsToSupportRetsCountScoreboard).GetValueOrDefault(true) ? this.score.impressiveCount : this.returns;
+
     }
 
     public struct PlayerIdentification
@@ -409,30 +423,25 @@ namespace JKWatcher
     {
 
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
-        #region score
-        public PlayerScore score { get; set; } = new PlayerScore();
-        public PlayerScore spectatingScore { get; set; } = new PlayerScore(); // score data we receive for people on spectator team. can't really trust it. does not apply to MOH.
-
-        public bool lastScoreWasSpectating = false;
-
+        
         public int clientNum { get; set; }
-        public DateTime? lastScoreUpdated;
-        #endregion
         public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
         public void ResetChatCommandTrackingStuff(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
         {
-            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator, infoPool);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame, infoPool);
         }
         public void ResetChatCommandTrackingStuffThisGame(RatingCalculator ratingCalculatorThisGame)
         {
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame, infoPool);
         }
-        public SessionPlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame,int clientNumA)
+        ServerSharedInformationPool infoPool;
+        public SessionPlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame,int clientNumA, ServerSharedInformationPool infoPoolA)
         {
-            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator);
-            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame);
+            infoPool = infoPoolA;
+            chatCommandTrackingStuff = new ChatCommandTrackingStuff(ratingCalculator,infoPool);
+            chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(ratingCalculatorThisGame, infoPool);
             clientNum = clientNumA;
         }
         static readonly Regex PadawanNameMatch = new Regex(@"^\s*Padawan\s*(?:[\(\[]\s*\d*[\)\]]\s*)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
@@ -507,8 +516,6 @@ namespace JKWatcher
     {
         public ServerSharedInformationPool infoPool { get; init; } = null;
 
-        public int ProbableRetCount => (infoPool?.serverSeemsToSupportRetsCountScoreboard).GetValueOrDefault(true) ? this.session.score.impressiveCount : this.session.chatCommandTrackingStuff.returns;
-
 
         public ChatCommandTrackingStuff chatCommandTrackingStuff => this.session.chatCommandTrackingStuff;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame => this.session.chatCommandTrackingStuffThisGame;
@@ -520,8 +527,9 @@ namespace JKWatcher
         public string name => this.session.name;
         public string model => this.session.model;
         public Team team => this.session.team;
-        public PlayerScore score => this.session.score;
-        public PlayerScore currentScore => this.session.lastScoreWasSpectating ? this.session.spectatingScore: this.session.score;
+        public PlayerScore scoreThisGame => this.chatCommandTrackingStuffThisGame.score;
+        public PlayerScore scoreAll => this.chatCommandTrackingStuff.score;
+        public PlayerScore currentScore => this.chatCommandTrackingStuff.lastScoreWasSpectating ? this.chatCommandTrackingStuff.spectatingScore: this.chatCommandTrackingStuff.score;
         public bool confirmedBot => this.session.confirmedBot;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
@@ -571,9 +579,10 @@ namespace JKWatcher
 
         public SessionPlayerInfo session = null;
 
-        public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame, int clientNumA)
+        public PlayerInfo(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame, int clientNumA, ServerSharedInformationPool infoPoolA)
         {
-            session = new SessionPlayerInfo(ratingCalculator, ratingCalculatorThisGame, clientNumA);
+            infoPool = infoPoolA;
+            session = new SessionPlayerInfo(ratingCalculator, ratingCalculatorThisGame, clientNumA, infoPool);
         }
 
         public AliveInfo lastAliveInfo = null;
@@ -999,7 +1008,7 @@ namespace JKWatcher
     public class IdentifiedPlayerStats {
         public SessionPlayerInfo playerSessInfo;
         public Rating rating => chatCommandTrackingStuff.rating;
-        public PlayerScore score => playerSessInfo.score;
+        public PlayerScore score => chatCommandTrackingStuff.score;
         public ChatCommandTrackingStuff chatCommandTrackingStuff => thisGame ? playerSessInfo.chatCommandTrackingStuffThisGame : playerSessInfo.chatCommandTrackingStuff;
         public DateTime lastSeenActive = DateTime.Now;
         public bool thisGame = false;
@@ -1099,14 +1108,17 @@ namespace JKWatcher
             }
         }
 
-        public int getProbableRetCount(int clientNum)
+        public int getProbableRetCount(int clientNum, bool thisGame = false) // TODO if thisgame==false should this return all rets of all time? hm
         {
             if(clientNum < 0 || clientNum > _maxClients)
             {
                 return 0;
+            } else if(thisGame)
+            {
+                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].chatCommandTrackingStuffThisGame.score.impressiveCount : this.playerInfo[clientNum].chatCommandTrackingStuffThisGame.returns;
             } else
             {
-                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].session.score.impressiveCount : this.playerInfo[clientNum].session.chatCommandTrackingStuff.returns;
+                return serverSeemsToSupportRetsCountScoreboard ? this.playerInfo[clientNum].chatCommandTrackingStuff.score.impressiveCount : this.playerInfo[clientNum].chatCommandTrackingStuff.returns;
             }
         }
 
@@ -1242,7 +1254,7 @@ namespace JKWatcher
 
             for (int i = 0; i < playerInfo.Length; i++)
             {
-                playerInfo[i] = new PlayerInfo(ratingCalculator,ratingCalculatorThisGame,i) { infoPool=this};
+                playerInfo[i] = new PlayerInfo(ratingCalculator,ratingCalculatorThisGame,i, this) ;
             }
             jkaMode = jkaModeA;
             if (jkaMode)
