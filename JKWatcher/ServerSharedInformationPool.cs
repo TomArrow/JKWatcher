@@ -663,6 +663,28 @@ namespace JKWatcher
             value = startValue;
             oldSum = 0;
         }
+        // Current value or sum
+        public string GetString1()
+        {
+            if(oldSum > 0)
+            {
+                return $"^yfff8∑^7{oldSum+value}";
+            } else
+            {
+                return value.ToString();
+            }
+        }
+        // Current value if sum exists or nothing
+        public string GetString2()
+        {
+            if(oldSum > 0)
+            {
+                return value.ToString();
+            } else
+            {
+                return "";
+            }
+        }
     }
 
     public class AveragePositiveNon999 : IOldNewValueCondition

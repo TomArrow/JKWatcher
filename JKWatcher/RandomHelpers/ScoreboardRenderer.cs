@@ -441,9 +441,9 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush brighterBGBrush = new SolidBrush(Color.FromArgb(bgAlpha / 4, 128, 128, 128));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
-        private static string block0(string input)
+        private static string block0(string input, string prefixIfUnblocked="")
         {
-            return input == "0" ? "" : input;
+            return input == "0" ? "" : $"{prefixIfUnblocked}{input}";
         }
 
         public static void DrawScoreboard(
@@ -720,32 +720,50 @@ namespace JKWatcher.RandomHelpers
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
             columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
-            columns.Add(new ColumnInfo("SCORE", 0, 50, normalFont, (a) => { return a.scoreCopy.score == -9999 ? "--" : a.scoreCopy.score.ToString(); }) { noAdvanceAfter=true});
-            columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { var oldsum = a.scoreCopy.oldScoreSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+            columns.Add(new ColumnInfo("SCORE", 0, 50, normalFont, (a) => { 
+                if(a.scoreCopy.oldScoreSum > 0)
+                {
+                    return a.scoreCopy.score == -9999 ? $"^yfff8∑^7{a.scoreCopy.oldScoreSum}" : $"^yfff8∑^7{a.scoreCopy.oldScoreSum+a.scoreCopy.score}";
+                }
+                else
+                {
+                    return a.scoreCopy.score == -9999 ? "--" : a.scoreCopy.score.ToString();
+                }
+            }) { noAdvanceAfter=true});
+            columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { var oldsum = a.scoreCopy.oldScoreSum; return oldsum > 0 ? (a.scoreCopy.score == -9999 ? "^yfff8--" : $"^yfff8{a.scoreCopy.score}") : ""; }));
             if ((foundFields & (1 << (int)ScoreFields.CAPTURES)) >0)
             {
-                columns.Add(new ColumnInfo("C", 0, 15, normalFont, (a) => { return block0(a.scoreCopy.captures.ToString()); }) { noAdvanceAfter = true });
-                columns.Add(new ColumnInfo("", 15, 15, tinyFont, (a) => { var oldsum = a.scoreCopy.captures.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+                columns.Add(new ColumnInfo("C", 0, 15, normalFont, (a) => { return block0(a.scoreCopy.captures.GetString1()); }) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 15, tinyFont, (a) => { return block0(a.scoreCopy.captures.GetString2(), "^yfff8"); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
-                columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { return block0(a.returns.ToString()); }) { noAdvanceAfter = true });
-                columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => { var oldsum = a.returnsOldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+                columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { 
+                    if (a.returnsOldSum > 0)
+                    {
+                        return $"^yfff8∑^7{a.returnsOldSum + a.returns}";
+                    }
+                    else
+                    {
+                        return block0(a.returns.ToString());
+                    }
+                }) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => {  return a.returnsOldSum > 0 ? block0(a.returns.ToString()) : ""; }));
             }
             if ((foundFields & (1 << (int)ScoreFields.DEFEND)) >0)
             {
-                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return block0(a.scoreCopy.defendCount.ToString()); }) { noAdvanceAfter = true });
-                columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => { var oldsum = a.scoreCopy.defendCount.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+                columns.Add(new ColumnInfo("BC", 0, 25, normalFont, (a) => { return block0(a.scoreCopy.defendCount.GetString1());  }) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => { return block0(a.scoreCopy.defendCount.GetString2(), "^yfff8"); ; }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ASSIST)) >0)
             {
-                columns.Add(new ColumnInfo("A", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.assistCount.ToString()); }) { noAdvanceAfter = true });
-                columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { var oldsum = a.scoreCopy.assistCount.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+                columns.Add(new ColumnInfo("A", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.assistCount.GetString1()); }) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { return block0(a.scoreCopy.assistCount.GetString2(), "^yfff8"); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
             {
-                columns.Add(new ColumnInfo("»", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.excellentCount.ToString()); }) { noAdvanceAfter = true });
-                columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { var oldsum = a.scoreCopy.excellentCount.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+                columns.Add(new ColumnInfo("»", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString1()); }) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString2(), "^yfff8"); }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
@@ -858,10 +876,9 @@ namespace JKWatcher.RandomHelpers
             }
 
             columns.Add(new ColumnInfo("PING", 0, 50, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }) { noAdvanceAfter=true });
-            //columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { var avg = a.scoreCopy.ping.GetAverage(); return avg.HasValue ? $"^yfff8μ{avg}" : ""; }));
             columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { string meansd = a.scoreCopy.ping.GetMeanSDString(); return !string.IsNullOrEmpty(meansd) ? $"^yfff8{meansd}" : ""; }));
-            columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.scoreCopy.time.ToString(); }) { noAdvanceAfter = true });
-            columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => { var oldsum = a.scoreCopy.time.oldSum; return oldsum > 0 ? $"+{oldsum}" : ""; }));
+            columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.scoreCopy.time.GetString1(); }) { noAdvanceAfter = true });
+            columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => { return $"^yfff8{a.scoreCopy.time.GetString2()}"; }));
             if (anyValidGlicko2)
             {
                 //columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
