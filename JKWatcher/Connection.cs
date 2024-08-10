@@ -4960,6 +4960,7 @@ namespace JKWatcher
                                 importantStatusChange = true;
                             }
                             pi.infoValid = false; // This might hit the wrong ppl too with duplicate names but oh well. We reset it to true other places if needed.
+                            pi.lastSeenValid = DateTime.Now;
                         }
                     }
                     if (importantStatusChange)

@@ -669,7 +669,7 @@ namespace JKWatcher
     {
         public bool ConditionTrue(int oldValue, int newValue)
         {
-            return newValue >= 0 && newValue <= 999;
+            return newValue >= 0 && newValue < 999;
         }
     }
     public struct ValueAverager<T> where T : IOldNewValueCondition, new()
