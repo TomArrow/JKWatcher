@@ -854,6 +854,7 @@ namespace JKWatcher
 			// Abstract this so we can decide to elegantly track something else than enemy player
 			Vector3 moveTargetPosition = closestPlayerPosition; // might not always be the enemy.
 			Vector3 moveTargetVelocity = closestPlayer.velocity; // might not always be the enemy.
+			float moveTargetInterceptFrontBuffer = 32.0f; // 32 units in front of target.
 
 			bool tryingBoost = false;
             if (closestFriend != null && closestDistance < 2000 && (
@@ -894,6 +895,7 @@ namespace JKWatcher
 
 				moveTargetPosition = boostPosition; 
 				moveTargetVelocity = closestFriend.velocity;
+				moveTargetInterceptFrontBuffer = 0; // We want to get EXACTLY to the boost point, not in front of it.
 				tryingBoost = true;
 			}
 			skipboost:
@@ -1372,7 +1374,7 @@ namespace JKWatcher
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
 					Vector2 hisPosThen = moveTargetPosition2D + moveTargetVelocity2D * (interceptTime+ (0.0f < infoPool.deluxePredict? 0.0f : halfPingInSeconds));
-					interceptPos = hisPosThen + Vector2.Normalize(moveTargetVelocity2D) * 32.0f; // Give it 100 units extra in that direction for ideal intercept.
+					interceptPos = hisPosThen + Vector2.Normalize(moveTargetVelocity2D) * moveTargetInterceptFrontBuffer; // Give it 32 //100 units extra in that direction for ideal intercept.
 					moveVector2d = (interceptPos - myPosition2DMaybePredicted);
 					if (moveVector2d.Length() <= mySpeed * interceptTime)
 					{
