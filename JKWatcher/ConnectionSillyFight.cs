@@ -16,6 +16,8 @@ using JKClient;
 using Client = JKClient.JKClient;
 
 
+// TODO when trying to go for boost, make  sure it doesnt mean going THROUGH your friend
+
 namespace JKWatcher
 {
 
@@ -862,26 +864,30 @@ namespace JKWatcher
 				)
             {
 				// maybe go for a boost
-				Vector3 friendToFoeVector = closestPlayerPosition - closestFriendPosition;
-				friendToFoeVector = Vector3.Normalize(friendToFoeVector);
+				Vector3 friendToFoeVectorNorm = closestPlayerPosition - closestFriendPosition;
+				friendToFoeVectorNorm = Vector3.Normalize(friendToFoeVectorNorm);
 
 				Vector3 friendForward, friendRight, friendUp;
 				AngleVectors(closestFriend.angles, out friendForward, out friendRight, out friendUp);
 
 				// hes moving and looking in a different direction. skip
-				if (Vector3.Dot(friendForward, friendToFoeVector) < 0 && Vector3.Dot(closestFriend.velocity, friendToFoeVector) < 0) goto skipboost;
+				if (Vector3.Dot(friendForward, friendToFoeVectorNorm) < 0 && Vector3.Dot(closestFriend.velocity, friendToFoeVectorNorm) < 0) goto skipboost;
 
 				// he's moving away from our desired target
-				if (Vector3.Dot(closestFriend.velocity, friendToFoeVector) < -300.0f) goto skipboost;
+				if (Vector3.Dot(closestFriend.velocity, friendToFoeVectorNorm) < -300.0f) goto skipboost;
 
 				//if ((DateTime.Now - closestFriend.lastSwing).TotalSeconds > 10.0f) goto skipboost;
 
-				Vector3 boostPosition = closestFriendPosition + 80.0f * friendToFoeVector;// 80 distance from boosting palyer seems a decent distance to get boosted
+				Vector3 boostPosition = closestFriendPosition + 80.0f * friendToFoeVectorNorm;// 80 distance from boosting palyer seems a decent distance to get boosted
 
-				Vector3 vecToBoostPosition = closestPlayerPosition - myPosition;
+				Vector3 vecToBoostPosition = boostPosition - myPosition;
 				Vector3 closestPlayerDirection = Vector3.Normalize(vecToClosestPlayer);
 
-				if (Vector3.Dot(vecToBoostPosition, vecToClosestPlayer) < -50) goto skipboost; // I'd need to move more than 30 units backwards to try and get a boost. not worth
+				if (Vector3.Dot(vecToBoostPosition, closestPlayerDirection) < -50) goto skipboost; // I'd need to move more than 30 units backwards to try and get a boost. not worth
+
+				const float playerDiagonalHalf = 25.0f; // not really precise, its actually 21.21 but let it have a bit of buffer, whatever.//(float)Math.Sqrt(15.0 * 15.0);
+				
+				if (vecToBoostPosition.Length() > Vector3.Distance(closestFriendPosition,myPosition) && closestFriendPosition.DistanceToLine(boostPosition, myPosition) < playerDiagonalHalf) goto skipboost; // we would run into this player trying to get his boost. not good.
 
 				moveTargetPosition = boostPosition; 
 				moveTargetVelocity = closestFriend.velocity;
