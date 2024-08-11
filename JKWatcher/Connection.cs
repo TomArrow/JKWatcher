@@ -4441,6 +4441,10 @@ namespace JKWatcher
                 {
                     allArgs.Append($"{commandEventArgs.MessageNum}: ");
                 }
+                else if(commandEventArgs.MessageNum == -1)
+                {
+                    allArgs.Append($"CLESS/GEN: ");
+                }
                 for (int i = 0; i < commandEventArgs.Command.Argc; i++)
                 {
                     if(mohMode && i == 1 && commandEventArgs.Command.Argv(0) == "print" && commandEventArgs.Command.Argv(1).Length > 0)
