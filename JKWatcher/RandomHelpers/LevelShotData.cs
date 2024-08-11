@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
@@ -40,7 +41,7 @@ namespace JKWatcher.RandomHelpers
         {
             return !me.Equals(other);
         }
-        public string GetIdentifierString()
+        public string GetIdentifierString(bool withZ)
         {
             using(MemoryStream ms = new MemoryStream())
             {
@@ -57,7 +58,14 @@ namespace JKWatcher.RandomHelpers
                 using (SHA512 sha512 = new SHA512Managed())
                 {
                     string hashString = BitConverter.ToString(sha512.ComputeHash(ms.ToArray())).Replace("-", "");
-                    hashString = $"z{zCompensationVersion}_{hashString}";
+                    if (withZ)
+                    {
+                        hashString = $"z{zCompensationVersion}_{hashString}";
+                    }
+                    else
+                    {
+                        hashString = $"noZ_{hashString}";
+                    }
                     return hashString.Length > 12 ? hashString.Substring(0, 12) : hashString;
                 }
             }
@@ -72,9 +80,14 @@ namespace JKWatcher.RandomHelpers
         public const int levelShotWidth = 1920;
         public const int levelShotHeight = 1080;
         public float[,,] data = new float[levelShotWidth, levelShotHeight, 3];
-        public DateTime lastSaved = DateTime.Now;
+
         public object lastSavedAndAccumTypeLock = new object();
+
+        public DateTime lastSaved = DateTime.Now;
         public UInt64 changesSinceLastSaved = 0;
+        public DateTime lastSavedAccum = DateTime.Now;
+        public UInt64 changesSinceLastSavedAccum = 0;
+
         public LevelShotAccumType accumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion };
         public DateTime lastReferenceAccumTypeReset = DateTime.Now - new TimeSpan(100,0,0);
         public DateTime lastRealAccumTypeReset = DateTime.Now - new TimeSpan(100,0,0);
@@ -106,7 +119,7 @@ namespace JKWatcher.RandomHelpers
         }
         // This is only really used for the z-compensated one that keeps getting combined. Idk if it will work. I hope. Really dirty tho.
         // Basically we really must make sure that the camera angles and z compensation algorithm haven't changed, otherwise combining makes little sense
-        public bool IsAccumTypeOkayMaybeReset(ref LevelShotAccumType accumTypeNew, string currentMapName, out LevelShotData preResetLevelShot)
+        public bool IsAccumTypeOkayMaybeReset(in LevelShotAccumType accumTypeNew, string currentMapName, out LevelShotData preResetLevelShot)
         {
             preResetLevelShot = null;
             lock (lastSavedAndAccumTypeLock)
@@ -317,5 +330,77 @@ namespace JKWatcher.RandomHelpers
                 return ms.ToArray();
             }
         }
+
+
+
+
+        private const float invGamma = 1f / 2.4f;
+        private const float invGamma5 = 1f / 5f;
+        private const float invGamma10 = 1f / 10f;
+        private static float above1To2SoftApproach(float value) // the result of this will approach 2 but never reach it. perfection
+        {
+            return (1.0f - 1.0f / (1f + (float)Math.Pow(value, 0.833333333333333333f))) * 2.0f; // dont ask me why exactly 0.83333. i just aligned the two derivatives in le graphing calculator :)
+        }
+
+        public static Bitmap ToBitmap(float[,,] levelshotDataLocal, uint skipLessThanPixelCount)
+        {
+            int width = levelshotDataLocal.GetLength(0);
+            int height = levelshotDataLocal.GetLength(1);
+
+            List<float> brightnessValuesList = new List<float>();
+
+            //double totalUsedPixelBrightness = 0;
+            double divider = 0;
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y, c];
+                        if (valueHere > 0.0f)
+                        {
+                            //totalUsedPixelBrightness += valueHere;
+                            divider++;
+                            brightnessValuesList.Add(valueHere);
+                        }
+                    }
+                }
+            }
+
+            if (divider < (double)skipLessThanPixelCount) return null;
+
+            //double averageBrightness = totalUsedPixelBrightness / divider;
+            //float multiplier = 1.0f/ (float)averageBrightness;
+            brightnessValuesList.Sort();
+            float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count / 2] : 1.0f;
+            float multiplier = 1.0f / (float)roughMedianBrightness;
+
+            Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            ByteImage bi = Helpers.BitmapToByteArray(bmp);
+            bmp.Dispose();
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y, c] * multiplier;
+                        //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                        float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
+                        byte byteValue = (byte)Math.Clamp(gammaValue * 255.0f * 0.5f, 0, 255.0f);
+                        int yInv = height - 1 - y;
+                        int xInv = width - 1 - x;
+                        bi.imageData[bi.stride * yInv + xInv * 3 + c] = byteValue;
+                    }
+                }
+            }
+            bmp = Helpers.ByteArrayToBitmap(bi);
+            return bmp;
+        }
+
+
+
     }
 }

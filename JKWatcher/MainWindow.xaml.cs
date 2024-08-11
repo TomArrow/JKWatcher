@@ -27,6 +27,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Shell;
 using JKWatcher.RandomHelpers;
 using System.Numerics;
+using System.Drawing;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -2360,5 +2361,71 @@ namespace JKWatcher
                 }, $"Intermission cam finding in file {filename}");
             }
         }
+
+        private void btnRenderStackedLevelShot_Click(object sender, RoutedEventArgs e)
+        {
+
+            try
+            { // just in case of some invalid directory or whatever
+
+                var ofd = new Microsoft.Win32.OpenFileDialog();
+                ofd.Filter = "TIFF images (.tif;.tiff)|*.tif;*.tiff";
+
+                //Directory.CreateDirectory(imagesSubDir);
+
+                string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images");
+                if (Directory.Exists(imagesSubDir))
+                {
+                    ofd.InitialDirectory = imagesSubDir;
+                }
+
+
+                if (ofd.ShowDialog() == true)
+                {
+                    string filename = ofd.FileName;
+
+                    TaskManager.TaskRun(() => {
+                        try
+                        {
+                            LevelShotData lsData = LevelShotData.FromTiff(File.ReadAllBytes(filename));
+                            string filenameString = System.IO.Path.GetFileNameWithoutExtension(filename) + "_RENDER_"+DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                            string imagesSubDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filename), "lsRender");
+                            Directory.CreateDirectory(imagesSubDir);
+                            Bitmap bmp = LevelShotData.ToBitmap(lsData.data,0);
+
+                            if (bmp is null) {
+
+                                Helpers.logToFile($"Error converting {filename} to levelshot: {e.ToString()}");
+                                return;
+                            }
+                            filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
+                            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+                            filenameString = Helpers.GetUnusedFilename(filenameString);
+
+                            bmp.Save(filenameString);
+                            bmp.Dispose();
+
+                            // Open it maybe :)
+                            using Process fileopener = new Process();
+                            fileopener.StartInfo.FileName = "explorer";
+                            fileopener.StartInfo.Arguments = $"\"{System.IO.Path.GetFullPath(filenameString)}\"";
+                            fileopener.Start();
+
+                        }
+                        catch(Exception e)
+                        {
+                            Helpers.logToFile($"Error doing manual levelshot render: {e.ToString()}");
+                        }
+                    }, $"Manual levelshot renderer {filename}");
+                }
+            }
+            catch (Exception e2)
+            {
+                Helpers.logToFile($"Error doing manual levelshot render (outer): {e.ToString()}");
+            }
+        }
+
+
+
     }
 }

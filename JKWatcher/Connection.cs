@@ -2117,29 +2117,41 @@ namespace JKWatcher
                     color *= LevelShotData.compensationMultipliers[posX, posY];
 
                     // bgr ordering.
-                    infoPool.levelShot.data[posX, posY, 0] += color.Z;
-                    infoPool.levelShot.data[posX, posY, 1] += color.Y;
-                    infoPool.levelShot.data[posX, posY, 2] += color.X;
+                    /**/
                     infoPool.levelShotThisGame.data[posX, posY, 0] += color.Z;
                     infoPool.levelShotThisGame.data[posX, posY, 1] += color.Y;
                     infoPool.levelShotThisGame.data[posX, posY, 2] += color.X;
-                    lock (infoPool.levelShot.lastSavedAndAccumTypeLock)
-                    {
-                        infoPool.levelShot.changesSinceLastSaved++;
-                    }
                     lock (infoPool.levelShotThisGame.lastSavedAndAccumTypeLock)
                     {
                         infoPool.levelShotThisGame.changesSinceLastSaved++;
                     }
+                    if (infoPool.levelShot.IsAccumTypeOkayMaybeReset(in levelshotAccumType, oldMapName, out LevelShotData maybeOld))
+                    {
+                        // let's stack the normal levelshot too. looks better on some maps, especially defrag (since start is heavily favored and no even distribution)
+                        if (maybeOld != null)
+                        {
+                            serverWindow.MaybeStackZCompLevelShot(maybeOld,false);
+                            serverWindow.SaveLevelshot(maybeOld, false,200,10,"_ACCUMTYPECHANGE");
+                        }
+                        infoPool.levelShot.data[posX, posY, 0] += color.Z;
+                        infoPool.levelShot.data[posX, posY, 1] += color.Y;
+                        infoPool.levelShot.data[posX, posY, 2] += color.X;
+                        lock (infoPool.levelShot.lastSavedAndAccumTypeLock)
+                        {
+                            infoPool.levelShot.changesSinceLastSaved++;
+                            infoPool.levelShot.changesSinceLastSavedAccum++;
+                        }
+                    }
+
                     if (!isBot)
                     {
                         // z compensated stuff that's stacked for infinity, adding state to a HDR tiff file etc.
                         // z compensation only looks good with ridiculously high amount of samples
-                        if (infoPool.levelShotZCompNoBot.IsAccumTypeOkayMaybeReset(ref levelshotAccumType, oldMapName ,out LevelShotData maybeOld))
+                        if (infoPool.levelShotZCompNoBot.IsAccumTypeOkayMaybeReset(in levelshotAccumType, oldMapName ,out LevelShotData maybeOldZ))
                         {
-                            if(maybeOld != null)
+                            if(maybeOldZ != null)
                             {
-                                serverWindow.MaybeStackZCompLevelShot(maybeOld);
+                                serverWindow.MaybeStackZCompLevelShot(maybeOldZ,true);
                             }
                             Vector4 modelSpaceOrigin = Vector4.Transform(pos, intermissionCamModelMatrix);
                             float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
@@ -2151,6 +2163,7 @@ namespace JKWatcher
                             lock (infoPool.levelShotZCompNoBot.lastSavedAndAccumTypeLock)
                             {
                                 infoPool.levelShotZCompNoBot.changesSinceLastSaved++;
+                                infoPool.levelShotZCompNoBot.changesSinceLastSavedAccum++;
                             }
                         }
                     }

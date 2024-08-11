@@ -808,7 +808,8 @@ namespace JKWatcher
             {
                 if(obj.MapName != lastMapName)
                 {
-                    MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
+                    MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot,true);
+                    MaybeStackZCompLevelShot(infoPool.levelShot, false);
                     SaveLevelshot(infoPool.levelShot, false, 200, 10.0,"_SI_MAPCHANGE");
                     infoPool.resetLevelShot(false, true);
                     if (lastMapName != null)
@@ -2495,7 +2496,8 @@ namespace JKWatcher
                 if (isDestroyed) return;
                 isDestroyed = true;
 
-                MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot);
+                MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot,true);
+                MaybeStackZCompLevelShot(infoPool.levelShot, false);
                 SaveLevelshot(infoPool.levelShot, false, 200, 10, "_CLOSEDOWN");
 
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
@@ -3171,7 +3173,7 @@ namespace JKWatcher
         }
         
         // This one doesn't clone the array. Make sure it's not in use anymore!
-        public void MaybeStackZCompLevelShot(LevelShotData levelshotData, bool zCompensated=true)
+        public void MaybeStackZCompLevelShot(LevelShotData levelshotData, bool zCompensated)
         {
             string tiffName = null;
             float[,,] lsData = null;
@@ -3179,7 +3181,7 @@ namespace JKWatcher
             {
                 // don't stack really tiny amounts of changes. 
                 LevelShotAccumType accumType = levelshotData.accumType;
-                if (!accumType.isRealValue || levelshotData.changesSinceLastSaved < 2000)
+                if (!accumType.isRealValue || levelshotData.changesSinceLastSavedAccum < 2000)
                 {
                     return;
                 }
@@ -3188,7 +3190,7 @@ namespace JKWatcher
                 {
                     return;
                 }
-                tiffName = $"{lsMapName.ToLowerInvariant()}_{accumType.GetIdentifierString()}";
+                tiffName = $"{lsMapName.ToLowerInvariant()}_{accumType.GetIdentifierString(zCompensated)}";
                 lsData = levelshotData.data;
 
                 // just do a soft reset here so we don't accidentally do this twice with the same image.
@@ -3196,13 +3198,13 @@ namespace JKWatcher
                 // just let the LevelShotData handle that on its own if something is drawn to it again. It will force a reset due to different mapname and accumtype.
                 levelshotData.mapname = null;
                 levelshotData.accumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion};
-                levelshotData.changesSinceLastSaved = 0;
+                levelshotData.changesSinceLastSavedAccum = 0;
 
             }
             TaskManager.TaskRun(() => {
 
                 int tries = 0;
-                while (!DoAccumShot(tiffName,lsData))
+                while (!DoAccumShot(tiffName,lsData, zCompensated))
                 {
                     tries++;
                     Helpers.logToFile($"Failed DoAccumShot (try {tries}/10)");
@@ -3216,7 +3218,7 @@ namespace JKWatcher
             }, $"Accum shot saver ({netAddress},{ServerName})");
         }
 
-        private bool DoAccumShot(string tiffName, float[,,] lsData)
+        private bool DoAccumShot(string tiffName, float[,,] lsData, bool zCompensated)
         {
             try
             {
@@ -3237,7 +3239,7 @@ namespace JKWatcher
                 {
 
                     System.Threading.Thread.Sleep(5000); // just to make sure previous use of the mutex wasnt so shortly ago thata the old file is still inaccessible. prolly not a real real issue but eh.
-                    string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "accumShots");
+                    string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", zCompensated ? "accumShots": "accumShotsNoZ");
                     Directory.CreateDirectory(imagesSubDir);
 
                     string filenameString = Helpers.MakeValidFileName(tiffName) + ".tiff";
@@ -3280,14 +3282,7 @@ namespace JKWatcher
             SaveLevelshot(infoPool.levelShot, true, 200, 10, "_BTNTG200");
         }
 
-        private float above1To2SoftApproach(float value) // the result of this will approach 2 but never reach it. perfection
-        {
-            return (1.0f-1.0f/(1f+(float)Math.Pow(value,0.833333333333333333f)))*2.0f; // dont ask me why exactly 0.83333. i just aligned the two derivatives in le graphing calculator :)
-        }
 
-        private const float invGamma = 1f / 2.4f;
-        private const float invGamma5 = 1f / 5f;
-        private const float invGamma10 = 1f / 10f;
         public void SaveLevelshot(LevelShotData levelshotData, bool thisGame, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0,string filenameAdd = null)
         {
             if (levelshotData is null) return;
@@ -3329,67 +3324,23 @@ namespace JKWatcher
 
             }, $"Levelshot saver ({netAddress},{ServerName})");
         }
+
+        
+
         public void SaveLevelshotReal(float[,,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString)
         {
-            int width = levelshotDataLocal.GetLength(0);
-            int height = levelshotDataLocal.GetLength(1);
 
-            List<float> brightnessValuesList = new List<float>();
-
-            //double totalUsedPixelBrightness = 0;
-            double divider = 0;
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    for (int c = 0; c < 3; c++)
-                    {
-                        float valueHere = levelshotDataLocal[x, y, c];
-                        if (valueHere > 0.0f)
-                        {
-                            //totalUsedPixelBrightness += valueHere;
-                            divider++;
-                            brightnessValuesList.Add(valueHere);
-                        }
-                    }
-                }
-            }
-
-            if (divider < (double)skipLessThanPixelCount) return;
-
-            //double averageBrightness = totalUsedPixelBrightness / divider;
-            //float multiplier = 1.0f/ (float)averageBrightness;
-            brightnessValuesList.Sort();
-            float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count / 2] : 1.0f;
-            float multiplier = 1.0f / (float)roughMedianBrightness;
-
-            Bitmap bmp = new Bitmap(width, height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-            ByteImage bi = Helpers.BitmapToByteArray(bmp);
-            bmp.Dispose();
-
-            for (int x = 0; x < width; x++)
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    for (int c = 0; c < 3; c++)
-                    {
-                        float valueHere = levelshotDataLocal[x, y, c] * multiplier;
-                        //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
-                        float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
-                        byte byteValue = (byte)Math.Clamp(gammaValue* 255.0f * 0.5f, 0, 255.0f);
-                        int yInv = height - 1 - y;
-                        int xInv = width - 1 - x;
-                        bi.imageData[bi.stride * yInv + xInv * 3 + c] = byteValue;
-                    }
-                }
-            }
-            bmp = Helpers.ByteArrayToBitmap(bi);
+            string baseFilename = filenameString;
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
             Directory.CreateDirectory(imagesSubDir);
-            string baseFilename = filenameString;
             filenameString = Helpers.MakeValidFileName(baseFilename) + ".png";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
             filenameString = Helpers.GetUnusedFilename(filenameString);
+
+            Bitmap bmp = LevelShotData.ToBitmap(levelshotDataLocal, skipLessThanPixelCount);
+
+            if (bmp is null) return;
+
             bmp.Save(filenameString);
 
 

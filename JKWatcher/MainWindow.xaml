@@ -191,6 +191,12 @@
                             <Button x:Name="btnFindIntermissionInFile" Click="btnFindIntermissionInFile_Click">Find file (.bsp/.pk3)</Button>
                         </StackPanel>
                     </GroupBox>
+                    <GroupBox Header="Levelshots">
+                        <StackPanel>
+
+                            <Button x:Name="btnRenderStackedLevelShot" Click="btnRenderStackedLevelShot_Click">Render stacked levelshot</Button>
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </TabItem>
         </TabControl>
