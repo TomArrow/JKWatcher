@@ -3723,6 +3723,8 @@ namespace JKWatcher
             infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
             infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
             infoPool.ratingsAndNamesThisGame.Clear();
+            lastThisGameReset = DateTime.Now;
+            infoPool.lastThisGameReset = DateTime.Now;
         }
 
         private void resetAllFrozenStatus()
@@ -3746,12 +3748,15 @@ namespace JKWatcher
 
         int thisGameRatingCommitCount = 0;
 
-        DateTime lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
+        DateTime lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now; // intermission cam related
+        DateTime lastThisGameReset = DateTime.Now; // for checking if someone should be on scoreboard if disconnected long ago and too many entries
 
         int csPlayers = 9999999;
 
+        bool firstGamestateConnectionReceived = false;
+
         // Update player list
-        private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
+        private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState, bool firstGamestateClient) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
             csPlayers = this.client.GetMappedConfigstringNumber(ClientGame.Configstring.Players).GetValueOrDefault(9999999);
 
@@ -3853,14 +3858,21 @@ namespace JKWatcher
             {
                 lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
             }
-            if(obj.MapName != oldMapName)
+            // is gamestate and not the first we got. (on first we dont reset because it could be a new connection added to existing connections)
+            // basically, make sure that this gamestate came due to a mapchange/reset and not from making a fresh connection
+            if (newGameState && !firstGamestateClient && firstGamestateConnectionReceived ||  
+                // map change
+                obj.MapName != oldMapName )
             {
                 if (!string.IsNullOrWhiteSpace(oldMapName))
                 {
-                    // Only do these in case we didn't just spawn a new connection (which also causes a "map change")
+                    // Only do these in case we didn't just spawn a new connection (which also causes a "map change" and gamestate)
                     resetAllFrozenStatus();
                     resetThisGameStats();
                 }
+            }
+            if(obj.MapName != oldMapName)
+            {
                 intermissionCamSet = false;
                 intermissionCamTrueIntermission = false;
                 executeMapChangeCommands = true;
@@ -4248,6 +4260,11 @@ namespace JKWatcher
             oldClientInfo = (ClientInfo[])client.ClientInfo.Clone();
 
             snapsEnforcementUpdate();
+
+            if (newGameState)
+            {
+                firstGamestateConnectionReceived = true;
+            }
         }
 
         private void Browser_InternalTaskStarted(object sender, in Task task, string description)

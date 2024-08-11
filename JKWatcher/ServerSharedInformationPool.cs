@@ -1093,6 +1093,8 @@ namespace JKWatcher
         public LevelShotData levelShotZCompNoBot = new LevelShotData();
         public LevelShotData levelShotThisGame = new LevelShotData();
 
+        public DateTime lastThisGameReset = DateTime.Now - new TimeSpan(0, 1, 0);
+
         // we do this with sqlite instead
         //public AveragingDictionary<string> averageMapTimes = new AveragingDictionary<string>();
 

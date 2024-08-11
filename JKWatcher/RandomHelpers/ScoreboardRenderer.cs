@@ -28,6 +28,10 @@ namespace JKWatcher.RandomHelpers
     // TODO highlight top time in defrag
     // TODO what a re values when connecting/laoding map?
 
+    // TODO on map change: prioritize players who have left before the previous mapchange?
+
+    // TODO defrag: after WR and maybe top10, order by best average times on maps? or best best times?
+
     // TODO Defrag: runs: total, top 10, #1, total run time. map WRs, map top 10s. average deviation + per map
 
     // TODO more possible values that are mod specific?
@@ -105,6 +109,7 @@ namespace JKWatcher.RandomHelpers
         // since the player session data could be changed while we are sorting,
         // sorting might throw an exception, so we first create copies of the sort-relevant data.
         public bool isStillActivePlayer;
+        public bool activeSinceLastThisGameReset;
         public Team team;
         public Team realTeam;
         public int score;
@@ -185,7 +190,12 @@ namespace JKWatcher.RandomHelpers
 
             if(a.isStillActivePlayer != b.isStillActivePlayer)
             {
-                return bSpec.CompareTo(aSpec); // disconnected players also gonna have lower rank
+                return b.isStillActivePlayer.CompareTo(a.isStillActivePlayer); // disconnected players also gonna have lower rank
+            }
+
+            if(a.activeSinceLastThisGameReset != b.activeSinceLastThisGameReset)
+            {
+                return b.activeSinceLastThisGameReset.CompareTo(a.activeSinceLastThisGameReset); // players who disconnected before last thisgame reset (like map_restart/gamestate/mapchange) gonna have lower rank
             }
 
             int aScore = a.score;
@@ -565,9 +575,10 @@ namespace JKWatcher.RandomHelpers
                     }
                 }
                 entry.lastSeen = kvp.Value.lastSeenActive;
+                entry.activeSinceLastThisGameReset = entry.lastSeen > infoPool.lastThisGameReset;
 
                 // keep track of all defrag maps that we have runs of
-                foreach(var dt in kvp.Value.chatCommandTrackingStuff.defragMapsRun)
+                foreach (var dt in kvp.Value.chatCommandTrackingStuff.defragMapsRun)
                 {
                     if (!defragBestTimesPlayerCount.ContainsKey(dt.Key))
                     {
