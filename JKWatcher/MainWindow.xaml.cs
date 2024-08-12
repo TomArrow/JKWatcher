@@ -2425,7 +2425,110 @@ namespace JKWatcher
             }
         }
 
+        private void btnRenderStackedMultipleLevelShot_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            { // just in case of some invalid directory or whatever
+
+                var ofd = new Microsoft.Win32.OpenFileDialog();
+                ofd.Filter = "TIFF images (.tif;.tiff)|*.tif;*.tiff";
+                ofd.Multiselect = true;
+
+                string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images");
+                if (Directory.Exists(imagesSubDir))
+                {
+                    ofd.InitialDirectory = imagesSubDir;
+                }
+
+                List<string> sourceFiles = new List<string>();
+
+                while (ofd.ShowDialog() == true)
+                {
+                    sourceFiles.AddRange(ofd.FileNames);
+                }
+
+                if (sourceFiles.Count == 0) return;
+                if (sourceFiles.Count == 1)
+                {
+                    MessageBox.Show("Please select at leaast 2 files for multistack. Aborting.");
+                    return;
+                }
+
+                //Directory.CreateDirectory(imagesSubDir);
+                List<string> finalFileParts = new List<string>();
+                foreach(string sourceFile in sourceFiles)
+                {
+                    string clean = System.IO.Path.GetFileNameWithoutExtension(sourceFile);
+                    if(clean.Length > 0)
+                    {
+                        int lastLetter = clean.Length - 1;
+                        while(lastLetter > 0 && clean[lastLetter] >= '0' && clean[lastLetter] <= '9'|| clean[lastLetter] >= 'A' && clean[lastLetter] <= 'F'|| clean[lastLetter] >= 'a' && clean[lastLetter] <= 'f')
+                        {
+                            lastLetter--;
+                        }
+                        if(clean[lastLetter] == '_')
+                        {
+                            clean = clean.Substring(0,lastLetter);
+                        }
+                        finalFileParts.Add(clean);
+                    }
+                }
+
+                string outFile = finalFileParts.Count == 0 ? "multiStack" : string.Join('_', finalFileParts);
+
+                if(outFile.Length > 150)
+                {
+                    outFile = $"{outFile.Substring(0, 150)}[toolong]";
+                }
+
+                TaskManager.TaskRun(() => {
+                    try
+                    {
+                        LevelShotData lsData = LevelShotData.FromTiff(File.ReadAllBytes(sourceFiles[0]));
+
+                        for(int i=1;i<sourceFiles.Count;i++)
+                        {
+                            LevelShotData lsData2 = LevelShotData.FromTiff(File.ReadAllBytes(sourceFiles[i]));
+                            LevelShotData.SumData(lsData.data, lsData2.data);
+                        }
+
+                        string filenameString = System.IO.Path.GetFileNameWithoutExtension(outFile) + "_RENDER_" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+                        string imagesSubDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(sourceFiles[0]), "lsRender");
+                        Directory.CreateDirectory(imagesSubDir);
+                        Bitmap bmp = LevelShotData.ToBitmap(lsData.data, 0);
+
+                        if (bmp is null)
+                        {
+
+                            Helpers.logToFile($"Error converting stacked levelshot {outFile} to bitmap: {e.ToString()}");
+                            return;
+                        }
+                        filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
+                        filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+                        filenameString = Helpers.GetUnusedFilename(filenameString);
+
+                        bmp.Save(filenameString);
+                        bmp.Dispose();
+
+                        // Open it maybe :)
+                        using Process fileopener = new Process();
+                        fileopener.StartInfo.FileName = "explorer";
+                        fileopener.StartInfo.Arguments = $"\"{System.IO.Path.GetFullPath(filenameString)}\"";
+                        fileopener.Start();
+
+                    }
+                    catch (Exception e)
+                    {
+                        Helpers.logToFile($"Error doing manual levelshot render: {e.ToString()}");
+                    }
+                }, $"Manual levelshot multi-stack renderer {outFile}");
 
 
+            }
+            catch (Exception e2)
+            {
+                Helpers.logToFile($"Error doing manual levelshot render (outer): {e.ToString()}");
+            }
+        }
     }
 }
