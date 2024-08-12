@@ -3936,6 +3936,18 @@ namespace JKWatcher
 
                         if(mvHttpDownloadInfo == null)
                         {
+
+                            InfoString serverInfo = new InfoString(client.GetMappedConfigstring(ClientGame.Configstring.ServerInfo));
+                            if (serverInfo.ContainsKey("g_dlURL"))
+                            {
+                                MvHttpDownloadInfo tmpDLInfo = new MvHttpDownloadInfo();
+                                tmpDLInfo.httpIsAvailable = true;
+                                tmpDLInfo.urlPrefix = serverInfo["g_dlURL"];
+                                serverWindow.addToLog($"Http downloads possible (g_dlURL) via possibly external url: {tmpDLInfo.urlPrefix}");
+                                mvHttpDownloadInfo = tmpDLInfo;
+                                goto httpoptionfound;
+                            } 
+
                             // Let's get server info packet.
                             using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(obj.Protocol)) { ForceStatus = true })
                             {
@@ -3973,7 +3985,7 @@ namespace JKWatcher
                                 {
                                     tmpDLInfo.httpIsAvailable = true;
                                     tmpDLInfo.urlPrefix = infoString["mvhttpurl"];
-                                    serverWindow.addToLog($"Http downloads possible via possibly external url: {tmpDLInfo.urlPrefix}");
+                                    serverWindow.addToLog($"Http downloads possible (mvhttpurl) via possibly external url: {tmpDLInfo.urlPrefix}");
                                 } else
                                 {
                                     tmpDLInfo.httpIsAvailable = false; 
@@ -3985,9 +3997,11 @@ namespace JKWatcher
                                 browser.Stop();
                                 browser.InternalTaskStarted -= Browser_InternalTaskStarted;
                             }
-                        }
 
-                        if(mvHttpDownloadInfo != null && mvHttpDownloadInfo.Value.httpIsAvailable)
+                        }
+                        httpoptionfound:
+
+                        if (mvHttpDownloadInfo != null && mvHttpDownloadInfo.Value.httpIsAvailable)
                         {
 
                             List<string> downloadLinks = new List<string>();
@@ -4333,7 +4347,7 @@ namespace JKWatcher
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
-        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats" };
+        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats", "kls" };
 
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
