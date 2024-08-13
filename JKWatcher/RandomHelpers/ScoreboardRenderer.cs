@@ -24,6 +24,7 @@ namespace JKWatcher.RandomHelpers
     // TODO dynamic sizes for all fields?
     // TODO decision on which fields based on prefiltered (when count too high) not on all
     // TODO icons for special stuff like perfect or whatever? idk wanted it for something else too but forgot.
+    // TODO parse g_printstats for extra thisgame info
 
     // TODO highlight top time in defrag
     // TODO what a re values when connecting/laoding map?
@@ -31,6 +32,8 @@ namespace JKWatcher.RandomHelpers
     // TODO on map change: prioritize players who have left before the previous mapchange?
 
     // TODO defrag: after WR and maybe top10, order by best average times on maps? or best best times?
+    // TODO flaghold/longest flaghold. 
+    // TODO ctf pauses fuck up time
 
     // TODO Defrag: runs: total, top 10, #1, total run time. map WRs, map top 10s. average deviation + per map
 

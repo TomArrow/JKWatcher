@@ -31,6 +31,7 @@ namespace JKWatcher
 		public bool recordHolderIsUserName { get; set; } = false;
 		public Int64 unloggedRecord { get; set; } = Int64.MaxValue;
 		public string unloggedRecordHolder { get; set; } = null;
+		public Int64 top10timesAveragedBitmask { get; set; } = 0; // which of the hisorical top 10 times were already added as samples to the average. so we get a nice average even for maps that weren't recently played
 
 		public void SetLoggedUserNameRecord(string username, int milliseconds)
         {
@@ -49,6 +50,15 @@ namespace JKWatcher
 				}
 			}
 		}
+		public void MaybeAddTop10TimeToAverage(int milliseconds, int rank)
+        {
+            if ((top10timesAveragedBitmask & (1L<<rank))==0)
+            {
+				top10timesAveragedBitmask |= (1L << rank);
+				AddSample(milliseconds);
+			}
+        }
+
 		public void LogTime(string player, int milliseconds, bool logged, bool isNumber1)
         {
             lock (recordLock)

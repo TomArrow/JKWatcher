@@ -63,7 +63,8 @@ namespace JKWatcher.CameraOperators
             int milliseconds = OCDTimeStringToMilliseconds(match.Groups["min"].Value, match.Groups["sec"].Value);
             int rank = match.Groups["num"].Value.Atoi();
             string username  = match.Groups["name"].Value;
-            if (rank != 1) return true;
+
+
 
 
             string mapname = this.connections[0].GetMapName();
@@ -75,6 +76,10 @@ namespace JKWatcher.CameraOperators
                 maptime = new DefragAverageMapTime(mapname);
                 AsyncPersistentDataManager<DefragAverageMapTime>.addItem(maptime);
             }
+            maptime.MaybeAddTop10TimeToAverage(milliseconds, rank);
+
+            if (rank != 1) return true;
+
             maptime.SetLoggedUserNameRecord(username, milliseconds);
 
             return true;

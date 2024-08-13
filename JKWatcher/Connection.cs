@@ -3628,7 +3628,7 @@ namespace JKWatcher
                     }
                     if (infoPool.ratingsAndNamesThisGame.TryGetValue(pi.session, out IdentifiedPlayerStats val2))
                     {
-                        val.UpdateValid();
+                        val2.UpdateValid();
                     }
                     //infoPool.ratingsAndNames[pi.chatCommandTrackingStuff.rating].lastSeenActive = DateTime.Now;
                     //infoPool.ratingsAndNamesThisGame[pi.chatCommandTrackingStuffThisGame.rating].lastSeenActive = DateTime.Now;
