@@ -221,6 +221,21 @@ namespace JKWatcher
 
             executingTxt.DataContext = this;
             SpawnArchiveScript();
+            this.Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            var tasks = TaskManager.GetRunningTasks();
+            foreach(var task in tasks)
+            {
+                if (task.essential)
+                {
+                    e.Cancel = true;
+                    MessageBox.Show($"Cannot close main window yet. Essential task {task.taskName} is still running.");
+                    return;
+                }
+            }
         }
 
         private void SunsNotificationClient_sunsNotificationReceived(object sender, NotificationEventArgs e)

@@ -3215,7 +3215,7 @@ namespace JKWatcher
                     }
                 }
 
-            }, $"Accum shot saver ({netAddress},{ServerName})");
+            }, $"Accum shot saver ({netAddress},{ServerName})",true);
         }
 
         private bool DoAccumShot(string tiffName, float[,,] lsData, bool zCompensated)
@@ -3322,7 +3322,7 @@ namespace JKWatcher
                     addToLog($"Error saving levelshot: {ex.ToString()}", true);
                 }
 
-            }, $"Levelshot saver ({netAddress},{ServerName})");
+            }, $"Levelshot saver ({netAddress},{ServerName})", true);
         }
 
         

@@ -15,6 +15,7 @@ namespace JKWatcher
             public string taskName { get; init; }
             public UInt64 taskNum { get; init; }
             public DateTime startTime { get; init; } = DateTime.Now;
+            public bool essential { get; init; } = false;
             public Task task { get; init; }
         }
 
@@ -23,7 +24,7 @@ namespace JKWatcher
 
         private static List<RunningTask> runningTasks = new List<RunningTask> ();
 
-        public static UInt64 RegisterTask(Task task, string taskName)
+        public static UInt64 RegisterTask(Task task, string taskName, bool essential=false)
         {
             while (task is Task<Task>)
             {
@@ -38,7 +39,7 @@ namespace JKWatcher
 
             RunningTask runningTask = new RunningTask()
             { 
-                taskName = taskName, taskNum = taskNum, task= task
+                taskName = taskName, taskNum = taskNum, task= task, essential = essential
             };
 
             lock (runningTasks)
@@ -67,24 +68,24 @@ namespace JKWatcher
             }
         }
 
-        public static Task TaskRun(Action action, string taskName)
+        public static Task TaskRun(Action action, string taskName, bool essential = false)
         {
             Task task = Task.Run(action);
             while (task is Task<Task>)
             {
                 task = (task as Task<Task>).Unwrap();
             }
-            RegisterTask(task,taskName);
+            RegisterTask(task,taskName,essential);
             return task;
         }
-        public static Task TaskRun(Func<Task> action, string taskName)
+        public static Task TaskRun(Func<Task> action, string taskName, bool essential = false)
         {
             Task task = action();
             while (task is Task<Task>)
             {
                 task = (task as Task<Task>).Unwrap();
             }
-            RegisterTask(task,taskName);
+            RegisterTask(task,taskName, essential);
             return task;
         }
 
