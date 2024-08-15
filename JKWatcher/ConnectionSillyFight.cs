@@ -869,7 +869,7 @@ namespace JKWatcher
 				friendToFoeVectorNorm = Vector3.Normalize(friendToFoeVectorNorm);
 
 				Vector3 friendForward, friendRight, friendUp;
-				AngleVectors(closestFriend.angles, out friendForward, out friendRight, out friendUp);
+				Q3MathStuff.AngleVectors(closestFriend.angles, out friendForward, out friendRight, out friendUp);
 
 				// hes moving and looking in a different direction. skip
 				if (Vector3.Dot(friendForward, friendToFoeVectorNorm) < 0 && Vector3.Dot(closestFriend.velocity, friendToFoeVectorNorm) < 0) goto skipboost;
@@ -2152,31 +2152,7 @@ namespace JKWatcher
 		}
 
 
-		public static void AngleVectors( Vector3 angles, out Vector3 forward, out Vector3 right, out Vector3 up) {
-			float angle;
-			float sr, sp, sy, cr, cp, cy;
-			// static to help MS compiler fp bugs
-
-			angle = angles.Y * ((float)Math.PI*2f / 360f);
-			sy = (float)Math.Sin(angle);
-			cy = (float)Math.Cos(angle);
-			angle = angles.X * ((float)Math.PI * 2f / 360f);
-			sp = (float)Math.Sin(angle);
-			cp = (float)Math.Cos(angle);
-			angle = angles.Z * ((float)Math.PI * 2f / 360f);
-			sr = (float)Math.Sin(angle);
-			cr = (float)Math.Cos(angle);
-
-			forward.X = cp* cy;
-			forward.Y = cp* sy;
-			forward.Z = -sp;
-			right.X = (-1* sr* sp* cy+-1* cr*-sy);
-			right.Y = (-1* sr* sp* sy+-1* cr* cy);
-			right.Z = -1* sr* cp;
-			up.X = (cr * sp * cy + -sr * -sy);
-			up.Y = (cr * sp * sy + -sr * cy);
-			up.Z = cr * cp;
-		}
+		
 
 
 		// UserCommand input is for the movement dirs.

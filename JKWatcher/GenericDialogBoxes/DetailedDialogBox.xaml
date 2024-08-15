@@ -29,8 +29,8 @@
         <TextBox Grid.Row="2" IsReadOnly="True" MinWidth="500" TextWrapping="Wrap" MaxWidth="800" MaxHeight="300" ScrollViewer.CanContentScroll="True" AcceptsReturn="True" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto" d:MaxHeight="100"  Text="{Binding QuestionText}" d:Text="Explanation">
         </TextBox>
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Button x:Name="yesBtn" Click="yesBtn_Click">Yes</Button>
-            <Button x:Name="noBtn" Click="noBtn_Click">No</Button>
+            <Button x:Name="yesBtn" Click="yesBtn_Click"  Content="{Binding YesBtnText}"></Button>
+            <Button x:Name="noBtn" Click="noBtn_Click"  Content="{Binding NoBtnText}"></Button>
             <Button x:Name="okBtn" Content="{Binding OkBtnText}" Click="okBtn_Click" Visibility="{Binding OkBtnVisibility}"></Button>
             <Button x:Name="cancelBtn" IsDefault="True" Content="{Binding CancelBtnText}" Click="cancelBtn_Click"  Visibility="{Binding CancelBtnVisibility}"></Button>
         </StackPanel>

@@ -167,6 +167,8 @@ namespace JKWatcher
             AsyncPersistentDataManager<IntermissionCamPosition>.Init();
             AsyncPersistentDataManager<DefragAverageMapTime>.Init();
 
+            SaberAnimationStuff.Init();
+
             RandomHelpers.NumberImages.Init();
 
             // Check botroutes
@@ -2543,6 +2545,68 @@ namespace JKWatcher
             catch (Exception e2)
             {
                 Helpers.logToFile($"Error doing manual levelshot render (outer): {e.ToString()}");
+            }
+        }
+
+        private void generateAnimationBinaryBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "Animation.cfg (.cfg)|*.cfg";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+
+                byte[] jk2_102data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims102>(Helpers.GetResourceData("data/saberAnimation/jk2_rhandFrames.bin"),File.ReadAllLines(filename));
+                byte[] jk2_104data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims104>(Helpers.GetResourceData("data/saberAnimation/jk2_rhandFrames.bin"),File.ReadAllLines(filename));
+
+                var sfd = new Microsoft.Win32.SaveFileDialog();
+                sfd.Filter = "Animation binary (.abin)|*.abin";
+                sfd.FileName = "jk2_102_anim.abin";
+                sfd.Title = "Save jk2 1.02 animation binary";
+                if(sfd.ShowDialog() == true)
+                {
+                    File.WriteAllBytes(sfd.FileName,jk2_102data);
+                }
+                sfd.FileName = "jk2_104_anim.abin";
+                sfd.Title = "Save jk2 1.04 animation binary";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllBytes(sfd.FileName,jk2_104data);
+                }
+
+                /*TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                    zipRecursor.HandleFile(filename);
+                    processConflictingIntermissionCamPositions();
+                }, $"Intermission cam finding in file {filename}");*/
+            }
+        }
+
+        private void generateAnimationBinaryJKABtn_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "Animation.cfg (.cfg)|*.cfg";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+
+                byte[] jkadata = SaberAnimationStuff.GenerateAnimSaberData<JKAAnims>(Helpers.GetResourceData("data/saberAnimation/jka_rhandFrames.bin"), File.ReadAllLines(filename));
+                
+                var sfd = new Microsoft.Win32.SaveFileDialog();
+                sfd.Filter = "Animation binary (.abin)|*.abin";
+                sfd.FileName = "jka_anim.abin";
+                sfd.Title = "Save jka animation binary";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllBytes(sfd.FileName, jkadata);
+                }
+                /*TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                    zipRecursor.HandleFile(filename);
+                    processConflictingIntermissionCamPositions();
+                }, $"Intermission cam finding in file {filename}");*/
             }
         }
     }

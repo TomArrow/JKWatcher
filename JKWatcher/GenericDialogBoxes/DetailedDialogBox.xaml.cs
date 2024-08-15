@@ -25,6 +25,8 @@ namespace JKWatcher.GenericDialogBoxes
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        public string YesBtnText { get; set; } = "Yes";
+        public string NoBtnText { get; set; } = "No";
         public string OkBtnText { get; set; } = "OK";
         public string CancelBtnText { get; set; } = "Cancel";
         public string DetailsText { get; set; } = null;//"Details....";

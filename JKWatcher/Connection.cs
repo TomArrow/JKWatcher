@@ -2073,6 +2073,8 @@ namespace JKWatcher
         public Vector3[] lastVelocity = new Vector3[64];
         public Vector3[] lastPosition = new Vector3[64];
         public int[] lastLegsAnim = new int[64];
+        public int[] lastTorsoAnim = new int[64];
+        public int[] lastTorsoAnimFlipBit = new int[64];
         public float[] lastXYVelocity = new float[64];
         public bool[] playerHasFlag = new bool[64];
 
@@ -2237,6 +2239,7 @@ namespace JKWatcher
 
             int gameTime = client.gameTime;
             infoPool.setGameTime(gameTime);
+            infoPool.serverTime = e.snap.ServerTime;
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
@@ -2551,7 +2554,17 @@ namespace JKWatcher
                     infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
                     infoPool.playerInfo[i].movementDir = snap.PlayerState.MovementDirection;
 
+                    int torsoAnim = snap.PlayerState.TorsoAnim & ~2048;
+                    int torsoAnimFlipBit = snap.PlayerState.TorsoAnim & 2048;
+                    if (lastTorsoAnimFlipBit[i] != torsoAnimFlipBit || torsoAnim != lastTorsoAnim[i])
+                    {
+                        infoPool.playerInfo[i].torsoAnimStartTime = snap.ServerTime;
+                    }
+                    lastTorsoAnimFlipBit[i] = torsoAnimFlipBit;
+                    lastTorsoAnim[i] = torsoAnim;
+
                     infoPool.playerInfo[i].hitBox.mins = Hitbox.defaultMins;
+
                     int legsAnim = snap.PlayerState.LegsAnimation & ~2048;
                     bool isDucked = (legsAnim >= 697 && legsAnim <= 699) || (snap.PlayerState.PlayerMoveFlags & 1) > 0; // PMF_DUCKED
                     bool isInRoll = legsAnim >= 781 && legsAnim <= 784 && snap.PlayerState.LegsTimer > 0; // TODO Make work with JKA and 1.04
@@ -2779,6 +2792,18 @@ namespace JKWatcher
                     infoPool.playerInfo[i].powerUps = snap.Entities[snapEntityNum].Powerups; // 1/3 places where powerups is transmitted
                     infoPool.playerInfo[i].movementDir = (int)snap.Entities[snapEntityNum].Angles2[YAW]; // 1/3 places where powerups is transmitted
 
+
+
+                    int torsoAnim = snap.Entities[snapEntityNum].TorsoAnimation & ~2048;
+                    int torsoAnimFlipBit = snap.Entities[snapEntityNum].TorsoAnimation & 2048;
+                    if (lastTorsoAnimFlipBit[i] != torsoAnimFlipBit || torsoAnim != lastTorsoAnim[i])
+                    {
+                        infoPool.playerInfo[i].torsoAnimStartTime = snap.ServerTime;
+                    }
+                    lastTorsoAnimFlipBit[i] = torsoAnimFlipBit;
+                    lastTorsoAnim[i] = torsoAnim;
+
+
                     if (snap.Entities[snapEntityNum].Solid >0)
                     {
                         int solid = snap.Entities[snapEntityNum].Solid;
@@ -2907,6 +2932,8 @@ namespace JKWatcher
                     visibleOtherPlayers++;
 
                     playerHasFlag[i] = hasFlag;
+
+
 
                     int legsAnim = snap.Entities[snapEntityNum].LegsAnimation & ~2048;
                     if (legsAnim != lastLegsAnim[i])

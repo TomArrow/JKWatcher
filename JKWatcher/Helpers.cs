@@ -70,6 +70,35 @@ namespace JKWatcher
             angles.Y = yaw;
             angles.Z = 0;
         }
+
+
+        public static void AngleVectors(Vector3 angles, out Vector3 forward, out Vector3 right, out Vector3 up)
+        {
+            float angle;
+            float sr, sp, sy, cr, cp, cy;
+            // static to help MS compiler fp bugs
+
+            angle = angles.Y * ((float)Math.PI * 2f / 360f);
+            sy = (float)Math.Sin(angle);
+            cy = (float)Math.Cos(angle);
+            angle = angles.X * ((float)Math.PI * 2f / 360f);
+            sp = (float)Math.Sin(angle);
+            cp = (float)Math.Cos(angle);
+            angle = angles.Z * ((float)Math.PI * 2f / 360f);
+            sr = (float)Math.Sin(angle);
+            cr = (float)Math.Cos(angle);
+
+            forward.X = cp * cy;
+            forward.Y = cp * sy;
+            forward.Z = -sp;
+            right.X = (-1 * sr * sp * cy + -1 * cr * -sy);
+            right.Y = (-1 * sr * sp * sy + -1 * cr * cy);
+            right.Z = -1 * sr * cp;
+            up.X = (cr * sp * cy + -sr * -sy);
+            up.Y = (cr * sp * sy + -sr * cy);
+            up.Z = cr * cp;
+        }
+
     }
     class GlobalMutexHelper : IDisposable
     {
@@ -977,6 +1006,47 @@ namespace JKWatcher
         public static void AddOrPickLower<TKey>(this ConcurrentDictionary<TKey, Int64> dict, TKey key, Int64 value)
         {
             dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
+        }
+
+        public static T ReadBytesAsType<T>(this BinaryReader br, long byteOffset = -1, SeekOrigin seekOrigin = SeekOrigin.Begin)
+        {
+            if (!(byteOffset == -1 && seekOrigin == SeekOrigin.Begin))
+            {
+                br.BaseStream.Seek(byteOffset, seekOrigin);
+            }
+            byte[] bytes = br.ReadBytes(Marshal.SizeOf(typeof(T)));
+            GCHandle handle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            T retVal = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
+            handle.Free();
+            return retVal;
+        }
+        public static void WriteBytesFromType<T>(this BinaryWriter bw, T value, long byteOffset = -1, SeekOrigin seekOrigin = SeekOrigin.Begin)
+        {
+            if (!(byteOffset == -1 && seekOrigin == SeekOrigin.Begin))
+            {
+                bw.BaseStream.Seek(byteOffset, seekOrigin);
+            }
+            byte[] byteData = new byte[Marshal.SizeOf(typeof(T))];
+            GCHandle handle = GCHandle.Alloc(byteData, GCHandleType.Pinned);
+            // TODO Not sure if this is safe? Am I expected to do some fancy AllocHGlobal and then Marshal.Copy?! Why? This seems to work so whats the problem?
+            Marshal.StructureToPtr(value, handle.AddrOfPinnedObject(), false);
+            bw.Write(byteData);
+        }
+        public static byte[] BytesFromType<T>(T value)
+        {
+            byte[] byteData = new byte[Marshal.SizeOf(typeof(T))];
+            GCHandle handle = GCHandle.Alloc(byteData, GCHandleType.Pinned);
+            // TODO Not sure if this is safe? Am I expected to do some fancy AllocHGlobal and then Marshal.Copy?! Why? This seems to work so whats the problem?
+            Marshal.StructureToPtr(value, handle.AddrOfPinnedObject(), false);
+            return byteData;
+        }
+
+        public static T ArrayBytesAsType<T, B>(B data, int byteOffset = 0)
+        {
+            GCHandle handle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            T retVal = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject() + byteOffset, typeof(T));
+            handle.Free();
+            return retVal;
         }
 
     }

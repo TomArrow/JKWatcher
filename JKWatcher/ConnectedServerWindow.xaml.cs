@@ -644,6 +644,9 @@ namespace JKWatcher
             password = passwordA;
             //userInfoName = userInfoNameA;
             InitializeComponent();
+#if TEST1
+            this.checkDraw3D.Visibility = Visibility.Visible;
+#endif
             this.Title = netAddressA.ToString();
             if(serverNameA != null)
             {
@@ -2008,6 +2011,10 @@ namespace JKWatcher
         {
             Vector3 pos1 = new Vector3(point1[0],point1[1],point1[2]);
             Vector3 pos2 = new Vector3(point2[0], point2[1], point2[2]);
+            return LineTupleFromPoints(pos1, pos2, matrix, imageWidth, imageHeight);
+        }
+        private LineTuple LineTupleFromPoints(Vector3 pos1, Vector3 pos2, Matrix4x4 matrix, int imageWidth, int imageHeight)
+        {
             Vector4 tpos1 = Vector4.Transform(pos1, matrix);
             Vector4 tpos2 = Vector4.Transform(pos2, matrix);
 
@@ -2082,20 +2089,34 @@ namespace JKWatcher
                 Vector3 forward = new Vector3();
 
 
+                SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
+                if (this.protocol > ProtocolVersion.Protocol15)
+                {
+                    if (this.protocol == ProtocolVersion.Protocol16)
+                    {
+                        saberVersion = SaberAnimationVersion.JK2_104;
+                    } else if (this.protocol >= ProtocolVersion.Protocol25 && this.protocol >= ProtocolVersion.Protocol26)
+                    {
+                        saberVersion = SaberAnimationVersion.JKA;
+                    }
+                }
+
                 bool do2d = true;
                 Matrix4x4 matrixFor3d = new Matrix4x4();
                 if (DrawMiniMap3D)
                 {
-                    /*PlayerInfo mainPlayer = GetMiniMap3DPOVClient();
+#if TEST1
+                    PlayerInfo mainPlayer = GetMiniMap3DPOVClient();
                     if(mainPlayer != null)
                     {
                         Vector3 position = mainPlayer.position;
                         position.Z += 26.0f + 8.0f;
-                        Connection.AngleVectors(mainPlayer.angles, out forward, out right, out up);
+                        Q3MathStuff.AngleVectors(mainPlayer.angles, out forward, out right, out up);
                         position -= forward * 80.0f;
                         matrixFor3d = ProjectionMatrixHelper.createModelProjectionMatrix(position, mainPlayer.angles, 120,imageWidth, imageHeight);
                         do2d = false;
-                    }*/
+                    }
+#endif
                 }
 
 
@@ -2132,7 +2153,7 @@ namespace JKWatcher
                         y = infoPool.playerInfo[i].position.Y;
                         //dirX = -infoPool.playerInfo[i].velocity.X;
                         //dirY = infoPool.playerInfo[i].velocity.Y;
-                        Connection.AngleVectors(infoPool.playerInfo[i].angles, out forward, out right, out up);
+                        Q3MathStuff.AngleVectors(infoPool.playerInfo[i].angles, out forward, out right, out up);
                         forward *= 100 * MiniMapVelocityScale;
 
                         Queue<LineTuple> linesToDraw = new Queue<LineTuple>();
@@ -2147,8 +2168,28 @@ namespace JKWatcher
                         }
                         else
                         {
-                            /*
+#if TEST1
                             const bool drawboxes = true;
+                            const bool drawsabers = true;
+
+                            // sabers
+                            if (drawsabers)
+                            {
+                                int torsoAnim = infoPool.playerInfo[i].torsoAnim & ~2048;
+                                int animationTime = infoPool.serverTime - infoPool.playerInfo[i].torsoAnimStartTime;
+                                SaberAnimState? saberFrame = SaberAnimationStuff.GetSaberAnimState(saberVersion, torsoAnim, animationTime);
+                                if (saberFrame.HasValue)
+                                {
+                                    Vector3 saberBase = SaberAnimationStuff.TransformRelativePositionByAngle(saberFrame.Value.relativePosBase, infoPool.playerInfo[i].angles);
+                                    Vector3 saberTip = SaberAnimationStuff.TransformRelativePositionByAngle(saberFrame.Value.relativePosTip, infoPool.playerInfo[i].angles);
+
+                                    LineTuple lt;
+                                    if ((lt = LineTupleFromPoints(infoPool.playerInfo[i].position+saberBase, infoPool.playerInfo[i].position+saberTip, matrixFor3d, imageWidth, imageHeight)) != null)
+                                    {
+                                        linesToDraw.Enqueue(lt);
+                                    }
+                                }
+                            }
 
                             if (drawboxes)
                             {
@@ -2245,7 +2286,8 @@ namespace JKWatcher
                                     imageYEnd = Math.Clamp((int)(((-playerTargetPos.Y + 1.0f) / 2.0f) * (float)imageHeight), 0, imageHeight - 1);
                                     linesToDraw.Enqueue(new LineTuple(imageX, imageY, imageXEnd, imageYEnd));
                                 }
-                            }*/
+                            }
+#endif
 
                         }
 
@@ -2899,7 +2941,9 @@ namespace JKWatcher
         }
         private void checkDraw3D_Checked(object sender, RoutedEventArgs e)
         {
-        //    DrawMiniMap3D = checkDraw3D.IsChecked.HasValue ? checkDraw3D.IsChecked.Value : false;
+#if TEST1
+            DrawMiniMap3D = checkDraw3D.IsChecked.HasValue ? checkDraw3D.IsChecked.Value : false;
+#endif
         }
 
         private void newConBtn_Click(object sender, RoutedEventArgs e)

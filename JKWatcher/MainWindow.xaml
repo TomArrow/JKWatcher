@@ -185,18 +185,25 @@
             <TabItem Header="More Features">
                 <StackPanel>
                     <GroupBox Header="Find intermission camera coordinates/angles">
-                        <StackPanel>
+                        <WrapPanel>
 
                             <Button x:Name="btnFindIntermissionInFolderPath" Click="btnFindIntermissionInFolderPath_Click">Find in folder path</Button>
                             <Button x:Name="btnFindIntermissionInFile" Click="btnFindIntermissionInFile_Click">Find file (.bsp/.pk3)</Button>
-                        </StackPanel>
+                        </WrapPanel>
                     </GroupBox>
                     <GroupBox Header="Levelshots">
-                        <StackPanel>
+                        <WrapPanel>
 
                             <Button x:Name="btnRenderStackedLevelShot" Click="btnRenderStackedLevelShot_Click">Render stacked levelshot</Button>
                             <Button x:Name="btnRenderStackedMultipleLevelShot" Click="btnRenderStackedMultipleLevelShot_Click">Render levelshot (stack multiple files)</Button>
-                        </StackPanel>
+                        </WrapPanel>
+                    </GroupBox>
+                    <GroupBox Header="Saberstuff">
+                        <WrapPanel>
+
+                            <Button x:Name="generateAnimationBinaryBtn" Click="generateAnimationBinaryBtn_Click">Generate JK2 anim binaries from .cfg</Button>
+                            <Button x:Name="generateAnimationBinaryJKABtn" Click="generateAnimationBinaryJKABtn_Click">Generate JKA anim binary from .cfg</Button>
+                        </WrapPanel>
                     </GroupBox>
                 </StackPanel>
             </TabItem>

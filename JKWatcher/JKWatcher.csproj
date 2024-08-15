@@ -12,6 +12,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <OutputPath></OutputPath>
     <WarningsAsErrors>;NU1605</WarningsAsErrors>
+    <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -36,6 +37,11 @@
   <ItemGroup>
     <None Remove="archive.sh" />
     <None Remove="customSillyModeCommands.txt" />
+    <None Remove="data\saberAnimation\jk2_102_anim.abin" />
+    <None Remove="data\saberAnimation\jk2_104_anim.abin" />
+    <None Remove="data\saberAnimation\jk2_rhandFrames.bin" />
+    <None Remove="data\saberAnimation\jka_anim.abin" />
+    <None Remove="data\saberAnimation\jka_rhandFrames.bin" />
     <None Remove="documentation\configs.md" />
     <None Remove="hl\basejk2\assets0.hl" />
     <None Remove="hl\basejk2\assets1.hl" />
@@ -53,6 +59,11 @@
   <ItemGroup>
     <EmbeddedResource Include="archive.sh" />
     <EmbeddedResource Include="customSillyModeCommands.txt" />
+    <EmbeddedResource Include="data\saberAnimation\jk2_102_anim.abin" />
+    <EmbeddedResource Include="data\saberAnimation\jk2_104_anim.abin" />
+    <EmbeddedResource Include="data\saberAnimation\jk2_rhandFrames.bin" />
+    <EmbeddedResource Include="data\saberAnimation\jka_anim.abin" />
+    <EmbeddedResource Include="data\saberAnimation\jka_rhandFrames.bin" />
     <EmbeddedResource Include="documentation\configs.md" />
     <EmbeddedResource Include="hl\basejk2\assets0.hl" />
     <EmbeddedResource Include="hl\basejk2\assets1.hl" />

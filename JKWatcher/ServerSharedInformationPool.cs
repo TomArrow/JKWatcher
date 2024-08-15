@@ -553,6 +553,7 @@ namespace JKWatcher
         public float speed;
         public int groundEntityNum;
         public int torsoAnim;
+        public int torsoAnimStartTime;
         public bool knockedDown;
         public int legsAnim;
         public bool duelInProgress;
@@ -1068,6 +1069,7 @@ namespace JKWatcher
         public volatile int MaxServerClients = 32;
         public bool isIntermission { get; set; } = false;
 
+        public volatile int serverTime = 0;
         private volatile int gameTime = 0;
         public string GameTime { get; private set; }
         public int GameSeconds => gameTime;
