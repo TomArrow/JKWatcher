@@ -1027,6 +1027,12 @@ namespace JKWatcher
         }
     }
 
+    public enum SaberPrecision
+    {
+        Legacy,
+        Precise,
+        Random
+    }
 
     // Todo reset stuff on level restart and especially map change
     public class ServerSharedInformationPool : INotifyPropertyChanged
@@ -1039,6 +1045,7 @@ namespace JKWatcher
         public float dbsTriggerDistance = 90; // 128
         public float bsTriggerDistance = 64;
         public bool fastDbs = true; // Assume we are in the air if the last user command had jump in it.
+        public SaberPrecision precision = SaberPrecision.Random; // Try to hit people precisely
         public bool selfPredict = true; // Predict the bots own position with ping value
         public float deluxePredict = 1.0f;
         public string sillyModeCustomCommand = null;
@@ -1071,6 +1078,7 @@ namespace JKWatcher
 
         public volatile int serverTime = 0;
         private volatile int gameTime = 0;
+        public SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
         public string GameTime { get; private set; }
         public int GameSeconds => gameTime;
         public string MapName { get; set; }

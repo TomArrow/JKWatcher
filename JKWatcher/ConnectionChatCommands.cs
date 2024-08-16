@@ -394,6 +394,18 @@ namespace JKWatcher
             }
             return true;
         }
+        bool isNumberOrFloat(string str)
+        {
+            if (str.Length == 0) return false;
+            foreach (char ch in str)
+            {
+                if (!(ch >= '0' && ch <= '9' || ch == '-' || ch == '.'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         // Maybe: taunt
         static string[] customSillyModeCommands = new string[0];
@@ -509,7 +521,7 @@ namespace JKWatcher
                         foreach (string bit in messageBits)
                         {
                             if (stringParams.Count == 1 && numberParams.Count < possibleNumbers && isNumber(bit)) // Number parameters can only occur after the initial command, for example !markas 2 3
-                            {
+                            {// todo make this work for float numbers. idk
                                 float tmp2;
                                 if (float.TryParse(bit, out tmp2)) 
                                 {
@@ -973,7 +985,7 @@ namespace JKWatcher
                                 }
                                 ChatCommandAnswer(pm, "!waypoint !waypointcommand !clearwaypoints", true, true, true, true);
                             }
-                            ChatCommandAnswer(pm, "!selfpredict !deluxepredict !fastdbs !bsdist !dbsdist", true, true, true, true);
+                            ChatCommandAnswer(pm, "!selfpredict !deluxepredict !fastdbs !bsdist !dbsdist !precision", true, true, true, true);
                             notDemoCommand = true;
                             break;
                         case "!cowards":
@@ -1459,6 +1471,30 @@ namespace JKWatcher
                             else
                             {
                                 ChatCommandAnswer(pm, $"Fast DBS is currently {infoPool.fastDbs}. Use 1/0 to enable/disable.", true, true, true);
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!precision":
+                            if (!weHandleFightBotCommands) return;
+                            if (numberParams.Count > 0 && numberParams[0] >= -1 && numberParams[0] <= 1)
+                            {
+                                switch(numberParams[0])
+                                {
+                                    case 0:
+                                        infoPool.precision = SaberPrecision.Legacy;
+                                        break;
+                                    case 1:
+                                        infoPool.precision = SaberPrecision.Precise;
+                                        break;
+                                    case -1:
+                                        infoPool.precision = SaberPrecision.Random;
+                                        break;
+                                }
+                                ChatCommandAnswer(pm, $"Precision set to {Enum.GetName(infoPool.precision)}.", true, true, true);
+                            }
+                            else
+                            {
+                                ChatCommandAnswer(pm, $"Precision is currently {infoPool.precision}. Use 1/0 to enable/disable or -1 to set to random.", true, true, true);
                             }
                             notDemoCommand = true;
                             break;

@@ -658,6 +658,8 @@ namespace JKWatcher
 
             infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode ? 64 : 32) {connectionOptions = connectionOptions };
 
+            UpdateSaberVersion();
+
             gameTimeTxt.DataContext = infoPool;
             mapNameTxt.DataContext = infoPool;
             scoreRedTxt.DataContext = infoPool;
@@ -802,7 +804,26 @@ namespace JKWatcher
         private object lastMapNameLock = new object();
 
         public GameType gameType { get; protected set; } = GameType.FFA;
+        SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
 
+        public void UpdateSaberVersion()
+        {
+            if (this.protocol > ProtocolVersion.Protocol15)
+            {
+                if (this.protocol == ProtocolVersion.Protocol16)
+                {
+                    saberVersion = SaberAnimationVersion.JK2_104;
+                }
+                else if (this.protocol >= ProtocolVersion.Protocol25 && this.protocol >= ProtocolVersion.Protocol26)
+                {
+                    saberVersion = SaberAnimationVersion.JKA;
+                }
+            } else
+            {
+                saberVersion = SaberAnimationVersion.JK2_102;
+            }
+            infoPool.saberVersion = saberVersion;
+        }
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
             bool mapChangeDetected = false;
@@ -844,6 +865,9 @@ namespace JKWatcher
                     if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
                 }
             }
+
+            UpdateSaberVersion();
+
 
             lock (serverInfoChangedLock)
             {
@@ -2089,17 +2113,7 @@ namespace JKWatcher
                 Vector3 forward = new Vector3();
 
 
-                SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
-                if (this.protocol > ProtocolVersion.Protocol15)
-                {
-                    if (this.protocol == ProtocolVersion.Protocol16)
-                    {
-                        saberVersion = SaberAnimationVersion.JK2_104;
-                    } else if (this.protocol >= ProtocolVersion.Protocol25 && this.protocol >= ProtocolVersion.Protocol26)
-                    {
-                        saberVersion = SaberAnimationVersion.JKA;
-                    }
-                }
+                
 
                 bool do2d = true;
                 Matrix4x4 matrixFor3d = new Matrix4x4();

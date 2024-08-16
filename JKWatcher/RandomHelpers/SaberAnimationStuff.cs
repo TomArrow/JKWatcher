@@ -78,6 +78,18 @@ namespace JKWatcher.RandomHelpers
             }
 		}
 
+		public static bool SaberDataExists()
+        {
+			return initSuccessful;
+        }
+
+		public static SaberAnimState? GetSaberAnimState(PlayerInfo pi, ServerSharedInformationPool infoPool, int animTimeOffset = 0)
+        {
+			int torsoAnim = pi.torsoAnim & ~2048;
+			int animationTime = infoPool.serverTime - pi.torsoAnimStartTime;
+			return SaberAnimationStuff.GetSaberAnimState(infoPool.saberVersion, torsoAnim, animationTime+ animTimeOffset);
+		}
+
 		public static SaberAnimState? GetSaberAnimState(SaberAnimationVersion version, int animNum, int animationTime)
         {
             if (!initSuccessful)

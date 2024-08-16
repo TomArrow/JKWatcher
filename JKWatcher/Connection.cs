@@ -4869,6 +4869,7 @@ namespace JKWatcher
                         serverWindow.addToLog($"SERVER PROTOCOL CHANGE DETECTED, APPLYING: {protocol} to {newProtocol}", true);
                         protocol = (JKClient.ProtocolVersion)newProtocol;
                         serverWindow.protocol = (JKClient.ProtocolVersion)newProtocol;
+                        serverWindow.UpdateSaberVersion();
                         Reconnect(); // is it safe to call it here? idk. let's find out
                     }
                 } else if ((unknownCmdMatch = unknownCmdRegex.Match(commandEventArgs.Command.Argv(1))).Success)

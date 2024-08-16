@@ -14,7 +14,7 @@ using System.Windows;
 using System.Windows.Threading;
 using JKClient;
 using Client = JKClient.JKClient;
-
+using JKWatcher.RandomHelpers;
 
 // TODO when trying to go for boost, make  sure it doesnt mean going THROUGH your friend
 
@@ -374,6 +374,26 @@ namespace JKWatcher
 			if (myNum < 0 || myNum > infoPool.playerInfo.Length) return;
 
 			debugLine?.Append($"{userCmd.ServerTime}");
+
+			bool bePrecise = false;
+            if (SaberAnimationStuff.SaberDataExists())
+			{
+				if (infoPool.precision == SaberPrecision.Precise)
+				{
+					bePrecise = true;
+				}
+				else if (infoPool.precision == SaberPrecision.Random)
+				{
+					// randomize on a 2-second basis.
+					long twoSecondSeed = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() / 2);
+					int seed = (int)(((twoSecondSeed << 32) >> 32) ^ (twoSecondSeed >> 32));
+					Random rnd = new Random(seed);
+					if (rnd.NextDouble() > 0.5)
+					{
+						bePrecise = true;
+					}
+				}
+			}
 
 			intermissionCamAutoDetectImpossible = true; // this will ruin at the very least our watch angle. Even if we are forced to spec, it's likely that the movement that we already sent before has ruined our possibility of cleanly detecting levelshot position.
 			// might need some more logic to deal with map changes and such. not sure. let's go with this for now.
@@ -1496,31 +1516,57 @@ namespace JKWatcher
 				}
 			}
 			else if(sillyMode == SillyMode.SILLY) {
+
 				amGripping = false;
-				switch (sillyflip % 4) {
-					case 0:
-						userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
-						break;
-					case 1:
-						yawAngle += 90;
-						userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
-						break;
-					case 2:
-						yawAngle += 180;
-						userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
-						break;
-					case 3:
-						yawAngle += 270;
-						userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
-						break;
+                if (bePrecise)
+                {
+					//pitchAngle += (-angles.X) - angles.X;
+					SaberAnimState? animState = SaberAnimationStuff.GetSaberAnimState(myself, infoPool, lastSnapshot.ping);
+					if (!animState.HasValue)
+					{
+						// something went wrong :(
+					}
+					else
+					{
+						yawAngle -= animState.Value.playerFarDistAngles.Y;
+						pitchAngle -= animState.Value.playerFarDistAngles.X;
+					}
+					userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+				}
+                else
+				{
+					switch (sillyflip % 4)
+					{
+						case 0:
+							userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+							break;
+						case 1:
+							yawAngle += 90;
+							userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
+							break;
+						case 2:
+							yawAngle += 180;
+							userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
+							break;
+						case 3:
+							yawAngle += 270;
+							userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
+							break;
+					}
 				}
 
 				debugLine?.Append("; sillymode");
-				if (sillyAttack)
+				if (sillyAttack && !amInAttack)
 				{
 					debugLine?.Append("; sillyattack");
 					userCmd.Buttons |= (int)UserCommand.Button.Attack;
 					userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+					if (bePrecise)
+					{
+						// pick a direction since we're not picking one
+						userCmd.ForwardMove = getNiceRandom(0, 2) > 0 ? (sbyte)127 : (sbyte)-128;
+						userCmd.RightMove = getNiceRandom(0, 2) > 0 ? (sbyte)127 : (sbyte)-128;
+					}
 				}
 			} else if(infoPool.sillyModeOneOf( SillyMode.DBS,SillyMode.GRIPKICKDBS, SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS, SillyMode.ABSORBSPEED, SillyMode.MINDTRICKSPEED))
             {
@@ -1714,7 +1760,7 @@ namespace JKWatcher
 				else if(amCurrentlyDbsing)
 				{
 					debugLine?.Append("; amDbsing");
-					if (infoPool.sillyModeOneOf(SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS))
+					if (infoPool.sillyModeOneOf(SillyMode.BLUBS, SillyMode.GRIPKICKBLUBS) && !bePrecise)
                     {
 
 						debugLine?.Append("; bluebsaimback");
@@ -1722,7 +1768,25 @@ namespace JKWatcher
 						yawAngle += 180;
 						//pitchAngle -= 180; // Eh..
 						pitchAngle += (-angles.X) - angles.X; // Reverse the angle? Not sure if logically consistent. Wanna aim at the person
-					} else {
+					}
+					else if (bePrecise)
+					{
+						debugLine?.Append("; dbsprecise");
+
+						//yawAngle += 180;
+						pitchAngle += (-angles.X) - angles.X;
+						SaberAnimState? animState = SaberAnimationStuff.GetSaberAnimState(myself,infoPool, lastSnapshot.ping);
+                        if (!animState.HasValue)
+                        {
+							// something went wrong :(
+							yawAngle += 180;
+						} else
+                        {
+							yawAngle -= animState.Value.playerFarDistAngles.Y;
+							pitchAngle -= animState.Value.playerFarDistAngles.X;
+						}
+					}
+					else {
 
 						debugLine?.Append("; rotateme");
 						float serverFrameDuration = 1000.0f/ (float)this.SnapStatus.TotalSnaps;
@@ -1745,26 +1809,45 @@ namespace JKWatcher
 					amGripping = false;
 				} else
 				{
-					debugLine?.Append("; elsesillyflip");
-					amGripping = false;
-					switch (sillyflip %4)
-					{
-						case 0:
-							userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
-							break;
-						case 1:
-							yawAngle += 90;
-							userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
-							break;
-						case 2:
-							yawAngle += 180;
-							userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
-							break;
-						case 3:
-							yawAngle += 270;
-							userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
-							break;
+                    if (bePrecise)
+                    {
+						//pitchAngle += (-angles.X) - angles.X;
+						SaberAnimState? animState = SaberAnimationStuff.GetSaberAnimState(myself, infoPool, lastSnapshot.ping);
+						if (!animState.HasValue)
+						{
+							// something went wrong :(
+						}
+						else
+						{
+							yawAngle -= animState.Value.playerFarDistAngles.Y;
+							pitchAngle -= animState.Value.playerFarDistAngles.X;
+						}
+						userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
 					}
+                    else
+                    {
+						debugLine?.Append("; elsesillyflip");
+						switch (sillyflip % 4)
+						{
+							case 0:
+								userCmd.ForwardMove = (sbyte)(127 * moveSpeedMultiplier);
+								break;
+							case 1:
+								yawAngle += 90;
+								userCmd.RightMove = (sbyte)(127 * moveSpeedMultiplier);
+								break;
+							case 2:
+								yawAngle += 180;
+								userCmd.ForwardMove = (sbyte)(-128 * moveSpeedMultiplier);
+								break;
+							case 3:
+								yawAngle += 270;
+								userCmd.RightMove = (sbyte)(-128 * moveSpeedMultiplier);
+								break;
+						}
+					}
+					amGripping = false;
+					
 					if (amInParry)
 					{
 						if (sillyAttack)
@@ -1772,6 +1855,12 @@ namespace JKWatcher
 							debugLine?.Append("; sillyattack");
 							userCmd.Buttons |= (int)UserCommand.Button.Attack;
 							userCmd.Buttons |= (int)UserCommand.Button.AnyJK2; // AnyJK2 simply means Any, but its the JK2 specific constant
+                            if (bePrecise)
+                            {
+								// pick a direction since we're not picking one
+								userCmd.ForwardMove = getNiceRandom(0, 2) > 0 ? (sbyte)127 : (sbyte)-128;
+								userCmd.RightMove = getNiceRandom(0, 2) > 0 ?(sbyte) 127 : (sbyte)-128;
+                            }
 						}
 					}
 				}
