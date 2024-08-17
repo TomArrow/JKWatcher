@@ -2283,6 +2283,22 @@ namespace JKWatcher
                 },$"Intermission cam finding in folder path {folder}");
             }
         }
+        private void btnFindIntermissionInFile_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "BSP, ZIP, RAR, PK3 files (.bsp;.zip;.pk3)|*.bsp;*.zip;*.rar;*.pk3";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+
+                TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                    zipRecursor.HandleFile(filename);
+                    processConflictingIntermissionCamPositions();
+                }, $"Intermission cam finding in file {filename}");
+            }
+        }
 
         private void FindIntermissionInBsp(string filename, byte[] fileData, string path)
         {
@@ -2362,22 +2378,6 @@ namespace JKWatcher
             }
         }
 
-        private void btnFindIntermissionInFile_Click(object sender, RoutedEventArgs e)
-        {
-            var ofd = new Microsoft.Win32.OpenFileDialog();
-            ofd.Filter = "BSP, ZIP, RAR, PK3 files (.bsp;.zip;.pk3)|*.bsp;*.zip;*.rar;*.pk3";
-            if (ofd.ShowDialog() == true)
-            {
-                string filename = ofd.FileName;
-
-                TaskManager.TaskRun(() => {
-
-                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
-                    zipRecursor.HandleFile(filename);
-                    processConflictingIntermissionCamPositions();
-                }, $"Intermission cam finding in file {filename}");
-            }
-        }
 
         private void btnRenderStackedLevelShot_Click(object sender, RoutedEventArgs e)
         {
@@ -2608,6 +2608,84 @@ namespace JKWatcher
                     processConflictingIntermissionCamPositions();
                 }, $"Intermission cam finding in file {filename}");*/
             }
+        }
+        private void btnCreateMinimapsInFolderPath_Click(object sender, RoutedEventArgs e)
+        {
+            var fbd = new Ookii.Dialogs.Wpf.VistaFolderBrowserDialog();
+            bool? result = fbd.ShowDialog();
+
+            if (result == true && !string.IsNullOrWhiteSpace(fbd.SelectedPath) && Directory.Exists(fbd.SelectedPath))
+            {
+                string folder = fbd.SelectedPath;
+                TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, MakeMinimapFromBSP);
+                    zipRecursor.HandleFolder(folder);
+                    processConflictingIntermissionCamPositions();
+                }, $"Minimap creation in folder path {folder}");
+            }
+        }
+
+        private void btnCreateMinimapsInFile_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "BSP, ZIP, RAR, PK3 files (.bsp;.zip;.pk3)|*.bsp;*.zip;*.rar;*.pk3";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+
+                TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, MakeMinimapFromBSP);
+                    zipRecursor.HandleFile(filename);
+                    processConflictingIntermissionCamPositions();
+                }, $"Minimap creation in file {filename}");
+            }
+        }
+
+
+        private void MakeMinimapFromBSP(string filename, byte[] fileData, string path)
+        {
+            Stack<string> pathStack = new Stack<string>();
+            string[] pathPartsArr = path is null ? new string[0] : path.Split(new char[] { '\\', '/' });
+            bool mapsFolderFound = false;
+            for (int i = pathPartsArr.Length - 1; i >= 0; i--)
+            {
+                string pathPart = pathPartsArr[i];
+                if (pathPart.Equals("maps", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    mapsFolderFound = true;
+                    break;
+                }
+                else if (pathPart.EndsWith(".pk3", StringComparison.InvariantCultureIgnoreCase) || pathPart.EndsWith(".zip", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    // this is weird. must be some weird isolated file
+                    pathStack.Clear();
+                    break;
+                }
+                else
+                {
+                    pathStack.Push(pathPart);
+                }
+            }
+            if (!mapsFolderFound)
+            {
+                pathStack.Clear();
+            }
+            // TODO What if there is some maps folder really low in the hierarchy?
+            StringBuilder sb = new StringBuilder();
+            while (pathStack.Count > 0)
+            {
+                sb.Append($"{pathStack.Pop().ToLowerInvariant()}/");
+            }
+            sb.Append(System.IO.Path.GetFileNameWithoutExtension(filename).ToLowerInvariant());
+            string mapname = sb.ToString();
+            Debug.WriteLine($"Found {filename} ({mapname}) in {path}");
+            mapname = mapname.ToLowerInvariant();
+
+            BSPToMiniMap.MakeMiniMap(mapname, fileData, 0.1f, 500,500,10 );
+
+            
         }
     }
 }

@@ -1048,6 +1048,18 @@ namespace JKWatcher
             handle.Free();
             return retVal;
         }
+        public static float zCross2d(ref Vector3 p1, ref Vector3 p2, ref Vector3 p3)
+        {
+            return ((p2.X - p1.X) * (p3.Y - p2.Y)) - ((p2.Y - p1.Y) * (p3.X - p2.X));
+        }
+        public static bool pointInTriangle2D(ref Vector3 point, ref Vector3 t1, ref Vector3 t2, ref Vector3 t3)
+        {
+            float a = zCross2d(ref t1, ref t2, ref point);
+            float b = zCross2d(ref t2, ref t3, ref point);
+            float c = zCross2d(ref t3, ref t1, ref point);
+
+            return a > 0 && b > 0 && c > 0 || a < 0 && b < 0 && c < 0;
+        }
 
     }
 

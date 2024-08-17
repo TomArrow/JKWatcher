@@ -191,6 +191,13 @@
                             <Button x:Name="btnFindIntermissionInFile" Click="btnFindIntermissionInFile_Click">Find file (.bsp/.pk3)</Button>
                         </WrapPanel>
                     </GroupBox>
+                    <GroupBox Header="Tinymaps">
+                        <WrapPanel>
+
+                            <Button x:Name="btnCreateMinimapsInFolderPath" Click="btnCreateMinimapsInFolderPath_Click">Make from folder path</Button>
+                            <Button x:Name="btnCreateMinimapsInFile" Click="btnCreateMinimapsInFile_Click">Make from file (.bsp/.pk3)</Button>
+                        </WrapPanel>
+                    </GroupBox>
                     <GroupBox Header="Levelshots">
                         <WrapPanel>
 
