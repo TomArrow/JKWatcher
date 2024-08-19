@@ -110,10 +110,13 @@
                         <Button x:Name="connectRBtn" Click="connectRBtn_Click" IsEnabled="False" ToolTip="Connect &amp; Record">+R</Button>
                         <Button x:Name="connectSBtn" Click="connectSBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode">+S</Button>
                         <Button x:Name="connectRSBtn" Click="connectRSBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record">+RS</Button>
+                        <Button x:Name="connectRS60Btn" Click="connectRS60Btn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record, disco after 60">60</Button>
+                        <Button x:Name="connectRS120Btn" Click="connectRS120Btn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record, disco after 120">120</Button>
+                        <Button x:Name="connectRS180Btn" Click="connectRS180Btn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record, disco after 180">180</Button>
+                        <Button x:Name="connectRS360Btn" Click="connectRS360Btn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record, disco after 360">360</Button>
+                        <Button x:Name="connectRSFRBtn" Click="connectRSFRBtn_Click" IsEnabled="False" ToolTip="Connect in silent mode &amp; Record, pretend to be real client">+RSFR</Button>
 
 
-                        <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">ColorDateDecoder</Button>
-                        <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
                         <Button x:Name="helpBtn" Click="helpBtn_Click" IsEnabled="True">Help</Button>
                         <Button x:Name="markovBtn" Click="markovBtn_Click"  IsEnabled="True">Markov</Button>
                     </WrapPanel>
@@ -184,6 +187,12 @@
             </TabItem>
             <TabItem Header="More Features">
                 <StackPanel>
+                    <GroupBox Header="Misc">
+                        <WrapPanel>
+                            <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">ColorDateDecoder</Button>
+                            <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
+                        </WrapPanel>
+                    </GroupBox>
                     <GroupBox Header="Find intermission camera coordinates/angles">
                         <WrapPanel>
 

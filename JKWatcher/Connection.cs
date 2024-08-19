@@ -878,6 +878,11 @@ namespace JKWatcher
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
             client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine, DebugNet=_connectionOptions.netDebug }; // Todo make more flexible
 
+            if (_connectionOptions.pretendToBeRealClient)
+            {
+                client.RemoveEngineIdentification();
+            }
+
             client.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
 
             //client.Name = "Padawan";
@@ -3697,7 +3702,7 @@ namespace JKWatcher
         Regex waitCmdRegex = new Regex(@"^\s*wait\s*(\d+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         Regex saySameCmdRegex = new Regex(@"^\s*say_same\s+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private void ExecuteCommandList(string commandList, RequestCategory requestCategory, LeakyBucketRequester<string, RequestCategory>.RequestBehavior behavior = LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,string saySame = "say")
+        public void ExecuteCommandList(string commandList, RequestCategory requestCategory, LeakyBucketRequester<string, RequestCategory>.RequestBehavior behavior = LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,string saySame = "say")
         {
             string[] mapChangeCommands = commandList?.Split(';',StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if(mapChangeCommands != null)

@@ -971,6 +971,11 @@ namespace JKWatcher
             connectRBtn.IsEnabled = false;
             connectSBtn.IsEnabled = false;
             connectRSBtn.IsEnabled = false;
+            connectRS60Btn.IsEnabled = false;
+            connectRS120Btn.IsEnabled = false;
+            connectRS180Btn.IsEnabled = false;
+            connectRS360Btn.IsEnabled = false;
+            connectRSFRBtn.IsEnabled = false;
 
             //NetAddress[] manualServers = getManualServers();
             //ServerBrowser.SetHiddenServers(manualServers);
@@ -1063,6 +1068,11 @@ namespace JKWatcher
                 connectRBtn.IsEnabled = false;
                 connectSBtn.IsEnabled = false;
                 connectRSBtn.IsEnabled = false;
+                connectRS60Btn.IsEnabled = false;
+                connectRS120Btn.IsEnabled = false;
+                connectRS180Btn.IsEnabled = false;
+                connectRS360Btn.IsEnabled = false;
+                connectRSFRBtn.IsEnabled = false;
             }
             saveServerStats(servers);
         }
@@ -1074,7 +1084,7 @@ namespace JKWatcher
             return null;
         }
 
-        private void connectFromButton(ServerInfo serverInfo, string userinfoName, string pw, bool autoRecord, bool silent)
+        private void connectFromButton(ServerInfo serverInfo, string userinfoName, string pw, bool autoRecord, bool silent, bool pretendRealClient = false, int? disconnectAfter=null)
         {
             lock (connectedServerWindows)
             {
@@ -1104,6 +1114,22 @@ namespace JKWatcher
                         connOpts = new ConnectedServerWindow.ConnectionOptions();
                     }
                     connOpts.userInfoName = userinfoName;
+                }
+                if (pretendRealClient)
+                {
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.pretendToBeRealClient = true;
+                }
+                if (disconnectAfter.HasValue)
+                {
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.disconnectTriggers = $"kicked,connectedtime_over:{disconnectAfter.Value}";
                 }
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
@@ -1170,12 +1196,82 @@ namespace JKWatcher
             }
         }
 
+        private void connectRS60Btn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true,false,60);
+            }
+        }
+
+        private void connectRS120Btn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true, false, 120);
+            }
+        }
+
+        private void connectRS180Btn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true, false, 180);
+            }
+        }
+
+        private void connectRS360Btn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true, false, 360);
+            }
+        }
+
+        private void connectRSFRBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            // string pw = pwListTxt.Text.Length > 0 ? pwListTxt.Text : null;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                connectFromButton(serverInfo, userinfoName, pw, true, true,true);
+            }
+        }
+
         private void refreshBtn_Click(object sender, RoutedEventArgs e)
         {
             connectBtn.IsEnabled = false;
             connectRBtn.IsEnabled = false;
             connectSBtn.IsEnabled = false;
             connectRSBtn.IsEnabled = false;
+            connectRS60Btn.IsEnabled = false;
+            connectRS120Btn.IsEnabled = false;
+            connectRS180Btn.IsEnabled = false;
+            connectRS360Btn.IsEnabled = false;
+            connectRSFRBtn.IsEnabled = false;
             getServers();
         }
 
@@ -1187,12 +1283,22 @@ namespace JKWatcher
                 connectRBtn.IsEnabled = true;
                 connectSBtn.IsEnabled = true;
                 connectRSBtn.IsEnabled = true;
+                connectRS60Btn.IsEnabled = true;
+                connectRS120Btn.IsEnabled = true;
+                connectRS180Btn.IsEnabled = true;
+                connectRS360Btn.IsEnabled = true;
+                connectRSFRBtn.IsEnabled = true;
             } else
             {
                 connectBtn.IsEnabled = false;
                 connectRBtn.IsEnabled = false;
                 connectSBtn.IsEnabled = false;
                 connectRSBtn.IsEnabled = false;
+                connectRS60Btn.IsEnabled = false;
+                connectRS120Btn.IsEnabled = false;
+                connectRS180Btn.IsEnabled = false;
+                connectRS360Btn.IsEnabled = false;
+                connectRSFRBtn.IsEnabled = false;
             }
         }
 
@@ -2687,5 +2793,7 @@ namespace JKWatcher
 
             
         }
+
+        
     }
 }

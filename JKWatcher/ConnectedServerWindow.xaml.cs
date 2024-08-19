@@ -262,7 +262,7 @@ namespace JKWatcher
             public string skin { get; set; } = null;
             public string mapChangeCommands { get; set; } = null;
             public string quickCommands { get; set; } = null;
-
+            public bool pretendToBeRealClient { get; set; } = false;
 
             public void LoadMOHDefaults()
             {
@@ -2674,6 +2674,15 @@ namespace JKWatcher
             }*/
         }
 
+
+        private void commandListExecuteBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            DoExecuteCommandList(commandLine.Text, conns.ToArray());
+        }
+
         private void commandSendBtn_Click(object sender, RoutedEventArgs e)
         {
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
@@ -2706,6 +2715,7 @@ namespace JKWatcher
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
             commandSendBtn.IsEnabled = connectionsSelected;
+            commandListExecuteBtn.IsEnabled = connectionsSelected;
 
             deleteWatcherBtn.IsEnabled = cameraOperatorsSelected;
 
@@ -2915,6 +2925,21 @@ namespace JKWatcher
                     connection.leakyBucketRequester.requestExecution(command, RequestCategory.NONE, 1, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
 
                     addToLog("[Conn "+connection.Index+", cN "+connection.client.clientNum+"] Command \"" + command + "\" sent.");
+                }
+            }
+        }
+        private void DoExecuteCommandList(string commands, Connection[] conns)
+        {
+            foreach (Connection connection in conns)
+            {
+                if (connection.client.Status == ConnectionStatus.Active)
+                {
+                    //string command = commandLine.Text;
+                    //commandLine.Text = "";
+                    //connection.client.ExecuteCommand(command); 
+                    connection.ExecuteCommandList(commands,RequestCategory.NONE, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, "say");
+
+                    addToLog("[Conn "+connection.Index+", cN "+connection.client.clientNum+"] Command List \"" + commands + "\" queued.");
                 }
             }
         }

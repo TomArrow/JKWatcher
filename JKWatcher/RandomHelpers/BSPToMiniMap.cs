@@ -145,6 +145,7 @@ namespace JKWatcher.RandomHelpers
 
             if (File.Exists(propsJsonFilePath))
             {
+                return;
                 if (MessageBox.Show($"Minimap for {mapNameClean} seems to already exist. Overwrite?","Minimap already exists",MessageBoxButton.YesNo) == MessageBoxResult.No)
                 {
                     return;

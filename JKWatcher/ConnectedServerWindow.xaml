@@ -144,8 +144,9 @@
         </WrapPanel>
         <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="1">
             <WrapPanel DockPanel.Dock="Bottom" Height="30">
-                <TextBox x:Name="commandLine" MinWidth="280"></TextBox>
+                <TextBox x:Name="commandLine" Width="280"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click" IsEnabled="False">Execute</Button>
+                <Button x:Name="commandListExecuteBtn" Click="commandListExecuteBtn_Click" IsEnabled="False" ToolTip="Execute command list">ECL</Button>
                 <Button x:Name="msgSendBtn" Click="msgSendBtn_Click" IsEnabled="False">S</Button>
                 <Button x:Name="msgSendTeamBtn" Click="msgSendTeamBtn_Click" IsEnabled="False">T</Button>
                 <Button x:Name="msgSendPlayerBtn" Click="msgSendPlayerBtn_Click" IsEnabled="False">P</Button>
