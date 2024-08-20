@@ -1110,7 +1110,7 @@ namespace JKWatcher
                                 }
                                 else
                                 {
-                                    ChatCommandAnswer(pm, defragRecsString, true, true, true);
+                                    ChatCommandAnswer(pm, $"^7^0^7{defragRecsString}", true, true, true);
                                 }
                             }
                             notDemoCommand = true;
@@ -1130,7 +1130,7 @@ namespace JKWatcher
                                 }
                                 else
                                 {
-                                    ChatCommandAnswer(pm, defragRecsString, true, true, true);
+                                    ChatCommandAnswer(pm, $"^7^0^7{defragRecsString}", true, true, true);
                                 }
                             }
                             notDemoCommand = true;
