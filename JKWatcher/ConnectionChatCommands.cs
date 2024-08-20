@@ -256,7 +256,7 @@ namespace JKWatcher
 
             const int itemsPerPage = 4;
             int firstItem = itemsPerPage * page;
-            if (firstItem >= mapData.Count && page > 0) return $"No records found on page {page}. Only {mapData.Count} items found (5 per page).";
+            if (firstItem >= mapData.Count && page > 0) return $"No records found on page {page}. Only {mapData.Count} items found ({itemsPerPage} per page).";
 
             int lastItem = Math.Min(mapData.Count-1,firstItem+itemsPerPage-1);
             List<KeyValuePair<DefragAverageMapTime, string>> items = mapData.GetRange(firstItem,lastItem-firstItem+1);
