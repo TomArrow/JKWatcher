@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using JKWatcher.RandomHelpers;
 using JKClient;
 using Client = JKClient.JKClient;
 using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
@@ -166,6 +167,124 @@ namespace JKWatcher
             return topRatingsString.ToString();
         }
 
+        private static Regex numericCompareSearchRegex = new Regex(@"^\s*(?<operator>(?:>=)|(?:<=)|<|>)\s*(?<number>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+        private static Regex numericRangeSearchRegex = new Regex(@"^\s*(?<number1>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*-\s*(?<number2>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+        private string MakeDefragWRMapsString(bool notwr, string searchParamsRaw)
+        {
+            int minLength = 0;
+            int maxLength = int.MaxValue;
+            int page = 0;
+            string mapSearchString = null;
+            string playername = null;
+            string[] searchParams = searchParamsRaw?.Split(" ",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+            if (searchParams is null || searchParams.Length == 0)
+            {
+                return null;
+            }
+            playername = searchParams[0];
+            Match match;
+            for(int i = 1; i < searchParams.Length; i++)
+            {
+                if (isNumber(searchParams[i]))
+                {
+                    page = Math.Max(0, searchParams[i].Atoi()-1);
+                }
+                else if ((match=numericRangeSearchRegex.Match(searchParams[i])).Success)
+                {
+                    int number1 = match.Groups["number1"].Value.Atoi()*1000;
+                    int number2 = match.Groups["number2"].Value.Atoi() * 1000;
+                    minLength = Math.Min(number1, number2);
+                    maxLength = Math.Max(number1, number2);
+                }
+                else if ((match= numericCompareSearchRegex.Match(searchParams[i])).Success)
+                {
+                    string op = match.Groups["operator"].Value.Trim();
+                    int number = match.Groups["number"].Value.Atoi();
+                    if(op == ">")
+                    {
+                        minLength = number+1;
+                    }
+                    else if(op == ">=")
+                    {
+                        minLength = number;
+                    }
+                    else if(op == "<")
+                    {
+                        maxLength = number-1;
+                    }
+                    else if(op == "<=")
+                    {
+                        maxLength = number;
+                    }
+                }
+                else
+                {
+                    mapSearchString = searchParams[i];
+                }
+            }
+
+            DefragAverageMapTime[] defragItems = AsyncPersistentDataManager<DefragAverageMapTime>.getAllItems();
+
+
+            List<KeyValuePair<DefragAverageMapTime, string>> mapData = new List<KeyValuePair<DefragAverageMapTime, string>>();
+
+            foreach (DefragAverageMapTime mapTime in defragItems)
+            {
+                bool hasRecordHolder = !string.IsNullOrWhiteSpace(mapTime.recordHolder);
+                // playername filtering
+                if (notwr && hasRecordHolder && mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase)) continue;
+                else if (!notwr && (!hasRecordHolder || !mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase))) continue;
+
+                // time filtering
+                if (minLength > 0 && hasRecordHolder && mapTime.record < minLength) continue;
+                if (maxLength < int.MaxValue && hasRecordHolder && mapTime.record > maxLength) continue;
+                if ((minLength > 0 || maxLength < int.MaxValue) && !hasRecordHolder) continue;
+
+                string cleanMapName = Q3ColorFormatter.cleanupString(mapTime.MapName.ToLowerInvariant());
+                if (string.IsNullOrWhiteSpace(cleanMapName)) continue;
+
+                // mapname filtering
+                if (!string.IsNullOrWhiteSpace(mapSearchString) && !cleanMapName.Contains(mapSearchString, StringComparison.InvariantCultureIgnoreCase)) continue;
+                
+                mapData.Add(new KeyValuePair<DefragAverageMapTime, string>(mapTime, cleanMapName));
+            }
+
+            if(mapData.Count == 0) return $"No records match your request for player '{playername}' with map search '{mapSearchString}' and range {minLength} to {maxLength}.";
+
+            mapData.Sort((a,b)=> { return a.Value.CompareTo(b.Value); });
+
+            const int itemsPerPage = 4;
+            int firstItem = itemsPerPage * page;
+            if (firstItem >= mapData.Count && page > 0) return $"No records found on page {page}. Only {mapData.Count} items found (5 per page).";
+
+            int lastItem = Math.Min(mapData.Count-1,firstItem+itemsPerPage-1);
+            List<KeyValuePair<DefragAverageMapTime, string>> items = mapData.GetRange(firstItem,lastItem-firstItem+1);
+            StringBuilder recordsString = new StringBuilder();
+            int itemIndex = 0;
+            foreach (KeyValuePair<DefragAverageMapTime, string> item in items)
+            {
+                if (itemIndex != 0)
+                {
+                    recordsString.Append(", ");
+                }
+                if (!string.IsNullOrWhiteSpace(item.Key.recordHolder))
+                {
+                    if (notwr)
+                    {
+                        recordsString.Append($"{item.Value} ({item.Key.recordHolder},{ScoreboardRenderer.FormatTime(item.Key.record)})");
+                    } else
+                    {
+                        recordsString.Append($"{item.Value} ({ScoreboardRenderer.FormatTime(item.Key.record)})");
+                    }
+                } else
+                {
+                    recordsString.Append($"{item.Value} (no record)");
+                }
+                itemIndex++;
+            }
+            return recordsString.ToString();
+        }
 
         private string MakeStrafeStyleString(UInt64[] strafeStyles)
         {
@@ -965,6 +1084,57 @@ namespace JKWatcher
                             notDemoCommand = true;
                             break;
 
+
+
+                        // Defrag
+
+                        case "defrag":
+                        case "!defrag":
+                            if (!this.IsMainChatConnection || (stringParams0Lower == "defrag" && pm.type != ChatType.PRIVATE)) return;
+                            ChatCommandAnswer(pm, "!notwr !wr", true, true, true, true); // todo !wr !wrholders
+                            notDemoCommand = true;
+                            // TODO Send list of meme commands
+                            break;
+                        case "!wr":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (string.IsNullOrWhiteSpace(demoNoteString))
+                            {
+                                ChatCommandAnswer(pm, "Usage: !wr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                            }
+                            else
+                            {
+                                string defragRecsString = MakeDefragWRMapsString(false, demoNoteString);
+                                if(defragRecsString is null)
+                                {
+                                    ChatCommandAnswer(pm, "Usage: !wr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, defragRecsString, true, true, true);
+                                }
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!notwr":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (string.IsNullOrWhiteSpace(demoNoteString))
+                            {
+                                ChatCommandAnswer(pm, "Usage: !notwr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                            }
+                            else
+                            {
+                                string defragRecsString = MakeDefragWRMapsString(true, demoNoteString);
+                                if(defragRecsString is null)
+                                {
+                                    ChatCommandAnswer(pm, "Usage: !notwr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, defragRecsString, true, true, true);
+                                }
+                            }
+                            notDemoCommand = true;
+                            break;
 
 
 
@@ -1981,7 +2151,7 @@ namespace JKWatcher
                             {
                                 if (!_connectionOptions.silentMode && pm.playerNum != myClientNum && !pm.commandComesFromJKWatcher)
                                 {
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands), !defrag (df commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                     /*leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   I don't understand your command. Type !demohelp for help or !mark to mark a time point for a demo.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                     leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you want a long demo, add the amount of past minutes after !mark, like this: !mark 10\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                     leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   If you also want the demo reframed to your perspective, use !markme instead.\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);*/
@@ -2003,7 +2173,7 @@ namespace JKWatcher
                             {
                                 if (!_connectionOptions.silentMode && pm.playerNum != myClientNum && !pm.commandComesFromJKWatcher)
                                 {
-                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                                    leakyBucketRequester.requestExecution($"tell {pm.playerNum} \"   Options: !demohelp (demo commands), !memes (meme commands), !tools (tool commands), !defrag (df commands)\"", RequestCategory.NONE, 0, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
                                 }
                             }
                             break;
