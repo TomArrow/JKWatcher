@@ -261,6 +261,12 @@ namespace JKWatcher
             int lastItem = Math.Min(mapData.Count-1,firstItem+itemsPerPage-1);
             List<KeyValuePair<DefragAverageMapTime, string>> items = mapData.GetRange(firstItem,lastItem-firstItem+1);
             StringBuilder recordsString = new StringBuilder();
+
+            if(page > 0 || mapData.Count > itemsPerPage)
+            {
+                recordsString.Append($"({firstItem + 1}-{lastItem + 1}/{mapData.Count}) ");
+            }
+
             int itemIndex = 0;
             foreach (KeyValuePair<DefragAverageMapTime, string> item in items)
             {
