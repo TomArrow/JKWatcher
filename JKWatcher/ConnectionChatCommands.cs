@@ -170,7 +170,7 @@ namespace JKWatcher
         private static Regex numericCompareSearchRegex = new Regex(@"^\s*(?<operator>(?:>=)|(?:<=)|<|>)\s*(?<number>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
         private static Regex numericRangeSearchRegex = new Regex(@"^\s*(?<number1>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*-\s*(?<number2>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-        private string MakeDefragWRMapsString(bool notwr, string searchParamsRaw)
+        private string MakeDefragWRMapsString(bool notwr, string searchParamsRaw, bool ignoreName) // ignorename: just search maps
         {
             int minLength = 0;
             int maxLength = int.MaxValue;
@@ -182,9 +182,13 @@ namespace JKWatcher
             {
                 return null;
             }
-            playername = searchParams[0];
+            if (!ignoreName)
+            {
+                playername = searchParams[0];
+            }
+            int startIndex = ignoreName ? 0 : 1;
             Match match;
-            for(int i = 1; i < searchParams.Length; i++)
+            for(int i = startIndex; i < searchParams.Length; i++)
             {
                 if (isNumber(searchParams[i]))
                 {
@@ -200,7 +204,7 @@ namespace JKWatcher
                 else if ((match= numericCompareSearchRegex.Match(searchParams[i])).Success)
                 {
                     string op = match.Groups["operator"].Value.Trim();
-                    int number = match.Groups["number"].Value.Atoi();
+                    int number = match.Groups["number"].Value.Atoi() * 1000;
                     if(op == ">")
                     {
                         minLength = number+1;
@@ -233,8 +237,11 @@ namespace JKWatcher
             {
                 bool hasRecordHolder = !string.IsNullOrWhiteSpace(mapTime.recordHolder);
                 // playername filtering
-                if (notwr && hasRecordHolder && mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase)) continue;
-                else if (!notwr && (!hasRecordHolder || !mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase))) continue;
+                if (!ignoreName)
+                {
+                    if (notwr && hasRecordHolder && mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase)) continue;
+                    else if (!notwr && (!hasRecordHolder || !mapTime.recordHolder.Equals(playername, StringComparison.InvariantCultureIgnoreCase))) continue;
+                }
 
                 // time filtering
                 if (minLength > 0 && hasRecordHolder && mapTime.record < minLength) continue;
@@ -250,7 +257,16 @@ namespace JKWatcher
                 mapData.Add(new KeyValuePair<DefragAverageMapTime, string>(mapTime, cleanMapName));
             }
 
-            if(mapData.Count == 0) return $"No records match your request for player '{playername}' with map search '{mapSearchString}' and range {minLength} to {maxLength}.";
+            if (mapData.Count == 0) {
+                if (ignoreName)
+                {
+                    return $"No records match your map search '{mapSearchString}' and range {minLength} to {maxLength}.";
+                }
+                else
+                {
+                    return $"No records match your request for player '{playername}' with map search '{mapSearchString}' and range {minLength} to {maxLength}.";
+                }
+            } 
 
             mapData.Sort((a,b)=> { return a.Value.CompareTo(b.Value); });
 
@@ -276,7 +292,7 @@ namespace JKWatcher
                 }
                 if (!string.IsNullOrWhiteSpace(item.Key.recordHolder))
                 {
-                    if (notwr)
+                    if (notwr || ignoreName)
                     {
                         recordsString.Append($"{item.Value} ({item.Key.recordHolder},{ScoreboardRenderer.FormatTime(item.Key.record)})");
                     } else
@@ -1097,7 +1113,7 @@ namespace JKWatcher
                         case "defrag":
                         case "!defrag":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "defrag" && pm.type != ChatType.PRIVATE)) return;
-                            ChatCommandAnswer(pm, "!notwr !wr", true, true, true, true); // todo !wr !wrholders
+                            ChatCommandAnswer(pm, "!notwr !wr !mapwr", true, true, true, true); // todo !wr !wrholders
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -1109,7 +1125,7 @@ namespace JKWatcher
                             }
                             else
                             {
-                                string defragRecsString = MakeDefragWRMapsString(false, demoNoteString);
+                                string defragRecsString = MakeDefragWRMapsString(false, demoNoteString, false);
                                 if(defragRecsString is null)
                                 {
                                     ChatCommandAnswer(pm, "Usage: !wr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
@@ -1129,10 +1145,30 @@ namespace JKWatcher
                             }
                             else
                             {
-                                string defragRecsString = MakeDefragWRMapsString(true, demoNoteString);
+                                string defragRecsString = MakeDefragWRMapsString(true, demoNoteString,false);
                                 if(defragRecsString is null)
                                 {
                                     ChatCommandAnswer(pm, "Usage: !notwr playername [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                                }
+                                else
+                                {
+                                    ChatCommandAnswer(pm, $"^7^0^7{defragRecsString}", true, true, true);
+                                }
+                            }
+                            notDemoCommand = true;
+                            break;
+                        case "!mapwr":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (string.IsNullOrWhiteSpace(demoNoteString))
+                            {
+                                ChatCommandAnswer(pm, "Usage: !mapwr [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
+                            }
+                            else
+                            {
+                                string defragRecsString = MakeDefragWRMapsString(true, demoNoteString,true);
+                                if(defragRecsString is null)
+                                {
+                                    ChatCommandAnswer(pm, "Usage: !mapwr [page number] [timerange, e.g. 10-30 or <40] [map filter keyword]", true, true, true);
                                 }
                                 else
                                 {
