@@ -674,26 +674,64 @@ namespace JKWatcher
             oldSum = 0;
         }
         // Current value or sum
-        public string GetString1()
+        public string GetString1(bool block0 = false,string prefixIfNotBlocked = null,Func<int,string> formatCallback = null)
         {
+            int baseValue = value;
+            string theString = formatCallback != null ? formatCallback(value) : value.ToString();
             if(oldSum > 0)
             {
-                return $"^yfff8∑^7{oldSum+value}";
-            } else
+                baseValue = oldSum + value;
+                theString = formatCallback != null ? $"^yfff8∑^7{formatCallback(baseValue)}" : $"^yfff8∑^7{baseValue}";
+            }
+
+            if (block0 && baseValue == 0)
+            {
+                theString = "";
+            } else if ((!block0 || baseValue != 0) && prefixIfNotBlocked != null)
+            {
+                theString = $"{prefixIfNotBlocked}{theString}";
+            }
+
+            return theString;
+            /*if (oldSum > 0)
+            {
+                return $"^yfff8∑^7{oldSum + value}";
+            }
+            else
             {
                 return value.ToString();
             }
+            */
+            
         }
         // Current value if sum exists or nothing
-        public string GetString2()
+        public string GetString2(bool block0 = false, string prefixIfNotBlocked = null, Func<int, string> formatCallback = null)
         {
-            if(oldSum > 0)
+            if(oldSum <= 0)
+            {
+                return "";
+            }
+
+            int baseValue = value;
+            string theString = formatCallback != null ? formatCallback(value) : value.ToString();
+
+            if (block0 && baseValue == 0)
+            {
+                theString = "";
+            }
+            else if ((!block0 || baseValue != 0) && prefixIfNotBlocked != null)
+            {
+                theString = $"{prefixIfNotBlocked}{theString}";
+            }
+
+            return theString;
+            /*if (oldSum > 0)
             {
                 return value.ToString();
             } else
             {
                 return "";
-            }
+            }*/
         }
     }
 
@@ -802,6 +840,7 @@ namespace JKWatcher
         public int oldScoreSum => _score.oldSum;
         public ValueAverager<AveragePositiveNon999> ping { get; set; }
         public ConditionalResetValueSummer<ResetValueOnDecrease> time { get; set; }
+        public ConditionalResetValueSummer<ResetValueOnZero> timeResetOn0 { get; set; } // handles pauses better. why did i use ondecrease originally?
         public float scorePerMinute { 
             get
             {
@@ -1052,6 +1091,8 @@ namespace JKWatcher
         public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);
         public DateTime lastBodyguardStarted = DateTime.Now - new TimeSpan(10, 0, 0);
         public int sillyBodyguardPlayer = -1;
+        public bool NWHDetected = false;
+        public bool mohMode = false;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
             if (sillyModes.Contains(sillyMode))

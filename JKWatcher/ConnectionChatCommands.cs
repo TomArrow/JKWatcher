@@ -252,7 +252,8 @@ namespace JKWatcher
                 if (string.IsNullOrWhiteSpace(cleanMapName)) continue;
 
                 // mapname filtering
-                if (!string.IsNullOrWhiteSpace(mapSearchString) && !cleanMapName.Contains(mapSearchString, StringComparison.InvariantCultureIgnoreCase)) continue;
+                // treat - and _ as same, and non case sensitive
+                if (!string.IsNullOrWhiteSpace(mapSearchString) && !cleanMapName.Replace('_','-').Contains(mapSearchString.Replace('_', '-'), StringComparison.InvariantCultureIgnoreCase)) continue;
                 
                 mapData.Add(new KeyValuePair<DefragAverageMapTime, string>(mapTime, cleanMapName));
             }

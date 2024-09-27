@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define ACCURACYDEBUG
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -18,6 +19,7 @@ using PropertyChanged;
 using Client = JKClient.JKClient;
 using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
 using JKWatcher.RandomHelpers;
+
 
 namespace JKWatcher
 {
@@ -325,6 +327,7 @@ namespace JKWatcher
         private bool JAProDetected = false;
         private bool MBIIDetected = false;
         private bool SaberModDetected = false;
+        private bool NWHDetected = false;
 
         private string chatCommandPublic = "say";
         private string chatCommandTeam = "say_team";
@@ -344,6 +347,7 @@ namespace JKWatcher
             } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8 || protocolA == ProtocolVersion.Protocol17) // TODO Support 15,16 too?
             {
                 mohMode = true;
+                infoPool.mohMode = true;
                 if (protocolA > ProtocolVersion.Protocol8)
                 {
                     mohExpansion = true;
@@ -3871,6 +3875,11 @@ namespace JKWatcher
             else if(obj.GameName.Contains("SaberMod", StringComparison.OrdinalIgnoreCase))
             {
                 this.SaberModDetected = true;
+            } 
+            else if(obj.GameName.Contains("NWH", StringComparison.OrdinalIgnoreCase) && obj.ServerGameVersionString.Contains("NWH", StringComparison.OrdinalIgnoreCase) || obj.NWH)
+            {
+                this.NWHDetected = true;
+                infoPool.NWHDetected = true;
             } else if(obj.GameName.Contains("Movie Battles II", StringComparison.OrdinalIgnoreCase))
             {
                 if (!this.MBIIDetected)
@@ -5406,6 +5415,7 @@ namespace JKWatcher
                                 score.score = score.kills;
                             }
                             score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
+                            score.timeResetOn0 += mohTimeStringToSeconds(commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i));
                             string pingString = commandEventArgs.Command.Argv(5 + iCurrentEntry + iDatumCount * i);
                             if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                             {
@@ -5518,6 +5528,7 @@ namespace JKWatcher
                             score.deaths += commandEventArgs.Command.Argv(2 + iCurrentEntry + iDatumCount * i).Atoi();
                             score.score = score.kills;
                             score.time += mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
+                            score.timeResetOn0 += mohTimeStringToSeconds(commandEventArgs.Command.Argv(3 + iCurrentEntry + iDatumCount * i));
                             string pingString = commandEventArgs.Command.Argv(4 + iCurrentEntry + iDatumCount * i);
                             if (pingString.Trim().Equals("bot", StringComparison.OrdinalIgnoreCase))
                             {
@@ -5668,11 +5679,19 @@ namespace JKWatcher
                         score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
                         score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
                         score.time += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
+                        score.timeResetOn0 += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
                         score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
                         powerups = commandEventArgs.Command.Argv(i * scoreboardOffset + 9).Atoi();
                         score.powerUps = powerups; // duplicated from entities?
                         infoPool.playerInfo[clientNum].powerUps = powerups; // 3/3 places where powerups is transmitted
-                        score.accuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi(); // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
+                        int newAccuracy = commandEventArgs.Command.Argv(i * scoreboardOffset + 10).Atoi();
+#if ACCURACYDEBUG
+                        if (NWHDetected && score.accuracy != newAccuracy)
+                        {
+                            serverWindow.addToLog($"^1ACCURACY DEBUG: ^7Value changing from {score.accuracy} to {newAccuracy} for client {clientNum} ({infoPool.playerInfo[clientNum].name})");
+                        }
+#endif
+                        score.accuracy = newAccuracy; // percentage of shots that were hits for detpack, missiles (not sure which types, could include blaster) and disruptor 
                         score.impressiveCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 11).Atoi(); // returns in nwh, unused elsewhere
 
                         if (score.impressiveCount > 0)
@@ -5682,7 +5701,7 @@ namespace JKWatcher
 
                         score.excellentCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 12).Atoi(); // count of kills within 3000 ms of last kill
 
-                        score.guantletCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills
+                        score.guantletCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 13).Atoi(); // stun baton kills. on nwh its flag hold time in milliseconds i think
                         score.defendCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 14).Atoi(); // bc
                         score.assistCount += commandEventArgs.Command.Argv(i * scoreboardOffset + 15).Atoi(); // flag cap assists (killing flag carrier or returning flag with capture in next 10000 ms)
                         score.perfect = commandEventArgs.Command.Argv(i * scoreboardOffset + 16).Atoi() == 0 ? false : true; // means u never died and are highest rank. not that realistic/useful to us rly.

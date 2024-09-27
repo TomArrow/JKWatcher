@@ -243,7 +243,7 @@ namespace JKWatcher.CameraOperators
         private Dictionary<int, DateTime> lastFollowedPlayerChanges = new Dictionary<int, DateTime>(); // clientnum (watcher client) -> DateTime of last change.
 
         private double destructionDelayMs = 1000.0 * 60.0 * 10.0; // 10 minutes
-        private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 60.0; // 60 minutes
+        private double retryMoreConnectionsDelay = 1000.0 * 60.0 * 1.0; //1 minute //60.0; // 60 minutes
         private DateTime destructionDelayStartTime = DateTime.Now;
 
         private DateTime[] clientNumsWereOurs = new DateTime[64];
