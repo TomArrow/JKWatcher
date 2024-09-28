@@ -347,7 +347,7 @@ namespace JKWatcher
             } else if (protocolA >= ProtocolVersion.Protocol6 && protocolA <= ProtocolVersion.Protocol8 || protocolA == ProtocolVersion.Protocol17) // TODO Support 15,16 too?
             {
                 mohMode = true;
-                infoPool.mohMode = true;
+                infoPoolA.mohMode = true;
                 if (protocolA > ProtocolVersion.Protocol8)
                 {
                     mohExpansion = true;
