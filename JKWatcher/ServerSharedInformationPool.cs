@@ -559,7 +559,112 @@ namespace JKWatcher
         public bool duelInProgress;
         public int saberMove;
         public int forcePowersActive;
-        public int movementDir;
+
+        private enum MovementDir {
+            KEY_W = 0,
+            KEY_WA = 1,
+            KEY_A = 2,
+            KEY_AS = 3,
+            KEY_S = 4,
+            KEY_SD = 5,
+            KEY_D = 6,
+            KEY_DW = 7,
+            KEY_CENTER = 8,
+        }
+
+        private int _movementDir;
+        private Vector3 _movementDirVector = new Vector3();
+        private void _updateMovementDirVector() // for deluxe prediction :)
+        {
+            Vector2 dir =new Vector2();
+            switch ((MovementDir)_movementDir)
+            {
+                case MovementDir.KEY_W:
+                    dir.X = 127;
+                    dir.Y = 0;
+                    break;
+                case MovementDir.KEY_WA:
+                    dir.X = 127;
+                    dir.Y = -127;
+                    break;
+                case MovementDir.KEY_A:
+                    dir.X = 0;
+                    dir.Y = -127;
+                    break;
+                case MovementDir.KEY_AS:
+                    dir.X = -127;
+                    dir.Y = -127;
+                    break;
+                case MovementDir.KEY_S:
+                    dir.X = -127;
+                    dir.Y = 0;
+                    break;
+                case MovementDir.KEY_SD:
+                    dir.X = -127;
+                    dir.Y = 127;
+                    break;
+                case MovementDir.KEY_D:
+                    dir.X = 0;
+                    dir.Y = 127;
+                    break;
+                case MovementDir.KEY_DW:
+                    dir.X = 127;
+                    dir.Y = 127;
+                    break;
+                default:
+                    break;
+            }
+            dir = Vector2.Normalize(dir);
+            Vector3 forward = new Vector3(), right = new Vector3(), up = new Vector3();
+            Q3MathStuff.AngleVectors(angles, out forward, out right, out up);
+            Vector3 dirVector = forward * dir.X + right * dir.Y;
+            _movementDirVector = Vector3.Normalize(dirVector);
+        }
+        public Vector3 deluxePredict(float timeInSeconds)
+        {
+            //Vector3 pos = position;
+            Vector3 accelVector = _movementDirVector;
+            float accelerateRate = (groundEntityNum == Common.MaxGEntities - 1) ? 1.0f : 10.0f; // air accelerate vs walk accelerate
+            float currentspeed = Vector3.Dot(velocity, accelVector);
+            float wishspeed = speed == 0 ? 250 : speed;
+            float addspeed = wishspeed - currentspeed;
+            if(addspeed <= 0)
+            {
+                Vector3 naive2 = position + velocity * timeInSeconds; // old school;
+                // good old naive prediction
+                return naive2;
+            }
+            //accelspeed = accel * pml.frametime * wishspeed;
+            float accelPerSecond = accelerateRate * wishspeed;
+            float timeToFullAccel = addspeed / accelPerSecond;
+            if(timeInSeconds < timeToFullAccel)
+            {
+                Vector3 naive2 = position + velocity * timeInSeconds; // old school;
+                float displacement2 = 0.5f * (timeInSeconds * timeInSeconds) * accelPerSecond;
+                return naive2 + displacement2 * accelVector;
+            }
+            Vector3 naive = position + velocity * timeToFullAccel; // old school;
+            float displacement = 0.5f * (timeToFullAccel * timeToFullAccel) * accelPerSecond;
+            Vector3 pos = naive + displacement * accelVector;
+            Vector3 fullAccelSpeed = velocity + addspeed * accelVector;
+            float timeLeft = timeInSeconds - timeToFullAccel;
+            pos += timeLeft * fullAccelSpeed;
+            return pos;
+        }
+        // must set this AFTER position (origin) and angles
+        public int movementDir
+        {
+            get
+            {
+                return _movementDir;
+            }
+            set
+            {
+                _movementDir = value;
+                _updateMovementDirVector();
+            }
+        }
+        public Vector3 movementDirVector => _movementDirVector;
         public Hitbox hitBox;
         public DateTime? lastDrainedEvent;
         //public int legsTimer;

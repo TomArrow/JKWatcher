@@ -419,9 +419,12 @@ namespace JKWatcher
             if (infoPool.deluxePredict > 0.0f)
             {
 				DateTime? lastFullPosUpdate = myself.lastFullPositionUpdate;
-				if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
+				double milliseconds = (DateTime.Now - lastFullPosUpdate.Value).TotalSeconds;
+				if (lastFullPosUpdate.HasValue && milliseconds < 1000)
 				{
-					myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping* infoPool.deluxePredict) * 0.001f;
+
+					//myPosition = myself.position + myself.velocity * ((float)milliseconds + (float)lastSnapshot.ping* infoPool.deluxePredict)*0.001f;
+					myPosition = myself.deluxePredict(((float)milliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict)*0.001f);
 				}
 			}
 
@@ -808,7 +811,8 @@ namespace JKWatcher
 				DateTime? lastFullPosUpdate = closestPlayer.lastFullPositionUpdate;
                 if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
 				{
-					closestPlayerPosition = closestPlayer.position + closestPlayer.velocity * ((float)(DateTime.Now-lastFullPosUpdate.Value).TotalMilliseconds+(float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					//closestPlayerPosition = closestPlayer.position + closestPlayer.velocity * ((float)(DateTime.Now-lastFullPosUpdate.Value).TotalMilliseconds+(float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					closestPlayerPosition = closestPlayer.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
 					closestDistance = (closestPlayerPosition - myPosition).Length();
 				}
 				if(closestFriend != null)
@@ -816,7 +820,8 @@ namespace JKWatcher
 					lastFullPosUpdate = closestFriend.lastFullPositionUpdate;
 					if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
 					{
-						closestFriendPosition = closestFriend.position + closestFriend.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+						//closestFriendPosition = closestFriend.position + closestFriend.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+						closestFriendPosition = closestFriend.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
 						closestFriendDistance = (closestFriendPosition - myPosition).Length();
 					}
 				}
