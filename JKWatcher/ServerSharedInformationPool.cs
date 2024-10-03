@@ -247,6 +247,12 @@ namespace JKWatcher
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];
 
+        // adapt from demo tools
+        Int64 hitBySaberCount;
+        Int64 hitBySaberBlockableCount;
+        Int64 parryCount;
+        Int64 attackFromParryCount;
+
         public Rating rating = null;
 
         public BlocksTracker blocksTracker = new BlocksTracker();
@@ -510,6 +516,45 @@ namespace JKWatcher
         public string model { get; set; }
     }
 
+    public class DelayedStatusWarner
+    {
+        object meLock = new object();
+        DateTime? _firstStatusSatisfied = null;
+        DateTime? _lastTimeWarned = null;
+        // soft: dont warn.
+        public bool check(bool statusSatisfied, double secondsDelayWarning, double secondsDelayWarnAgain, bool soft)
+        {
+            lock (meLock)
+            {
+                if (!statusSatisfied)
+                {
+                    _firstStatusSatisfied = null;
+                    _lastTimeWarned = null;
+                    return false;
+                }
+                if (!_firstStatusSatisfied.HasValue)
+                {
+                    _firstStatusSatisfied = DateTime.Now;
+                    _lastTimeWarned = null;
+                    return false;
+                }
+                if (soft)
+                {
+                    return false;
+                }
+                if ((DateTime.Now - _firstStatusSatisfied.Value).TotalSeconds > secondsDelayWarning)
+                {
+                    if (!_lastTimeWarned.HasValue || (DateTime.Now - _lastTimeWarned.Value).TotalSeconds > secondsDelayWarnAgain)
+                    {
+                        _lastTimeWarned = DateTime.Now;
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    }
+
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
     public class PlayerInfo
@@ -533,10 +578,14 @@ namespace JKWatcher
         public bool confirmedBot => this.session.confirmedBot;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
+        public DelayedStatusWarner pingWarner = new DelayedStatusWarner();
+        public DelayedStatusWarner afkWarner = new DelayedStatusWarner();
+
         #region position
         public Vector3 position;
         public DateTime? lastPositionUpdate; // Last time the player position alone was updated (from events or such)
         public DateTime lastMovementDirChange = DateTime.Now; // Last time the player position or angle changed
+        public DateTime lastViewAngleChange = DateTime.Now; // Last view angle change. Used for afk warning prevention, but not for normal afk detection (avoid spamming warnjing in case someone is camping but still moving around his view)
         public Vector3 angles;
         //public Vector3 delta_angles;
         public Vector3 velocity;

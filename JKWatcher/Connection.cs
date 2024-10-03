@@ -30,7 +30,7 @@ namespace JKWatcher
         //CS_MUSIC = 2,
         //CS_MESSAGE = 3,     // from the map worldspawn's message field
         //CS_MOTD = 4,        // g_motd string for server message of the day
-        //CS_WARMUP = 5,      // server time when the match will be restarted
+        CS_WARMUP = 5,      // server time when the match will be restarted
         //CS_SCORES1 = 6,
         //CS_SCORES2 = 7,
         //CS_VOTE_TIME = 8,
@@ -106,7 +106,8 @@ namespace JKWatcher
         CONDITIONALCOMMANDNOSPAMSAME,
         STUFFTEXTECHO,
         JKCLIENTINTERNAL,
-        AUTOPRINTSTATS
+        AUTOPRINTSTATS,
+        PUBLICWARNING
     }
 
     struct MvHttpDownloadInfo
@@ -2525,8 +2526,17 @@ namespace JKWatcher
                 int snapEntityNum = snapEntityMapping[i];
                 if((snapEntityNum == -1 || mohMode) && i == snap.PlayerState.ClientNum)
                 {
+                    checkPingWarning(infoPool.playerInfo[i], snap.ServerTime - snap.PlayerState.CommandTime, true);
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
+                    if (// due to snapping we have to compare distance instead of just equality
+                        Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.X, snap.PlayerState.ViewAngles[0])) > 3.0f
+                        || Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.Y, snap.PlayerState.ViewAngles[1])) > 3.0f
+                        || Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.Z, snap.PlayerState.ViewAngles[2])) > 3.0f
+                    )
+                    {
+                        infoPool.playerInfo[i].lastViewAngleChange = DateTime.Now;
+                    }
                     if (
                         infoPool.playerInfo[i].movementDir != snap.PlayerState.MovementDirection
                         /*infoPool.playerInfo[i].position.X != snap.PlayerState.Origin[0] ||
@@ -2585,6 +2595,8 @@ namespace JKWatcher
                     {
                         infoPool.playerInfo[i].hitBox.maxs = Hitbox.defaultMaxs;
                     }
+
+                    checkAFKWarning(infoPool.playerInfo[i], isDucked);
                     
                     this.saberDrawAnimLevel = snap.PlayerState.forceData.SaberDrawAnimLevel;
                     this.baseSpeed = snap.PlayerState.Basespeed;
@@ -2742,6 +2754,10 @@ namespace JKWatcher
                 }
                 else if (snapEntityNum != -1 /* entities[i].CurrentValid || entities[i].CurrentFilledFromPlayerState */) {
 
+                    if(snap.Entities[snapEntityNum].Position.Type == TrajectoryType.TR_LINEAR_STOP)
+                    {
+                        checkPingWarning(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time - snap.PlayerState.CommandTime, true);
+                    }
                     // TODO
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
                     // evaluated to false for a single frame, unless I mistraced the error and this isn't the source of the error at all.
@@ -2764,6 +2780,14 @@ namespace JKWatcher
                     }
                     infoPool.playerInfo[i].IsFrozen = frozenStatus;
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    if ( // due to snapping we have to compare distance instead of just equality
+                        Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.X, snap.Entities[snapEntityNum].AngularPosition.Base[0])) > 3.0f
+                        || Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.Y, snap.Entities[snapEntityNum].AngularPosition.Base[1])) > 3.0f
+                        || Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.Z, snap.Entities[snapEntityNum].AngularPosition.Base[2])) > 3.0f
+                    )
+                    {
+                        infoPool.playerInfo[i].lastViewAngleChange = DateTime.Now;
+                    }
                     if (
                         infoPool.playerInfo[i].movementDir != snap.Entities[snapEntityNum].Angles2[YAW]
                         /*infoPool.playerInfo[i].position.X != snap.Entities[snapEntityNum].Position.Base[0] ||
@@ -2812,6 +2836,10 @@ namespace JKWatcher
                     lastTorsoAnimFlipBit[i] = torsoAnimFlipBit;
                     lastTorsoAnim[i] = torsoAnim;
 
+                    int legsAnim = snap.Entities[snapEntityNum].LegsAnimation & ~2048;
+                    bool isDucked = (legsAnim >= 697 && legsAnim <= 699);
+
+                    checkAFKWarning(infoPool.playerInfo[i],isDucked);
 
                     if (snap.Entities[snapEntityNum].Solid >0)
                     {
@@ -2944,7 +2972,7 @@ namespace JKWatcher
 
 
 
-                    int legsAnim = snap.Entities[snapEntityNum].LegsAnimation & ~2048;
+                    //int legsAnim = snap.Entities[snapEntityNum].LegsAnimation & ~2048;
                     if (legsAnim != lastLegsAnim[i])
                     {
                         if (legsAnim >= 781 && legsAnim <= 784 && !(lastLegsAnim[i] >= 781 && lastLegsAnim[i] <= 784)) // Is in roll. TODO Make work with JKA and 1.04
@@ -3306,6 +3334,19 @@ namespace JKWatcher
                     //    serverWindow.playerListDataGrid.ItemsSource = infoPool.playerInfo;
                     //}
                 //});
+            }
+
+            if (!_connectionOptions.silentMode && (DateTime.Now - lastPublicWarning).TotalSeconds > 5.0)
+            {
+                lock (publicWarningsQueue)
+                {
+                    if(publicWarningsQueue.Length > 0)
+                    {
+                        leakyBucketRequester.requestExecution($"say \" ^1Warning:^7 {publicWarningsQueue.ToString()}\"",RequestCategory.PUBLICWARNING,2,5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                        lastPublicWarning = DateTime.Now;
+                        publicWarningsQueue.Clear();
+                    }
+                }
             }
 
             /*if (amNotInSpec) // Maybe in the future I will
@@ -3748,6 +3789,9 @@ namespace JKWatcher
             intermissionCSReceived = false;
             //firstNonIntermissionOfThisMapReceived = false;
             intermissionCamAutoDetectImpossible = false;
+            warmup = false;
+            activeMatch = false;
+            gameIsPaused = false;
             lastMyUserCommandServerTime = 0;
             CommitRatings();
             thisGameRatingCommitCount = 0;
@@ -4493,7 +4537,13 @@ namespace JKWatcher
                     break;
                 case "map_restart":
                     if (this.HandleAutoCommands) ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
+                    bool wasWarmup = warmup;
                     resetThisGameStats();
+                    if (wasWarmup)
+                    {
+                        activeMatch = true;
+                        matchStarted = DateTime.Now;
+                    }
                     break;
                 default:
                     break;
@@ -4625,6 +4675,11 @@ namespace JKWatcher
 
         bool[] pendingPlayerSpectatorTeam = new bool[128];
 
+        bool warmup = false;
+        bool activeMatch = false;
+        bool gameIsPaused = false;
+        DateTime matchStarted = DateTime.Now;
+        DateTime pauseEndedOrStarted = DateTime.Now;
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
             if (mohMode) return; // MOH Doesn't have flag status.
@@ -4651,6 +4706,12 @@ namespace JKWatcher
 
             switch (num)
             {
+                case (int)ConfigStringDefines.CS_WARMUP:
+                    if(commandEventArgs.Command.Argv(2).Atoi() > 0)
+                    {
+                        warmup = true;
+                    }
+                    break;
                 case (int)ConfigStringDefines.CS_FLAGSTATUS:
                     EvaluateFlagStatus(commandEventArgs.Command.Argv(2));
                     break;
@@ -5060,6 +5121,14 @@ namespace JKWatcher
                     {
                         // Maybe update GUI? Or whatever, fuck it.
                     }
+                } else if (NWHDetected && commandEventArgs.Command.Argv(1).StartsWith("Game was paused",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    pauseEndedOrStarted = DateTime.Now;
+                    gameIsPaused = true;
+                } else if (NWHDetected && commandEventArgs.Command.Argv(1).StartsWith("Pause ended after", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    pauseEndedOrStarted = DateTime.Now;
+                    gameIsPaused = false;
                 }
             }
         }
@@ -5571,6 +5640,92 @@ namespace JKWatcher
 
         }
 
+        DateTime lastPublicWarning = DateTime.Now;
+        StringBuilder publicWarningsQueue = new StringBuilder();
+
+        void checkPingWarning(PlayerInfo pi, int ping, bool commandTimeBasis)
+        {
+            bool softMode = !activeMatch || (DateTime.Now - matchStarted).TotalSeconds < 10.0;
+            bool pingBad = commandTimeBasis ? ping >= 2000 : ping >= 999;
+            if (!pi.pingWarner.check(pingBad, 5.0,gameIsPaused ? 120.0 : 30.0, softMode))
+            {
+                return;
+            }
+            if (_connectionOptions.silentMode || !NWHDetected) return;
+            if (currentGameType != GameType.CTF && currentGameType != GameType.CTY) return;
+            int playercountRed = 0;
+            int playercountBlue = 0;
+            foreach(PlayerInfo piOther in infoPool.playerInfo)
+            {
+                if(piOther.infoValid && !piOther.confirmedBot && (piOther.scoreAll.ping != 0 || piOther.scoreAll.pingUpdatesSinceLastNonZeroPing < 4))
+                {
+                    switch (piOther.team) {
+                        case Team.Red:
+                            playercountRed++;
+                            break;
+                        case Team.Blue:
+                            playercountBlue++;
+                            break;
+                    }
+
+                }
+            }
+            if (playercountRed < 5 || playercountRed > 7 || playercountBlue < 5 || playercountBlue > 7) return;
+            lock (publicWarningsQueue)
+            {
+                if(publicWarningsQueue.Length > 0)
+                {
+                    publicWarningsQueue.Append($", {pi.name} ^7is ^1999'd");
+                }
+                else
+                {
+                    publicWarningsQueue.Append($"{pi.name} ^7is ^1999'd");
+                }
+            }
+
+        }
+        void checkAFKWarning(PlayerInfo pi, bool isDucked)
+        {
+            bool softMode = !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
+            bool isAfk = !isDucked && (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 5.0 && (DateTime.Now - pi.lastViewAngleChange).TotalSeconds > 5.0; // avoid misdetecting campers as afk. could fail to detect afk ppl who are stuck in crouch pos. oh well.
+            if (!pi.pingWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
+            {
+                return;
+            }
+            if (_connectionOptions.silentMode || !NWHDetected) return;
+            if (currentGameType != GameType.CTF && currentGameType != GameType.CTY) return;
+            int playercountRed = 0;
+            int playercountBlue = 0;
+            foreach(PlayerInfo piOther in infoPool.playerInfo)
+            {
+                if(piOther.infoValid && !piOther.confirmedBot && (piOther.scoreAll.ping != 0 || piOther.scoreAll.pingUpdatesSinceLastNonZeroPing < 4))
+                {
+                    switch (piOther.team) {
+                        case Team.Red:
+                            playercountRed++;
+                            break;
+                        case Team.Blue:
+                            playercountBlue++;
+                            break;
+                    }
+
+                }
+            }
+            if (playercountRed < 5 || playercountRed > 7 || playercountBlue < 5 || playercountBlue > 7) return; // perhaps not a real match?
+            lock (publicWarningsQueue)
+            {
+                if(publicWarningsQueue.Length > 0)
+                {
+                    publicWarningsQueue.Append($", {pi.name} ^7is ^1AFK");
+                }
+                else
+                {
+                    publicWarningsQueue.Append($"{pi.name} ^7is ^1AFK");
+                }
+            }
+
+        }
+
         void EvaluateScore(CommandEventArgs commandEventArgs)
         {
             if (mohMode)
@@ -5676,8 +5831,10 @@ namespace JKWatcher
                         score.shortScoresMBII = false;
 
                         score.client = commandEventArgs.Command.Argv(i * scoreboardOffset + 4).Atoi(); // client num
-                        score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi(); 
-                        score.ping += commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi(); // -1 if connecting otherwise ping (could also end up -1 if glitch?)
+                        score.score = commandEventArgs.Command.Argv(i * scoreboardOffset + 5).Atoi();
+                        int ping = commandEventArgs.Command.Argv(i * scoreboardOffset + 6).Atoi();
+                        score.ping += ping; // -1 if connecting otherwise ping (could also end up -1 if glitch?)
+                        checkPingWarning(infoPool.playerInfo[clientNum], ping, false);
                         score.time += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
                         score.timeResetOn0 += commandEventArgs.Command.Argv(i * scoreboardOffset + 7).Atoi(); //  (level.time - cl->pers.enterTime)/60000
                         score.scoreFlags = commandEventArgs.Command.Argv(i * scoreboardOffset + 8).Atoi(); // unused
