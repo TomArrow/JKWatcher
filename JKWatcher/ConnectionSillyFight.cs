@@ -367,6 +367,11 @@ namespace JKWatcher
 		DateTime lastNonBoostMovement = DateTime.Now;
 		DateTime[] lastPlayerDoesntBoost = new DateTime[128];
 		DateTime lastNotBoosted = DateTime.Now - new TimeSpan(1, 0, 0);
+
+		DeluxePredicter myselfPredicter = null;
+		DeluxePredicter closestFriendPredicter = null;
+		DeluxePredicter closestPlayerPredicter = null;
+
 		private unsafe void DoSillyThingsReal(ref UserCommand userCmd, in UserCommand prevCmd, SillyMode sillyMode, StringBuilder debugLine = null)
 		{
 
@@ -416,7 +421,14 @@ namespace JKWatcher
 			Vector3 myPosition = myself.position;
 			Vector3 myPositionRawUnpredicted = myself.position;
 
-            if (infoPool.deluxePredict > 0.0f)
+			if(infoPool.deluxePredict > 0.0f || myselfPredicter == null)
+			{
+				myselfPredicter = new DeluxePredicter(myself);
+			}
+
+			float myselfDeluxePredictAmount = -1.0f;
+
+			if (infoPool.deluxePredict > 0.0f)
             {
 				DateTime? lastFullPosUpdate = myself.lastFullPositionUpdate;
 				double milliseconds = (DateTime.Now - lastFullPosUpdate.Value).TotalSeconds;
@@ -424,7 +436,9 @@ namespace JKWatcher
 				{
 
 					//myPosition = myself.position + myself.velocity * ((float)milliseconds + (float)lastSnapshot.ping* infoPool.deluxePredict)*0.001f;
-					myPosition = myself.deluxePredict(((float)milliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict)*0.001f);
+					//myPosition = myself.deluxePredict(((float)milliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict)*0.001f);
+					myselfDeluxePredictAmount = ((float)milliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					myPosition = myselfPredicter.predict(myselfDeluxePredictAmount);
 				}
 			}
 
@@ -805,6 +819,19 @@ namespace JKWatcher
 
 			Vector3 closestFriendPosition = closestFriend is null ? new Vector3() : closestFriend.position;
 			Vector3 closestPlayerPosition = closestPlayer.position;
+
+			if((infoPool.deluxePredict > 0.0f || closestFriendPredicter == null) && !(closestFriend is null))
+            {
+				closestFriendPredicter = new DeluxePredicter(closestFriend);
+			}
+			if(infoPool.deluxePredict > 0.0f || closestPlayerPredicter == null)
+            {
+				closestPlayerPredicter = new DeluxePredicter(closestPlayer);
+			}
+
+			float closestPlayerDeluxePredictAmount = -1.0f;
+			float closestFriendDeluxePredictAmount = -1.0f;
+
 			//Vector3 closestPlayerPositionRawUnpredicted = closestPlayer.position;
             if (infoPool.deluxePredict > 0.0f)
             {
@@ -812,7 +839,9 @@ namespace JKWatcher
                 if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
 				{
 					//closestPlayerPosition = closestPlayer.position + closestPlayer.velocity * ((float)(DateTime.Now-lastFullPosUpdate.Value).TotalMilliseconds+(float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
-					closestPlayerPosition = closestPlayer.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
+					//closestPlayerPosition = closestPlayer.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
+					closestPlayerDeluxePredictAmount = ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					closestPlayerPosition = closestPlayerPredicter.predict(closestPlayerDeluxePredictAmount);
 					closestDistance = (closestPlayerPosition - myPosition).Length();
 				}
 				if(closestFriend != null)
@@ -821,7 +850,9 @@ namespace JKWatcher
 					if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
 					{
 						//closestFriendPosition = closestFriend.position + closestFriend.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
-						closestFriendPosition = closestFriend.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
+						//closestFriendPosition = closestFriend.deluxePredict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
+						closestFriendDeluxePredictAmount = ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+						closestFriendPosition = closestFriendPredicter.predict(closestFriendDeluxePredictAmount);
 						closestFriendDistance = (closestFriendPosition - myPosition).Length();
 					}
 				}
@@ -877,9 +908,11 @@ namespace JKWatcher
 			float enemyDistance2D = (enemyPosition2D - myPosition2D).Length();
 
 			// Abstract this so we can decide to elegantly track something else than enemy player
+			DeluxePredicter moveTargetPredictor = closestPlayerPredicter;
 			Vector3 moveTargetPosition = closestPlayerPosition; // might not always be the enemy.
 			Vector3 moveTargetVelocity = closestPlayer.velocity; // might not always be the enemy.
 			float moveTargetInterceptFrontBuffer = 32.0f; // 32 units in front of target.
+			float moveTargetDeluxePredictAmount = closestPlayerDeluxePredictAmount;
 
 			bool tryingBoost = false;
             if (closestFriend != null && closestDistance < 2000 && (
@@ -920,6 +953,8 @@ namespace JKWatcher
 
 				moveTargetPosition = boostPosition; 
 				moveTargetVelocity = closestFriend.velocity;
+				moveTargetPredictor = new DeluxePredicter(closestFriend, boostPosition);
+				moveTargetDeluxePredictAmount = closestFriendDeluxePredictAmount;
 				moveTargetInterceptFrontBuffer = 0; // We want to get EXACTLY to the boost point, not in front of it.
 				tryingBoost = true;
 			}
@@ -973,8 +1008,8 @@ namespace JKWatcher
 			float halfPingInSeconds = pingInSeconds / 2.0f;
 			Vector3 myPredictedPosition = myPosition + myself.velocity * halfPingInSeconds;
 			Vector2 myPredictedPosition2D = new Vector2() { X= myPredictedPosition.X, Y= myPredictedPosition.Y};
-			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f < infoPool.deluxePredict) ? myPredictedPosition : myPosition;
-			Vector2 myPosition2DMaybePredicted = (infoPool.selfPredict && 0.0f < infoPool.deluxePredict) ? myPredictedPosition2D : myPosition2D;
+			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f >= infoPool.deluxePredict) ? myPredictedPosition : myPosition;
+			Vector2 myPosition2DMaybePredicted = (infoPool.selfPredict && 0.0f >= infoPool.deluxePredict) ? myPredictedPosition2D : myPosition2D;
 
 			//float verticalDistance = Math.Abs(closestPlayerPosition.Z - myPosition.Z);
 			//bool dbsPossiblePositionWise = distance2D < dbsTriggerDistance && verticalDistance < 64; // Backslash distance. The vertical distance we gotta do better, take crouch into account etc.
@@ -1171,7 +1206,7 @@ namespace JKWatcher
 			{
                 if (strafe && sillyMode != SillyMode.SILLY)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(veryStuckRandomDirection+myPosition, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(veryStuckRandomDirection+myPosition, myself, myselfPredicter, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 				}
                 else
                 {
@@ -1182,7 +1217,7 @@ namespace JKWatcher
             {
                 if (strafe && sillyMode != SillyMode.SILLY)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, ref moveVector,ref userCmd, in prevCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(wayPointsToWalk[0].origin,myself, myselfPredicter, ref moveVector,ref userCmd, in prevCmd, ref amStrafing);
 					/*Vector3 targetDirection = wayPointsToWalk[0].origin - myPosition;
 					float targetAngle = vectoyaw(targetDirection);
 					float velocityAngle = vectoyaw(myself.velocity);
@@ -1373,17 +1408,18 @@ namespace JKWatcher
             }*/
 			else if (moveTargetDotProduct > (mySpeed-10)) // -10 so we don't end up with infinite intercept routes and weird potential number issues
             {
+				Vector3 targetPosition = moveTargetDeluxePredictAmount != -1.0f ? moveTargetPredictor.predict(moveTargetDeluxePredictAmount+1.0f) : moveTargetPosition + moveTargetVelocity;
 				// I can never intercept him. He's moving away from me faster than I can move towards him.
 				// Do a simplified thing.
 				// Just predict his position in 1 second and move there.
-				if(strafe && !dbsPossible)
+				if (strafe && !dbsPossible)
                 {
-					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(moveTargetPosition + moveTargetVelocity, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+					strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPosition, myself, myselfPredicter, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 					debugLine?.Append("; strafetoPosPlus1second");
 				}
 				else
                 {
-					moveVector = (moveTargetPosition + moveTargetVelocity) - myPositionMaybePredicted;
+					moveVector = (targetPosition) - myPositionMaybePredicted;
 					debugLine?.Append("; movetoPosPlus1second");
 				}
 			} else
@@ -1398,10 +1434,20 @@ namespace JKWatcher
                 {
 					// Imagine our 1-second reach like a circle. If that circle intersects with his movement line, we can intercept him quickly)
 					// If the intersection does not exist, we expand the circle, by giving ourselves more time to intercept.
-					Vector2 hisPosThen = moveTargetPosition2D + moveTargetVelocity2D * (interceptTime+ (0.0f < infoPool.deluxePredict? 0.0f : halfPingInSeconds));
+					Vector2 hisPosThen = new Vector2();
+					if(moveTargetDeluxePredictAmount != -1.0f)
+                    {
+						Vector3 hisPosThen3D = moveTargetPredictor.predict(moveTargetDeluxePredictAmount + interceptTime);
+						hisPosThen.X = hisPosThen3D.X;
+						hisPosThen.Y = hisPosThen3D.Y;
+					}
+                    else
+                    {
+						hisPosThen = moveTargetPosition2D + moveTargetVelocity2D * (interceptTime + (0.0f < infoPool.deluxePredict ? 0.0f : halfPingInSeconds));
+					}
 					interceptPos = hisPosThen + Vector2.Normalize(moveTargetVelocity2D) * moveTargetInterceptFrontBuffer; // Give it 32 //100 units extra in that direction for ideal intercept.
 					moveVector2d = (interceptPos - myPosition2DMaybePredicted);
-					if (moveVector2d.Length() <= mySpeed * interceptTime)
+					if (moveVector2d.Length() <= mySpeed * interceptTime) // TODO but uh... what if our current velocity points in an inconvenient direction? this assumes we arent moving rn. or is that already taken care of elsewhere?
 					{
 						foundSolution = true;
 						moveSpeedMultiplier = moveVector2d.Length() / (mySpeed * interceptTime);
@@ -1409,16 +1455,17 @@ namespace JKWatcher
 					}
 				}
                 if (!foundSolution)
-                {
-					Vector3 targetPos = moveTargetPosition + moveTargetVelocity;
+				{
+					Vector3 targetPosition = moveTargetDeluxePredictAmount != -1.0f ? moveTargetPredictor.predict(moveTargetDeluxePredictAmount + 1.0f) : moveTargetPosition + moveTargetVelocity;
+					//Vector3 targetPos = moveTargetPosition + moveTargetVelocity;
                     // Sad. ok just fall back to the usual.
                     if (strafe && !dbsPossible)
                     {
-						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPos, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(targetPosition, myself, myselfPredicter, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 						debugLine?.Append("; strafetoPosPlus1second_failedSolution");
 					} else
                     {
-						moveVector = targetPos - myPositionMaybePredicted;
+						moveVector = targetPosition - myPositionMaybePredicted;
 						debugLine?.Append("; movetoPosPlus1second_failedSolution");
 					}
                 }
@@ -1426,7 +1473,7 @@ namespace JKWatcher
                 {
 					if(strafe && !dbsPossible)
 					{
-						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = moveTargetPosition.Z }, myself, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
+						strafeAngleYawDelta = setUpStrafeAndGetAngleDelta(new Vector3() { X = interceptPos.X, Y = interceptPos.Y, Z = moveTargetPosition.Z }, myself, myselfPredicter, ref moveVector, ref userCmd, in prevCmd, ref amStrafing);
 						debugLine?.Append("; strafetoIntercept");
 					} else
                     {
@@ -2425,7 +2472,7 @@ namespace JKWatcher
 
 		Vector3 strafeTarget = new Vector3();
 
-		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, ref Vector3 moveVector, ref UserCommand userCmd, in UserCommand prevCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
+		float setUpStrafeAndGetAngleDelta(Vector3 targetPoint, PlayerInfo myself, DeluxePredicter myselfPredictor, ref Vector3 moveVector, ref UserCommand userCmd, in UserCommand prevCmd, ref bool amStrafing, bool secondaryStrafeOption = false)
 		{
 			Vector3 myPosition = myself.position;
 
@@ -2434,14 +2481,23 @@ namespace JKWatcher
 				DateTime? lastFullPosUpdate = myself.lastFullPositionUpdate;
 				if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 1000)
 				{
-					myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+                    //myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+                    if (myselfPredictor != null)
+                    {
+						myPosition = myselfPredictor.predict(((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f);
+                    }
+                    else
+                    {
+						// uh shouldnt happen, but this is the old algo. less robust prediction.
+						myPosition = myself.position + myself.velocity * ((float)(DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds + (float)lastSnapshot.ping * infoPool.deluxePredict) * 0.001f;
+					}
 				}
 			}
 
 			float pingInSeconds = (float)lastSnapshot.ping / 1000.0f;
 			float halfPingInSeconds = pingInSeconds/2.0f;
 			Vector3 myPredictedPosition = myPosition + myself.velocity * halfPingInSeconds;
-			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f< infoPool.deluxePredict) ? myPredictedPosition : myPosition;
+			Vector3 myPositionMaybePredicted = (infoPool.selfPredict && 0.0f>= infoPool.deluxePredict) ? myPredictedPosition : myPosition;
 
 			strafeTarget = targetPoint;
 			Vector3 targetDirection = targetPoint - myPositionMaybePredicted;

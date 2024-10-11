@@ -554,6 +554,66 @@ namespace JKWatcher
             }
         }
     }
+    public class DeluxePredicter
+    {
+        private float _accelerateRate;
+        private float _currentspeed;
+        private float _wishspeed;
+        private float _addspeed;
+        private Vector3 _accelVector;
+
+        private float _accelPerSecond;
+        private float _halfAccelPerSecond;
+        private float _timeToFullAccel;
+
+        private Vector3 _position;
+        private Vector3 _velocity;
+
+        private Vector3 _naive;
+        private float _fullAccelDisplacement;
+        private Vector3 _fullAccelPos;
+        private Vector3 _fullAccelSpeed;
+        public DeluxePredicter(PlayerInfo pi, Vector3? positionOverride = null, Vector3? velocityOverride = null)
+        {
+            _position = positionOverride.HasValue ? positionOverride.Value: pi.position;
+            _velocity = velocityOverride.HasValue ? velocityOverride.Value : pi.velocity;
+            _accelVector = pi.movementDirVector;
+            _accelerateRate = (pi.groundEntityNum == Common.MaxGEntities - 1) ? 1.0f : 10.0f; // air accelerate vs walk accelerate
+            _currentspeed = Vector3.Dot(pi.velocity, _accelVector);
+            _wishspeed = pi.speed == 0 ? 250 : pi.speed;
+            _addspeed = _wishspeed - _currentspeed;
+
+            if (_addspeed > 0)
+            {
+                _accelPerSecond = _accelerateRate * _wishspeed;
+                _timeToFullAccel = _addspeed / _accelPerSecond;
+                _halfAccelPerSecond = 0.5f * _accelPerSecond;
+
+                _naive = _position + _velocity * _timeToFullAccel;
+                _fullAccelDisplacement = (_timeToFullAccel * _timeToFullAccel) * _halfAccelPerSecond;
+                _fullAccelPos = _naive + _fullAccelDisplacement * _accelVector;
+                _fullAccelSpeed = _velocity + _addspeed * _accelVector;
+            }
+        }
+
+        public Vector3 predict(float timeInSeconds)
+        {
+            if (_addspeed <= 0)
+            {
+                return _position + _velocity * timeInSeconds; // old school; // good old naive prediction
+            }
+            if (timeInSeconds < _timeToFullAccel)
+            {
+                Vector3 naive2 = _position + _velocity * timeInSeconds; // old school;
+                float displacement2 = (timeInSeconds * timeInSeconds) * _halfAccelPerSecond;
+                return naive2 + displacement2 * _accelVector;
+            }
+            Vector3 pos = _fullAccelPos;
+            float timeLeft = timeInSeconds - _timeToFullAccel;
+            pos += timeLeft * _fullAccelSpeed;
+            return pos;
+        }
+    }
 
 
     // TODO MAke it easier to reset these between games or when maps change. Probably just make new new STatements?
@@ -669,6 +729,10 @@ namespace JKWatcher
             Vector3 dirVector = forward * dir.X + right * dir.Y;
             _movementDirVector = Vector3.Normalize(dirVector);
         }
+
+
+        
+
         public Vector3 deluxePredict(float timeInSeconds)
         {
             //Vector3 pos = position;
