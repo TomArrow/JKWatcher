@@ -2402,7 +2402,7 @@ namespace JKWatcher
                             {
                                 return;
                             }
-                            string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath);
+                            string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath).Replace("$", "\\$");
                             demoCutCommand.Append($"\"{relativeDemoPath}\" ");
                             string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{demoState.myClientNum}{demoNoteStringFilenamePart}";
                             if (filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
@@ -2410,7 +2410,7 @@ namespace JKWatcher
                                 filename = filename.Substring(0, 150);
                             }
                             filename = Helpers.MakeValidFileName(filename);
-                            filename = Helpers.DemoCuttersanitizeFilename(filename, false);
+                            filename = Helpers.DemoCuttersanitizeFilename(filename, false).Replace("$", "\\$");
                             demoCutCommand.Append($"\"{filename}\" ");
                             demoCutCommand.Append(Math.Max(0, demoState.demoTime - markMinutes * 60000).ToString());
                             demoCutCommand.Append(" ");
@@ -2478,7 +2478,7 @@ namespace JKWatcher
 
                             string filenameGeneric = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{pm.playerName}__{thisServerInfo.HostName}__{thisServerInfo.MapName}{numbersString.ToString()}{demoNoteStringFilenamePart}";
                             filenameGeneric = Helpers.MakeValidFileName(filenameGeneric);
-                            filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false);
+                            filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false).Replace("$", "\\$");
                             if (filenameGeneric.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
                             {
                                 filenameGeneric = filenameGeneric.Substring(0, 150);
@@ -2619,7 +2619,7 @@ namespace JKWatcher
                 {
                     return;
                 }
-                string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath);
+                string relativeDemoPath = Path.GetRelativePath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demoCuts"), demoPath).Replace("$", "\\$");
                 demoCutCommand.Append($"\"{relativeDemoPath}\" ");
                 string filename = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{playernameOverride}__{thisServerInfo.HostName}__{thisServerInfo.MapName}_{demoState.myClientNum}{demoNoteStringFilenamePart}";
                 if (filename.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
@@ -2627,7 +2627,7 @@ namespace JKWatcher
                     filename = filename.Substring(0, 150);
                 }
                 filename = Helpers.MakeValidFileName(filename);
-                filename = Helpers.DemoCuttersanitizeFilename(filename, false);
+                filename = Helpers.DemoCuttersanitizeFilename(filename, false).Replace("$", "\\$");
                 demoCutCommand.Append($"\"{filename}\" ");
                 demoCutCommand.Append(Math.Max(0, demoState.demoTime - markMinutes * 60000).ToString());
                 demoCutCommand.Append(" ");
@@ -2696,7 +2696,7 @@ namespace JKWatcher
 
                 string filenameGeneric = $"{now.ToString("yyyy-MM-dd_HH-mm-ss")}__{playernameOverride}__{thisServerInfo.HostName}__{thisServerInfo.MapName}{numbersString.ToString()}{demoNoteStringFilenamePart}";
                 filenameGeneric = Helpers.MakeValidFileName(filenameGeneric);
-                filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false);
+                filenameGeneric = Helpers.DemoCuttersanitizeFilename(filenameGeneric, false).Replace("$", "\\$");
                 if (filenameGeneric.Length > 150) // Limit this if ppl do ridiculously long notes, or if server name is too long... or or or 
                 {
                     filenameGeneric = filenameGeneric.Substring(0, 150);

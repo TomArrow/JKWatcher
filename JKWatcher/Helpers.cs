@@ -507,7 +507,7 @@ namespace JKWatcher
             {
                 DemoCuttersanitizeFilenameReal(inP, outP, allowExtension,ref outLength);
             }
-            return Encoding.ASCII.GetString(byteArrayOut, 0,Math.Min(input.Length, outLength));
+            return Encoding.ASCII.GetString(byteArrayOut, 0,Math.Min(input.Length, outLength)); // $ must be escaped in .sh bash
         }
         static unsafe void DemoCuttersanitizeFilenameReal(byte* input, byte* output, bool allowExtension, ref int outLength)
         {
