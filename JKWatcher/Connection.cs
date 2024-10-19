@@ -2097,6 +2097,8 @@ namespace JKWatcher
         private PlayerState lastPlayerState = new PlayerState();
         private int lastSnapNum = -1;
 
+        const int EF_CONNECTION = 0x00002000;
+
         const int EF_ALLIES_MOH = 0x00000080;       // su44: this player is in allies team
         const int EF_AXIS_MOH = 0x00000100;     // su44: this player is in axis team
         const int EF_ANY_TEAM_MOH = (EF_ALLIES_MOH | EF_AXIS_MOH);
@@ -2757,6 +2759,12 @@ namespace JKWatcher
                     if(snap.Entities[snapEntityNum].Position.Type == TrajectoryType.TR_LINEAR_STOP)
                     {
                         checkPingWarning(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time - snap.PlayerState.CommandTime, true);
+                    }
+                    if((snap.Entities[snapEntityNum].EntityFlags & EF_CONNECTION)>0)
+                    {
+                        // this is reliable only on entities, not playerstate
+                        // cuz it gets written into s.eFlags but not into playerstate
+                        checkPingWarning(infoPool.playerInfo[i], 1001, false); 
                     }
                     // TODO
                     // This isAlive thing sometimes evaluated wrongly in unpredictable ways. In one instance, it appears it might have 
