@@ -5645,6 +5645,7 @@ namespace JKWatcher
 
         void checkPingWarning(PlayerInfo pi, int ping, bool commandTimeBasis)
         {
+            if (pi.team == Team.Spectator || commandTimeBasis) return; // commandtime detection was a nice idea but g_antilagabuse could be on on nwh and other shenanigans, whcih breaks it.
             bool softMode = !activeMatch || (DateTime.Now - matchStarted).TotalSeconds < 10.0;
             bool pingBad = commandTimeBasis ? ping >= 2000 : ping >= 999;
             if (!pi.pingWarner.check(pingBad, 5.0,gameIsPaused ? 120.0 : 30.0, softMode))
@@ -5686,9 +5687,10 @@ namespace JKWatcher
         }
         void checkAFKWarning(PlayerInfo pi, bool isDucked)
         {
+            if (pi.team == Team.Spectator) return;
             bool softMode = !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
             bool isAfk = !isDucked && (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 5.0 && (DateTime.Now - pi.lastViewAngleChange).TotalSeconds > 5.0; // avoid misdetecting campers as afk. could fail to detect afk ppl who are stuck in crouch pos. oh well.
-            if (!pi.pingWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
+            if (!pi.afkWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
             {
                 return;
             }
