@@ -4105,8 +4105,13 @@ namespace JKWatcher
                                 int pakChecksumInt;
                                 if (int.TryParse(pakChecksum, out pakChecksumInt))
                                 {
-                                    string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
                                     string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
+                                    string suffixTest = $"_{hashString}";
+                                    if (pakName.EndsWith(suffixTest) && pakName.Length > suffixTest.Length) // if we reuploaded our downloaded one, don't redownload it.
+                                    {
+                                        pakName = pakName.Substring(0, pakName.Length - suffixTest.Length);
+                                    }
+                                    string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
                                     serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
                                     downloadLinks.Add($"{pakName},{hashString},{dlLink}");
                                     PakDownloader.Enqueue(dlLink, pakChecksumInt);

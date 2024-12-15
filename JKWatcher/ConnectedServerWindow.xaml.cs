@@ -1599,6 +1599,7 @@ namespace JKWatcher
                                     DateTime? estTime = utcTime.ToEST();
                                     DateTime? cestTimeNow = now.ToUniversalTime().ToCEST();
                                     DateTime? estTimeNow = now.ToUniversalTime().ToEST();
+                                    string cetString = (cestTime.HasValue && TimeZoneInfo.FindSystemTimeZoneById("Central Europe Standard Time").IsDaylightSavingTime(cestTime.Value)) ? "CEST" : "CET";
                                     if(!cestTime.HasValue || !estTime.HasValue || !cestTimeNow.HasValue || !estTimeNow.HasValue)
                                     {
                                         string string1, string2;
@@ -1609,7 +1610,7 @@ namespace JKWatcher
                                         string string1, string2, string3, string4;
                                         (string1, string2) = humanReadableFutureDateTime(cestTimeNow.Value, cestTime.Value);
                                         (string3, string4) = humanReadableFutureDateTime(estTimeNow.Value, estTime.Value);
-                                        timeString = $"{string1} {string2} (CEST) /"+ ((string1==string3) ? "" : $" {string3}") + $" {string4} (EST)";
+                                        timeString = $"{string1} {string2} ({cetString}) /"+ ((string1==string3) ? "" : $" {string3}") + $" {string4} (EST)";
                                     }
                                 }
                             }

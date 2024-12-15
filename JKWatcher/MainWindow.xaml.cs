@@ -724,6 +724,8 @@ namespace JKWatcher
 
         bool fastDelayedConnecterBroken = false;
 
+        //public bool delayedConnecterActiveCheckIsChecked { get; set; } = false;
+
         private async void fastDelayedConnecter(CancellationToken ct)
         {
             bool nextCheckFast = false;
