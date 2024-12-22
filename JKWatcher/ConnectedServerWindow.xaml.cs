@@ -668,6 +668,7 @@ namespace JKWatcher
             
             Connection newCon = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password, /*_connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames,attachClientNumToName,*/snapsSettings);
             newCon.ServerInfoChanged += Con_ServerInfoChanged;
+            newCon.SnapshotParsed += Conn_SnapshotParsed;
             newCon.PropertyChanged += Con_PropertyChanged;
             lock (connectionsCameraOperatorsMutex)
             {
@@ -749,6 +750,7 @@ namespace JKWatcher
             {
                 Connection newConnection = new Connection(netAddress, protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings,ghostPeer:true);
                 newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+                newConnection.SnapshotParsed += Conn_SnapshotParsed;
                 newConnection.PropertyChanged += Con_PropertyChanged;
                 lock (connectionsCameraOperatorsMutex)
                 {
@@ -765,6 +767,7 @@ namespace JKWatcher
                 }
                 ghostPeerConn.CloseDown();
                 ghostPeerConn.ServerInfoChanged -= Con_ServerInfoChanged;
+                ghostPeerConn.SnapshotParsed -= Conn_SnapshotParsed;
                 ghostPeerConn.PropertyChanged -= Con_PropertyChanged;
                 lock (connectionsCameraOperatorsMutex)
                 {
@@ -824,6 +827,150 @@ namespace JKWatcher
             }
             infoPool.saberVersion = saberVersion;
         }
+
+        private bool CheckTimedDisconnectTriggers()
+        {
+            int activeClientCount = 0; // this is kinda fucked cuz infopool isnt actually updated yet xd. well, we're just gonna check in regular intervals.
+            if (mohMode)
+            {
+                activeClientCount = 0;
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if (pi.infoValid && !pi.inactiveMOH) activeClientCount++;
+                }
+            }
+            else
+            {
+                activeClientCount = 0;
+                int[] myClientNums = this.getJKWatcherClientNums();
+                foreach (PlayerInfo pi in infoPool.playerInfo)
+                {
+                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
+                }
+            }
+
+
+            lastDisconnectTriggerCheck = DateTime.Now;
+            nextDisconnectTriggerCheckTimeOut = disconnectTriggerCheckDefaultTimeout;
+
+            lock (serverInfoChangedLock)
+            {
+                
+
+                // Disconnect if "playercount_under" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && activeClientCount < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
+                {
+                    double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
+                    if (_connectionOptions.disconnectTriggerPlayerCountUnderDelay == 0 || playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
+                    {
+                        /*Dispatcher.Invoke(() => {
+                            this.Close();
+                        });*/
+                        this.addToLog($"Disconnect trigger tripped: Player count {activeClientCount} ({activeClientCount}) under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount} for over {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
+                        return true;
+                    }
+                    else if (playerCountUnderDisconnectTriggerLastSatisfied == null)
+                    {
+                        playerCountUnderDisconnectTriggerLastSatisfied = DateTime.Now;
+                    }
+                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (double)_connectionOptions.disconnectTriggerPlayerCountUnderDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                }
+                else
+                {
+                    playerCountUnderDisconnectTriggerLastSatisfied = null;
+                }
+
+                // Disconnect if "gametype_not" disconnecttrigger is set.
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0 && ((1 << (int)gameType) & _connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask) == 0)
+                {
+                    double millisecondsSatisfiedFor = gameTypeNotDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - gameTypeNotDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
+                    if (_connectionOptions.disconnectTriggerGameTypeNotDelay == 0 || gameTypeNotDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerGameTypeNotDelay)
+                    {
+                        // With the "OnlyIfMatchBefore" option we only disconnect if the gametype has actually been one of the non-disconnect trigger ones for X amount of times.
+                        // So that we don't disconnect immediately on connect.
+                        if (_connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore == 0 || gameTypeNotDisconnectTriggerUnsatisfiedHowOften >= _connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore)
+                        {
+
+                            /*Dispatcher.Invoke(() => {
+                                this.Close();
+                            });*/
+                            this.addToLog($"Disconnect trigger tripped: Gametype {gameType} (index {(int)gameType}, bitmask {1 << (int)gameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}) for over {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
+                            return true;
+                        }
+                    }
+                    else if (gameTypeNotDisconnectTriggerLastSatisfied == null)
+                    {
+                        gameTypeNotDisconnectTriggerLastSatisfied = DateTime.Now;
+                    }
+
+                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (double)_connectionOptions.disconnectTriggerGameTypeNotDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                }
+                else
+                {
+                    if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0)
+                    {
+                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften++;
+                    }
+                    else
+                    {
+                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften = 0;
+                    }
+                    gameTypeNotDisconnectTriggerLastSatisfied = null;
+                }
+
+                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.CONNECTEDTIME_OVER) > 0)
+                {
+                    double connectedTime = connectedTimeOverDisconnectTriggerFirstConnected.HasValue ? (DateTime.Now - connectedTimeOverDisconnectTriggerFirstConnected.Value).TotalMinutes : 0;
+                    int connectedTimeLimit = Math.Max(_connectionOptions.disconnectTriggerConnectedTimeOverDelayMinutes, 1);
+                    if (connectedTime > connectedTimeLimit)
+                    {
+                        this.addToLog($"Disconnect trigger tripped: Connected for over {connectedTimeLimit} minutes ({connectedTime} min). Disconnecting.");
+                        return true;
+                    }
+                    else if (!connectedTimeOverDisconnectTriggerFirstConnected.HasValue)
+                    {
+                        connectedTimeOverDisconnectTriggerFirstConnected = DateTime.Now;
+                    }
+
+                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (connectedTimeLimit-connectedTime)*60000.0 + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                }
+                else
+                {
+                    connectedTimeOverDisconnectTriggerFirstConnected = null;
+                }
+            }
+
+            return false;
+        }
+
+        DateTime lastDisconnectTriggerCheck = DateTime.Now;
+        const double disconnectTriggerCheckDefaultTimeout = 60000;
+        double nextDisconnectTriggerCheckTimeOut = disconnectTriggerCheckDefaultTimeout;
+
+        private void Conn_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
+        {
+            double timeSinceLastDisconnectTriggerCheck = (DateTime.Now - lastDisconnectTriggerCheck).TotalMilliseconds;
+            if (timeSinceLastDisconnectTriggerCheck < nextDisconnectTriggerCheckTimeOut)
+            {
+                Debug.WriteLine("Conn_SnapshotParsed: Calling CheckTimedDisconnectTriggers() due to timer.");
+                if (CheckTimedDisconnectTriggers())
+                {
+                    Dispatcher.BeginInvoke((Action)(() =>
+                    { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                        this.Close();
+                    }));
+                    return;
+                }
+            }
+        }
+
+        private void SetNextDisconnectTriggerCheckTimeout(double milliseconds)
+        {
+            double timeSinceLast = (DateTime.Now - lastDisconnectTriggerCheck).TotalMilliseconds;
+            nextDisconnectTriggerCheckTimeOut = milliseconds - timeSinceLast;
+        }
+
+
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
             bool mapChangeDetected = false;
@@ -848,26 +995,7 @@ namespace JKWatcher
 
             gameType = obj.GameType;
 
-            int activeClientCount = obj.Clients;
-            if (mohMode)
-            {
-                activeClientCount = 0;
-                foreach (PlayerInfo pi in infoPool.playerInfo)
-                {
-                    if (pi.infoValid && !pi.inactiveMOH) activeClientCount++;
-                }
-            } else
-            {
-                activeClientCount = 0;
-                int[] myClientNums = this.getJKWatcherClientNums();
-                foreach (PlayerInfo pi in infoPool.playerInfo)
-                {
-                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
-                }
-            }
-
             UpdateSaberVersion();
-
 
             lock (serverInfoChangedLock)
             {
@@ -892,93 +1020,17 @@ namespace JKWatcher
                     }));
                     return;
                 }
-
-                // Disconnect if "playercount_under" disconnecttrigger is set.
-                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && activeClientCount < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
-                {
-                    double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
-                    if (_connectionOptions.disconnectTriggerPlayerCountUnderDelay == 0 || playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
-                    {
-                        /*Dispatcher.Invoke(() => {
-                            this.Close();
-                        });*/
-                        this.addToLog($"Disconnect trigger tripped: Player count {obj.Clients} ({activeClientCount}) under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount} for over {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
-                        Dispatcher.BeginInvoke((Action)(() =>
-                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
-                            this.Close();
-                        }));
-                        return;
-                    }
-                    else if (playerCountUnderDisconnectTriggerLastSatisfied == null)
-                    {
-                        playerCountUnderDisconnectTriggerLastSatisfied = DateTime.Now;
-                    }
-                }
-                else
-                {
-                    playerCountUnderDisconnectTriggerLastSatisfied = null;
-                }
-                
-                // Disconnect if "gametype_not" disconnecttrigger is set.
-                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0 && ((1 << (int)obj.GameType) & _connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask) == 0)
-                {
-                    double millisecondsSatisfiedFor = gameTypeNotDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - gameTypeNotDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
-                    if (_connectionOptions.disconnectTriggerGameTypeNotDelay == 0 || gameTypeNotDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerGameTypeNotDelay)
-                    {
-                        // With the "OnlyIfMatchBefore" option we only disconnect if the gametype has actually been one of the non-disconnect trigger ones for X amount of times.
-                        // So that we don't disconnect immediately on connect.
-                        if (_connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore == 0 || gameTypeNotDisconnectTriggerUnsatisfiedHowOften >= _connectionOptions.disconnectTriggerGameTypeNotOnlyIfMatchBefore) { 
-
-                            /*Dispatcher.Invoke(() => {
-                                this.Close();
-                            });*/
-                            this.addToLog($"Disconnect trigger tripped: Gametype {obj.GameType} (index {(int)obj.GameType}, bitmask {1 << (int)obj.GameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}) for over {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms ({millisecondsSatisfiedFor} ms). Disconnecting.");
-                            Dispatcher.BeginInvoke((Action)(() =>
-                            { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
-                                this.Close();
-                            }));
-                            return;
-                        }
-                    }
-                    else if (gameTypeNotDisconnectTriggerLastSatisfied == null)
-                    {
-                        gameTypeNotDisconnectTriggerLastSatisfied = DateTime.Now;
-                    }
-                }
-                else
-                {
-                    if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0)
-                    {
-                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften++;
-                    } else
-                    {
-                        gameTypeNotDisconnectTriggerUnsatisfiedHowOften = 0;
-                    }
-                    gameTypeNotDisconnectTriggerLastSatisfied = null;
-                }
-                
-                if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.CONNECTEDTIME_OVER) > 0)
-                {
-                    double connectedTime = connectedTimeOverDisconnectTriggerFirstConnected.HasValue ? (DateTime.Now - connectedTimeOverDisconnectTriggerFirstConnected.Value).TotalMinutes : 0;
-                    int connectedTimeLimit = Math.Max(_connectionOptions.disconnectTriggerConnectedTimeOverDelayMinutes, 1);
-                    if (connectedTime > connectedTimeLimit)
-                    {
-                        this.addToLog($"Disconnect trigger tripped: Connected for over {connectedTimeLimit} minutes ({connectedTime} min). Disconnecting.");
-                        Dispatcher.BeginInvoke((Action)(() =>
-                        { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
-                            this.Close();
-                        }));
-                        return;
-                    } else if (!connectedTimeOverDisconnectTriggerFirstConnected.HasValue)
-                    {
-                        connectedTimeOverDisconnectTriggerFirstConnected = DateTime.Now;
-                    }
-                } else
-                {
-                    connectedTimeOverDisconnectTriggerFirstConnected = null;
-                }
             }
 
+            if (CheckTimedDisconnectTriggers())
+            {
+                Dispatcher.BeginInvoke((Action)(() =>
+                { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                    this.Close();
+                }));
+                return;
+            }
+            SetNextDisconnectTriggerCheckTimeout(1); // try right on the next snapshot. by then, client updates will be processed.
 
             // This part below here feels messy. Should prolly somehow do a lock here but I can't think of a clever way to do it because creating a new connection might cause this method to get called and result in a deadlock.
             //ManageGhostPeer(obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel); // Was a funny idea but it's actually useless
@@ -1927,30 +1979,44 @@ namespace JKWatcher
         ConcurrentDictionary<string,DateTime> rateLimitedErrorMessages = new ConcurrentDictionary<string,DateTime>();
         ConcurrentDictionary<string, int> rateLimitedErrorMessagesCount = new ConcurrentDictionary<string,int>();
         // Use timeout (milliseconds) for messages that might happen often.
-        public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, MentionLevel logAsMention = MentionLevel.NoMention)
+        // timeOutCall times out not by content but by place of being called
+        public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, MentionLevel logAsMention = MentionLevel.NoMention, bool timeOutBasedOnExpression=false,
+        [System.Runtime.CompilerServices.CallerArgumentExpression("someString")] string expression = ""
+        //,[System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
+        //[System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
+        //[System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0
+        )
         {
             if (logLevel > verboseOutput) return;
             if(timeOut != 0)
             {
+                string timeOutString = timeOutBasedOnExpression ? expression : someString;
                 lock (rateLimitedErrorMessagesCount)
                 {
-                    if (!rateLimitedErrorMessagesCount.ContainsKey(someString))
+                    if (!rateLimitedErrorMessagesCount.ContainsKey(timeOutString))
                     {
-                        rateLimitedErrorMessagesCount[someString] = 0;
+                        rateLimitedErrorMessagesCount[timeOutString] = 0;
                     }
-                    if (rateLimitedErrorMessages.ContainsKey(someString) && rateLimitedErrorMessages[someString] > DateTime.Now)
+                    if (rateLimitedErrorMessages.ContainsKey(timeOutString) && rateLimitedErrorMessages[timeOutString] > DateTime.Now)
                     {
-                        rateLimitedErrorMessagesCount[someString]++;
+                        rateLimitedErrorMessagesCount[timeOutString]++;
                         return; // Skipping repeated message.
                     }
                     else
                     {
-                        rateLimitedErrorMessages[someString] = DateTime.Now.AddMilliseconds(timeOut);
-                        if (rateLimitedErrorMessagesCount[someString] > 0)
+                        rateLimitedErrorMessages[timeOutString] = DateTime.Now.AddMilliseconds(timeOut);
+                        if (rateLimitedErrorMessagesCount[timeOutString] > 0)
                         {
-                            int countSkipped = rateLimitedErrorMessagesCount[someString];
-                            rateLimitedErrorMessagesCount[someString] = 0;
-                            someString = $"[SKIPPED {countSkipped} TIMES]\n{someString}";
+                            int countSkipped = rateLimitedErrorMessagesCount[timeOutString];
+                            rateLimitedErrorMessagesCount[timeOutString] = 0;
+                            if (timeOutBasedOnExpression)
+                            {
+                                someString = $"[SKIPPED {countSkipped} TIMES]\n{someString}";
+                            }
+                            else
+                            {
+                                someString = $"[SKIPPED EXPRESSION {countSkipped} TIMES]\n{someString}";
+                            }
                         }
                     }
                 }
@@ -2508,6 +2574,7 @@ namespace JKWatcher
                 //Connection newConnection = new Connection(connections[0].client.ServerInfo, this,infoPool);
                 Connection newConnection = new Connection(netAddress,protocol, this,infoPool, _connectionOptions,password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
                 newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+                newConnection.SnapshotParsed += Conn_SnapshotParsed;
                 newConnection.PropertyChanged += Con_PropertyChanged;
                 lock (connectionsCameraOperatorsMutex)
                 {
@@ -2991,6 +3058,7 @@ namespace JKWatcher
             //Connection newConnection = new Connection(connections[0].client.ServerInfo, this, infoPool);
             Connection newConnection = new Connection(netAddress,protocol, this, infoPool, _connectionOptions, password,/* _connectionOptions.userInfoName, _connectionOptions.demoTimeColorNames, attachClientNumToName,*/snapsSettings);
             newConnection.ServerInfoChanged += Con_ServerInfoChanged;
+            newConnection.SnapshotParsed += Conn_SnapshotParsed;
             newConnection.PropertyChanged += Con_PropertyChanged;
             lock (connectionsCameraOperatorsMutex)
             {
@@ -3030,6 +3098,7 @@ namespace JKWatcher
                             //conn.disconnect();
                             conn.CloseDown();
                             conn.ServerInfoChanged -= Con_ServerInfoChanged;
+                            conn.SnapshotParsed -= Conn_SnapshotParsed;
                             conn.PropertyChanged -= Con_PropertyChanged;
                             connections.Remove(conn);
                             queueRecheckMainDrawMinimapConnection();

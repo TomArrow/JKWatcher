@@ -1244,9 +1244,11 @@ namespace JKWatcher
         public string sillyModeCustomCommand = null;
         public DateTime lastBerserkerStarted = DateTime.Now - new TimeSpan(10, 0, 0);
         public DateTime lastBodyguardStarted = DateTime.Now - new TimeSpan(10, 0, 0);
+        public DateTime lastAnyFlagSeen = DateTime.Now - new TimeSpan(10, 0, 0);
         public int sillyBodyguardPlayer = -1;
         public bool NWHDetected = false;
         public bool mohMode = false;
+        public GameType gameType;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
             if (sillyModes.Contains(sillyMode))

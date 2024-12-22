@@ -263,6 +263,18 @@ namespace JKWatcher.CameraOperators
 
         public Connection StrobeConnection { get; private set; } = null;
 
+
+        public bool AmHandlingCTF()
+        {
+            ServerSharedInformationPool ip = infoPool;
+            bool amHandling = ip == null ? true : (ip.gameType == GameType.CTF || ip.gameType == GameType.CTY || (DateTime.Now - infoPool.lastAnyFlagSeen).TotalMinutes < 5.0);
+            if (!amHandling)
+            {
+                serverWindow.addToLog($"CTFCameraOperatorRedBlue: WARNING. ^1NOT HANDLING CTF!! Gametype is {ip.gameType} and minutes since last seen is {(DateTime.Now - infoPool.lastAnyFlagSeen).TotalMinutes}.",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true);
+            }
+            return amHandling;
+        }
+
         // first connection [0] follows red flag
         // second connection [1] follows blue flag
         private void Run(CancellationToken ct)
@@ -371,7 +383,7 @@ namespace JKWatcher.CameraOperators
                     connectionsToUse.AddRange(connections); // we must have 2 in there or else the handler functions get confused.
                 }
 
-                if (!infoPool.isIntermission) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
+                if (!infoPool.isIntermission && AmHandlingCTF()) { // No use during intermission, and avoid server errors popping up from trying to follow during intermission
                     foreach (Team team in teams)
                     {
                         bool statusChanged = infoPool.teamInfo[(int)team].flag != lastFlagStatus[(int)team];

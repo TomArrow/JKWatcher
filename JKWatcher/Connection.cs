@@ -205,6 +205,11 @@ namespace JKWatcher
         {
             this.ClientUserCommandGenerated?.Invoke(this, ref cmd, in previousCommand, ref insertCommands);
         }
+        public event EventHandler<SnapshotParsedEventArgs> SnapshotParsed; // forward to the outside if desired
+        internal void OnSnapshotParsed(SnapshotParsedEventArgs eventArgs)
+        {
+            this.SnapshotParsed?.Invoke(this, eventArgs);
+        }
 
         public event Action<CommandEventArgs> ServerCommandRan;
         void RunServerCommand(CommandEventArgs eventArgs)
@@ -1865,6 +1870,7 @@ namespace JKWatcher
 
                 if (messageType == CtfMessageType.PlayerGotFlag && pi != null)
                 {
+                    infoPool.lastAnyFlagSeen = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagCarrier = playerNum;
                     infoPool.teamInfo[(int)team].lastFlagCarrierUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagCarrierValid = true;
@@ -2249,6 +2255,8 @@ namespace JKWatcher
             SnapStatus.addDataPoint(client.SnapNum,client.ServerTime);
             OnPropertyChanged(new PropertyChangedEventArgs("SnapStatus"));
 
+            OnSnapshotParsed(e);
+
             int gameTime = client.gameTime;
             infoPool.setGameTime(gameTime);
             infoPool.serverTime = e.snap.ServerTime;
@@ -2508,6 +2516,10 @@ namespace JKWatcher
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Velocity[0] != 0.0f || snap.PlayerState.Velocity[1] != 0.0f || snap.PlayerState.Velocity[2] != 0.0f); // doesnt work as our crouch method affects velocity or idk something something :/
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[0] != lastPosition[snap.PlayerState.ClientNum].X || snap.PlayerState.Origin[1] != lastPosition[snap.PlayerState.ClientNum].Y || snap.PlayerState.Origin[2] != lastPosition[snap.PlayerState.ClientNum].Z);
                 weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[2] < lastPosition[snap.PlayerState.ClientNum].Z);
+                if(amNotInSpec && infoPool.playerInfo[client.clientNum].team == Team.Spectator)
+                {
+                    serverWindow.addToLog($"^1Warning:^7amNotInSpec true but I'm in spectator Team? clientnum {client.clientNum} ps.clientnum {snap.PlayerState.ClientNum} playermovetype {snap.PlayerState.PlayerMoveType}",true,60000*5,0,ConnectedServerWindow.MentionLevel.NoMention,true);
+                }
             }
 
             bool teamChangesDetected = false;
@@ -2672,6 +2684,7 @@ namespace JKWatcher
 
                     if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i,snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
@@ -2681,6 +2694,7 @@ namespace JKWatcher
                     }
                     else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
@@ -2950,6 +2964,7 @@ namespace JKWatcher
 
                     if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValid = true;
@@ -2958,6 +2973,7 @@ namespace JKWatcher
                         hasFlag = true;
                     } else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValid = true;
@@ -3302,6 +3318,7 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.Z = snap.Entities[snapEntityNum].Position.Base[2];
                                 infoPool.teamInfo[(int)team].droppedFlagEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
+                                infoPool.lastAnyFlagSeen = DateTime.Now;
 
                             } else if (!jkaMode || infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_ATBASE) // This is DIRTY. I hate it. Timing could mess this up. Hmm or maybe not? Configstrings are handled first. Hmm. Well it's the best I can do for JKA.
                             {
@@ -3311,7 +3328,8 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].flagBaseItemPosition.Z = snap.Entities[snapEntityNum].Position.Base[2];
                                 infoPool.teamInfo[(int)team].flagBaseItemEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagBaseItemPositionUpdate = DateTime.Now;
-                                
+                                infoPool.lastAnyFlagSeen = DateTime.Now;
+
                             }
                         }
                     }
@@ -3326,8 +3344,11 @@ namespace JKWatcher
                 }
             }
 
+            CameraOperator camOpTmp = this.CameraOperator;
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
+            bool isCTFCameraOperator = camOpTmp is CameraOperators.CTFCameraOperatorRedBlue;
+            bool isCTFCameraOperatorButNotHandlingCTF = isCTFCameraOperator && !(camOpTmp as CameraOperators.CTFCameraOperatorRedBlue).AmHandlingCTF();
             bool isDefragCameraOperator = this.CameraOperator is CameraOperators.OCDCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
 
@@ -3596,7 +3617,7 @@ namespace JKWatcher
                 if (((DateTime.Now-lastServerInfoChange).TotalMilliseconds > 500 || isDuelMode) && // Some mods/gametypes (appear to! maybe im imagining) specall and then slowly add players, not all in one go. Wait until no changes happening for at least half a second. Exception: Duel. Because there's an intermission for each player change anyway.
                     maySendFollow && AlwaysFollowSomeone && infoPool.lastScoreboardReceived != null 
                     && (ClientNum == SpectatedPlayer || (
-                    (isFFACameraOperator || this.CameraOperator == null) && (
+                    (isFFACameraOperator || this.CameraOperator == null || isCTFCameraOperatorButNotHandlingCTF) && (
                     (spectatedPlayerIsBot && !onlyBotsActive)|| ((DateTime.Now - lastSpectatedPlayerChange).TotalSeconds > 10 && spectatedPlayerIsVeryAfk)))
                     )
                     ) // Not following anyone. Let's follow someone.
@@ -3998,7 +4019,7 @@ namespace JKWatcher
             }
 
             oldGameName = obj.GameName;
-            currentGameType = obj.GameType;
+            infoPool.gameType = currentGameType = obj.GameType;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
 
@@ -5262,6 +5283,7 @@ namespace JKWatcher
                     infoPool.playerInfo[theClient].powerUps = commandEventArgs.Command.Argv(i * 6 + 7).Atoi(); // 2/3 places where powerups is transmitted
                     if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -5269,6 +5291,7 @@ namespace JKWatcher
                     }
                     else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = i;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -5919,6 +5942,7 @@ namespace JKWatcher
 
                     if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrier = clientNum;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
@@ -5926,6 +5950,7 @@ namespace JKWatcher
                     }
                     else if (((infoPool.playerInfo[clientNum].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[clientNum].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
+                        infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier = clientNum;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValid = true;
                         infoPool.teamInfo[(int)Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
