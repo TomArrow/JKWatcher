@@ -718,6 +718,10 @@ namespace JKWatcher
             {
                 updateQuickCommands();
             }
+            else if (e.PropertyName == "disconnectTriggersParsed")
+            {
+                SetNextDisconnectTriggerCheckTimeout(1);
+            }
         }
 
         // For duel modes we require a ghost peer because without it, we get stuck in endless loop of bot playing and going spec and
@@ -873,7 +877,7 @@ namespace JKWatcher
                     {
                         playerCountUnderDisconnectTriggerLastSatisfied = DateTime.Now;
                     }
-                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (double)_connectionOptions.disconnectTriggerPlayerCountUnderDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                    SetNextDisconnectTriggerCheckTimeout((double)_connectionOptions.disconnectTriggerPlayerCountUnderDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
                 }
                 else
                 {
@@ -903,7 +907,7 @@ namespace JKWatcher
                         gameTypeNotDisconnectTriggerLastSatisfied = DateTime.Now;
                     }
 
-                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (double)_connectionOptions.disconnectTriggerGameTypeNotDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                    SetNextDisconnectTriggerCheckTimeout((double)_connectionOptions.disconnectTriggerGameTypeNotDelay - millisecondsSatisfiedFor + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
                 }
                 else
                 {
@@ -932,7 +936,7 @@ namespace JKWatcher
                         connectedTimeOverDisconnectTriggerFirstConnected = DateTime.Now;
                     }
 
-                    nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut, (connectedTimeLimit-connectedTime)*60000.0 + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
+                    SetNextDisconnectTriggerCheckTimeout((connectedTimeLimit - connectedTime) * 60000.0 + 1.0); // give it 1 ms buffer in case of any math imprecision. if it doesnt hit AGAIN, it will just retry on the next frame no big deal
                 }
                 else
                 {
@@ -950,7 +954,7 @@ namespace JKWatcher
         private void Conn_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             double timeSinceLastDisconnectTriggerCheck = (DateTime.Now - lastDisconnectTriggerCheck).TotalMilliseconds;
-            if (timeSinceLastDisconnectTriggerCheck < nextDisconnectTriggerCheckTimeOut)
+            if (timeSinceLastDisconnectTriggerCheck > nextDisconnectTriggerCheckTimeOut)
             {
                 Debug.WriteLine("Conn_SnapshotParsed: Calling CheckTimedDisconnectTriggers() due to timer.");
                 if (CheckTimedDisconnectTriggers())
@@ -967,7 +971,8 @@ namespace JKWatcher
         private void SetNextDisconnectTriggerCheckTimeout(double milliseconds)
         {
             double timeSinceLast = (DateTime.Now - lastDisconnectTriggerCheck).TotalMilliseconds;
-            nextDisconnectTriggerCheckTimeOut = milliseconds - timeSinceLast;
+            double newVal = milliseconds - timeSinceLast;
+            nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut,newVal);
         }
 
 
