@@ -849,7 +849,8 @@ namespace JKWatcher
                 int[] myClientNums = this.getJKWatcherClientNums();
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
+                    // require a lot of pingUpdatesSinceLastNonZeroPing here since disconnecting is a more drastic step compared to choosing who to follow or displaying playercount
+                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && (pi.scoreAll.ping != 0 || pi.scoreAll.pingUpdatesSinceLastNonZeroPing < 40) && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
                 }
             }
 
@@ -864,6 +865,10 @@ namespace JKWatcher
                 // Disconnect if "playercount_under" disconnecttrigger is set.
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.PLAYERCOUNT_UNDER) > 0 && activeClientCount < _connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount)
                 {
+                    if (!playerCountUnderDisconnectTriggerLastSatisfied.HasValue)
+                    {
+                        this.addToLog($"Disconnect trigger armed: Player count {activeClientCount} ({activeClientCount}) under minimum {_connectionOptions.disconnectTriggerPlayerCountUnderPlayerCount}. Waiting {_connectionOptions.disconnectTriggerPlayerCountUnderDelay} ms.");
+                    }
                     double millisecondsSatisfiedFor = playerCountUnderDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - playerCountUnderDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
                     if (_connectionOptions.disconnectTriggerPlayerCountUnderDelay == 0 || playerCountUnderDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerPlayerCountUnderDelay)
                     {
@@ -887,6 +892,10 @@ namespace JKWatcher
                 // Disconnect if "gametype_not" disconnecttrigger is set.
                 if ((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.GAMETYPE_NOT) > 0 && ((1 << (int)gameType) & _connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask) == 0)
                 {
+                    if (!gameTypeNotDisconnectTriggerLastSatisfied.HasValue)
+                    {
+                        this.addToLog($"Disconnect trigger armed: Gametype {gameType} (index {(int)gameType}, bitmask {1 << (int)gameType}) not in {_connectionOptions.disconnectTriggerGameTypeNotGameTypeRawString} (bitmask {_connectionOptions.disconnectTriggerGameTypeNotGameTypeBitmask}). Waiting {_connectionOptions.disconnectTriggerGameTypeNotDelay} ms.");
+                    }
                     double millisecondsSatisfiedFor = gameTypeNotDisconnectTriggerLastSatisfied.HasValue ? (DateTime.Now - gameTypeNotDisconnectTriggerLastSatisfied.Value).TotalMilliseconds : 0;
                     if (_connectionOptions.disconnectTriggerGameTypeNotDelay == 0 || gameTypeNotDisconnectTriggerLastSatisfied.HasValue && millisecondsSatisfiedFor > _connectionOptions.disconnectTriggerGameTypeNotDelay)
                     {
