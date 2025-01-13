@@ -35,12 +35,31 @@ namespace JKWatcher
     public class SnapsSettings : INotifyPropertyChanged
     {
         private int _botOnlySnaps = 5;
+        private int _baseSnaps = 1000;
         private int _emptySnaps = 2;
         private int _afkMaxSnaps = 2;
         private int _pingAdjust = 0;
 
         public bool pingAdjustActive { get; set; } = false;
 
+        public bool setBaseSnaps { get; set; } = false;
+        public bool forceBaseSnaps { get; set; } = false;
+        public int baseSnaps
+        {
+            get
+            {
+                return _baseSnaps;
+            }
+            set
+            {
+                int fixedValue = Math.Max(1, value);
+                if (fixedValue != _baseSnaps)
+                {
+                    _baseSnaps = fixedValue;
+                    OnPropertyChanged();
+                }
+            }
+        }
         public bool forceBotOnlySnaps { get; set; } = true;
         public int botOnlySnaps { 
             get {

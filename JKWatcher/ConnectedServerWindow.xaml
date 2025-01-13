@@ -424,6 +424,11 @@
                             <StackPanel x:Name="snapsSettingsControls">
 
                                 <WrapPanel>
+                                    <CheckBox x:Name="setBaseSnapsCheck" IsChecked="{Binding setBaseSnaps,Mode=TwoWay}">Snaps</CheckBox>
+                                    <CheckBox x:Name="baseSnapsCheck" IsChecked="{Binding forceBaseSnaps,Mode=TwoWay}">force</CheckBox>
+                                    <TextBox x:Name="baseSnapsTxt" Width="35" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding baseSnaps,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                                <WrapPanel>
                                     <CheckBox x:Name="botOnlySnapsCheck" IsChecked="{Binding forceBotOnlySnaps,Mode=TwoWay}">Bot-only snaps</CheckBox>
                                     <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
                                 </WrapPanel>

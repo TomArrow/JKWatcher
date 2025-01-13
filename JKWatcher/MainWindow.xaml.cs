@@ -1374,6 +1374,8 @@ namespace JKWatcher
             public int timeFromDisconnectUpperRange { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
             public int? pingAdjust { get; init; } = null;
+            public bool forceSnaps { get; init; } = false;
+            public int? snaps { get; init; } = null;
             public string[] watchers { get; init; } = null;
             public string[] mapNames { get; init; } = null;
             public string watchersDisp
@@ -1484,6 +1486,8 @@ namespace JKWatcher
                 chance = (config["chance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
                 pingAdjust = config["pingAdjust"]?.Trim().Atoi();
+                snaps = config["snaps"]?.Trim().Atoi();
+                forceSnaps = config["forceSnaps"]?.Trim().Atoi() > 0;
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
@@ -1732,6 +1736,18 @@ namespace JKWatcher
                         if(newWindow.snapsSettings.pingAdjust != 0)
                         {
                             newWindow.snapsSettings.pingAdjustActive = true;
+                        }
+                    }
+                    if (serverToConnect.snaps != null)
+                    {
+                        newWindow.snapsSettings.baseSnaps = serverToConnect.snaps.Value;
+                        if (newWindow.snapsSettings.baseSnaps != 0)
+                        {
+                            newWindow.snapsSettings.setBaseSnaps = true;
+                            if (serverToConnect.forceSnaps)
+                            {
+                                newWindow.snapsSettings.forceBaseSnaps = true;
+                            }
                         }
                     }
                     if (serverToConnect.watchers != null)

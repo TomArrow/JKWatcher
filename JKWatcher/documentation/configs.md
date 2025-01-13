@@ -104,6 +104,14 @@ Snaps value to use if all active players are bots. (discards other packets)
 
 Adjusts your visible ping value. Potentially unstable, especially with unstable internet, use at your own risk. Can be positive/negative values.
 
+#### snaps
+
+Sets your client base snaps value.
+
+#### forceSnaps
+
+Enforces your client base snaps value client-side by dropping skippable packets.
+
 #### attachClientNumToName
 
 0 or 1. Whether to force attach client number to playername.

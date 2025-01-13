@@ -1975,6 +1975,14 @@ namespace JKWatcher
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.botOnlySnaps;
+                } else if (snapsSettings.forceBaseSnaps)
+                {
+                    client.ClientForceSnaps = true;
+                    client.DesiredSnaps = snapsSettings.baseSnaps;
+                } else if (snapsSettings.setBaseSnaps)
+                {
+                    client.ClientForceSnaps = false;
+                    client.DesiredSnaps = snapsSettings.baseSnaps;
                 } else
                 {
                     client.ClientForceSnaps = false;
@@ -4735,6 +4743,7 @@ namespace JKWatcher
                 int clientNum = num - csPlayers;
                 string info = commandEventArgs.Command.Argv(2);
                 pendingPlayerSpectatorTeam[clientNum] = info.Contains("\\t\\3",StringComparison.InvariantCultureIgnoreCase) || info.StartsWith("t\\3", StringComparison.InvariantCultureIgnoreCase);
+                clientsWhoDontWantTOrCannotoBeSpectated[clientNum] = DateTime.Now - new TimeSpan(1, 0, 0); // reset this. player may have been connecting and now he is fully connected.
                 return;
             }
 
@@ -5724,6 +5733,7 @@ namespace JKWatcher
         void checkAFKWarning(PlayerInfo pi, bool isDucked)
         {
             if (pi.team == Team.Spectator) return;
+            // todo longer overall delay when standing on pad?
             bool softMode = !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
             bool isAfk = !isDucked && (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 5.0 && (DateTime.Now - pi.lastViewAngleChange).TotalSeconds > 5.0; // avoid misdetecting campers as afk. could fail to detect afk ppl who are stuck in crouch pos. oh well.
             if (!pi.afkWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
