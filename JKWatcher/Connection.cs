@@ -66,7 +66,7 @@ namespace JKWatcher
     enum PersistantEnum {
         PERS_SCORE=0,                     // !!! MUST NOT CHANGE, SERVER AND GAME BOTH REFERENCE !!!
         //PERS_HITS=1,                      // total points damage inflicted so damage beeps can sound on change
-        //PERS_RANK=2,                      // player rank or team rank
+        PERS_RANK=2,                      // player rank or team rank
         //PERS_TEAM=3,                      // player team
         //PERS_SPAWN_COUNT=4,               // incremented every respawn
         //PERS_PLAYEREVENTS=5,              // 16 bits that can be flipped for events
@@ -2272,6 +2272,10 @@ namespace JKWatcher
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
             lastSnapshot = snap;
+            if (snap.PlayerState.ClientNum == lastPlayerState.ClientNum && snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK] != lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK])
+            {
+                serverWindow.addToLog($"^3RANK DEBUG: Rank changed for client {snap.PlayerState.ClientNum} from {lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK]} to {snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK]}");
+            }
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
 
