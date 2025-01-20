@@ -2251,7 +2251,7 @@ namespace JKWatcher
                 }
             }
         }
-
+        const int RANK_TIED_FLAG = 0x4000;
         const int PMF_INTERMISSION = (1 << 6);
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
@@ -2272,9 +2272,11 @@ namespace JKWatcher
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
             lastSnapshot = snap;
-            if (snap.PlayerState.ClientNum == lastPlayerState.ClientNum && snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK] != lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK])
+            int oldRank = lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
+            int newRank = snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
+            if (snap.PlayerState.ClientNum == lastPlayerState.ClientNum && oldRank != newRank)
             {
-                serverWindow.addToLog($"^3RANK DEBUG: Rank changed for client {snap.PlayerState.ClientNum} from {lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK]} to {snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK]}");
+                serverWindow.addToLog($"^3RANK DEBUG: Rank changed for client {snap.PlayerState.ClientNum} from {oldRank &~ RANK_TIED_FLAG} (tied {(oldRank & RANK_TIED_FLAG) > 0}) to {newRank & ~RANK_TIED_FLAG} (tied {(newRank & RANK_TIED_FLAG) > 0})");
             }
             lastPlayerState = snap.PlayerState;
             lastSnapNum = e.snapNum;
