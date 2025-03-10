@@ -5780,7 +5780,8 @@ namespace JKWatcher
                 }
             }
 
-            bool softMode = onPost && !enemiesNearby || !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
+            bool is999 = pi.currentScore.ping >= 999; // no point warning that someone's afk if he's 999
+            bool softMode = is999 || onPost && !enemiesNearby || !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
             bool isAfk = !isDucked && (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 5.0 && (DateTime.Now - pi.lastViewAngleChange).TotalSeconds > 5.0; // avoid misdetecting campers as afk. could fail to detect afk ppl who are stuck in crouch pos. oh well.
             if (!pi.afkWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
             {
