@@ -2490,6 +2490,15 @@ namespace JKWatcher
                 snapEntityMapping[e.snap.Entities[i].Number] = i;
             }
             entityOrPSVisible[snap.PlayerState.ClientNum] = true;
+            if (saberMove[snap.PlayerState.ClientNum] != snap.PlayerState.SaberMove)
+            {
+                SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
+                if (generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
+                {
+                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuff.dbsCounter.Add(1);
+                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
+                }
+            }
             saberMove[snap.PlayerState.ClientNum] = snap.PlayerState.SaberMove;
             saberStyle[snap.PlayerState.ClientNum] = snap.PlayerState.forceData.SaberAnimLevel;
             //ClientEntity[] entities = client.Entities;
@@ -2768,6 +2777,15 @@ namespace JKWatcher
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
+                        if (saberMove[i] != snap.PlayerState.SaberMove)
+                        {
+                            SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
+                            if (generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.dbsCounter.Add(1);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
+                            }
+                        }
                         saberMove[i] = snap.PlayerState.SaberMove;
                         saberStyle[i] = snap.PlayerState.forceData.SaberAnimLevel;
                     }
@@ -3000,6 +3018,15 @@ namespace JKWatcher
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
+                        if (saberMove[i] != snap.Entities[snapEntityNum].SaberMove)
+                        {
+                            SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.Entities[snapEntityNum].SaberMove, jkaMode);
+                            if(generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.dbsCounter.Add(1);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
+                            }
+                        }
                         saberMove[i] = snap.Entities[snapEntityNum].SaberMove;
                         saberStyle[i] = snap.Entities[snapEntityNum].FireFlag;
                     }

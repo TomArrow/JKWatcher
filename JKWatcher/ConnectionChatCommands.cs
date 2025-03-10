@@ -166,6 +166,45 @@ namespace JKWatcher
             }
             return topRatingsString.ToString();
         }
+        private string MakeDBSPercentagesString(bool thisGame, bool all)
+        {
+            // Make temporary ratings (so we can get up to date data without having to have rating periods so short they make the algorithm overall very imprecise)
+            List<KeyValuePair<float, Tuple<string, int, int>>> entries = new List<KeyValuePair<float, Tuple<string, int, int>>>();
+
+            foreach (PlayerInfo pi in infoPool.playerInfo)
+            {
+                if (!pi.infoValid) continue;
+                ChatCommandTrackingStuff trackingStuff = thisGame ? pi.chatCommandTrackingStuffThisGame : pi.chatCommandTrackingStuff;
+                int dbsCount = trackingStuff.dbsCounter.value;
+                if (dbsCount < 5) continue; // so it doesn't end up with one guy who did a single dbs on top of stats
+                Dictionary<string, int> killtypes = trackingStuff.GetKillTypesShortname();
+                int dbsKills = killtypes.ContainsKey("DBS") ? killtypes["DBS"] : 0;
+                float percentage = dbsCount > 0 ? 100.0f * (float)dbsKills / (float)dbsCount : 0.0f;
+                entries.Add(new KeyValuePair<float, Tuple<string, int, int>>(percentage,new Tuple<string, int, int>(pi.name, dbsKills, dbsCount))); // meh pi.session.GetNameOrLastNonPadaName()
+            }
+
+            entries.Sort((a, b) => { return -a.Key.CompareTo(b.Key); });
+
+            StringBuilder dbsPercentagesString = new StringBuilder();
+            int entryindex = 0;
+            foreach (var thisRating in entries)
+            {
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.Item1);
+                if (strippedName is null) continue;
+                if ((dbsPercentagesString.Length + strippedName.Length) > 150)
+                {
+                    break;
+                }
+                if (entryindex != 0)
+                {
+                    dbsPercentagesString.Append(", ");
+                }
+                string percentString = thisRating.Key.ToString("#.00");
+                dbsPercentagesString.Append($"{strippedName} ({percentString}: {thisRating.Value.Item2}/{thisRating.Value.Item3})");
+                entryindex++;
+            }
+            return dbsPercentagesString.ToString();
+        }
 
         private static Regex numericCompareSearchRegex = new Regex(@"^\s*(?<operator>(?:>=)|(?:<=)|<|>)\s*(?<number>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
         private static Regex numericRangeSearchRegex = new Regex(@"^\s*(?<number1>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*-\s*(?<number2>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -1824,6 +1863,29 @@ namespace JKWatcher
                                 } else
                                 {
                                     ChatCommandAnswer(pm, $"^7^0^7Total witnessed kills: {infoPool.playerInfo[pm.playerNum].name} ^7^0^7vs. {infoPool.playerInfo[numberParams[0]].name}^7^0^7: {infoPool.killTrackers[pm.playerNum, numberParams[0]].kills}-{infoPool.killTrackers[numberParams[0], pm.playerNum].kills}", true, true, true);
+                                }
+                            }
+                            
+                            notDemoCommand = true;
+                            break;
+                        case "!dbs":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, $"^7^0^7DBS kill percentages: {MakeDBSPercentagesString(thisGameParamFound, false)}", true, true, true);
+                                return;
+                            } else if(numberParams.Count >= 1)
+                            {
+                                PlayerInfo player = infoPool.playerInfo[numberParams[0]];
+                                ChatCommandTrackingStuff trackingStuff = thisGameParamFound ? player.chatCommandTrackingStuffThisGame : player.chatCommandTrackingStuff;
+                                int dbsCount = trackingStuff.dbsCounter.value;
+                                Dictionary<string, int> killtypes = trackingStuff.GetKillTypesShortname();
+                                int dbsKills = killtypes.ContainsKey("DBS") ? killtypes["DBS"] : 0;
+                                float percentage = dbsCount > 0 ? 100.0f * (float)dbsKills / (float)dbsCount : 0.0f;
+                                string percentString = percentage.ToString("#.00");
+                                if (dbsCount > 0)
+                                {
+                                    ChatCommandAnswer(pm, $"DBS kill percentage for {player.name} is {percentString}% ({dbsKills} DBS kills out of {dbsCount} DBS)", true, true, true);
                                 }
                             }
                             

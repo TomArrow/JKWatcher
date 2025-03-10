@@ -104,6 +104,27 @@ namespace JKWatcher
     }
 
 
+    public class ReliableValueCounter
+    {
+        public int value { get; private set; } = 0;
+        private object ourLock = new object();
+        public DateTime lastValueChanged { get; private set; } = DateTime.Now;
+
+        public bool Add(int plus, bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!rateLimit || (DateTime.Now - lastValueChanged).TotalMilliseconds > 500)
+                {
+                    value += plus;
+                    lastValueChanged = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+
     public class BlocksTracker
     {
         public int blocks { get; private set; } = 0;
@@ -256,6 +277,7 @@ namespace JKWatcher
         public Rating rating = null;
 
         public BlocksTracker blocksTracker = new BlocksTracker();
+        public ReliableValueCounter dbsCounter = new ReliableValueCounter();
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -299,6 +321,13 @@ namespace JKWatcher
             lock (trackedKillsLock)
             {
                 return killTypes.ToDictionary(blah=>blah.Key,blah=>blah.Value); // Make a copy for thread safety.
+            }
+        }
+        public Dictionary<string, int> GetKillTypesShortname()
+        {
+            lock (trackedKillsLock)
+            {
+                return killTypes.ToDictionary(blah=>blah.Key.shortname,blah=>blah.Value); // Make a copy for thread safety.
             }
         }
         public Dictionary<KillType, int> GetKillTypesReturns()
