@@ -5740,7 +5740,47 @@ namespace JKWatcher
         {
             if (pi.team == Team.Spectator) return;
             // todo longer overall delay when standing on pad?
-            bool softMode = !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
+
+            Team otherTeam = pi.team == Team.Blue ? Team.Red : Team.Blue;
+            Vector3? flagPostPosition = null;
+
+            if (infoPool.teamInfo[(int)otherTeam].lastFlagBaseItemPositionUpdate != null)
+            {
+                //flagLastSeen = (DateTime.Now - infoPool.teamInfo[(int)otherTeam].lastFlagBaseItemPositionUpdate.Value).TotalMilliseconds;
+                flagPostPosition = infoPool.teamInfo[(int)otherTeam].flagBaseItemPosition; // Actual flag item
+                //flagItemNumber = infoPool.teamInfo[(int)otherTeam].flagBaseItemEntityNumber == 0 ? -1 : infoPool.teamInfo[teamInt].flagBaseItemEntityNumber;
+            }
+            else if (infoPool.teamInfo[(int)otherTeam].lastFlagBasePositionUpdate != null)
+            {
+                //flagLastSeen = (DateTime.Now - infoPool.teamInfo[teamInt].lastFlagBasePositionUpdate.Value).TotalMilliseconds;
+                flagPostPosition = infoPool.teamInfo[(int)otherTeam].flagBasePosition; // Flag base. the thing it stands n
+                //flagItemNumber = infoPool.teamInfo[teamInt].flagBaseEntityNumber == 0 ? -1 : infoPool.teamInfo[teamInt].flagBaseEntityNumber;
+            }
+
+            bool onPost = flagPostPosition.HasValue ? ((flagPostPosition.Value - pi.position).LengthSquared() < (10000)) : false; // 100 units
+
+            bool enemiesNearby = false;
+            if (onPost)
+            {
+                // check if enemies are nearby
+                foreach (PlayerInfo otherpi in infoPool.playerInfo)
+                {
+                    if (otherpi.infoValid && otherpi.team == otherTeam)
+                    {
+                        DateTime? lastFullPosUpdate = otherpi.lastFullPositionUpdate;
+                        if (lastFullPosUpdate.HasValue && (DateTime.Now - lastFullPosUpdate.Value).TotalMilliseconds < 500.0)
+                        {
+                            if ((pi.position - otherpi.position).LengthSquared() < 40000) // 200 units
+                            {
+                                enemiesNearby = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            bool softMode = onPost && !enemiesNearby || !activeMatch || gameIsPaused || (DateTime.Now - matchStarted).TotalSeconds < 10.0 || (DateTime.Now - pauseEndedOrStarted).TotalSeconds < 10.0;
             bool isAfk = !isDucked && (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 5.0 && (DateTime.Now - pi.lastViewAngleChange).TotalSeconds > 5.0; // avoid misdetecting campers as afk. could fail to detect afk ppl who are stuck in crouch pos. oh well.
             if (!pi.afkWarner.check(isAfk, 15.0, gameIsPaused ? 120.0 : 30.0, softMode))
             {
@@ -5748,6 +5788,7 @@ namespace JKWatcher
             }
             if (_connectionOptions.silentMode || !NWHDetected) return;
             if (currentGameType != GameType.CTF && currentGameType != GameType.CTY) return;
+            string postSuffix = onPost ? " ^3(ON POST)" : "";
             int playercountRed = 0;
             int playercountBlue = 0;
             foreach(PlayerInfo piOther in infoPool.playerInfo)
@@ -5770,11 +5811,11 @@ namespace JKWatcher
             {
                 if(publicWarningsQueue.Length > 0)
                 {
-                    publicWarningsQueue.Append($", {pi.name} ^7is ^1AFK");
+                    publicWarningsQueue.Append($", {pi.name} ^7is ^1AFK{postSuffix}");
                 }
                 else
                 {
-                    publicWarningsQueue.Append($"{pi.name} ^7is ^1AFK");
+                    publicWarningsQueue.Append($"{pi.name} ^7is ^1AFK{postSuffix}");
                 }
             }
 
