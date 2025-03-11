@@ -2224,6 +2224,68 @@ namespace JKWatcher
 
         DateTime lastNonIntermission = DateTime.Now;
 
+        float GetFlagRatio(Team team)
+        {
+            float flagratio = float.NaN;
+            TeamInfo teamInfo = infoPool.teamInfo[(int)team];
+            TeamInfo teamInfoOther = infoPool.teamInfo[team == Team.Red ? (int)Team.Blue : (int)Team.Red];
+            Vector3 basePosThisTeam;
+            Vector3 basePosOther;
+            Vector3 vecToOtherFlagBase;
+            float distToOtherFlagBase;
+            if (teamInfo.lastFlagBasePositionUpdate.HasValue)
+            {
+                basePosThisTeam = teamInfo.flagBasePosition;
+            } else if (teamInfo.lastFlagBaseItemPositionUpdate.HasValue)
+            {
+                basePosThisTeam = teamInfo.flagBaseItemPosition;
+            }
+            else
+            {
+                return flagratio;
+            }
+            if (teamInfoOther.lastFlagBasePositionUpdate.HasValue)
+            {
+                basePosOther = teamInfoOther.flagBasePosition;
+            } else if (teamInfoOther.lastFlagBaseItemPositionUpdate.HasValue)
+            {
+                basePosOther = teamInfoOther.flagBaseItemPosition;
+            }
+            else
+            {
+                return flagratio;
+            }
+
+            vecToOtherFlagBase = basePosOther - basePosThisTeam;
+            distToOtherFlagBase = vecToOtherFlagBase.Length();
+            vecToOtherFlagBase = Vector3.Normalize(vecToOtherFlagBase);
+
+            switch (teamInfo.flag)
+            {
+                case FlagStatus.FLAG_TAKEN:
+                    PlayerInfo carrier = infoPool.playerInfo[teamInfo.lastFlagCarrier];
+                    DateTime? lastFullPosTime = carrier.lastFullPositionUpdate;
+                    if (lastFullPosTime.HasValue && (DateTime.Now- lastFullPosTime.Value).TotalMilliseconds < 2000)
+                    {
+                        float dist = Vector3.Dot(vecToOtherFlagBase, carrier.position-basePosThisTeam);
+                        flagratio = dist / distToOtherFlagBase;
+                    }
+                    break; 
+                case FlagStatus.FLAG_DROPPED:
+                    DateTime? lastDropperPosTime = teamInfo.lastFlagDroppedPositionUpdate;
+                    if (lastDropperPosTime.HasValue && (DateTime.Now- lastDropperPosTime.Value).TotalMilliseconds < 2000)
+                    {
+                        float dist = Vector3.Dot(vecToOtherFlagBase, teamInfo.flagDroppedPosition- basePosThisTeam);
+                        flagratio = dist / distToOtherFlagBase;
+                    }
+                    break;
+                case FlagStatus.FLAG_ATBASE:
+                    flagratio = 0.0f;
+                    break;
+            }
+            return flagratio;
+        }
+
         static readonly string jkwatcherBotString = "HEHEFIGHTBOTXD";
         static readonly byte[] jkwatcherBotStringBytes = Encoding.Latin1.GetBytes(jkwatcherBotString);
         static readonly Vector2[] jkwatcherBotStringBytesAngleSequence = RandomHelpers.AngleEncoder.CreateAngleSequence(jkwatcherBotStringBytes);
@@ -3385,6 +3447,15 @@ namespace JKWatcher
                 }
             }
 
+            float redFlagRatio = float.NaN;
+            float blueFlagRatio = float.NaN;
+            if ((infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY) && )
+            {
+                redFlagRatio = GetFlagRatio(Team.Red);
+                blueFlagRatio = GetFlagRatio(Team.Blue);
+            }
+            infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, redFlagRatio, blueFlagRatio, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier);
+
             CameraOperator camOpTmp = this.CameraOperator;
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
@@ -3862,6 +3933,7 @@ namespace JKWatcher
             warmup = false;
             activeMatch = false;
             gameIsPaused = false;
+            infoPool.gameIsPaused = false;
             lastMyUserCommandServerTime = 0;
             CommitRatings();
             thisGameRatingCommitCount = 0;
@@ -3883,6 +3955,7 @@ namespace JKWatcher
                     }
                 }
             }
+            infoPool.gameStatsThisGame = new GameStats();
             infoPool.ratingCalculatorThisGame = new Glicko2.RatingCalculator();
             infoPool.ratingPeriodResultsThisGame = new Glicko2.RatingPeriodResults();
             infoPool.ratingsAndNamesThisGame.Clear();
@@ -5201,10 +5274,12 @@ namespace JKWatcher
                 {
                     pauseEndedOrStarted = DateTime.Now;
                     gameIsPaused = true;
+                    infoPool.gameIsPaused = true;
                 } else if (NWHDetected && commandEventArgs.Command.Argv(1).StartsWith("Pause ended after", StringComparison.InvariantCultureIgnoreCase))
                 {
                     pauseEndedOrStarted = DateTime.Now;
                     gameIsPaused = false;
+                    infoPool.gameIsPaused = false;
                 }
             }
         }

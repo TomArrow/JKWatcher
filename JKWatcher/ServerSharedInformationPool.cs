@@ -1256,6 +1256,64 @@ namespace JKWatcher
         Random
     }
 
+    public class GameStatsFrame {
+        public float redFlagRatio { get; init; } // 0 at base, 1 =in enemy base
+        public float blueFlagRatio { get; init; }
+        public bool paused { get; init; }
+        public int flagCarrierRed { get; init; }
+        public int flagCarrierBlue { get; init; }
+    }
+
+    public class GameStats {
+        int lastServerTime = -1;
+        DateTime lastFrameRecorded = DateTime.Now;
+        public int timeTotal { get; private set; }
+        public int pausedTime { get; private set; }
+        object datalock = new object();
+        List<GameStatsFrame> frames = new List<GameStatsFrame> ();
+        public GameStatsFrame[] getFrames()
+        {
+            lock (datalock)
+            {
+                return frames.ToArray();
+            }
+        }
+        public void SetStats(int serverTime, bool isCtf, float redFlagRatio, float blueFlagRatio, bool paused, int flagCarrierRed, int flagCarrierBlue)
+        {
+            lock (datalock)
+            {
+                int timeHere;
+                if(serverTime < lastServerTime)
+                {
+                    timeHere = 0;
+                }
+                else
+                {
+                    timeHere = serverTime - lastServerTime;
+                }
+                lastServerTime = serverTime;
+                if (timeHere > 0)
+                {
+                    if ((DateTime.Now - lastFrameRecorded).TotalMilliseconds >= 1000 && isCtf) // record once per second
+                    {
+                        if(frames.Count > (14400+900))
+                        {
+                            frames.RemoveRange(0, frames.Count - 14400); // 14400 frames should cover a 4 hour game. enough i think? dont wanna have an endless memory leak. reset every 15 min
+                        }
+                        frames.Add(new GameStatsFrame() { redFlagRatio = redFlagRatio, blueFlagRatio = blueFlagRatio, paused = paused, flagCarrierBlue = flagCarrierBlue, flagCarrierRed = flagCarrierRed });
+                        lastFrameRecorded = DateTime.Now;
+                    }
+                    if (paused)
+                    {
+                        pausedTime += timeHere;
+                    }
+                    timeTotal += timeHere;
+                }
+            }
+        }
+    }
+
+
     // Todo reset stuff on level restart and especially map change
     public class ServerSharedInformationPool : INotifyPropertyChanged
     {
@@ -1301,6 +1359,7 @@ namespace JKWatcher
         public volatile int ServerSlotsTaken = 0;
         public volatile int MaxServerClients = 32;
         public bool isIntermission { get; set; } = false;
+        public bool gameIsPaused { get; set; } = false;
 
         public volatile int serverTime = 0;
         private volatile int gameTime = 0;
@@ -1315,6 +1374,7 @@ namespace JKWatcher
         public object killTrackersLock = new object();
         public KillTracker[,] killTrackers;
         public KillTracker[,] killTrackersThisGame;
+        public GameStats gameStatsThisGame;
 
         public RatingCalculator ratingCalculator = new RatingCalculator();
         public RatingCalculator ratingCalculatorThisGame = new RatingCalculator();
