@@ -178,6 +178,11 @@ namespace JKWatcher
                 {
                     Dispatcher.Invoke(()=> {
                         this.Title = netAddress.ToString() + " (" + value + ")";
+                        ServerSharedInformationPool ip = infoPool;
+                        if (ip != null)
+                        {
+                            ip.ServerName = value;
+                        }
                     });
                 }
                 serverName = value;
@@ -667,15 +672,16 @@ namespace JKWatcher
             this.checkDraw3D.Visibility = Visibility.Visible;
 #endif
             this.Title = netAddressA.ToString();
-            if(serverNameA != null)
-            {
-                ServerName = serverNameA; // This will also change title.
-            }
-
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
             infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode ? 64 : 32) {connectionOptions = connectionOptions };
+
+            infoPool.ServerName = netAddressA.ToString();
+            if (serverNameA != null)
+            {
+                ServerName = serverNameA; // This will also change title.
+            }
 
             UpdateSaberVersion();
 

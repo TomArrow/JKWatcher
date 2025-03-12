@@ -131,6 +131,8 @@ namespace JKWatcher.RandomHelpers
         public int returns;// This is just for convenience.
         public int returnsOldSum;
 
+        public int dbses;
+
         public PlayerScore scoreCopy;
 
         public static int Comparer(ScoreboardEntry a, ScoreboardEntry b)
@@ -419,6 +421,7 @@ namespace JKWatcher.RandomHelpers
 
     class ScoreboardRenderer
     {
+        private static readonly Font headerFont = new Font("Segoe UI", 18,FontStyle.Bold);
         private static readonly Font nameFont = new Font("Segoe UI", 14,FontStyle.Bold);
         private static readonly Font normalFont = new Font("Segoe UI", 10);
         private static readonly Font tinyFont = new Font("Segoe UI", 8);
@@ -442,17 +445,25 @@ namespace JKWatcher.RandomHelpers
             DEFRAG,
             DEFRAGTOP10,
             DEFRAGWR,
-            GAUNTLETCOUNT
+            GAUNTLETCOUNT,
+            DBSPERCENT
         }
 
+        const int fgAlpha = (int)((float)255 * 0.8f);
         const int bgAlpha = (int)((float)255 * 0.33f);
         const int color0_2 = (int)((float)255 * 0.2f);
         const int color0_8 = (int)((float)255 * 0.8f);
+        static readonly Brush redFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, 255, color0_2, color0_2));
+        static readonly Brush blueFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, color0_2, color0_2, 255));
+        static readonly Pen redFlagPen = new Pen(redFlagBrush,1.0f);
+        static readonly Pen blueFlagPen = new Pen(blueFlagBrush, 1.0f);
         static readonly Brush redTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 255, color0_2, color0_2));
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
         static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
         static readonly Brush brighterBGBrush = new SolidBrush(Color.FromArgb(bgAlpha / 4, 128, 128, 128));
+        static readonly Brush gameTimeBrush = new SolidBrush(Color.FromArgb(bgAlpha, 64, 64, 64));
+        static readonly Brush gamePausedBrush = new SolidBrush(Color.FromArgb(bgAlpha, 64, 64, 0));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
         private static string block0(string input, string prefixIfUnblocked="")
@@ -476,6 +487,11 @@ namespace JKWatcher.RandomHelpers
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
 
+            string whenString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            bool isIntermission = infoPool.isIntermission;
+            GameStats gameStats = infoPool.gameStatsThisGame;
+            string serverName = infoPool.ServerName;
+            string mapName = infoPool.MapName;
             int redScore = infoPool.ScoreRed;
             int blueScore = infoPool.ScoreBlue;
             List<ScoreboardEntry> entries = new List<ScoreboardEntry>();
@@ -495,6 +511,7 @@ namespace JKWatcher.RandomHelpers
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
+                entry.dbses = kvp.Value.chatCommandTrackingStuff.dbsCounter.value;
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.fightBot = kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.scoreCopy = kvp.Value.chatCommandTrackingStuff.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
@@ -515,6 +532,10 @@ namespace JKWatcher.RandomHelpers
                 if(entry.returns > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.RETURNS);
+                }
+                if(entry.dbses >= 5)
+                {
+                    foundFields |= (1 << (int)ScoreFields.DBSPERCENT);
                 }
                 if(kvp.Value.chatCommandTrackingStuff.score.captures > 0)
                 {
@@ -928,6 +949,13 @@ namespace JKWatcher.RandomHelpers
                 columns.Add(new ColumnInfo("G2", 0, 35, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }) { noAdvanceAfter=true});
                 columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
             }
+
+            //if ((foundFields & (1 << (int)ScoreFields.DBSPERCENT)) > 0)
+            //{
+            //    columns.Add(new ColumnInfo("DBS%", 0, 30, normalFont, (a) => { return block0(a.scoreCopy.defendCount.GetString1()); }) { noAdvanceAfter = true });
+            //    columns.Add(new ColumnInfo("", 15, 30, tinyFont, (a) => { return block0(a.scoreCopy.defendCount.GetString2(), "^yfff8"); ; }));
+            //}
+
             string[] columnizedKillTypes = killTypesColumns.ToArray();
 
             bool firstKillType = true;
@@ -936,14 +964,20 @@ namespace JKWatcher.RandomHelpers
                 string stringLocal = killTypeColumn;
                 string measureString = block0(killTypesCountsMax.GetValueOrDefault(stringLocal, 0).ToString() + (killTypesCountsRetsMax.ContainsKey(stringLocal) ? $"/{killTypesCountsRetsMax[stringLocal]}" : ""));
                 float width = Math.Max(g.MeasureString(measureString, normalFont).Width+2f,20); // Sorta kinda make sure the text will fit.
+                bool isDBS = (stringLocal == "DBS");
                 columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) =>
                 {
                     return block0(a.killTypes.GetValueOrDefault(stringLocal, 0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""));
                 })
                 {
                     angledHeader = true,
-                    needsLeftLine = !firstKillType
+                    needsLeftLine = !firstKillType,
+                    noAdvanceAfter = isDBS
                 });
+                if (isDBS)
+                {
+                    columns.Add(new ColumnInfo("", 15, width, tinyFont, (a) => { return a.dbses > 0 ? $"^yff08/{a.dbses}" : ""; }));
+                }
                 firstKillType = false;
             }
 
@@ -1031,7 +1065,116 @@ namespace JKWatcher.RandomHelpers
 
             float posXStart = sidePadding;
             float posX = posXStart;
-            float posY = 20;
+            float posY = 20; // was 20. now fitting more stuff on top
+
+
+            if (thisGame && (gameType == GameType.CTF || gameType == GameType.CTY))
+            {
+                string winString;
+                if(redScore == blueScore)
+                {
+                    winString = $"Teams are tied at {redScore}-{blueScore}";
+                }
+                else if (isIntermission)
+                {
+                    winString = redScore > blueScore ? $"Red wins {redScore}-{blueScore}" : $"Blue wins {blueScore}-{redScore}";
+                }
+                else
+                {
+                    winString = redScore > blueScore ? $"Red leads {redScore}-{blueScore}" : $"Blue leads {blueScore}-{redScore}";
+                }
+                ColumnInfo fakeColumn = new ColumnInfo("Score", 0, 1800, headerFont, (a) => { return winString; });
+                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry()); // bit awkward but the drawing part is already nicely coded in this... too lazy to redo it, too lazy to abstract it.
+                posY += 30;
+                fakeColumn = new ColumnInfo("Playtime", 0, 1800, normalFont, (a) => { return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}"; });
+                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                posY += 15;
+                fakeColumn = new ColumnInfo("Mapname(fake column)", 0, 1800, nameFont, (a) => { return $"{mapName} ^7( {serverName} ^7)"; });
+                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                posY += 30;
+
+                GameStatsFrame[] frames = gameStats.getFrames();
+                // draw a bit of stats of how the game went
+                if (frames.Length > 1) // must be > 1 so we dont divide by zero and stuff.
+                {
+                    float statusheight = 100.0f;
+                    float bgWidth = 1920.0f - sidePadding - sidePadding;
+                    GameStatsFrame startFrame = frames[0];
+                    // first do background. to see pauses and normal gameplay.
+                    for(int i = 1; i < frames.Length; i++)
+                    {
+                        if(startFrame.paused != frames[i].paused)
+                        {
+                            Brush brush = startFrame.paused ? gamePausedBrush : gameTimeBrush;
+                            float newposX = posXStart+bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            g.FillRectangle(brush, new RectangleF(posX, posY, newposX - posX, statusheight));
+                            posX = newposX;
+                            startFrame = frames[i];
+                        }
+                    }
+                    if(startFrame != frames[frames.Length - 1])
+                    {
+                        Brush brush = startFrame.paused ? gamePausedBrush : gameTimeBrush;
+                        float newposX = posXStart + bgWidth;
+                        g.FillRectangle(brush, new RectangleF(posX, posY, newposX - posX, statusheight));
+                        posX = newposX;
+                    }
+                    posX = posXStart;
+
+                    // k now draw flag position n shit.
+                    int skip = frames.Length/(int)bgWidth;
+                    if (skip <= 0) skip = 1;
+                    if (skip > 3) skip = 3; // dont do bigger gaps than 3 seconds, gonna start looking weird i think.
+                    //int firstFrame = 0;
+                    //while (firstFrame < frames.Length -2 && ( !float.IsFinite(frames[firstFrame].redFlagRatio) || !float.IsFinite(frames[firstFrame].blueFlagRatio)))
+                    //{
+                    //    firstFrame++;
+                    //}
+                    startFrame = frames[0];
+                    for (int i = 1; i < frames.Length; i+= skip)
+                    {
+                        float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                        g.DrawLine(redFlagPen, new PointF(posX,posY + startFrame.redFlagRatio.ValueOrDefault(0.0f) * statusheight), new PointF(newposX, posY + frames[i].redFlagRatio.ValueOrDefault(0.0f) * statusheight));
+                        g.DrawLine(blueFlagPen, new PointF(posX,posY + (1.0f-startFrame.blueFlagRatio.ValueOrDefault(0.0f)) * statusheight), new PointF(newposX, posY + (1.0f-frames[i].blueFlagRatio.ValueOrDefault(0.0f)) * statusheight));
+                        posX = newposX;
+                        startFrame = frames[i];
+                    }
+                    if (startFrame != frames[frames.Length - 1])
+                    {
+                        float newposX = posXStart + bgWidth;
+                        g.DrawLine(redFlagPen, new PointF(posX, posY + startFrame.redFlagRatio.ValueOrDefault(0.0f) * statusheight), new PointF(newposX, posY + frames[frames.Length-1].redFlagRatio.ValueOrDefault(0.0f) * statusheight));
+                        g.DrawLine(blueFlagPen, new PointF(posX, posY + (1.0f - startFrame.blueFlagRatio.ValueOrDefault(0.0f)) * statusheight), new PointF(newposX, posY + (1.0f - frames[frames.Length - 1].blueFlagRatio.ValueOrDefault(0.0f)) * statusheight));
+                    }
+
+                    // now draw events (captures/ returns etc)
+                    for (int i = 0; i < frames.Length; i++)
+                    {
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.BlueCapture))
+                        {// maybe these need i-1 for the pos?
+                            float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            g.FillRectangle(redFlagBrush, new RectangleF(newposX-5, posY-5, 10, 10));
+                        }
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.RedCapture))
+                        {
+                            float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            g.FillRectangle(blueFlagBrush, new RectangleF(newposX-5, posY-5+statusheight, 10, 10));
+                        }
+                    }
+
+                    posY += 110; // we'll make a lil chart of how the game went.
+                }
+
+
+            }
+            else
+            {
+                ColumnInfo fakeColumn = new ColumnInfo("Mapname(fake column)", 0, 1800, nameFont, (a) => { return $"{mapName} ^7( {serverName} ^7)"; });
+                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                posY += 20;
+            }
+
+            posX = posXStart;
+
             foreach (var column in columns)
             {
                 column.DrawString(g,true,posX,posY);

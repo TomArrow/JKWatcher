@@ -1008,6 +1008,11 @@ namespace JKWatcher
             dict.AddOrUpdate(key, (a) => { return value; }, (a, b) => { return Math.Min(value, b); });
         }
 
+        public static float ValueOrDefault(this float value, float def)
+        {
+            return float.IsFinite(value) ? value : def;
+        }
+
         public static T ReadBytesAsType<T>(this BinaryReader br, long byteOffset = -1, SeekOrigin seekOrigin = SeekOrigin.Begin)
         {
             if (!(byteOffset == -1 && seekOrigin == SeekOrigin.Begin))

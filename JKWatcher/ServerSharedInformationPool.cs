@@ -1256,12 +1256,29 @@ namespace JKWatcher
         Random
     }
 
+    public class GameEventFlags // we put this in a class so we can reset it in the func that receives it. idea is: each event will have the flag set on only ONE frame
+    {
+        [Flags]
+        public enum Flags
+        {
+            RedReturn=1,
+            BlueReturn=2,
+            RedCapture=4,
+            BlueCapture=8,
+            RedPickup=16,
+            BluePickup=32,
+        }
+        public GameEventFlags.Flags flags;
+
+    }
+
     public class GameStatsFrame {
         public float redFlagRatio { get; init; } // 0 at base, 1 =in enemy base
         public float blueFlagRatio { get; init; }
         public bool paused { get; init; }
         public int flagCarrierRed { get; init; }
         public int flagCarrierBlue { get; init; }
+        public GameEventFlags.Flags flags { get; init; }
     }
 
     public class GameStats {
@@ -1278,18 +1295,22 @@ namespace JKWatcher
                 return frames.ToArray();
             }
         }
-        public void SetStats(int serverTime, bool isCtf, float redFlagRatio, float blueFlagRatio, bool paused, int flagCarrierRed, int flagCarrierBlue)
+        public void SetStats(int serverTime, bool isCtf, float redFlagRatio, float blueFlagRatio, bool paused, int flagCarrierRed, int flagCarrierBlue, GameEventFlags flags)
         {
             lock (datalock)
             {
                 int timeHere;
-                if(serverTime < lastServerTime)
+                if(serverTime < lastServerTime || lastServerTime == -1)
                 {
                     timeHere = 0;
                 }
                 else
                 {
                     timeHere = serverTime - lastServerTime;
+                }
+                if(timeHere > 10000)
+                {
+                    timeHere = 0; // this is clearly some kidn of bug. 
                 }
                 lastServerTime = serverTime;
                 if (timeHere > 0)
@@ -1300,7 +1321,8 @@ namespace JKWatcher
                         {
                             frames.RemoveRange(0, frames.Count - 14400); // 14400 frames should cover a 4 hour game. enough i think? dont wanna have an endless memory leak. reset every 15 min
                         }
-                        frames.Add(new GameStatsFrame() { redFlagRatio = redFlagRatio, blueFlagRatio = blueFlagRatio, paused = paused, flagCarrierBlue = flagCarrierBlue, flagCarrierRed = flagCarrierRed });
+                        frames.Add(new GameStatsFrame() { redFlagRatio = redFlagRatio, blueFlagRatio = blueFlagRatio, paused = paused, flagCarrierBlue = flagCarrierBlue, flagCarrierRed = flagCarrierRed,flags =flags.flags });
+                        flags.flags = 0;
                         lastFrameRecorded = DateTime.Now;
                     }
                     if (paused)
@@ -1366,6 +1388,7 @@ namespace JKWatcher
         public SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
         public string GameTime { get; private set; }
         public int GameSeconds => gameTime;
+        public string ServerName = "";
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }
@@ -1374,7 +1397,8 @@ namespace JKWatcher
         public object killTrackersLock = new object();
         public KillTracker[,] killTrackers;
         public KillTracker[,] killTrackersThisGame;
-        public GameStats gameStatsThisGame;
+        public GameEventFlags eventFlagsThisGame = new GameEventFlags();
+        public GameStats gameStatsThisGame = new GameStats();
 
         public RatingCalculator ratingCalculator = new RatingCalculator();
         public RatingCalculator ratingCalculatorThisGame = new RatingCalculator();

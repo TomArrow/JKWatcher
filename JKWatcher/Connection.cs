@@ -1878,6 +1878,17 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].flag = FlagStatus.FLAG_TAKEN;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     serverWindow.addToLog(pi.name + " got the " + teamAsString + " flag.");
+                    if (this.IsMainChatConnection)
+                    {
+                        if (team == Team.Red)
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.RedPickup;
+                        }
+                        else
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.BluePickup;
+                        }
+                    }
 
                 } else if (messageType == CtfMessageType.FraggedFlagCarrier && pi != null)
                 {
@@ -1907,6 +1918,15 @@ namespace JKWatcher
                     {
                         infoPool.playerInfo[playerNum].chatCommandTrackingStuff.returns++; // Our own tracking of rets in case server doesn't send them.
                         infoPool.playerInfo[playerNum].chatCommandTrackingStuffThisGame.returns++; // Our own tracking of rets in case server doesn't send them.
+
+                        if (team == Team.Red)
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.RedReturn;
+                        }
+                        else
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.BlueReturn;
+                        }
                     }
 
                 } else if (messageType == CtfMessageType.FlagReturned)
@@ -1927,6 +1947,17 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
                     serverWindow.addToLog(pi.name + " captured the "+teamAsString+" flag.");
 
+                    if (this.IsMainChatConnection)
+                    {
+                        if (team == Team.Red)
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.RedCapture;
+                        }
+                        else
+                        {
+                            infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.BlueCapture;
+                        }
+                    }
                 }
                 else if (messageType == CtfMessageType.PlayerReturnedFlag && pi != null)
                 {
@@ -3447,14 +3478,17 @@ namespace JKWatcher
                 }
             }
 
-            float redFlagRatio = float.NaN;
-            float blueFlagRatio = float.NaN;
-            if ((infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY) && )
+            if (!infoPool.isIntermission)
             {
-                redFlagRatio = GetFlagRatio(Team.Red);
-                blueFlagRatio = GetFlagRatio(Team.Blue);
+                float redFlagRatio = float.NaN;
+                float blueFlagRatio = float.NaN;
+                if ((infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY))
+                {
+                    redFlagRatio = GetFlagRatio(Team.Red);
+                    blueFlagRatio = GetFlagRatio(Team.Blue);
+                }
+                infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, redFlagRatio, blueFlagRatio, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame);
             }
-            infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, redFlagRatio, blueFlagRatio, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier);
 
             CameraOperator camOpTmp = this.CameraOperator;
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
