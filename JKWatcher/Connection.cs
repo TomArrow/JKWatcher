@@ -3478,7 +3478,7 @@ namespace JKWatcher
                 }
             }
 
-            if (!infoPool.isIntermission && this.IsMainChatConnection)
+            if (!infoPool.isIntermission)// && this.IsMainChatConnection) meh doesnt matter, only important thing are flags and already taken care of
             {
                 float redFlagRatio = float.NaN;
                 float blueFlagRatio = float.NaN;
