@@ -3478,7 +3478,7 @@ namespace JKWatcher
                 }
             }
 
-            if (!infoPool.isIntermission)
+            if (!infoPool.isIntermission && this.IsMainChatConnection)
             {
                 float redFlagRatio = float.NaN;
                 float blueFlagRatio = float.NaN;
