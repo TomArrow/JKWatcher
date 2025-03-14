@@ -1411,11 +1411,7 @@ Only in One Flag CTF games
 			}*/
 
 
-			/*
-			===============
-			BG_FindItemForWeapon
-
-			===============
+			
 			public static int? BG_FindItemForWeapon(weapon_t weapon)
 			{
 				//gitem_t* it;
@@ -1443,7 +1439,7 @@ Only in One Flag CTF games
 
 				return null;
 			}
-			*/
+			
 
 			/*
 			===============

@@ -1439,6 +1439,9 @@ namespace JKWatcher
                 thisSnapshotObituaryAttackers.Clear();
             }
 
+
+            int EF_PLAYER_EVENT = jkaMode ? (1 << 5) : 0x00000010;
+
             if (e.EventType == ClientGame.EntityEvent.Obituary) // TODO Fix it up for JKA
             {
                 // TODO Important. See if we can correlate death events to ctf frag events. That way we could know where
@@ -1986,6 +1989,59 @@ namespace JKWatcher
                     countFramesJumpReleasedThisJump = 0;
                 }
             }
+            else if (e.EventType == ClientGame.EntityEvent.ItemPickup)
+            {
+                bool playerEvent = (e.Entity.CurrentState.EntityFlags & EF_PLAYER_EVENT) > 0;
+                int clientNum = playerEvent ? e.Entity.CurrentState.OtherEntityNum : e.Entity.CurrentState.Number;
+                if(clientNum < 0 || clientNum >= (client?.ClientHandler?.MaxClients).GetValueOrDefault(32))
+                {
+                    serverWindow.addToLog($"^1EntityEvent.ItemPickup: ^7couldn't determine client num, found {clientNum}, playerevent {playerEvent}, entitynum {e.Entity.CurrentState.Number}, otherentitynum {e.Entity.CurrentState.OtherEntityNum}", true);
+                }
+                else
+                {
+                    int itemnum = e.Entity.CurrentState.EventParm;
+                    if(itemnum < 0 || itemnum >= Common.MaxGEntities)
+                    {
+                        serverWindow.addToLog($"^1EntityEvent.ItemPickup: ^7couldn't determine item num, found {itemnum}, clientnum {clientNum}", true);
+                    }
+                    else
+                    {
+                        if (entityKinds[itemnum] == EntityKind.Mine)
+                        {
+                            Trajectory basePos = e.Entity.CurrentState.Position;
+                            Vector3 pos;
+                            pos.X = basePos.Base[0];
+                            pos.Y = basePos.Base[1];
+                            pos.Z = basePos.Base[2];
+                            float positionratio = GetBaseRatio(pos);
+                            PlayerInfo pi = infoPool.playerInfo[clientNum];
+                            if (float.IsFinite(positionratio))
+                            {
+                                Team mineOwnerTeam = positionratio < 0.5f ? Team.Red : Team.Blue;
+
+                                if (pi.team == mineOwnerTeam)
+                                {
+                                    //pi.chatCommandTrackingStuff.minePickupCounter.Add(1);
+                                    //pi.chatCommandTrackingStuffThisGame.minePickupCounter.Add(1);
+                                    //serverWindow.addToLog($"^2EntityEvent.ItemPickup: ^7Client {clientNum} picked up {mineOwnerTeam} (own team) mines.", true);
+                                }
+                                else
+                                {
+                                    //pi.chatCommandTrackingStuff.minePickupCounterEnemy.Add(1);
+                                    //pi.chatCommandTrackingStuffThisGame.minePickupCounterEnemy.Add(1);
+                                    //serverWindow.addToLog($"^2EntityEvent.ItemPickup: ^7Client {clientNum} picked up {mineOwnerTeam} (enemy team) mines.", true);
+                                }
+                                pi.chatCommandTrackingStuff.minePickupCounter[(int)mineOwnerTeam].Add(1);
+                                pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)mineOwnerTeam].Add(1);
+                            } else
+                            {
+                                pi.chatCommandTrackingStuff.minePickupCounter[(int)Team.Free].Add(1);
+                                pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)Team.Free].Add(1);
+                            }
+                        }
+                    }
+                }
+            }
             // Todo: look into various sound events that are broarcast to everyone, also global item pickup,
             // then we immediately know who's carrying the flag
         }
@@ -2118,11 +2174,13 @@ namespace JKWatcher
         public Vector3 intermissionCamAngles { get; private set; }  = new Vector3();
         Matrix4x4 intermissionCamTransform = new Matrix4x4();
         Matrix4x4 intermissionCamModelMatrix = new Matrix4x4();
-        LevelShotAccumType levelshotAccumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion};
+        LevelShotAccumType levelshotAccumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion };
+
 
 
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
+        EntityKind[] entityKinds = new EntityKind[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
         public int[] saberMove = new int[64];
         public int[] saberStyle = new int[64];
         public Vector3[] lastVelocity = new Vector3[64];
@@ -2315,6 +2373,48 @@ namespace JKWatcher
                     break;
             }
             return flagratio;
+        }
+        float GetBaseRatio(Vector3 position) // 0 = near red base, 1 = near blue base
+        {
+            float posratio = float.NaN;
+            Team team = Team.Red;
+            TeamInfo teamInfo = infoPool.teamInfo[(int)team];
+            TeamInfo teamInfoOther = infoPool.teamInfo[team == Team.Red ? (int)Team.Blue : (int)Team.Red];
+            Vector3 basePosThisTeam;
+            Vector3 basePosOther;
+            Vector3 vecToOtherFlagBase;
+            float distToOtherFlagBase;
+            if (teamInfo.lastFlagBasePositionUpdate.HasValue)
+            {
+                basePosThisTeam = teamInfo.flagBasePosition;
+            } else if (teamInfo.lastFlagBaseItemPositionUpdate.HasValue)
+            {
+                basePosThisTeam = teamInfo.flagBaseItemPosition;
+            }
+            else
+            {
+                return posratio;
+            }
+            if (teamInfoOther.lastFlagBasePositionUpdate.HasValue)
+            {
+                basePosOther = teamInfoOther.flagBasePosition;
+            } else if (teamInfoOther.lastFlagBaseItemPositionUpdate.HasValue)
+            {
+                basePosOther = teamInfoOther.flagBaseItemPosition;
+            }
+            else
+            {
+                return posratio;
+            }
+
+            vecToOtherFlagBase = basePosOther - basePosThisTeam;
+            distToOtherFlagBase = vecToOtherFlagBase.Length();
+            vecToOtherFlagBase = Vector3.Normalize(vecToOtherFlagBase);
+
+            float dist = Vector3.Dot(vecToOtherFlagBase, position - basePosThisTeam);
+            posratio = dist / distToOtherFlagBase;
+
+            return posratio;
         }
 
         static readonly string jkwatcherBotString = "HEHEFIGHTBOTXD";
@@ -3370,6 +3470,7 @@ namespace JKWatcher
                 int snapEntityNum = snapEntityMapping[i];
                 if (snapEntityNum != -1/*entities[i].CurrentValid*/)
                 {
+                    bool entityKindFound = false;
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
@@ -3465,7 +3566,15 @@ namespace JKWatcher
                                 infoPool.lastAnyFlagSeen = DateTime.Now;
 
                             }
+                        } else if (infoPool.entityKindItemNumbers[(int)EntityKind.Mine] == snap.Entities[snapEntityNum].ModelIndex)
+                        {
+                            entityKinds[i] = EntityKind.Mine;
+                            entityKindFound = true;
                         }
+                    }
+                    if (!entityKindFound)
+                    {
+                        entityKinds[i] = EntityKind.Unknown;
                     }
                 }
                 else

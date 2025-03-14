@@ -19,7 +19,12 @@ namespace JKWatcher
 {
 
 
-
+    public enum EntityKind
+    {
+        Unknown,
+        Mine,
+        MaxKinds
+    }
 
     // Two dimensional array that can be accessed in any order of indizi and return the same rsuult
     // Aka: [a][b] gives same result as [b][a]
@@ -278,6 +283,7 @@ namespace JKWatcher
 
         public BlocksTracker blocksTracker = new BlocksTracker();
         public ReliableValueCounter dbsCounter = new ReliableValueCounter();
+        public ReliableValueCounter[] minePickupCounter = new ReliableValueCounter[4] { new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter()};
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -1513,6 +1519,7 @@ namespace JKWatcher
         public PlayerInfo[] playerInfo;
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
+        public int[] entityKindItemNumbers = new int[(int)EntityKind.MaxKinds];
 
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -1585,6 +1592,7 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG,false).Value;
                 //this.saberWeaponNum = JKAStuff.ItemList.bg_itemlist[JKAStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
                 this.saberWeaponNum = (int)JKAStuff.ItemList.weapon_t.WP_SABER;
+                entityKindItemNumbers[(int)EntityKind.Mine] = JKAStuff.ItemList.BG_FindItemForWeapon(JKAStuff.ItemList.weapon_t.WP_TRIP_MINE).Value;
 
             } else
             {
@@ -1592,6 +1600,7 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
                 //this.saberWeaponNum = JOStuff.ItemList.bg_itemlist[ JOStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
                 this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
+                entityKindItemNumbers[(int)EntityKind.Mine] = JOStuff.ItemList.BG_FindItemForWeapon(JOStuff.ItemList.weapon_t.WP_TRIP_MINE).Value;
             }
         }
 
@@ -1601,10 +1610,14 @@ namespace JKWatcher
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG, isMBII).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG, isMBII).Value;
+
+                entityKindItemNumbers[(int)EntityKind.Mine] = JKAStuff.ItemList.BG_FindItemForWeapon(JKAStuff.ItemList.weapon_t.WP_TRIP_MINE).Value; // todo mb2? meh
             } else
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
+
+                entityKindItemNumbers[(int)EntityKind.Mine] = JOStuff.ItemList.BG_FindItemForWeapon(JOStuff.ItemList.weapon_t.WP_TRIP_MINE).Value; // todo mb2? meh
             }
         }
         /*

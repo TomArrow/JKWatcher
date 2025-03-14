@@ -132,6 +132,8 @@ namespace JKWatcher.RandomHelpers
         public int returnsOldSum;
 
         public int dbses;
+        public int[] mineGrabs = new int[4];
+        public int mineGrabsTotal;
 
         public PlayerScore scoreCopy;
 
@@ -446,7 +448,8 @@ namespace JKWatcher.RandomHelpers
             DEFRAGTOP10,
             DEFRAGWR,
             GAUNTLETCOUNT,
-            DBSPERCENT
+            DBSPERCENT,
+            MINEGRABS
         }
 
         const int fgAlpha = (int)((float)255 * 0.8f);
@@ -454,7 +457,7 @@ namespace JKWatcher.RandomHelpers
         const int color0_2 = (int)((float)255 * 0.2f);
         const int color0_8 = (int)((float)255 * 0.8f);
         static readonly Brush redFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, 255, color0_2, color0_2));
-        static readonly Brush blueFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, color0_2, color0_2, 255));
+        static readonly Brush blueFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, color0_2, 192, 255));
         static readonly Pen redFlagPen = new Pen(redFlagBrush,1.0f);
         static readonly Pen blueFlagPen = new Pen(blueFlagBrush, 1.0f);
         static readonly Brush redTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 255, color0_2, color0_2));
@@ -463,7 +466,7 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush spectatorTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 128));
         static readonly Brush brighterBGBrush = new SolidBrush(Color.FromArgb(bgAlpha / 4, 128, 128, 128));
         static readonly Brush gameTimeBrush = new SolidBrush(Color.FromArgb(bgAlpha, 64, 64, 64));
-        static readonly Brush gamePausedBrush = new SolidBrush(Color.FromArgb(bgAlpha, 64, 64, 0));
+        static readonly Brush gamePausedBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 0));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
         private static string block0(string input, string prefixIfUnblocked="")
@@ -512,6 +515,12 @@ namespace JKWatcher.RandomHelpers
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
                 entry.dbses = kvp.Value.chatCommandTrackingStuff.dbsCounter.value;
+                entry.mineGrabsTotal = 0;
+                for(int i = 0; i < 4; i++)
+                {
+                    entry.mineGrabsTotal += kvp.Value.chatCommandTrackingStuff.minePickupCounter[i].value;
+                    entry.mineGrabs[i] = kvp.Value.chatCommandTrackingStuff.minePickupCounter[i].value;
+                }
                 entry.isBot = kvp.Value.playerSessInfo.confirmedBot || kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.fightBot = kvp.Value.playerSessInfo.confirmedJKWatcherFightbot;
                 entry.scoreCopy = kvp.Value.chatCommandTrackingStuff.score.Clone() as PlayerScore; // make copy because creating screenshot may take a few seconds and data might change drastically
@@ -536,6 +545,10 @@ namespace JKWatcher.RandomHelpers
                 if(entry.dbses >= 5)
                 {
                     foundFields |= (1 << (int)ScoreFields.DBSPERCENT);
+                }
+                if(entry.mineGrabsTotal > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.MINEGRABS);
                 }
                 if(kvp.Value.chatCommandTrackingStuff.score.captures > 0)
                 {
@@ -817,6 +830,39 @@ namespace JKWatcher.RandomHelpers
             {
                 columns.Add(new ColumnInfo(infoPool.NWHDetected ? "FG" : "»", 0, 25, normalFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString1()); }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString2(), "^yfff8"); }));
+            }
+            if ((foundFields & (1 << (int)ScoreFields.MINEGRABS)) >0)
+            {
+                columns.Add(new ColumnInfo("MG", 0, 40, normalFont, (a) => {
+                    if (a.mineGrabsTotal == 0) return "";
+                    if(gameType != GameType.CTF && gameType != GameType.CTY)
+                    {
+                        return $"{a.mineGrabsTotal}";
+                    }
+                    else if(a.mineGrabs[(int)Team.Red] > 0 && a.mineGrabs[(int)Team.Blue] > 0)
+                    {
+                        return $"^1{a.mineGrabs[(int)Team.Red]}^7/^x0af{a.mineGrabs[(int)Team.Blue]}";
+                    } else if (a.mineGrabs[(int)Team.Red] > 0)
+                    {
+                        return $"^1{a.mineGrabs[(int)Team.Red]}";
+                    }
+                    else if(a.mineGrabs[(int)Team.Blue] > 0)
+                    {
+                        return $"^x0af{a.mineGrabs[(int)Team.Blue]}";
+                    }
+                    else
+                    {
+                        return $"";
+                    }
+                }) {noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => {
+                    if (gameType != GameType.CTF && gameType != GameType.CTY || a.mineGrabs[(int)Team.Free] <= 0)
+                    {
+                        return "";
+                    }
+
+                    return $"^yfff8{a.mineGrabs[(int)Team.Free]}";
+                }));
             }
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
