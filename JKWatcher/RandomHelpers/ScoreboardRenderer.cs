@@ -467,6 +467,7 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush brighterBGBrush = new SolidBrush(Color.FromArgb(bgAlpha / 4, 128, 128, 128));
         static readonly Brush gameTimeBrush = new SolidBrush(Color.FromArgb(bgAlpha, 64, 64, 64));
         static readonly Brush gamePausedBrush = new SolidBrush(Color.FromArgb(bgAlpha, 128, 128, 0));
+        static readonly Brush darkenBgBrush = new SolidBrush(Color.FromArgb(bgAlpha, 0, 0, 0));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
         private static string block0(string input, string prefixIfUnblocked="")
@@ -1235,6 +1236,8 @@ namespace JKWatcher.RandomHelpers
                 posX = posXStart;
 
                 preColumn.DrawString(g,false,posX- preColumn.width-horzPadding, posY, entry);
+
+                g.FillRectangle(darkenBgBrush, new RectangleF(posX, posY, 1920.0f - sidePadding - sidePadding, 30.0f)); // darken the bg a bit so it doesnt make the text unreadable
 
                 Brush brush = null;
                 switch (entry.team) {
