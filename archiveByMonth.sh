@@ -29,6 +29,8 @@ else
 	fi
 fi
 
+# python ia-upload-stream.py --input-file "../$filename" --concurrency 3 --tries 999 jkctfdemos "$filename"
+# python ia-upload-stream.py --input-file "../$filename" --concurrency 10 --part-size 1000M --tries 999 jkctfdemos "$filename"
 # upload the .zip file to archive.org
 curl --fail --location --header 'x-amz-auto-make-bucket:0' \
 --header 'x-archive-meta-language:eng' \

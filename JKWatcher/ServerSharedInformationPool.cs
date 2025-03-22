@@ -1281,9 +1281,10 @@ namespace JKWatcher
     public class GameStatsFrame {
         public float redFlagRatio { get; init; } // 0 at base, 1 =in enemy base
         public float blueFlagRatio { get; init; }
+        public float dominance { get; init; } // 0 = red is dominating, 1 = blue is dominating
         public bool paused { get; init; }
-        public int flagCarrierRed { get; init; }
-        public int flagCarrierBlue { get; init; }
+        //public int flagCarrierRed { get; init; }
+        //public int flagCarrierBlue { get; init; }
         public GameEventFlags.Flags flags { get; init; }
     }
 
@@ -1301,7 +1302,8 @@ namespace JKWatcher
                 return frames.ToArray();
             }
         }
-        public void SetStats(int serverTime, bool isCtf, float redFlagRatio, float blueFlagRatio, bool paused, int flagCarrierRed, int flagCarrierBlue, GameEventFlags flags)
+        // detailCallback must return tuple with: redflagratio, blueflagratio and dominance (0 = red dominates, 1 = blue dominates)
+        public void SetStats(int serverTime, bool isCtf, Func<Tuple<float,float,float>> detailCallback, bool paused, int flagCarrierRed, int flagCarrierBlue, GameEventFlags flags)
         {
             lock (datalock)
             {
@@ -1327,7 +1329,11 @@ namespace JKWatcher
                         {
                             frames.RemoveRange(0, frames.Count - 14400); // 14400 frames should cover a 4 hour game. enough i think? dont wanna have an endless memory leak. reset every 15 min
                         }
-                        frames.Add(new GameStatsFrame() { redFlagRatio = redFlagRatio, blueFlagRatio = blueFlagRatio, paused = paused, flagCarrierBlue = flagCarrierBlue, flagCarrierRed = flagCarrierRed,flags =flags.flags });
+                        var details = detailCallback();
+                        float redFlagRatio = details.Item1;
+                        float blueFlagRatio = details.Item2;
+                        float dominance = details.Item3;
+                        frames.Add(new GameStatsFrame() { redFlagRatio = redFlagRatio, blueFlagRatio = blueFlagRatio, paused = paused,dominance=dominance, /*flagCarrierBlue = flagCarrierBlue, flagCarrierRed = flagCarrierRed*/flags =flags.flags });
                         flags.flags = 0;
                         lastFrameRecorded = DateTime.Now;
                     }

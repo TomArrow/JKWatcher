@@ -2313,6 +2313,146 @@ namespace JKWatcher
 
         DateTime lastNonIntermission = DateTime.Now;
 
+        float GetTeamPressure(Team team, Vector3 location, int excludeClient, out float magnitude, out float closestTeam, out float closestOtherTeam)
+        {
+            float thisTeamPressure = 0;
+            float otherTeamPressure = 0;
+            float closestTeamsq = float.PositiveInfinity;
+            float closestOtherTeamsq = float.PositiveInfinity;
+            Team otherTeam = team == Team.Red ? Team.Blue : Team.Red;
+            foreach(PlayerInfo pi in infoPool.playerInfo)
+            {
+                if (pi.infoValid && pi.team >= Team.Red && pi.team <=Team.Blue && pi.clientNum != excludeClient)
+                {
+                    DateTime? lastfullPosUpdate = pi.lastFullPositionUpdate;
+                    if(lastfullPosUpdate.HasValue && (DateTime.Now-lastfullPosUpdate.Value).TotalMilliseconds < 1000)
+                    {
+                        float distsq = (location - pi.position).LengthSquared();
+                        float pressureAdd = 0;
+                        if (distsq <= (200.0f * 200.0f))
+                        {
+                            pressureAdd = 1.0f;
+                        } else if (distsq <= (500.0f * 500.0f))
+                        {
+                            pressureAdd = 0.5f;
+                        } else if (distsq <= (1000.0f* 1000.0f))
+                        {
+                            pressureAdd = 0.25f;
+                        } 
+                        if(pi.team == team)
+                        {
+                            thisTeamPressure += pressureAdd;
+                            if(closestTeamsq > distsq)
+                            {
+                                closestTeamsq = distsq;
+                            }
+                        } else if(pi.team == otherTeam)
+                        {
+                            otherTeamPressure += pressureAdd;
+                            if (closestOtherTeamsq > distsq)
+                            {
+                                closestOtherTeamsq = distsq;
+                            }
+                        }
+                    }
+                }
+            }
+            float totalPressure = thisTeamPressure + otherTeamPressure;
+            closestTeam = (float)Math.Sqrt(closestTeamsq);
+            closestOtherTeam = (float)Math.Sqrt(closestOtherTeamsq);
+            if (totalPressure == 0)
+            {
+                magnitude = 0;
+                return 0.5f;
+            }
+            else
+            {
+                magnitude = thisTeamPressure;
+                return thisTeamPressure / totalPressure;
+            }
+        }
+        const float third = 1.0f / 3.0f;
+        // returns the probability that the flag of a particular team will be captured
+        float GetFlagScoreProbability(Team team)
+        {
+            float scoreprobability = float.NaN;
+            Team otherTeam = team == Team.Red ? Team.Blue : Team.Red;
+            TeamInfo teamInfo = infoPool.teamInfo[(int)team];
+            TeamInfo teamInfoOther = infoPool.teamInfo[(int)otherTeam];
+            float pressureMagnitude;
+            float pressure;
+            float flagratio;
+            Vector3? basePos;
+            float closestTeam, closestOtherTeam;
+
+            switch (teamInfo.flag)
+            {
+                case FlagStatus.FLAG_TAKEN:
+                    flagratio = GetFlagRatio(team);
+                    PlayerInfo carrier = infoPool.playerInfo[teamInfo.lastFlagCarrier];
+                    pressure = GetTeamPressure(team, carrier.position, carrier.clientNum, out pressureMagnitude, out closestTeam, out closestOtherTeam); // flag team's pressurer on carrier
+                    basePos = GetTeamFlagBasePos(otherTeam);
+                    float otherPadDist = basePos.HasValue ? Math.Max(0.0f,(Math.Min((carrier.position - basePos.Value).Length(),550.0f)-50.0f)) : 500.0f;
+
+                    if(pressureMagnitude < 1.0f && pressureMagnitude>0.0f) // if pressure is far away, scale it down.
+                    {
+                        pressure *= pressureMagnitude;
+                    }
+
+                    float enemyPadPressure = basePos.HasValue ? GetTeamPressure(team, basePos.Value, -1, out pressureMagnitude, out closestTeam, out closestOtherTeam) : 0.5f; // flag teams pressure on enemy pad
+
+                    pressure = third * pressure + third * enemyPadPressure + (teamInfoOther.flag == FlagStatus.FLAG_TAKEN ? third : 0.0f); // consider both
+
+                    pressure = 1.0f - pressure; // reverse it
+
+                    return 0.1f + flagratio * 0.4f + flagratio * 0.4f * pressure + (1.0f-(otherPadDist/500.0f))*0.1f;// to get full probability, flagratio must be full, pressure must be full and distance to own pad must be 0 (50 units distance counts as 0)
+                    break;
+                case FlagStatus.FLAG_DROPPED:
+                    flagratio = GetFlagRatio(team);
+                    pressure = GetTeamPressure(otherTeam, teamInfo.flagDroppedPosition, -1, out pressureMagnitude, out closestTeam, out closestOtherTeam);
+
+                    if(closestTeam < closestOtherTeam)
+                    {
+                        if (pressureMagnitude < 1.0f && pressureMagnitude > 0.0f) // if pressure is far away, scale it down.
+                        {
+                            pressure *= pressureMagnitude;
+                        }
+                        pressure *= 0.5f;
+                    }
+
+                    return 0.1f +0.8f*flagratio* pressure;
+                    
+                    break;
+                case FlagStatus.FLAG_ATBASE:
+                    basePos = GetTeamFlagBasePos(team);
+                    if (!basePos.HasValue)
+                    {
+                        return 0.0f;
+                    }
+                    pressure = GetTeamPressure(otherTeam, basePos.Value,-1,out pressureMagnitude, out closestTeam, out closestOtherTeam);
+                    return pressure * 0.1f;
+                    break;
+            }
+            return 0.5f;
+        }
+
+        Vector3? GetTeamFlagBasePos(Team team)
+        {
+            TeamInfo teamInfo = infoPool.teamInfo[(int)team];
+            if (teamInfo.lastFlagBasePositionUpdate.HasValue)
+            {
+                return teamInfo.flagBasePosition;
+            }
+            else if (teamInfo.lastFlagBaseItemPositionUpdate.HasValue)
+            {
+                return teamInfo.flagBaseItemPosition;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         float GetFlagRatio(Team team)
         {
             float flagratio = float.NaN;
@@ -3589,14 +3729,19 @@ namespace JKWatcher
 
             if (!infoPool.isIntermission)// && this.IsMainChatConnection) meh doesnt matter, only important thing are flags and already taken care of
             {
-                float redFlagRatio = float.NaN;
-                float blueFlagRatio = float.NaN;
-                if ((infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY))
-                {
-                    redFlagRatio = GetFlagRatio(Team.Red);
-                    blueFlagRatio = GetFlagRatio(Team.Blue);
-                }
-                infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, redFlagRatio, blueFlagRatio, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame);
+                infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, ()=> {
+                    // this is in a callback now. we only need to store this data every second or so, so don't waste time calculating it on every frame.
+                    float redFlagRatio = float.NaN;
+                    float blueFlagRatio = float.NaN;
+                    float dominance = float.NaN;
+                    if ((infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY))
+                    {
+                        redFlagRatio = GetFlagRatio(Team.Red);
+                        blueFlagRatio = GetFlagRatio(Team.Blue);
+                        dominance = (GetFlagScoreProbability(Team.Red) + (1.0f-GetFlagScoreProbability(Team.Blue)))*0.5f; // if probability of red flag being scored is 0 and probability of blue flag being scored is 1.0f, that means total red team dominance, and vice versa
+                    }
+                    return new Tuple<float, float, float>(redFlagRatio,blueFlagRatio,dominance);
+                }, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame);
             }
 
             CameraOperator camOpTmp = this.CameraOperator;

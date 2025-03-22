@@ -458,8 +458,10 @@ namespace JKWatcher.RandomHelpers
         const int color0_8 = (int)((float)255 * 0.8f);
         static readonly Brush redFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, 255, color0_2, color0_2));
         static readonly Brush blueFlagBrush = new SolidBrush(Color.FromArgb(fgAlpha, color0_2, 192, 255));
+        static readonly Brush dominanceBrush = new SolidBrush(Color.FromArgb(fgAlpha, 255, 255, 0));
         static readonly Pen redFlagPen = new Pen(redFlagBrush,1.0f);
         static readonly Pen blueFlagPen = new Pen(blueFlagBrush, 1.0f);
+        static readonly Pen dominancePen = new Pen(dominanceBrush, 0.5f);
         static readonly Brush redTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 255, color0_2, color0_2));
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
@@ -473,6 +475,13 @@ namespace JKWatcher.RandomHelpers
         private static string block0(string input, string prefixIfUnblocked="")
         {
             return input == "0" ? "" : $"{prefixIfUnblocked}{input}";
+        }
+
+        private static float exaggerate0to1scale(float input)
+        {
+            input = input.ValueOrDefault(0.5f) * 2.0f - 1.0f;
+            input = (float)Math.Sign(input) * (float)Math.Sqrt(Math.Abs(input));
+            return (input + 1.0f) * 0.5f;
         }
 
         public static void DrawScoreboard(
@@ -1178,17 +1187,38 @@ namespace JKWatcher.RandomHelpers
                     //    firstFrame++;
                     //}
                     startFrame = frames[0];
+                    float oldDominance = 0.5f;
                     for (int i = 1; i < frames.Length; i+= skip)
                     {
+                        int averageMax = Math.Min(i + 10+1, frames.Length); // for dominance we wanna show an average of a 20 second range to smooth it out and show a trend rather than a precise crisp line with lots of detail.
+                        float avgTotal = 0.0f;
+                        int sampleCount = 0;
+                        for(int j = Math.Max(i - 10,0); j < averageMax; j++) // todo sliding average here for better perf?
+                        {
+                            avgTotal += frames[j].dominance;
+                            sampleCount++;
+                        }
+                        float dominanceHere = exaggerate0to1scale(avgTotal / (float)sampleCount);
                         float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                        g.DrawLine(dominancePen, new PointF(posX,posY + oldDominance.ValueOrDefault(0.5f) * statusheight), new PointF(newposX, posY + dominanceHere.ValueOrDefault(0.5f) * statusheight));
                         g.DrawLine(redFlagPen, new PointF(posX,posY + startFrame.redFlagRatio.ValueOrDefault(0.0f) * statusheight), new PointF(newposX, posY + frames[i].redFlagRatio.ValueOrDefault(0.0f) * statusheight));
                         g.DrawLine(blueFlagPen, new PointF(posX,posY + (1.0f-startFrame.blueFlagRatio.ValueOrDefault(0.0f)) * statusheight), new PointF(newposX, posY + (1.0f-frames[i].blueFlagRatio.ValueOrDefault(0.0f)) * statusheight));
                         posX = newposX;
                         startFrame = frames[i];
+                        oldDominance = dominanceHere;
                     }
                     if (startFrame != frames[frames.Length - 1])
                     {
+                        float avgTotal = 0.0f;
+                        int sampleCount = 0;
+                        for (int j = Math.Max(frames.Length-1 - 10, 0); j < frames.Length; j++) // todo sliding average here for better perf?
+                        {
+                            avgTotal += frames[j].dominance;
+                            sampleCount++;
+                        }
+                        float dominanceHere = exaggerate0to1scale(avgTotal / (float)sampleCount);
                         float newposX = posXStart + bgWidth;
+                        g.DrawLine(dominancePen, new PointF(posX, posY + oldDominance.ValueOrDefault(0.5f) * statusheight), new PointF(newposX, posY + dominanceHere.ValueOrDefault(0.5f) * statusheight));
                         g.DrawLine(redFlagPen, new PointF(posX, posY + startFrame.redFlagRatio.ValueOrDefault(0.0f) * statusheight), new PointF(newposX, posY + frames[frames.Length-1].redFlagRatio.ValueOrDefault(0.0f) * statusheight));
                         g.DrawLine(blueFlagPen, new PointF(posX, posY + (1.0f - startFrame.blueFlagRatio.ValueOrDefault(0.0f)) * statusheight), new PointF(newposX, posY + (1.0f - frames[frames.Length - 1].blueFlagRatio.ValueOrDefault(0.0f)) * statusheight));
                     }
