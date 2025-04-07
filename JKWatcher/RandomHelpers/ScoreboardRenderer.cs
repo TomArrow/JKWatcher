@@ -252,6 +252,43 @@ namespace JKWatcher.RandomHelpers
         }
     }
 
+    class CSVColumnInfo
+    {
+        Func<ScoreboardEntry, string> fetcher = null;
+        string name = null;
+        public CSVColumnInfo(string nameA, Func<ScoreboardEntry, string> fetchFunc)
+        {
+            if (nameA is null || fetchFunc is null)
+            {
+                throw new InvalidOperationException("CSVColumnInfo must be created with non null name and fetchFunc");
+            }
+            name = nameA;
+            fetcher = fetchFunc;
+        }
+        public static string EscapeValue(string input)
+        {
+            input = input.Replace("\"", "\"\"");
+            return $"\"{input}\"";
+        }
+        public string WriteHeaderColumn()
+        {
+            return EscapeValue(name);
+        }
+        public void WriteHeaderColumn(StringBuilder csv)
+        {
+            csv.Append(EscapeValue(name));
+        }
+        public string WriteDataColumn(ScoreboardEntry entry)
+        {
+            return EscapeValue(fetcher(entry));
+        }
+        public void WriteDataColumn(StringBuilder csv, ScoreboardEntry entry)
+        {
+            csv.Append(EscapeValue(fetcher(entry)));
+        }
+    }
+
+
     class ColumnInfo
     {
         public enum OverflowMode
@@ -428,6 +465,7 @@ namespace JKWatcher.RandomHelpers
         private static readonly Font normalFont = new Font("Segoe UI", 10);
         private static readonly Font tinyFont = new Font("Segoe UI", 8);
         private static readonly string[] killTypesAlways = new string[] {string.Intern("DBS"), /*"DFA", "BS", "DOOM",*/ string.Intern("MINE") }; // these will always get a column if at least 1 was found.
+        private static readonly string[] killTypesCSV = new string[] {string.Intern("DFA"),string.Intern("RED"),string.Intern("YEL"),string.Intern("BLU"),string.Intern("DBS"),string.Intern("BS"),string.Intern("MINE"), string.Intern("UPCUT"), string.Intern("YDFA"), string.Intern("BLUBS"), string.Intern("DOOM"), string.Intern("TUR"), string.Intern("UNKN"), string.Intern("IDLE") }; // these will always get a column if at least 1 was found.
 
         public const float recordHeight = 30;
         public const float horzPadding = 3;
@@ -490,7 +528,8 @@ namespace JKWatcher.RandomHelpers
             ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNames, 
             ServerSharedInformationPool infoPool,
             bool all,
-            GameType gameType
+            GameType gameType,
+            StringBuilder csvData
             )
         {
 
@@ -779,10 +818,16 @@ namespace JKWatcher.RandomHelpers
 
 
             List<ColumnInfo> columns = new List<ColumnInfo>();
+            List<CSVColumnInfo> csvColumns = new List<CSVColumnInfo>();
 
 
             columns.Add(new ColumnInfo("CL", 0, 25, normalFont, (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("CL", (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("LAST-NONSPEC-TEAM", (a) => { return a.team.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("CURRENT-TEAM", (a) => { return a.realTeam.ToString(); }));
             columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
+            csvColumns.Add(new CSVColumnInfo("NAME-CLEAN", (a) => { return Q3ColorFormatter.cleanupString(a.stats.playerSessInfo.GetNameOrLastNonPadaName()); }) );
+            csvColumns.Add(new CSVColumnInfo("NAME-RAW", (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) );
             columns.Add(new ColumnInfo("SCORE", 0, 50, normalFont, (a) => { 
                 if(a.scoreCopy.oldScoreSum > 0)
                 {
@@ -793,12 +838,17 @@ namespace JKWatcher.RandomHelpers
                     return a.scoreCopy.score == -9999 ? "--" : a.scoreCopy.score.ToString();
                 }
             }) { noAdvanceAfter=true});
+            csvColumns.Add(new CSVColumnInfo("SCORE-CURRENT", (a) => { return a.scoreCopy.score == -9999 ? "" : $"{a.scoreCopy.score}"; }));
+            csvColumns.Add(new CSVColumnInfo("SCORE-SUM", (a) => { return a.scoreCopy.score == -9999 ? $"{a.scoreCopy.oldScoreSum}" : $"{a.scoreCopy.oldScoreSum + a.scoreCopy.score}"; }));
+
             columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { var oldsum = a.scoreCopy.oldScoreSum; return oldsum > 0 ? (a.scoreCopy.score == -9999 ? "^yfff8--" : $"^yfff8{a.scoreCopy.score}") : ""; }));
             if ((foundFields & (1 << (int)ScoreFields.CAPTURES)) >0)
             {
                 columns.Add(new ColumnInfo("C", 0, 20, normalFont, (a) => { return block0(a.scoreCopy.captures.GetString1()); }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { return block0(a.scoreCopy.captures.GetString2(), "^yfff8"); }));
             }
+            csvColumns.Add(new CSVColumnInfo("CAPTURES-CURRENT", (a) => { return a.scoreCopy.captures.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("CAPTURES-SUM", (a) => { return (a.scoreCopy.captures.value + a.scoreCopy.captures.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
                 columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { 
@@ -813,16 +863,22 @@ namespace JKWatcher.RandomHelpers
                 }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => {  return a.returnsOldSum > 0 ? block0(a.returns.ToString()) : ""; }));
             }
+            csvColumns.Add(new CSVColumnInfo("RETURNS-CURRENT", (a) => { return a.returns.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("RETURNS-SUM", (a) => { return (a.returns + a.returnsOldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.DEFEND)) >0)
             {
                 columns.Add(new ColumnInfo("BC", 0, 30, normalFont, (a) => { return block0(a.scoreCopy.defendCount.GetString1());  }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 30, tinyFont, (a) => { return block0(a.scoreCopy.defendCount.GetString2(), "^yfff8"); ; }));
             }
+            csvColumns.Add(new CSVColumnInfo("BC-CURRENT", (a) => { return a.scoreCopy.defendCount.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("BC-SUM", (a) => { return (a.scoreCopy.defendCount.value + a.scoreCopy.defendCount.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.ASSIST)) >0)
             {
                 columns.Add(new ColumnInfo("A", 0, 23, normalFont, (a) => { return block0(a.scoreCopy.assistCount.GetString1()); }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 23, tinyFont, (a) => { return block0(a.scoreCopy.assistCount.GetString2(), "^yfff8"); }));
             }
+            csvColumns.Add(new CSVColumnInfo("ASSISTS-CURRENT", (a) => { return a.scoreCopy.assistCount.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("ASSISTS-SUM", (a) => { return (a.scoreCopy.assistCount.value + a.scoreCopy.assistCount.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.GAUNTLETCOUNT)) >0)
             {
                 if (infoPool.NWHDetected)
@@ -836,11 +892,15 @@ namespace JKWatcher.RandomHelpers
                     columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { return block0(a.scoreCopy.guantletCount.GetString2(), "^yfff8"); }));
                 }
             }
+            csvColumns.Add(new CSVColumnInfo(infoPool.NWHDetected ? "FLAGHOLD-CURRENT" : "GAUNTLET-CURRENT", (a) => { return a.scoreCopy.guantletCount.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo(infoPool.NWHDetected ? "FLAGHOLD-SUM" : "GAUNTLET-SUM", (a) => { return (a.scoreCopy.guantletCount.value + a.scoreCopy.guantletCount.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.SPREEKILLS)) >0)
             {
                 columns.Add(new ColumnInfo(infoPool.NWHDetected ? "FG" : "»", 0, 25, normalFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString1()); }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 25, tinyFont, (a) => { return block0(a.scoreCopy.excellentCount.GetString2(), "^yfff8"); }));
             }
+            csvColumns.Add(new CSVColumnInfo(infoPool.NWHDetected ? "FLAGGRABS-CURRENT" : "SPREEKILLS-CURRENT", (a) => { return a.scoreCopy.excellentCount.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo(infoPool.NWHDetected ? "FLAGGRABS-SUM" : "SPREEKILLS-SUM", (a) => { return (a.scoreCopy.excellentCount.value + a.scoreCopy.excellentCount.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.MINEGRABS)) >0)
             {
                 columns.Add(new ColumnInfo("MG", 0, 40, normalFont, (a) => {
@@ -874,10 +934,16 @@ namespace JKWatcher.RandomHelpers
                     return $"^yfff8{a.mineGrabs[(int)Team.Free]}";
                 }));
             }
+            csvColumns.Add(new CSVColumnInfo("MINEGRABS-TOTAL", (a) => { return a.mineGrabsTotal.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("MINEGRABS-REDBASE", (a) => { return a.mineGrabs[(int)Team.Red].ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("MINEGRABS-BLUEBASE", (a) => { return a.mineGrabs[(int)Team.Blue].ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("MINEGRABS-NEUTRAL", (a) => { return a.mineGrabs[(int)Team.Free].ToString(); }));
+
             if ((foundFields & (1 << (int)ScoreFields.ACCURACY)) >0)
             {
                 columns.Add(new ColumnInfo("%", 0, infoPool.NWHDetected ? 40: 20, normalFont, (a) => { return block0(a.scoreCopy.accuracy.ToString()); }));
             }
+            csvColumns.Add(new CSVColumnInfo("ACCURACY-WEIRD", (a) => { return a.scoreCopy.accuracy.ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.DEFRAG)) >0)
             {
                 columns.Add(new ColumnInfo("DEFRAG", 0, 90, normalFont, (a) => {
@@ -983,9 +1049,51 @@ namespace JKWatcher.RandomHelpers
                     columns.Add(new ColumnInfo("K", 0, 40, normalFont, (a) => { return block0(a.scoreCopy.kills.ToString()); }));
                 }
             }
+            csvColumns.Add(new CSVColumnInfo("KILLS", (a) => {
+                if (anyKillsLogged)
+                {
+                    return a.stats.chatCommandTrackingStuff.totalKills.ToString();
+                }
+                else if((foundFields & (1 << (int)ScoreFields.KILLS)) > 0)
+                {
+                    return a.scoreCopy.kills.ToString();
+                }
+                else
+                {
+                    return "";
+                }
+            }));
+            csvColumns.Add(new CSVColumnInfo("DEATHS", (a) => {
+                if (anyKillsLogged)
+                {
+                    return a.stats.chatCommandTrackingStuff.totalDeaths.ToString();
+                }
+                else if((foundFields & (1 << (int)ScoreFields.DEATHS)) > 0)
+                {
+                    return a.scoreCopy.deaths.ToString();
+                }
+                else
+                {
+                    return "";
+                }
+            }));
+            csvColumns.Add(new CSVColumnInfo("TOTALKILLS-MOH", (a) => {
+                if((foundFields & (1 << (int)ScoreFields.TOTALKILLS)) > 0)
+                {
+                    return a.scoreCopy.totalKills.ToString();
+                }
+                else
+                {
+                    return "";
+                }
+            }));
 
             columns.Add(new ColumnInfo("PING", 0, 50, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }) { noAdvanceAfter=true });
             columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { string meansd = a.scoreCopy.ping.GetMeanSDString(); return !string.IsNullOrEmpty(meansd) ? $"^yfff8{meansd}" : ""; }));
+
+            csvColumns.Add(new CSVColumnInfo("PING-CURRENT", (a) => { return a.scoreCopy.ping.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("PING-MEAN", (a) => { double? avg = a.scoreCopy.ping.GetPreciseAverage(); return (!avg.HasValue || double.IsNaN(avg.Value)) ? "": avg.Value.ToString();}));
+            csvColumns.Add(new CSVColumnInfo("PING-MEAN-DEVIATION", (a) => { double? dev = a.scoreCopy.ping.GetStandardDeviation(); return (!dev.HasValue || double.IsNaN(dev.Value)) ? "": dev.Value.ToString();}));
 
             if (infoPool.mohMode)
             {
@@ -999,12 +1107,20 @@ namespace JKWatcher.RandomHelpers
                 columns.Add(new ColumnInfo("TIME", 0, 40, normalFont, (a) => { return a.scoreCopy.timeResetOn0.GetString1(); }) { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => { return $"^yfff8{a.scoreCopy.timeResetOn0.GetString2()}"; }));
             }
+
+            csvColumns.Add(new CSVColumnInfo("TIME-CURRENT", (a) => { return infoPool.mohMode ? a.scoreCopy.time.value.ToString() : a.scoreCopy.timeResetOn0.value.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("TIME-SUM", (a) => { return infoPool.mohMode ? (a.scoreCopy.time.value + a.scoreCopy.time.oldSum).ToString() : (a.scoreCopy.timeResetOn0.value + a.scoreCopy.timeResetOn0.oldSum).ToString(); }));
+
+
             if (anyValidGlicko2)
             {
                 //columns.Add(new ColumnInfo("GLICKO2", 0, 70, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
                 columns.Add(new ColumnInfo("G2", 0, 35, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }) { noAdvanceAfter=true});
                 columns.Add(new ColumnInfo("", 15, 35, tinyFont, (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"^yfff8±{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
             }
+
+            csvColumns.Add(new CSVColumnInfo("GLICKO2-RATING", (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }));
+            csvColumns.Add(new CSVColumnInfo("GLICKO2-DEVIATION", (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
 
             //if ((foundFields & (1 << (int)ScoreFields.DBSPERCENT)) > 0)
             //{
@@ -1049,6 +1165,26 @@ namespace JKWatcher.RandomHelpers
                 columns.Add(new ColumnInfo("KILLED BY", 0, 270, tinyFont, (a) => { return MakeKillsOnString(a,true); }) { overflowMode = ColumnInfo.OverflowMode.WrapClip });
             }
 
+
+            foreach (string killtype in killTypesCSV)
+            {
+                string stringLocal = killtype;
+                csvColumns.Add(new CSVColumnInfo($"{stringLocal}-KILLS", (a) =>
+                {
+                    return a.killTypes.GetValueOrDefault(stringLocal, 0).ToString();
+                }));
+                csvColumns.Add(new CSVColumnInfo($"{stringLocal}-RETURNS", (a) =>
+                {
+                    return a.killTypesRets.GetValueOrDefault(stringLocal, 0).ToString();
+                }));
+                if (stringLocal == "DBS")
+                {
+                    csvColumns.Add(new CSVColumnInfo($"{stringLocal}-ATTEMPTS", (a) =>
+                    {
+                        return a.dbses.ToString();
+                    }));
+                }
+            }
 
             const float sidePadding = 90;
             const float totalWidth = 1920 - sidePadding - sidePadding;
@@ -1260,6 +1396,18 @@ namespace JKWatcher.RandomHelpers
                     posX += column.width + horzPadding;
                 }
             }
+
+            int csvIndex = 0;
+            foreach(var column in csvColumns)
+            {
+                if(csvIndex++ != 0)
+                {
+                    csvData.Append(",");
+                }
+                column.WriteHeaderColumn(csvData);
+            }
+            csvData.Append("\n");
+
             foreach (ScoreboardEntry entry in entries)
             {
                 posY += recordHeight+ vertPadding;
@@ -1321,6 +1469,17 @@ namespace JKWatcher.RandomHelpers
                         posX += column.width + horzPadding;
                     }
                 }
+
+                csvIndex = 0;
+                foreach (var column in csvColumns)
+                {
+                    if (csvIndex++ != 0)
+                    {
+                        csvData.Append(",");
+                    }
+                    column.WriteDataColumn(csvData, entry);
+                }
+                csvData.Append("\n");
             }
             g.Flush();
             g.Dispose();

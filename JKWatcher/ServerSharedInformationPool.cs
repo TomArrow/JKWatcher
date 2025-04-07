@@ -839,7 +839,7 @@ namespace JKWatcher
     // DON'T EVER CHANGE THIS FROM STRUCT TO CLASS!!!!!
     public struct ConditionalResetValueSummer<T> where T : IOldNewValueCondition, new()
     {
-        int value;
+        public int value { get; private set; }
         public int oldSum { get; private set; }
 
         private static T resetValueCondition = new T();
