@@ -1824,7 +1824,7 @@ namespace JKWatcher
                     serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
-                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} ({killHashRaw})");
+                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} (fc att {attackerWasFlagCarrier} vic {targetWasFlagCarrier}) ({killHashRaw})");
                     }
                 } else
                 {
@@ -1837,7 +1837,7 @@ namespace JKWatcher
                     serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
-                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} ({killHashRaw})");
+                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} (fc att {attackerWasFlagCarrier} vic {targetWasFlagCarrier})  ({killHashRaw})");
                     }
                 }
             } else if(e.EventType == ClientGame.EntityEvent.CtfMessage)
