@@ -2630,6 +2630,10 @@ namespace JKWatcher
         {
             lock (connectionsCameraOperatorsMutex)  return this.connections.ToArray();
         }
+        public int getAllConnectionCount()
+        {
+            lock (connectionsCameraOperatorsMutex)  return this.connections.Count();
+        }
 
         private void Con_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {

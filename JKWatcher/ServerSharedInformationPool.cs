@@ -72,7 +72,7 @@ namespace JKWatcher
 
 
     public static unsafe class EntityStateExtensionMethods {
-        public static UInt64 GetKillHash(this EntityState es, ServerSharedInformationPool infoPool)
+        public static UInt64 GetKillHash(this EntityState es, ServerSharedInformationPool infoPool, out string pureKillHash)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -101,9 +101,10 @@ namespace JKWatcher
             sb.Append(locationOfDeath.Y);
             sb.Append("_");
             sb.Append(locationOfDeath.Z);
+            pureKillHash = sb.ToString();
             using (SHA512 sha512 = new SHA512Managed())
             {
-                return BitConverter.ToUInt64(sha512.ComputeHash(Encoding.Latin1.GetBytes(sb.ToString())));
+                return BitConverter.ToUInt64(sha512.ComputeHash(Encoding.Latin1.GetBytes(pureKillHash)));
             }
         }
     }

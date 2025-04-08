@@ -1472,12 +1472,17 @@ namespace JKWatcher
                 //MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
                 MeansOfDeathGeneral mod = RandomArraysAndStuff.GeneralizeMod(e.Entity.CurrentState.EventParm,jkaMode,this.MBIIDetected);
 
+                string killHashRaw;
+                UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool, out killHashRaw);
+
                 if (attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target) // Kill tracking, only do on one connection to keep things consistent.
                 {
+
 
                     lock (infoPool.killTrackers) { // Just in case unlucky timing and mainchatconnection changes :) 
 
                         infoPool.UpdateKillTrackerReferences(attacker, target); // make sure player session objects have updated references to killtrackers to other session objects
+
 
                         if (mod == MeansOfDeathGeneral.MOD_SABER_GENERAL && entityOrPSVisible[attacker])
                         {
@@ -1518,7 +1523,6 @@ namespace JKWatcher
                                 }
 
                             }
-                            UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
                             KillType kt = new KillType() { name=killType, shortname=killTypeShort };
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
@@ -1543,7 +1547,6 @@ namespace JKWatcher
                             {
                                 killTypeShort = killTypeShort.Substring(4);
                             }
-                            UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool);
                             KillType kt = new KillType() { name = killType, shortname = killTypeShort };
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
@@ -1819,6 +1822,10 @@ namespace JKWatcher
                 if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
                 {
                     serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
+                    if (this.serverWindow.getAllConnectionCount() > 1)
+                    {
+                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} ({killHashRaw})");
+                    }
                 } else
                 {
                     thisSnapshotObituaryAttackers.Add(attacker, locationOfDeath);
@@ -1828,6 +1835,10 @@ namespace JKWatcher
                     // Would his self blowup message come before or after this?
                     string attackerName = infoPool.playerInfo[attacker].name;
                     serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
+                    if (this.serverWindow.getAllConnectionCount() > 1)
+                    {
+                        serverWindow.addToLog($"KILLHASH DEBUG: {killHash} ({killHashRaw})");
+                    }
                 }
             } else if(e.EventType == ClientGame.EntityEvent.CtfMessage)
             {
