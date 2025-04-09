@@ -597,7 +597,9 @@ namespace JKWatcher
     {
         public ServerSharedInformationPool infoPool { get; init; } = null;
 
-
+        public object lastReturnedInfoLock = new object();
+        public UInt64 lastReturnedKillhash = 0;
+        public UInt64 lastKillWithFlagKillhash = 0;
         public ChatCommandTrackingStuff chatCommandTrackingStuff => this.session.chatCommandTrackingStuff;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame => this.session.chatCommandTrackingStuffThisGame;
         public IEnumerable<ChatCommandTrackingStuff> GetChatCommandTrackers()
@@ -1105,10 +1107,24 @@ namespace JKWatcher
         {
             lock (infoLock)
             {
-                if(serverTime > infoServerTime || (serverTime + 10000) < infoServerTime) // Overwrite info if it's newer or (safety check) it's likely that serverTime was reset.
+                if(serverTime >= infoServerTime || (serverTime + 10000) < infoServerTime) // Overwrite info if it's newer or (safety check) it's likely that serverTime was reset.
                 {
                     flagCarrier = flagCarrierA;
                     infoServerTime = serverTime;
+                }
+            }
+        }
+        public void setFlagCarrierIfEqual(int ifEqualTo, int setflagCarrierA, int serverTime)
+        {
+            lock (infoLock)
+            {
+                if (ifEqualTo == flagCarrier)
+                {
+                    if (serverTime >= infoServerTime || (serverTime + 10000) < infoServerTime) // Overwrite info if it's newer or (safety check) it's likely that serverTime was reset.
+                    {
+                        flagCarrier = setflagCarrierA;
+                        infoServerTime = serverTime;
+                    }
                 }
             }
         }

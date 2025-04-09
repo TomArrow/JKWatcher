@@ -942,10 +942,15 @@ namespace JKWatcher
                 client.Password = password;
             }
 
-            client.ServerCommandExecuted += ServerCommandExecuted;
-            client.ServerInfoChanged += Connection_ServerInfoChanged;
-            client.SnapshotParsed += Client_SnapshotParsed;
-            client.EntityEvent += Client_EntityEvent;
+            // Order of execution of events on reception of new packet from server (for a typical packet containing commands/snapshot)
+            // 1. If snapshot is in packet, SnapshotParsed
+            // 2. SeverCommandExecuted (each one might be followed by a ServerInfoChanged)
+            // 3. EntityEvent: Last after all server commands are handled
+
+            client.ServerCommandExecuted += ServerCommandExecuted; // in GetServerCommand (called from cgame ExecuteNewServerCommands in TransitionSnapshot). so generally before serverInfoChanged and events but after snapshotParsed?
+            client.ServerInfoChanged += Connection_ServerInfoChanged; // during gamestate or clientgame clientinfochanged (ps clientnum change or cs servercmd) or configstringmodified cgame. so usually after snapshotparsed but before events
+            client.SnapshotParsed += Client_SnapshotParsed; // called first during packetevent
+            client.EntityEvent += Client_EntityEvent; // called in cgame processsnapshots (last in every frame)
             client.Disconnected += Client_Disconnected;
             client.UserCommandGenerated += Client_UserCommandGenerated;
             client.DebugEventHappened += Client_DebugEventHappened;
@@ -1453,27 +1458,46 @@ namespace JKWatcher
 
                 var pos = e.Entity.CurrentState.Position;
                 Vector3 deathPosition = new Vector3() { X=pos.Base[0],Y=pos.Base[1],Z=pos.Base[2]};
+
+                string killHashRaw;
+                UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool, out killHashRaw);
+
                 bool targetWasFlagCarrier = false;
                 bool attackerWasFlagCarrier = false;
-                foreach (TeamInfo teamInfo in infoPool.teamInfo)
+                if(target >= 0 && target < infoPool.playerInfo.Length) // TODO Rethink this some day. Horrible!
                 {
-                    if(teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == target)
+                    PlayerInfo targetInfo = infoPool.playerInfo[target];
+                    lock (targetInfo.lastReturnedInfoLock)
                     {
-                        targetWasFlagCarrier = true;
-                        //break;
-                    }
-                    if(teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == attacker)
-                    {
-                        attackerWasFlagCarrier = true;
-                        //break;
+                        foreach (TeamInfo teamInfo in infoPool.teamInfo)
+                        {
+                            if (teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == target)
+                            {
+                                targetWasFlagCarrier = true; // unreliable in principle but we clear it if this is the case. should be ok then?
+                                teamInfo.reliableFlagCarrierTracker.setFlagCarrier(-1, lastSnapshot.ServerTime);
+                                targetInfo.lastReturnedKillhash = killHash;
+                                //break;
+                            }
+                            if (teamInfo.reliableFlagCarrierTracker.getFlagCarrier() == attacker)
+                            {
+                                attackerWasFlagCarrier = true; // unreliable :/ we can't reset it because killing someone while holding flag doesn't mean we lost the flag. but tbf we're not using this value for anything rn.
+                                                               //break;
+                            }
+                        }
+                        if (!targetWasFlagCarrier && targetInfo.lastReturnedKillhash == killHash)
+                        {
+                            targetWasFlagCarrier = true;
+                            serverWindow.addToLog($"OBITUARY DEBUG: Player {target} identified as former flag carrier due to lastReturnedKillhash matching.");
+                        }
+                        else if(targetWasFlagCarrier)
+                        {
+                            serverWindow.addToLog($"OBITUARY DEBUG: Player {target} identified as former flag carrier due to reliableFlagCarrierTracker.");
+                        }
                     }
                 }
 
                 //MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
                 MeansOfDeathGeneral mod = RandomArraysAndStuff.GeneralizeMod(e.Entity.CurrentState.EventParm,jkaMode,this.MBIIDetected);
-
-                string killHashRaw;
-                UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool, out killHashRaw);
 
                 if (attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target) // Kill tracking, only do on one connection to keep things consistent.
                 {
@@ -3037,19 +3061,20 @@ namespace JKWatcher
                         infoPool.playerInfo[i].session.team = (Team)playerTeam;
                     }
 
-                    infoPool.playerInfo[i].powerUps = 0;
+                    int psPowerups = 0;
                     for (int y = 0; y < Common.MaxPowerUps; y++)
                     {
                         if (snap.PlayerState.PowerUps[y] > 0)
                         {
-                            infoPool.playerInfo[i].powerUps |= 1 << y;
+                            psPowerups |= 1 << y;
                         }
                     }
+                    infoPool.playerInfo[i].powerUps = psPowerups;
                     infoPool.playerInfo[i].lastPositionUpdate = infoPool.playerInfo[i].lastFullPositionUpdate = DateTime.Now;
 
                     bool hasFlag = false;
 
-                    if (((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    if (((psPowerups & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i,snap.ServerTime);
@@ -3059,7 +3084,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                         hasFlag = true;
                     }
-                    else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    else if (((psPowerups & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
@@ -3068,6 +3093,13 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                         hasFlag = true;
+                    }
+                    else
+                    {
+                        // if we see this player without any flag, reset this.
+                        // WAIT STOP. DONT DO THIS. THEN WE WONT BE ABLE TO DETECT IT AT ALL
+                        //infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrierIfEqual(i, -1, snap.ServerTime);
+                        //infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrierIfEqual(i, -1, snap.ServerTime);
                     }
 
                     playerHasFlag[i] = hasFlag;
@@ -3338,7 +3370,7 @@ namespace JKWatcher
 
                     bool hasFlag = false;
 
-                    if(((infoPool.playerInfo[i].powerUps & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    if(((snap.Entities[snapEntityNum].Powerups & (1 << PWRedFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
@@ -3347,7 +3379,7 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Red].lastFlagCarrierUpdate = DateTime.Now;
                         hasFlag = true;
-                    } else if (((infoPool.playerInfo[i].powerUps & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
+                    } else if (((snap.Entities[snapEntityNum].Powerups & (1 << PWBlueFlag)) != 0) && infoPool.playerInfo[i].team != Team.Spectator) // Sometimes stuff seems to glitch and show spectators as having the flag
                     {
                         infoPool.lastAnyFlagSeen = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrier(i, snap.ServerTime);
@@ -3356,6 +3388,13 @@ namespace JKWatcher
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierValidUpdate = DateTime.Now;
                         infoPool.teamInfo[(int)JKClient.Team.Blue].lastFlagCarrierUpdate = DateTime.Now;
                         hasFlag = true;
+                    }
+                    else
+                    {
+                        // if we see this player without any flag, reset this.
+                        // WAIT STOP. DONT DO THIS. THEN WE WONT BE ABLE TO DETECT IT AT ALL
+                        //infoPool.teamInfo[(int)JKClient.Team.Blue].reliableFlagCarrierTracker.setFlagCarrierIfEqual(i,-1, snap.ServerTime);
+                        //infoPool.teamInfo[(int)JKClient.Team.Red].reliableFlagCarrierTracker.setFlagCarrierIfEqual(i,-1, snap.ServerTime);
                     }
 
                     if (SpectatedPlayer.HasValue)
