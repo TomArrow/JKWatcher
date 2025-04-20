@@ -454,6 +454,9 @@ namespace JKWatcher
             } else if(e.PropertyName == "netDebug")
             {
                 updateNetDebug();
+            } else if(e.PropertyName == "miscUserInfoValues")
+            {
+                updateMiscUserInfo();
             }
         }
 
@@ -639,6 +642,22 @@ namespace JKWatcher
                 string skinToUse = _connectionOptions.skin != null ? _connectionOptions.userInfoName : "kyle/default";
 
                 localClient.Skin = skinToUse;
+            }
+        }
+        private void updateMiscUserInfo()
+        {
+            var localClient = client;
+            KeyValuePair<string, string>[] userInfo = _connectionOptions.miscUserInfoValues.ToArray();
+            if (localClient != null && userInfo != null && userInfo.Length > 0)
+            {
+                if(userInfo.Length > 1)
+                {
+                    localClient.SkipUserInfoUpdatesAfterNextNChanges(userInfo.Length - 1);
+                }
+                foreach(KeyValuePair<string, string> pair in userInfo)
+                {
+                    localClient.SetUserInfoKeyValue(pair.Key, pair.Value);
+                }
             }
         }
         private void updateNetDebug()
@@ -2861,11 +2880,8 @@ namespace JKWatcher
             if (saberMove[snap.PlayerState.ClientNum] != snap.PlayerState.SaberMove)
             {
                 SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
-                if (generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
-                {
-                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuff.dbsCounter.Add(1);
-                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
-                }
+                infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
+                infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
             }
             saberMove[snap.PlayerState.ClientNum] = snap.PlayerState.SaberMove;
             saberStyle[snap.PlayerState.ClientNum] = snap.PlayerState.forceData.SaberAnimLevel;
@@ -3156,11 +3172,8 @@ namespace JKWatcher
                         if (saberMove[i] != snap.PlayerState.SaberMove)
                         {
                             SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
-                            if (generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
-                            {
-                                infoPool.playerInfo[i].chatCommandTrackingStuff.dbsCounter.Add(1);
-                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
-                            }
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
                         }
                         saberMove[i] = snap.PlayerState.SaberMove;
                         saberStyle[i] = snap.PlayerState.forceData.SaberAnimLevel;
@@ -3404,11 +3417,9 @@ namespace JKWatcher
                         if (saberMove[i] != snap.Entities[snapEntityNum].SaberMove)
                         {
                             SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.Entities[snapEntityNum].SaberMove, jkaMode);
-                            if(generalized == SaberMovesGeneral.LS_A_BACK_CR_GENERAL)
-                            {
-                                infoPool.playerInfo[i].chatCommandTrackingStuff.dbsCounter.Add(1);
-                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.dbsCounter.Add(1);
-                            }
+
+                            infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized,1);
+                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized,1);
                         }
                         saberMove[i] = snap.Entities[snapEntityNum].SaberMove;
                         saberStyle[i] = snap.Entities[snapEntityNum].FireFlag;

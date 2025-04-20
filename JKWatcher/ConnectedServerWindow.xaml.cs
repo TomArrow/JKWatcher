@@ -284,9 +284,24 @@ namespace JKWatcher
             public int mohExpansionSwitchMinDuration { get; set; } = 50;
             public string userInfoName { get; set; } = null;
             public string skin { get; set; } = null;
+            public ConcurrentDictionary<string, string> miscUserInfoValues = new ConcurrentDictionary<string, string>();
             public string mapChangeCommands { get; set; } = null;
             public string quickCommands { get; set; } = null;
             public bool pretendToBeRealClient { get; set; } = false;
+
+            public void SetMiscUserInfoValue(string key, string value)
+            {
+                miscUserInfoValues[key] = value;
+                PropertyChanged?.Invoke(this,new PropertyChangedEventArgs("miscUserInfoValues"));
+            }
+            public string GetMiscUserInfoValue(string key)
+            {
+                if(miscUserInfoValues.TryGetValue(key,out string output))
+                {
+                    return output;
+                }
+                return "";
+            }
 
             public void LoadMOHDefaults()
             {
@@ -3209,6 +3224,29 @@ namespace JKWatcher
         private void btnFillCurrentName_Click(object sender, RoutedEventArgs e)
         {
             nameTxt.Text = _connectionOptions.userInfoName;
+        }
+        private void btnSetMisc_Click(object sender, RoutedEventArgs e)
+        {
+            string key = miscKeyTxt.Text;
+            string val = miscValTxt.Text;
+            if(!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(val))
+            {
+                _connectionOptions.SetMiscUserInfoValue(key,val);
+            }
+        }
+        private void btnClearMisc_Click(object sender, RoutedEventArgs e)
+        {
+            miscValTxt.Text = "";
+            miscKeyTxt.Text = "";
+        }
+
+        private void btnFillCurrentMisc_Click(object sender, RoutedEventArgs e)
+        {
+            string key = miscKeyTxt.Text;
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                miscValTxt.Text = _connectionOptions.GetMiscUserInfoValue(key);
+            }
         }
         /*
         private void unixTimeNameColorsCheck_Checked(object sender, RoutedEventArgs e)

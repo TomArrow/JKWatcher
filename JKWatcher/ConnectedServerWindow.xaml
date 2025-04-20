@@ -388,18 +388,40 @@
                 <CheckBox x:Name="checkDraw3D" Checked="checkDraw3D_Checked" Unchecked="checkDraw3D_Checked" Panel.ZIndex="1" IsChecked="False" Visibility="Hidden">3D</CheckBox>
                 <Slider Width="50" Minimum="1.0" Maximum="10.0" x:Name="minimapVelocityScaleSlider" ValueChanged="minimapVelocityScaleSlider_ValueChanged" Value="1.0"></Slider>
             </WrapPanel>
-            <Label>Password</Label><TextBox x:Name="passwordTxt"></TextBox>
-            <WrapPanel>
-                <Button x:Name="btnSetPassword" Click="btnSetPassword_Click">Set</Button>
-                <Button x:Name="btnClearPassword" Click="btnClearPassword_Click">Clear input</Button>
-                <Button x:Name="btnFillCurrentPassword" Click="btnFillCurrentPassword_Click">Fill current</Button>
-            </WrapPanel>
-            <Label>Name</Label><TextBox x:Name="nameTxt"></TextBox>
-            <WrapPanel>
-                <Button x:Name="btnSetName" Click="btnSetName_Click">Set</Button>
-                <Button x:Name="btnClearName" Click="btnClearName_Click">Clear input</Button>
-                <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
-            </WrapPanel>
+            <TabControl>
+                <TabItem Header="PW">
+                    <StackPanel>
+
+                        <TextBox x:Name="passwordTxt"></TextBox>
+                        <WrapPanel>
+                            <Button x:Name="btnSetPassword" Click="btnSetPassword_Click">Set</Button>
+                            <Button x:Name="btnClearPassword" Click="btnClearPassword_Click">Clear input</Button>
+                            <Button x:Name="btnFillCurrentPassword" Click="btnFillCurrentPassword_Click">Fill current</Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Name">
+                    <StackPanel>
+                        <TextBox x:Name="nameTxt"></TextBox>
+                        <WrapPanel>
+                            <Button x:Name="btnSetName" Click="btnSetName_Click">Set</Button>
+                            <Button x:Name="btnClearName" Click="btnClearName_Click">Clear input</Button>
+                            <Button x:Name="btnFillCurrentName" Click="btnFillCurrentName_Click">Fill current</Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </TabItem>
+                <TabItem Header="Misc">
+                    <StackPanel>
+                        <TextBox x:Name="miscKeyTxt"></TextBox>
+                        <TextBox x:Name="miscValTxt"></TextBox>
+                        <WrapPanel>
+                            <Button x:Name="btnSetMisc" Click="btnSetMisc_Click">Set</Button>
+                            <Button x:Name="btnClearMisc" Click="btnClearMisc_Click">Clear input</Button>
+                            <Button x:Name="btnFillCurrentMisc" Click="btnFillCurrentMisc_Click" IsEnabled="False">Fill current</Button>
+                        </WrapPanel>
+                    </StackPanel>
+                </TabItem>
+            </TabControl>
             <StackPanel x:Name="connectionSettingsControls">
                 <TabControl>
                     <TabItem Header="Settings">

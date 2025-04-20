@@ -130,6 +130,89 @@ namespace JKWatcher
             }
         }
     }
+    
+    public class ReliableTypedValueCounter
+    {
+        private class LastChangedAndValue {
+            public DateTime lastChanged = DateTime.Now-new TimeSpan(1,0,0);
+            public int value =0;
+        }
+
+        private Dictionary<string, LastChangedAndValue> values = new Dictionary<string, LastChangedAndValue>();
+        private object ourLock = new object();
+
+        public bool Add(string key, int plus, bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!values.ContainsKey(key))
+                {
+                    values[key] = new LastChangedAndValue();
+                }
+                LastChangedAndValue data = values[key];
+
+                if (!rateLimit || (DateTime.Now - data.lastChanged).TotalMilliseconds > 500)
+                {
+                    data.value += plus;
+                    data.lastChanged = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+        public int GetValue(string key)
+        {
+            lock (ourLock)
+            {
+                if (values.ContainsKey(key))
+                {
+                    return values[key].value;
+                }
+                return 0;
+            }
+        }
+    }
+    public class ReliableTypedValueCounterInt
+    {
+        private class LastChangedAndValue {
+            public DateTime lastChanged = DateTime.Now-new TimeSpan(1,0,0);
+            public int value = 0;
+        }
+
+        private LastChangedAndValue[] values = new LastChangedAndValue[(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL];
+        private object ourLock = new object();
+
+        public bool Add(int key, int plus, bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (values[key] == null)
+                {
+                    values[key] = new LastChangedAndValue();
+                }
+                LastChangedAndValue data = values[key];
+
+                if (!rateLimit || (DateTime.Now - data.lastChanged).TotalMilliseconds > 500)
+                {
+                    data.value += plus;
+                    data.lastChanged = DateTime.Now;
+                    return true;
+                }
+                return false;
+            }
+        }
+        public int GetValue(int key)
+        {
+            lock (ourLock)
+            {
+                if (values[key] != null)
+                {
+                    return values[key].value;
+                }
+                return 0;
+            }
+        }
+    }
 
     public class BlocksTracker
     {
@@ -283,7 +366,8 @@ namespace JKWatcher
         public Rating rating = null;
 
         public BlocksTracker blocksTracker = new BlocksTracker();
-        public ReliableValueCounter dbsCounter = new ReliableValueCounter();
+        //public ReliableValueCounter dbsCounter = new ReliableValueCounter();
+        public ReliableTypedValueCounterInt slashTypeCounter = new ReliableTypedValueCounterInt();
         public ReliableValueCounter[] minePickupCounter = new ReliableValueCounter[4] { new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter()};
 
         private object trackedKillsLock = new object();

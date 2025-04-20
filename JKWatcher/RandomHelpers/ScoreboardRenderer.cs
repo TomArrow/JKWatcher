@@ -131,7 +131,20 @@ namespace JKWatcher.RandomHelpers
         public int returns;// This is just for convenience.
         public int returnsOldSum;
 
-        public int dbses;
+        //public int dfas;
+        //public int ydfas;
+        //public int bses;
+        //public int blubses;
+        //public int dbses;
+        public static Dictionary<string, int> slashTypeIndex = new Dictionary<string, int>()
+        {
+            { "DBS",0 },
+            { "BS",1 },
+            { "BLUBS",2 },
+            { "DFA",3 },
+            { "YDFA",4 },
+        };
+        public int[] slashCounts = new int[5];
         public int[] mineGrabs = new int[4];
         public int mineGrabsTotal;
 
@@ -486,7 +499,7 @@ namespace JKWatcher.RandomHelpers
             DEFRAGTOP10,
             DEFRAGWR,
             GAUNTLETCOUNT,
-            DBSPERCENT,
+            //DBSPERCENT,
             MINEGRABS
         }
 
@@ -563,7 +576,11 @@ namespace JKWatcher.RandomHelpers
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
-                entry.dbses = kvp.Value.chatCommandTrackingStuff.dbsCounter.value;
+                entry.slashCounts[ScoreboardEntry.slashTypeIndex["DBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
+                entry.slashCounts[ScoreboardEntry.slashTypeIndex["BS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_GENERAL);
+                entry.slashCounts[ScoreboardEntry.slashTypeIndex["BLUBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACKSTAB_GENERAL);
+                entry.slashCounts[ScoreboardEntry.slashTypeIndex["DFA"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_JUMP_T__B__GENERAL);
+                entry.slashCounts[ScoreboardEntry.slashTypeIndex["YDFA"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_FLIP_STAB_GENERAL) + kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_FLIP_SLASH_GENERAL);
                 entry.mineGrabsTotal = 0;
                 for(int i = 0; i < 4; i++)
                 {
@@ -591,10 +608,10 @@ namespace JKWatcher.RandomHelpers
                 {
                     foundFields |= (1 << (int)ScoreFields.RETURNS);
                 }
-                if(entry.dbses >= 5)
-                {
-                    foundFields |= (1 << (int)ScoreFields.DBSPERCENT);
-                }
+                //if(entry.dbses >= 5)
+                //{
+                //    foundFields |= (1 << (int)ScoreFields.DBSPERCENT);
+                //}
                 if(entry.mineGrabsTotal > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.MINEGRABS);
@@ -1136,7 +1153,12 @@ namespace JKWatcher.RandomHelpers
                 string stringLocal = killTypeColumn;
                 string measureString = block0(killTypesCountsMax.GetValueOrDefault(stringLocal, 0).ToString() + (killTypesCountsRetsMax.ContainsKey(stringLocal) ? $"/{killTypesCountsRetsMax[stringLocal]}" : ""));
                 float width = Math.Max(g.MeasureString(measureString, normalFont).Width+2f,20); // Sorta kinda make sure the text will fit.
-                bool isDBS = (stringLocal == "DBS");
+                bool showTryCount = ScoreboardEntry.slashTypeIndex.ContainsKey(stringLocal);
+                int localAttemptIndex = -1;
+                if (showTryCount)
+                {
+                    localAttemptIndex = ScoreboardEntry.slashTypeIndex[stringLocal];
+                }
                 columns.Add(new ColumnInfo(stringLocal, 0, width, normalFont, (a) =>
                 {
                     return block0(a.killTypes.GetValueOrDefault(stringLocal, 0).ToString() + (a.killTypesRets.ContainsKey(stringLocal) ? $"/^1{a.killTypesRets[stringLocal]}" : ""));
@@ -1144,11 +1166,11 @@ namespace JKWatcher.RandomHelpers
                 {
                     angledHeader = true,
                     needsLeftLine = !firstKillType,
-                    noAdvanceAfter = isDBS
+                    noAdvanceAfter = showTryCount
                 });
-                if (isDBS)
+                if (showTryCount)
                 {
-                    columns.Add(new ColumnInfo("", 15, width, tinyFont, (a) => { return a.dbses > 0 ? $"^yff08/{a.dbses}" : ""; }));
+                    columns.Add(new ColumnInfo("", 15, width, tinyFont, (a) => { return a.slashCounts[localAttemptIndex] > 0 ? $"^yff08/{a.slashCounts[localAttemptIndex]}" : ""; }));
                 }
                 firstKillType = false;
             }
@@ -1166,6 +1188,7 @@ namespace JKWatcher.RandomHelpers
             }
 
 
+            int dbsIndex = ScoreboardEntry.slashTypeIndex["DBS"];
             foreach (string killtype in killTypesCSV)
             {
                 string stringLocal = killtype;
@@ -1181,7 +1204,7 @@ namespace JKWatcher.RandomHelpers
                 {
                     csvColumns.Add(new CSVColumnInfo($"{stringLocal}-ATTEMPTS", (a) =>
                     {
-                        return a.dbses.ToString();
+                        return a.slashCounts[dbsIndex].ToString();
                     }));
                 }
             }

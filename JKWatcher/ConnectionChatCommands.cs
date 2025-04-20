@@ -175,7 +175,7 @@ namespace JKWatcher
             {
                 if (!pi.infoValid) continue;
                 ChatCommandTrackingStuff trackingStuff = thisGame ? pi.chatCommandTrackingStuffThisGame : pi.chatCommandTrackingStuff;
-                int dbsCount = trackingStuff.dbsCounter.value;
+                int dbsCount = trackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
                 if (dbsCount < 5) continue; // so it doesn't end up with one guy who did a single dbs on top of stats
                 Dictionary<string, int> killtypes = trackingStuff.GetKillTypesShortname();
                 int dbsKills = killtypes.ContainsKey("DBS") ? killtypes["DBS"] : 0;
@@ -1878,7 +1878,7 @@ namespace JKWatcher
                             {
                                 PlayerInfo player = infoPool.playerInfo[numberParams[0]];
                                 ChatCommandTrackingStuff trackingStuff = thisGameParamFound ? player.chatCommandTrackingStuffThisGame : player.chatCommandTrackingStuff;
-                                int dbsCount = trackingStuff.dbsCounter.value;
+                                int dbsCount = trackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
                                 Dictionary<string, int> killtypes = trackingStuff.GetKillTypesShortname();
                                 int dbsKills = killtypes.ContainsKey("DBS") ? killtypes["DBS"] : 0;
                                 float percentage = dbsCount > 0 ? 100.0f * (float)dbsKills / (float)dbsCount : 0.0f;
