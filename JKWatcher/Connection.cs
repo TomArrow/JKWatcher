@@ -179,8 +179,31 @@ namespace JKWatcher
     }
 
 
+
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
+    public class DelayPropertyAttribute : Attribute
+    {
+        public bool toString { get; init; } = false;
+        public DelayPropertyAttribute()
+        {
+        }
+        public DelayPropertyAttribute(bool toStringA)
+        {
+            toString = toStringA;
+        }
+    }
     // This is to delay the rate at which stuff is updated to not overburden the GUI with many connections
-    public class ConnectionViewData<T> : DependencyObject {
+    public class DelayedViewData<T> : DependencyObject {
+        private class StaticProperty
+        {
+            public DependencyProperty property;
+            public bool toString = false;
+            public StaticProperty(DependencyProperty propertyA, bool toStringA = false)
+            {
+                property = propertyA;
+                toString = toStringA;
+            }
+        }
         private class Property
         {
             public DependencyProperty property;
@@ -196,33 +219,41 @@ namespace JKWatcher
                 toString = toStringA;
             }
         }
-        static public DependencyProperty ClientNum = DependencyProperty.Register("ClientNum", typeof(int?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty SpectatedPlayer = DependencyProperty.Register("SpectatedPlayer", typeof(int?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty isRecordingADemo = DependencyProperty.Register("isRecordingADemo", typeof(bool?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty Status = DependencyProperty.Register("Status", typeof(ConnectionStatus?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty SnapStatus = DependencyProperty.Register("SnapStatus", typeof(string), typeof(ConnectionViewData<T>));
-        static public DependencyProperty PlayerMoveType = DependencyProperty.Register("PlayerMoveType", typeof(PlayerMoveType?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty Index = DependencyProperty.Register("Index", typeof(int?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty Speed = DependencyProperty.Register("Speed", typeof(float?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty WishSpectatedPlayer = DependencyProperty.Register("WishSpectatedPlayer", typeof(int?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty IsMainChatConnection = DependencyProperty.Register("IsMainChatConnection", typeof(bool?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty ChatMemeCommandsDelay = DependencyProperty.Register("ChatMemeCommandsDelay", typeof(int?), typeof(ConnectionViewData<T>));
-        static public DependencyProperty QuietModeTimeOut = DependencyProperty.Register("QuietModeTimeOut", typeof(int?), typeof(ConnectionViewData<T>));
+        static private Dictionary<string, StaticProperty> propertiesStatic = new Dictionary<string, StaticProperty>();
         private Dictionary<string, Property> properties = new Dictionary<string, Property>();
         private object lockobj = new object();
-        public ConnectionViewData() {
-            properties.Add("ClientNum",new Property( ClientNum, DateTime.Now));
-            properties.Add("SpectatedPlayer", new Property(SpectatedPlayer, DateTime.Now));
-            properties.Add("isRecordingADemo", new Property(isRecordingADemo, DateTime.Now));
-            properties.Add("Status", new Property(Status, DateTime.Now));
-            properties.Add("SnapStatus", new Property(SnapStatus, DateTime.Now, true));
-            properties.Add("PlayerMoveType", new Property(PlayerMoveType, DateTime.Now));
-            properties.Add("Index", new Property(Index, DateTime.Now));
-            properties.Add("Speed", new Property(Speed, DateTime.Now));
-            properties.Add("WishSpectatedPlayer", new Property(WishSpectatedPlayer, DateTime.Now));
-            properties.Add("IsMainChatConnection", new Property(IsMainChatConnection, DateTime.Now));
-            properties.Add("ChatMemeCommandsDelay", new Property(ChatMemeCommandsDelay, DateTime.Now));
-            properties.Add("QuietModeTimeOut", new Property(QuietModeTimeOut, DateTime.Now));
+
+        static DelayedViewData(){
+            System.Reflection.PropertyInfo[] sourceProperties = typeof(T).GetProperties();
+            foreach(System.Reflection.PropertyInfo property in sourceProperties)
+            {
+                foreach(System.Reflection.CustomAttributeData attribute in property.CustomAttributes)
+                {
+                    if(attribute.AttributeType == typeof(DelayPropertyAttribute))
+                    {
+                        bool toString = false;
+                        IList<System.Reflection.CustomAttributeNamedArgument> args = attribute.NamedArguments;
+                        foreach(var arg in args)
+                        {
+                            if(arg.MemberName == "toString" && (arg.TypedValue.Value as bool?) == true)
+                            {
+                                toString = true;
+                            }
+                        }
+
+                        propertiesStatic[property.Name] = new StaticProperty(DependencyProperty.Register(property.Name, toString ? typeof(string) : property.PropertyType, typeof(DelayedViewData<T>)),toString);
+                    }
+                }
+            }
+        }
+        public DelayedViewData() {
+            lock (propertiesStatic)
+            {
+                foreach(var staticProp in propertiesStatic)
+                {
+                    properties.Add(staticProp.Key, new Property(staticProp.Value.property, DateTime.Now, staticProp.Value.toString));
+                }
+            }
             foreach (var kvp in properties)
             {
                 System.Reflection.PropertyInfo propInfo = typeof(T).GetProperty(kvp.Key);
@@ -308,7 +339,7 @@ namespace JKWatcher
      */
     public partial class Connection : INotifyPropertyChanged
     {
-        public ConnectionViewData<Connection> connectionViewData { get; set; } = new ConnectionViewData<Connection>();
+        public DelayedViewData<Connection> connectionViewData { get; set; } = new DelayedViewData<Connection>();
 
         // Setting it a bit higher than in the jk2 code itself, just to be safe. Internet delays etc. could cause issues.
         // Still not absolutely foolproof I guess but about as good as I can do.
@@ -358,18 +389,23 @@ namespace JKWatcher
         } 
         private string nameOverride = null; 
 
+        [DelayProperty]
         public int? ClientNum { get; set; } = null;
         private DateTime lastServerInfoChange = DateTime.Now;
         private DateTime lastSpectatedPlayerChange = DateTime.Now;
         private int? oldSpectatedPlayer = null;
+        [DelayProperty]
         public int? SpectatedPlayer { get; set; } = null;
+        [DelayProperty]
         public int? WishSpectatedPlayer { get; set; } = null;
+        [DelayProperty]
         public PlayerMoveType? PlayerMoveType { get; set; } = null;
 
         private bool mohSpectatorFreeFloat = false;
         private DateTime lastMOHSpectatorNonFreeFloat = DateTime.Now;
 
         private int? _index = null;
+        [DelayProperty]
         public int? Index
         {
             get
@@ -393,18 +429,21 @@ namespace JKWatcher
 
         private bool trulyDisconnected = true; // If we disconnected manually we want to stay disconnected.
 
+        [DelayProperty(toString = true)]
         public SnapStatusInfo SnapStatus { get; private set; } = new SnapStatusInfo();
 
         public bool AlwaysFollowSomeone { get; set; } = true;
         public bool HandleAutoCommands { get; set; } = true; // Conditional commands etc.
 
         //public ConnectionStatus Status => client != null ? client.Status : ConnectionStatus.Disconnected;
+        [DelayProperty]
         public ConnectionStatus Status { get; private set; } = ConnectionStatus.Disconnected;
 
         private ServerSharedInformationPool infoPool;
 
         //public string GameTime { get; set; } = null;
 
+        [DelayProperty]
         public bool isRecordingADemo { get; private set; } = false;
 
         public LeakyBucketRequester<string, RequestCategory> leakyBucketRequester = null;
@@ -869,7 +908,7 @@ namespace JKWatcher
                 return beQuietUntil > DateTime.Now;
             }
         }
-        [DependsOn("beQuietUntil", "CurrentTimeSecondEven")]
+        [DependsOn("beQuietUntil", "CurrentTimeSecondEven"), DelayProperty]
         public int QuietModeTimeOut { get {
                 return beQuietUntil > DateTime.Now ? (int)(beQuietUntil-DateTime.Now).TotalSeconds : 0;
             } }
@@ -2374,6 +2413,7 @@ namespace JKWatcher
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
+        [DelayProperty]
         public float Speed { get; private set; } = 0;
         private int saberDrawAnimLevel = -1;
 

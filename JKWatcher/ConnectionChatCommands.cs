@@ -392,7 +392,9 @@ namespace JKWatcher
             return strafeStylesString.ToString();
         }
 
+        [DelayProperty]
         public bool IsMainChatConnection { get; set; }= false;
+        [DelayProperty]
         public int ChatMemeCommandsDelay { get; set; } = 4000;
 
         struct ParsedChatMessage
