@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -15,6 +16,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Linq.Expressions;
 
 namespace JKWatcher
 {
@@ -959,6 +961,25 @@ namespace JKWatcher
             myBitmap.UnlockBits(bmpData);
             return myBitmap;
 
+        }
+
+        public static Func<T, object> FastGetter<T>(MemberInfo property)
+        {
+            ParameterExpression declarer = System.Linq.Expressions.Expression.Parameter(property.DeclaringType);
+            MemberExpression accessor = System.Linq.Expressions.Expression.MakeMemberAccess(declarer, property);
+            UnaryExpression objectconverter = System.Linq.Expressions.Expression.Convert(accessor, typeof(object));
+            Expression<Func<T, object>> functionmaker = System.Linq.Expressions.Expression.Lambda<Func<T, object>>(objectconverter, declarer);
+            return functionmaker.Compile();
+        }
+        
+        public static Func<T, string> FastGetterToString<T>(MemberInfo property)
+        {
+            ParameterExpression declarer = System.Linq.Expressions.Expression.Parameter(property.DeclaringType);
+            MemberExpression accessor = System.Linq.Expressions.Expression.MakeMemberAccess(declarer, property);
+            MethodInfo method = property.ReflectedType.GetMethod("ToString");
+            MethodCallExpression toString = System.Linq.Expressions.Expression.Call(accessor,method);
+            Expression<Func<T, string>> functionmaker = System.Linq.Expressions.Expression.Lambda<Func<T, string>>(toString, declarer);
+            return functionmaker.Compile();
         }
 
 

@@ -326,31 +326,31 @@
                     </Style>
                 </DataGrid.RowStyle>
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="cN" Binding="{Binding ClientNum}" Width="25"></DataGridTextColumn>
-                    <DataGridTextColumn Header="psCN" Binding="{Binding SpectatedPlayer}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Rec" Binding="{Binding isRecordingADemo}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Status" Binding="{Binding Status}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Snaps" Binding="{Binding SnapStatus}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="cN" Binding="{Binding connectionViewData.ClientNum}" Width="25"></DataGridTextColumn>
+                    <DataGridTextColumn Header="psCN" Binding="{Binding connectionViewData.SpectatedPlayer}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Rec" Binding="{Binding connectionViewData.isRecordingADemo}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Status" Binding="{Binding connectionViewData.Status}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Snaps" Binding="{Binding connectionViewData.SnapStatus}"></DataGridTextColumn>
                     <DataGridTextColumn Header="CamOp" Binding="{Binding CameraOperator.Index}" Width="50"></DataGridTextColumn>
-                    <DataGridTextColumn Header="PMT" Binding="{Binding PlayerMoveType}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Index" Binding="{Binding Index}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Speed" Binding="{Binding Speed}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="wishSpec" Binding="{Binding WishSpectatedPlayer}" Width="30"></DataGridTextColumn>
-                    <DataGridTextColumn Header="Chat"  Binding="{Binding IsMainChatConnection}">
+                    <DataGridTextColumn Header="PMT" Binding="{Binding connectionViewData.PlayerMoveType}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Index" Binding="{Binding connectionViewData.Index}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Speed" Binding="{Binding connectionViewData.Speed}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="wishSpec" Binding="{Binding connectionViewData.WishSpectatedPlayer}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Chat"  Binding="{Binding connectionViewData.IsMainChatConnection}">
                         <DataGridTextColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="ToolTip" Value="Is main connection for responding to meme/tool chat commands" />
                             </Style>
                         </DataGridTextColumn.CellStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="CDelay" Binding="{Binding ChatMemeCommandsDelay}">
+                    <DataGridTextColumn Header="CDelay" Binding="{Binding connectionViewData.ChatMemeCommandsDelay}">
                         <DataGridTextColumn.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="ToolTip" Value="Delay in milliseconds for meme/tool chat commands" />
                             </Style>
                         </DataGridTextColumn.CellStyle>
                     </DataGridTextColumn>
-                    <DataGridTextColumn Header="Quiet" Binding="{Binding QuietModeTimeOut}" Width="30"></DataGridTextColumn>
+                    <DataGridTextColumn Header="Quiet" Binding="{Binding connectionViewData.QuietModeTimeOut}" Width="30"></DataGridTextColumn>
                 </DataGrid.Columns>
 
             </DataGrid>

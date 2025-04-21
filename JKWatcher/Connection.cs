@@ -178,6 +178,124 @@ namespace JKWatcher
         }
     }
 
+
+    // This is to delay the rate at which stuff is updated to not overburden the GUI with many connections
+    public class ConnectionViewData<T> : DependencyObject {
+        private class Property
+        {
+            public DependencyProperty property;
+            public DateTime updated = DateTime.Now;
+            public Func<T, object> getter = null;
+            public bool latchedValueIsSet = false;
+            public bool valueEverSet = false;
+            public bool toString = false;
+            public Property(DependencyProperty propertyA, DateTime updatedA, bool toStringA = false)
+            {
+                property = propertyA;
+                updated = updatedA;
+                toString = toStringA;
+            }
+        }
+        static public DependencyProperty ClientNum = DependencyProperty.Register("ClientNum", typeof(int?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty SpectatedPlayer = DependencyProperty.Register("SpectatedPlayer", typeof(int?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty isRecordingADemo = DependencyProperty.Register("isRecordingADemo", typeof(bool?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty Status = DependencyProperty.Register("Status", typeof(ConnectionStatus?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty SnapStatus = DependencyProperty.Register("SnapStatus", typeof(string), typeof(ConnectionViewData<T>));
+        static public DependencyProperty PlayerMoveType = DependencyProperty.Register("PlayerMoveType", typeof(PlayerMoveType?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty Index = DependencyProperty.Register("Index", typeof(int?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty Speed = DependencyProperty.Register("Speed", typeof(float?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty WishSpectatedPlayer = DependencyProperty.Register("WishSpectatedPlayer", typeof(int?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty IsMainChatConnection = DependencyProperty.Register("IsMainChatConnection", typeof(bool?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty ChatMemeCommandsDelay = DependencyProperty.Register("ChatMemeCommandsDelay", typeof(int?), typeof(ConnectionViewData<T>));
+        static public DependencyProperty QuietModeTimeOut = DependencyProperty.Register("QuietModeTimeOut", typeof(int?), typeof(ConnectionViewData<T>));
+        private Dictionary<string, Property> properties = new Dictionary<string, Property>();
+        private object lockobj = new object();
+        public ConnectionViewData() {
+            properties.Add("ClientNum",new Property( ClientNum, DateTime.Now));
+            properties.Add("SpectatedPlayer", new Property(SpectatedPlayer, DateTime.Now));
+            properties.Add("isRecordingADemo", new Property(isRecordingADemo, DateTime.Now));
+            properties.Add("Status", new Property(Status, DateTime.Now));
+            properties.Add("SnapStatus", new Property(SnapStatus, DateTime.Now, true));
+            properties.Add("PlayerMoveType", new Property(PlayerMoveType, DateTime.Now));
+            properties.Add("Index", new Property(Index, DateTime.Now));
+            properties.Add("Speed", new Property(Speed, DateTime.Now));
+            properties.Add("WishSpectatedPlayer", new Property(WishSpectatedPlayer, DateTime.Now));
+            properties.Add("IsMainChatConnection", new Property(IsMainChatConnection, DateTime.Now));
+            properties.Add("ChatMemeCommandsDelay", new Property(ChatMemeCommandsDelay, DateTime.Now));
+            properties.Add("QuietModeTimeOut", new Property(QuietModeTimeOut, DateTime.Now));
+            foreach (var kvp in properties)
+            {
+                System.Reflection.PropertyInfo propInfo = typeof(T).GetProperty(kvp.Key);
+                if(propInfo == null)
+                {
+                    throw new Exception($"ConnectionViewData: Can not find property {kvp.Key} in type {typeof(T).ToString()}");
+                }
+                if (kvp.Value.toString)
+                {
+                    kvp.Value.getter = Helpers.FastGetterToString<T>(propInfo);
+                }
+                else
+                {
+                    kvp.Value.getter = Helpers.FastGetter<T>(propInfo);
+                }
+
+            }
+        }
+
+        private const double millisecondTimeout = 200.0;
+
+        public bool UpdateValue(string propName, T reference)
+        {
+            lock (lockobj)
+            {
+                if (!properties.ContainsKey(propName))
+                {
+                    return false;
+                }
+                Property prop = properties[propName];
+                if ((DateTime.Now - prop.updated).TotalMilliseconds >= millisecondTimeout)
+                {
+                    prop.updated = DateTime.Now;
+                    object value = prop.getter(reference);
+                    Dispatcher.BeginInvoke(() => {
+                        SetValue(prop.property, value);
+                    });
+                    prop.latchedValueIsSet = false;
+                    prop.valueEverSet = true;
+                }
+                else
+                {
+                    prop.latchedValueIsSet = true;
+                }
+                return true;
+            }
+        }
+
+        // call this regularly to not get stuck on old values
+        public void checkLatchedValues(T reference)
+        {
+            lock (lockobj)
+            {
+                foreach (var kvp in properties)
+                {
+                    if ((kvp.Value.latchedValueIsSet || !kvp.Value.valueEverSet) && (DateTime.Now - kvp.Value.updated).TotalMilliseconds >= millisecondTimeout)
+                    {
+                        kvp.Value.updated = DateTime.Now;
+                        object value = kvp.Value.getter(reference);
+                        Dispatcher.BeginInvoke(() =>
+                        {
+                            SetValue(kvp.Value.property, value);
+                        });
+                        kvp.Value.latchedValueIsSet = false;
+                        kvp.Value.valueEverSet = true;
+                    }
+                }
+            }
+        }
+    }
+
+
+
     /*
      * General notes regarding flood protection.
      * Old style servers only allow 1 command per second period. If you send a command within a second of another command,
@@ -190,6 +308,8 @@ namespace JKWatcher
      */
     public partial class Connection : INotifyPropertyChanged
     {
+        public ConnectionViewData<Connection> connectionViewData { get; set; } = new ConnectionViewData<Connection>();
+
         // Setting it a bit higher than in the jk2 code itself, just to be safe. Internet delays etc. could cause issues.
         // Still not absolutely foolproof I guess but about as good as I can do.
         const int floodProtectPeriod = 1100;
@@ -344,6 +464,7 @@ namespace JKWatcher
             {
                 throw new InvalidOperationException("Cannot create connection with null connectionOptions");
             }
+            this.PropertyChanged += Connection_PropertyChanged;
             this.GhostPeer = ghostPeer;
             _connectionOptions = connectionOptions;
             _connectionOptions.PropertyChanged += _connectionOptions_PropertyChanged;
@@ -373,6 +494,11 @@ namespace JKWatcher
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
             initFightbotValues();
+        }
+
+        private void Connection_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            connectionViewData?.UpdateValue(e.PropertyName, this);
         }
 
         internal static int GameTypeStringToBitMask(string gameTypesString)
@@ -854,6 +980,7 @@ namespace JKWatcher
                     backgroundTask.Cancel();
                 }
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
+                this.PropertyChanged -= Connection_PropertyChanged;
                 disconnect();
                 leakyBucketRequester.Stop();
                 //leakyBucketRequester = null;
@@ -4202,6 +4329,7 @@ namespace JKWatcher
                 }
             }
 
+            connectionViewData?.checkLatchedValues(this);
 
             oldSpectatedPlayer = SpectatedPlayer;
         }
@@ -4874,6 +5002,8 @@ namespace JKWatcher
             {
                 firstGamestateConnectionReceived = true;
             }
+
+            connectionViewData?.checkLatchedValues(this);
         }
 
         private void Browser_InternalTaskStarted(object sender, in Task task, string description)
