@@ -183,6 +183,28 @@
                         <Label>Taskbar max player count status gametypes:</Label>
                         <TextBox x:Name="taskbarPlayerCountStatusGametypesTxt" MinWidth="200"></TextBox>
                     </WrapPanel>
+                    <GroupBox Header="Socks (Global)">
+                        <StackPanel x:Name="socksSettingsGlobalBox">
+                            <WrapPanel>
+                                <Label MinWidth="50">Server:</Label>
+                                <TextBox x:Name="socksServer" MinWidth="200" Text="{Binding server, Mode=TwoWay}"></TextBox>
+                                <Label MinWidth="50">Port:</Label>
+                                <TextBox x:Name="socksPort" MinWidth="100" Text="{Binding port, Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label MinWidth="50">User:</Label>
+                                <TextBox x:Name="socksUser" MinWidth="200" Text="{Binding user, Mode=TwoWay}"></TextBox>
+                                <Label MinWidth="50">PW:</Label>
+                                <TextBox x:Name="socksPw" MinWidth="200" Text="{Binding pw, Mode=TwoWay}"></TextBox>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label>Conditions:</Label>
+                                <CheckBox x:Name="socksConditionNWH" IsChecked="{Binding nwhCondition, Mode=TwoWay}">NWH</CheckBox>
+                                <Label>Conditions (num)</Label>
+                                <TextBlock Text="{Binding conditions}"></TextBlock>
+                            </WrapPanel>
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </TabItem>
             <TabItem Header="More Features">

@@ -1071,7 +1071,7 @@ namespace JKWatcher
                 return false;
             }
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
-            client = new Client(handler) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine, DebugNet=_connectionOptions.netDebug }; // Todo make more flexible
+            client = new Client(handler,_connectionOptions.proxy) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine, DebugNet=_connectionOptions.netDebug }; // Todo make more flexible
 
             if (_connectionOptions.pretendToBeRealClient)
             {

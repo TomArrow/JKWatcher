@@ -289,6 +289,8 @@ namespace JKWatcher
             public string quickCommands { get; set; } = null;
             public bool pretendToBeRealClient { get; set; } = false;
 
+            public SocksProxy? proxy = null;
+
             public void SetMiscUserInfoValue(string key, string value)
             {
                 miscUserInfoValues[key] = value;

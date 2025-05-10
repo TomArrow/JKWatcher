@@ -1,33 +1,25 @@
 ﻿using JKClient;
+using JKWatcher.RandomHelpers;
+using Salaros.Configuration;
 using SQLite;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Animation;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
-using Salaros.Configuration;
-using System.Windows.Threading;
-using System.ComponentModel;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
 using System.Windows.Shell;
-using JKWatcher.RandomHelpers;
-using System.Numerics;
-using System.Drawing;
+using System.Windows.Threading;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -36,6 +28,94 @@ using System.Drawing;
 
 namespace JKWatcher
 {
+
+    public class SocksSettingsGlobal : INotifyPropertyChanged
+    {
+        [Flags]
+        public enum SocksCondition
+        {
+            NWH = 1,
+            JK2 = 2,
+            JKA = 4,
+            MOH = 8,
+        }
+        public string server { get; set; } = null;
+        public int port { get; set; } = -1;
+        public string user { get; set; } = null;
+        public string pw { get; set; } = null;
+        public SocksCondition conditions { get; set; } = 0;
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public bool nwhCondition { get; set; } = false;
+
+        public SocksSettingsGlobal()
+        {
+            this.PropertyChanged += SocksSettings_PropertyChanged;
+        }
+
+        private void SocksSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName == "nwhCondition")
+            {
+                SocksCondition newConditions = 0;
+                if (this.nwhCondition)
+                {
+                    newConditions |= SocksCondition.NWH;
+                }
+                if(conditions != newConditions)
+                {
+                    conditions = newConditions;
+                }
+            }
+            else if(e.PropertyName == "conditions")
+            {
+                if (conditions.HasFlag(SocksCondition.NWH) != nwhCondition)
+                {
+                    nwhCondition = conditions.HasFlag(SocksCondition.NWH);
+                }
+            }
+        }
+        public SocksProxy? GetProxy()
+        {
+            SocksProxy proxy = new SocksProxy();
+            try
+            {
+                proxy.address = NetAddress.FromString(this.server, (ushort)this.port, false);
+            } catch(Exception ex)
+            {
+                return null;
+            }
+            proxy.username = this.user;
+            proxy.password = this.pw;
+            if (string.IsNullOrWhiteSpace(proxy.username))
+            {
+                return null;
+            }
+            if (proxy.address == null)
+            {
+                return null;
+            }
+            if (string.IsNullOrWhiteSpace(proxy.password))
+            {
+                return null;
+            }
+            return proxy;
+        }
+        public SocksProxy? GetProxyForServer(ServerInfo si)
+        {
+            if(si.NWH && this.conditions.HasFlag(SocksCondition.NWH))
+            {
+                return GetProxy();
+            }
+            return null;
+        }
+
+        ~SocksSettingsGlobal()
+        {
+            this.PropertyChanged -= SocksSettings_PropertyChanged;
+        }
+    }
     class IntermissionCamPositionTuple
     {
         public string mapName { get; set; }
@@ -136,6 +216,8 @@ namespace JKWatcher
             }
         }
 
+        public SocksSettingsGlobal socksSettingsGlobal { get; private set; } = new SocksSettingsGlobal();
+
         public bool executionInProgress { get; private set; } = false;
 
         private List<CancellationTokenSource> backgroundTasks = new List<CancellationTokenSource>();
@@ -222,6 +304,7 @@ namespace JKWatcher
             WindowPositionManager.Activate();
 
             executingTxt.DataContext = this;
+            socksSettingsGlobalBox.DataContext = this.socksSettingsGlobal;
             SpawnArchiveScript();
             this.Closing += MainWindow_Closing;
         }
@@ -581,6 +664,15 @@ namespace JKWatcher
                                                 lock (connectedServerWindows)
                                                 {
                                                     ConnectedServerWindow.ConnectionOptions connOptions = string.IsNullOrWhiteSpace(ctfAutoJoinConditionalCommands) ? null : new ConnectedServerWindow.ConnectionOptions() { conditionalCommands = ctfAutoJoinConditionalCommands };
+                                                    SocksProxy? proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo);
+                                                    if(proxy != null)
+                                                    {
+                                                        if(connOptions == null)
+                                                        {
+                                                            connOptions = new ConnectedServerWindow.ConnectionOptions();
+                                                        }
+                                                        connOptions.proxy = proxy;
+                                                    }
                                                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, connOptions);
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
@@ -674,7 +766,7 @@ namespace JKWatcher
 
                                                 lock (connectedServerWindows)
                                                 {
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ conditionalCommands = string.IsNullOrWhiteSpace(ffaAutoJoinConditionalCommands) ? null : ffaAutoJoinConditionalCommands, autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked,playercount_under:1:1200000" : null });
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ conditionalCommands = string.IsNullOrWhiteSpace(ffaAutoJoinConditionalCommands) ? null : ffaAutoJoinConditionalCommands, autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked,playercount_under:1:1200000" : null, proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo) });
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
@@ -1136,6 +1228,15 @@ namespace JKWatcher
                     }
                     connOpts.disconnectTriggers = $"kicked,connectedtime_over:{disconnectAfter.Value}";
                 }
+                SocksProxy? proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo);
+                if (proxy != null)
+                {
+                    if (connOpts == null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    }
+                    connOpts.proxy = proxy;
+                }
                 //ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
                 ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName, pw, connOpts);
                 connectedServerWindows.Add(newWindow);
@@ -1327,6 +1428,16 @@ namespace JKWatcher
                         }
                         connOpts.userInfoName = userinfoName;
                     }
+                    // cant rly determine if nwh here..
+                    //SocksProxy? proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo);
+                    //if (proxy != null)
+                    //{
+                    //    if (connOpts == null)
+                    //    {
+                    //        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    //    }
+                    //    connOpts.proxy = proxy;
+                    //}
                     //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip.Trim()), protocol.Value, null, pw, connOpts);
                     connectedServerWindows.Add(newWindow);
@@ -1719,7 +1830,7 @@ namespace JKWatcher
 
                 lock (connectedServerWindows)
                 {
-                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta, autoUpgradeToCTF= serverToConnect.autoUpgradeToCTF, autoUpgradeToCTFWithStrobe= serverToConnect.autoUpgradeToCTF });
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta, autoUpgradeToCTF= serverToConnect.autoUpgradeToCTF, autoUpgradeToCTFWithStrobe= serverToConnect.autoUpgradeToCTF,proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo) });
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;
@@ -1861,6 +1972,48 @@ namespace JKWatcher
             {
                 ffaAutoJoinKickableCheck.IsChecked = true;
             }
+
+            string socksConditions = cp.GetValue("__general__", "socksConditions", "");
+            if (!string.IsNullOrWhiteSpace(socksConditions))
+            {
+                SocksSettingsGlobal.SocksCondition newConditions = 0;
+                socksConditions = socksConditions.Trim().ToLowerInvariant();
+                string[] splitConds = socksConditions.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                foreach(string splitCond in splitConds)
+                {
+                    switch (splitCond)
+                    {
+                        case "nwh":
+                            newConditions |= SocksSettingsGlobal.SocksCondition.NWH;
+                            break;
+                    }
+                }
+                this.socksSettingsGlobal.conditions = newConditions;
+            }
+            string socksServer = cp.GetValue("__general__", "socksServer", "");
+            if (!string.IsNullOrWhiteSpace(socksServer))
+            {
+                this.socksSettingsGlobal.server = socksServer;
+            }
+            string socksPort = cp.GetValue("__general__", "socksPort", "");
+            if (!string.IsNullOrWhiteSpace(socksPort))
+            {
+                if(int.TryParse(socksPort,out int port))
+                {
+                    this.socksSettingsGlobal.port = port;
+                }
+            }
+            string socksUser = cp.GetValue("__general__", "socksUser", "");
+            if (!string.IsNullOrWhiteSpace(socksUser))
+            {
+                this.socksSettingsGlobal.user = socksUser;
+            }
+            string socksPW = cp.GetValue("__general__", "socksPW", "");
+            if (!string.IsNullOrWhiteSpace(socksPW))
+            {
+                this.socksSettingsGlobal.pw = socksPW;
+            }
+
             string ffaAutoConnectExclude = cp.GetValue("__general__", "ffaAutoConnectExclude", "");
             if (!string.IsNullOrWhiteSpace(ffaAutoConnectExclude))
             {
