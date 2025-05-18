@@ -853,6 +853,7 @@ namespace JKWatcher
         private object lastMapNameLock = new object();
 
         public GameType gameType { get; protected set; } = GameType.FFA;
+        bool NWH = false;
         SaberAnimationVersion saberVersion = SaberAnimationVersion.JK2_102;
 
         public void UpdateSaberVersion()
@@ -1050,6 +1051,7 @@ namespace JKWatcher
             }
 
             gameType = obj.GameType;
+            NWH = obj.NWH;
 
             UpdateSaberVersion();
 
@@ -3538,7 +3540,10 @@ namespace JKWatcher
                     levelshotData.changesSinceLastSaved=0;
                 }
             }
-            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName + (thisGame ? $"_TG{filenameAdd}" : $"{filenameAdd}");
+            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") 
+                + $"_{lastMapName}_{(serverName == null ? netAddress.ToString() : netAddress.ToString())}" + $"_{serverName}"
+                + $"_{gameType.ToString()}" + (NWH ? "_NWH" : "")
+                + (thisGame ? $"_TG{filenameAdd}" : $"{filenameAdd}");
             float[,,] levelshotDataLocal = (float[,,])levelshotData.data.Clone();
             TaskManager.TaskRun(()=> {
 
