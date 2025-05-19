@@ -1949,7 +1949,7 @@ namespace JKWatcher
             });
         }
 
-
+        private List<CancellationTokenSource> markovTrainCancellationTokens = new List<CancellationTokenSource>();
         private void executeConfig(ConfigParser cp)
         {
             if (cp.GetValue("__general__","ctfAutoConnect",0) == 1)
@@ -2012,6 +2012,45 @@ namespace JKWatcher
             if (!string.IsNullOrWhiteSpace(socksPW))
             {
                 this.socksSettingsGlobal.pw = socksPW;
+            }
+
+            string markovTrain = cp.GetValue("__general__", "markovTrain", "");
+            if (!string.IsNullOrWhiteSpace(markovTrain))
+            {
+                bool markovCleared = false;
+                string[] markovFiles = markovTrain.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                foreach(string markovFile in markovFiles)
+                {
+                    string baseFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher");
+                    Directory.CreateDirectory(baseFolder);
+                    string file = Path.IsPathRooted(markovFile) ? markovFile : Path.Combine(baseFolder,markovFile);
+                    if (!File.Exists(file))
+                    {
+                        MessageBox.Show($"{file} does not exist. Cannot load markov chatbot from it.");
+                        continue;
+                    }
+                    if (!markovCleared)
+                    {
+                        lock (markovTrainCancellationTokens)
+                        {
+                            foreach(var token in markovTrainCancellationTokens)
+                            {
+                                token.Cancel(); // TODO there might still be some race conditions here in some situations. eh. especially when combining the automatic loading with the manual one
+                            }
+                            markovTrainCancellationTokens.Clear();
+                        }
+                        Markov.Clear();
+                        markovCleared = true;
+                    }
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    CancellationToken ct = cts.Token;
+                    Task markovTask = TaskManager.TaskRun(() => {
+                        Markov.RegisterMarkovChain(file, (a, b) => {
+                            //UpdateTrainingStatus(a, b);
+                        }, ct);
+                    }, $"Training Markov Chain on {file}");
+                    markovTrainCancellationTokens.Add(cts);
+                }
             }
 
             string ffaAutoConnectExclude = cp.GetValue("__general__", "ffaAutoConnectExclude", "");

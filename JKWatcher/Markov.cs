@@ -6,6 +6,7 @@ using Markov;
 using System.IO;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace JKWatcher
 {
@@ -15,7 +16,7 @@ namespace JKWatcher
         private static Dictionary<string, Tuple<MarkovChain<string>, MarkovChain<string>>> chains = new Dictionary<string, Tuple<MarkovChain<string>, MarkovChain<string>>>();
 
         static Random rnd = new Random();
-        public static bool RegisterMarkovChain(string filename, Action<Int64,Int64> trainProgressCallback = null)
+        public static bool RegisterMarkovChain(string filename, Action<Int64,Int64> trainProgressCallback = null, CancellationToken? ct = null)
         {
             string[] lines = null;
             try
@@ -48,10 +49,24 @@ namespace JKWatcher
                 {
                     trainProgressCallback(index, lines.Length);
                 }
+                if (ct.HasValue)
+                {
+                    if (ct.Value.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+                }
             }
 
             lock (chains)
             {
+                if (ct.HasValue)
+                {
+                    if (ct.Value.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+                }
                 chains[filename] = new Tuple<MarkovChain<string>, MarkovChain<string>>(chain,chainReverse);
             }
             return true;
@@ -69,6 +84,14 @@ namespace JKWatcher
             // Save a bit of RAM with string.Intern :)
             // TODO er -> a ?
             return string.Intern(sSounds.Replace(vocals1.Replace(kSounds.Replace(repeats.Replace(input.ToLowerInvariant(),@"$1"),"k"),"a").Replace('o','u').Replace("ph","f").Replace('v','f').Replace('b','p'),"s").Replace('m', 'n').Replace('t', 'd'));
+        }
+
+        public static void Clear()
+        {
+            lock (chains)
+            {
+                chains.Clear();
+            }
         }
 
         public static (string,string) GetAnyMarkovText(string startString = null)

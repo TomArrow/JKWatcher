@@ -70,6 +70,10 @@ Comma separated list of gametypes for which the maximum real player count should
 
 Self-explanatory options. socksConditions is a comma-separated list of conditions to apply this in. Currently supported conditions: nwh
 
+#### markovTrain
+
+Comma-separated list of text files (in AppData/Local/JKWatcher) to use for "training" the Markov chatbot for !thots.
+
 ### Server sections
 
 Individual server sections require one section per server. The name of the section is irrelevant but avoid duplicates. And they can't be named ```[__general__]``` for obvious reasons.
