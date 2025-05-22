@@ -31,15 +31,25 @@ namespace JKWatcher
     // How? It just orders the indizi. Biggest first.
     public class ArbitraryOrder2DArray<T>
     {
-
+        int maxCount;
         T[][] theArray;
 
         public T this[int a, int b] {
             get {
+                if (a >= maxCount || a < 0 || b >= maxCount || b < 0)
+                {
+                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but getter was called with {a} {b} wtf");
+                    return default(T);
+                }
                 return a > b ? theArray[a][b] : theArray[b][a];
             }
             set
             {
+                if (a >= maxCount || a < 0 || b >= maxCount || b < 0)
+                {
+                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but setter was called with {a} {b} wtf");
+                    return;
+                }
                 if (a > b)
                 {
                     theArray[a][b] = value;
@@ -50,8 +60,9 @@ namespace JKWatcher
             }
         }
 
-        public ArbitraryOrder2DArray(int maxCount)
+        public ArbitraryOrder2DArray(int maxCountA)
         {
+            maxCount = maxCountA;
             theArray = new T[maxCount][];
             for (int i = 0; i < maxCount; i++)
             {
@@ -184,6 +195,11 @@ namespace JKWatcher
 
         public bool Add(int key, int plus, bool rateLimit = true)
         {
+            if(key >= (int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL || key < 0)
+            {
+                Helpers.logToFile($"ReliableTypedValueCounterInt::Add: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}."); //prevent crash
+                return false;
+            }
             lock (ourLock)
             {
                 if (values[key] == null)
@@ -205,6 +221,11 @@ namespace JKWatcher
         {
             lock (ourLock)
             {
+                if (key >= (int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL || key < 0)
+                {
+                    Helpers.logToFile($"ReliableTypedValueCounterInt::GetValue: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}."); //prevent crash
+                    return 0;
+                }
                 if (values[key] != null)
                 {
                     return values[key].value;
