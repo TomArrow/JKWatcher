@@ -38,7 +38,7 @@ namespace JKWatcher
             get {
                 if (a >= maxCount || a < 0 || b >= maxCount || b < 0)
                 {
-                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but getter was called with {a} {b} wtf");
+                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but getter was called with {a} {b} wtf",true);
                     return default(T);
                 }
                 return a > b ? theArray[a][b] : theArray[b][a];
@@ -47,7 +47,7 @@ namespace JKWatcher
             {
                 if (a >= maxCount || a < 0 || b >= maxCount || b < 0)
                 {
-                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but setter was called with {a} {b} wtf");
+                    Helpers.logToFile($"ArbitraryOrder2DArray has maxCount {maxCount} but setter was called with {a} {b} wtf", true);
                     return;
                 }
                 if (a > b)
@@ -197,7 +197,7 @@ namespace JKWatcher
         {
             if(key >= (int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL || key < 0)
             {
-                Helpers.logToFile($"ReliableTypedValueCounterInt::Add: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}."); //prevent crash
+                Helpers.logToFile($"ReliableTypedValueCounterInt::Add: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}.", true); //prevent crash
                 return false;
             }
             lock (ourLock)
@@ -223,7 +223,7 @@ namespace JKWatcher
             {
                 if (key >= (int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL || key < 0)
                 {
-                    Helpers.logToFile($"ReliableTypedValueCounterInt::GetValue: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}."); //prevent crash
+                    Helpers.logToFile($"ReliableTypedValueCounterInt::GetValue: Sabermove {key} under 0 or over/equal max {(int)SaberMovesGeneral.LS_MOVE_MAX_GENERAL}.", true); //prevent crash
                     return 0;
                 }
                 if (values[key] != null)

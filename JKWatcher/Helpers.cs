@@ -619,6 +619,21 @@ namespace JKWatcher
         public static void logToFile(string text){
             Helpers.logToFile(new string[] { text });
         }
+        public static void logToFile(string text, bool stackTrace){
+            string trace = Environment.StackTrace;
+            if (!string.IsNullOrWhiteSpace(trace) && stackTrace)
+            {
+                Helpers.logToFile(new string[] { text,trace});
+            }
+            else if (!stackTrace)
+            {
+                Helpers.logToFile(new string[] { text });
+            }
+            else
+            {
+                Helpers.logToFile(new string[] { text, "no stacktrace available" });
+            }
+        }
 
         public static string requestedDemoCutLogFile = "demoCuts.sh";
         public static void logRequestedDemoCut(string[] texts)
