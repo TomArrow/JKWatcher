@@ -2343,6 +2343,7 @@ namespace JKWatcher
         }
         const int PMF_CAMERA_VIEW_MOH = (1 << 7);
         const int PMF_SPECTATING_MOH = (1 << 2);
+        const int PMF_FOLLOW = 4096;
 
         int lastRequestedAlwaysFollowSpecClientNum = -1;
         DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[64] { // Looool this is cringe xd
@@ -2809,6 +2810,19 @@ namespace JKWatcher
         const int PMF_INTERMISSION = (1 << 6);
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
+            int clientClientNum = (client?.clientNum).GetValueOrDefault(-1); // it's also -1 when no gamestate is received yet
+            if (clientClientNum == -1)
+            {
+                if((e.snap.Flags & 2) > 0)
+                {
+                    serverWindow.addToLog("^3Not handling snapshot, client.clientNum is -1 and snapFlag says Not Active.");
+                }
+                else
+                {
+                    serverWindow.addToLog("^1Not handling snapshot, client.clientNum is -1 (WEIRD ERROR).");
+                }
+                return;
+            }
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
             CurrentTimeSecondEven = (DateTime.Now.Second % 2) > 0; // So we can update some values once per second LOL.
 
@@ -3086,13 +3100,39 @@ namespace JKWatcher
                 weAreSpectatorSlowFalling = false; // idk if this is a thing in moh.
             } else
             {
-                amNotInSpec = snap.PlayerState.CommandTime > 0 && snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+                amNotInSpec = snap.PlayerState.CommandTime > 0 && snap.PlayerState.ClientNum == client.clientNum && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Spectator && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission && snap.PlayerState.Persistant[3] != (int)Team.Spectator && 0 == (snap.PlayerState.PlayerMoveFlags & PMF_FOLLOW); // Some servers (or duel mode) doesn't allow me to go spec. Do funny things then.
+                // WHY DID I USE SUCH OVERCOMPLICATED LOGIC INSTEAD OF .team PROPERTY?!?! I CANT REMEMBER. it causes bugs on stopfollowing. try to fix via persistant[pers_team] check. but i remember there's servers that even when im following someone i will eb shown as team free wtf.
+                // lets think about this... what does this variable do?
+                // A. it makes us send kill/team s commands to go into spec
+                // B. it determines whether we are allowed to send follow commands with silly cam operator or in jk2 duel mode
+                // C. it allows bot commands and bot behavior
+                // So what are the downsides of a false positive (am detected as ingame but I'm a spec):
+                //      1. won't be allowed to follow in duels aand with silly cam operator
+                //      2. can receive bot commands even tho in spec
+                //      3. will perform bot behavior even tho useless
+                //      4. will send useless kill/team s commands
+                //      not TOO bad.
+                // What are the downsides of a false negative (am detected as spectator but I'm ingame):
+                //      1. Won't send team s/kill cmds.
+                //      2. Will send follow in duels and with silly cam operator
+                //      3. Won't do bot behavior.
+                //      4. Won't receive bot commands
+                //      not THAT bad either.
+
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Velocity[0] != 0.0f || snap.PlayerState.Velocity[1] != 0.0f || snap.PlayerState.Velocity[2] != 0.0f); // doesnt work as our crouch method affects velocity or idk something something :/
                 //weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[0] != lastPosition[snap.PlayerState.ClientNum].X || snap.PlayerState.Origin[1] != lastPosition[snap.PlayerState.ClientNum].Y || snap.PlayerState.Origin[2] != lastPosition[snap.PlayerState.ClientNum].Z);
                 weAreSpectatorSlowFalling = snap.PlayerState.PlayerMoveType == JKClient.PlayerMoveType.Spectator && (snap.PlayerState.Origin[2] < lastPosition[snap.PlayerState.ClientNum].Z);
-                if(amNotInSpec && infoPool.playerInfo[client.clientNum].team == Team.Spectator)
+                if(amNotInSpec && infoPool.playerInfo[clientClientNum].team == Team.Spectator)
                 {
-                    serverWindow.addToLog($"^1Warning:^7amNotInSpec true but I'm in spectator Team? clientnum {client.clientNum} ps.clientnum {snap.PlayerState.ClientNum} playermovetype {snap.PlayerState.PlayerMoveType}",true,60000*5,0,ConnectedServerWindow.MentionLevel.NoMention,true);
+                    // this seems to happen on mapchanges/player disconnects. Probably a result of StopFollowing. Also if I get forced spec I guess?
+                    // why was I basing it on playermovetype to begin with?
+                    serverWindow.addToLog($"^1Warning:^7amNotInSpec true but I'm in spectator Team? clientnum {client.clientNum} ps.clientnum {snap.PlayerState.ClientNum} playermovetype {snap.PlayerState.PlayerMoveType}, snap.PlayerState.Persistant[3] {(Team)snap.PlayerState.Persistant[3]}",true,60000*5,0,ConnectedServerWindow.MentionLevel.NoMention,true);
+                } 
+                else if(!amNotInSpec && infoPool.playerInfo[clientClientNum].team != Team.Spectator)
+                {
+                    // this seems to happen on mapchanges/player disconnects. Probably a result of StopFollowing. Also if I get forced spec I guess?
+                    // why was I basing it on playermovetype to begin with?
+                    serverWindow.addToLog($"^1Warning:^7amNotInSpec false but I'm NOT in spectator Team? clientnum {client.clientNum} ps.clientnum {snap.PlayerState.ClientNum} playermovetype {snap.PlayerState.PlayerMoveType}, snap.PlayerState.Persistant[3] {(Team)snap.PlayerState.Persistant[3]}",true,60000*5,0,ConnectedServerWindow.MentionLevel.NoMention,true);
                 }
             }
 

@@ -418,6 +418,11 @@ namespace JKWatcher
         const string privateChatSeparator = "^7]: ^6";
         const string teamChatSeparator = "^7): ^5";
         const string publicChatSeparator = "^7: ^2";
+
+        // some mods may split messages and continue the old color..
+        const string privateChatSeparatorNoColor = "^7]: ^";
+        const string teamChatSeparatorNoColor = "^7): ^";
+        const string publicChatSeparatorNoColor = "^7: ^";
         ParsedChatMessage? ParseChatMessage(string nameChatSegmentA, string extraArgument = null)
         {
             int sentNumber = -1;
@@ -445,28 +450,52 @@ namespace JKWatcher
             }
 
             string separator;
+            string separatorNoColor;
             if (nameChatSegment.Substring(0, privateChatBegin.Length) == privateChatBegin)
             {
                 detectedChatType = ChatType.PRIVATE;
                 nameChatSegment = nameChatSegment.Substring(privateChatBegin.Length);
                 separator = privateChatSeparator;
+                separatorNoColor = privateChatSeparatorNoColor;
             }
             else if (nameChatSegment.Substring(0, teamChatBegin.Length) == teamChatBegin)
             {
                 detectedChatType = ChatType.TEAM;
                 nameChatSegment = nameChatSegment.Substring(teamChatBegin.Length);
                 separator = teamChatSeparator;
+                separatorNoColor = teamChatSeparatorNoColor;
             }
             else
             {
                 separator = publicChatSeparator;
+                separatorNoColor = publicChatSeparatorNoColor;
             }
 
             int separatorLength = separator.Length;
 
             string[] nameChatSplits = nameChatSegment.Split(new string[] { separator }, StringSplitOptions.None);
 
+            if(nameChatSplits.Length == 1)
+            {
+                // try no color variants.
+                string[] nameChatSplitsNoColor = nameChatSegment.Split(new string[] { separatorNoColor }, StringSplitOptions.None);
+                if(nameChatSplitsNoColor.Length > 1)
+                {
+                    for(int i=1;i< nameChatSplitsNoColor.Length; i++)
+                    {
+                        if (nameChatSplitsNoColor[i].Length > 0)
+                        {
+                            nameChatSplitsNoColor[i] = nameChatSplitsNoColor[i].Substring(1);
+                        }
+                    }
+                    nameChatSplits = nameChatSplitsNoColor;
+                }
+            }
+
             List<int> possiblePlayers = new List<int>();
+            int botCount = 0;
+            int ourselvesCount = 0;
+            int[] ourNums = serverWindow.getJKWatcherClientNums();
             if (nameChatSplits.Length > 2)
             {
                 // WTf. Someone is messing around and having a complete meme name or meme message consisting of the separator sequence.
@@ -485,6 +514,8 @@ namespace JKWatcher
                         if (playerInfo.infoValid && playerInfo.name == possibleName)
                         {
                             possiblePlayers.Add(playerInfo.clientNum);
+                            if (playerInfo.confirmedBot) botCount++;
+                            if (ourNums.Contains(playerInfo.clientNum)) ourselvesCount++; 
                         }
                     }
                 }
@@ -518,9 +549,10 @@ namespace JKWatcher
             }
             else if (possiblePlayers.Count > 1)
             {
+                bool logErrors = possiblePlayers.Count > botCount && possiblePlayers.Count > ourselvesCount;
                 if (sentNumber == -1)
                 {
-                    serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA}", true);
+                    serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. {possiblePlayers.Count} matches ({botCount} bots, {ourselvesCount} ours): {nameChatSegmentA}", logErrors);
                     return null;
                 }
                 else
@@ -535,12 +567,12 @@ namespace JKWatcher
                     }
                     if (confirmedNumber == -1)
                     {
-                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. More than 1 match: {nameChatSegmentA} and extra argument number {sentNumber} matched none.", true);
+                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. {possiblePlayers.Count} matches ({botCount} bots, {ourselvesCount} ours): {nameChatSegmentA} and extra argument number {sentNumber} matched none.", logErrors);
                         return null;
                     }
                     else
                     {
-                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message ({nameChatSegmentA}), but extra argument number {sentNumber} cleared it up.", true);
+                        serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. {possiblePlayers.Count} matches ({botCount} bots, {ourselvesCount} ours): {nameChatSegmentA} but extra argument number {sentNumber} cleared it up.", logErrors);
                         playerNum = confirmedNumber;
                     }
                 }

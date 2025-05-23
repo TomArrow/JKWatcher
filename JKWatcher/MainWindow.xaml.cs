@@ -280,21 +280,30 @@ namespace JKWatcher
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { ctfAutoConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
             }, TaskContinuationOptions.OnlyOnFaulted),"CTF Auto Connecter");
-            backgroundTasks.Add(tokenSource);
+            lock (backgroundTasks)
+            {
+                backgroundTasks.Add(tokenSource);
+            }
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { fastDelayedConnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
             }, TaskContinuationOptions.OnlyOnFaulted),"Fast Delayed Connecter");
-            backgroundTasks.Add(tokenSource);
+            lock (backgroundTasks)
+            {
+                backgroundTasks.Add(tokenSource);
+            }
 
             tokenSource = new CancellationTokenSource();
             ct = tokenSource.Token;
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { playerCountProgressBarUpdater(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
                 Helpers.logToFile(new string[] { t.Exception.ToString() });
             }, TaskContinuationOptions.OnlyOnFaulted),"Player count progress bar updater");
-            backgroundTasks.Add(tokenSource);
+            lock (backgroundTasks)
+            {
+                backgroundTasks.Add(tokenSource);
+            }
 
             //Timeline.DesiredFrameRateProperty.OverrideMetadata(
             //    typeof(Timeline),
@@ -307,6 +316,12 @@ namespace JKWatcher
             socksSettingsGlobalBox.DataContext = this.socksSettingsGlobal;
             SpawnArchiveScript();
             this.Closing += MainWindow_Closing;
+            this.Closed += MainWindow_Closed; ;
+        }
+
+        private void MainWindow_Closed(object sender, EventArgs e)
+        {
+            CloseDown();
         }
 
         private void MainWindow_Closing(object sender, CancelEventArgs e)
@@ -339,6 +354,9 @@ namespace JKWatcher
             }
         }
 
+        private bool cleanedUp = false;
+        private object cleanUpLock = new object();
+
         ~MainWindow()
         {
             CloseDown();
@@ -346,10 +364,22 @@ namespace JKWatcher
 
         private void CloseDown()
         {
-            SunsNotificationClient.sunsNotificationReceived -= SunsNotificationClient_sunsNotificationReceived;
-            foreach (CancellationTokenSource backgroundTask in backgroundTasks)
+            lock (cleanUpLock)
             {
-                backgroundTask.Cancel();
+                if (cleanedUp)
+                {
+                    return;
+                }
+                SunsNotificationClient.sunsNotificationReceived -= SunsNotificationClient_sunsNotificationReceived;
+                lock (backgroundTasks)
+                {
+                    foreach (CancellationTokenSource backgroundTask in backgroundTasks)
+                    {
+                        backgroundTask.Cancel();
+                    }
+                    backgroundTasks.Clear();
+                }
+                cleanedUp = true;
             }
         }
 
