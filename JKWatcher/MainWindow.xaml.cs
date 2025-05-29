@@ -909,6 +909,7 @@ namespace JKWatcher
                             if (serverPollingInfo.ContainsKey(srvTC))
                             {
                                 serverPollingInfo[srvTC].lastTimePolled = DateTime.Now; // Avoid fast connecter being identified as broken just because we were connected and then disconnected.
+                                serverPollingInfo[srvTC].lastTimeGotAnswer = DateTime.Now; // Avoid fast connecter being identified as broken when we were connected and then disconnect (will then trigger as broken a few times)
                             }
                             continue;
                         }

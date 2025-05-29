@@ -527,6 +527,8 @@ namespace JKWatcher
                     if (playerInfo.infoValid && playerInfo.name == nameChatSplits[0])
                     {
                         possiblePlayers.Add(playerInfo.clientNum);
+                        if (playerInfo.confirmedBot) botCount++;
+                        if (ourNums.Contains(playerInfo.clientNum)) ourselvesCount++;
                     }
                 }
             }

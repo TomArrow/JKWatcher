@@ -297,7 +297,13 @@ namespace JKWatcher.RandomHelpers
         }
         public void WriteDataColumn(StringBuilder csv, ScoreboardEntry entry)
         {
-            csv.Append(EscapeValue(fetcher(entry)));
+            string data = fetcher(entry);
+            if(data == null)
+            {
+                Helpers.logToFile($"CSV column {name} data is null wtf",true);
+                data = "";
+            }
+            csv.Append(EscapeValue(data));
         }
     }
 

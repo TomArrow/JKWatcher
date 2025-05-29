@@ -1586,7 +1586,7 @@ namespace JKWatcher.CameraOperators
                             isOnSameTeamAsFlag = infoPool.playerInfo[i].team == flagTeam,
                             lastDeath = (int)lastDeath,
                             retCount = infoPool.getProbableRetCount(i),// infoPool.playerInfo[i].score.impressiveCount,
-                            visibilityMultiplier = infoPool.getVisibilityMultiplier(i,flagItemNumber),
+                            visibilityMultiplier = flagItemNumber == -1 ? 1f : infoPool.getVisibilityMultiplier(i,flagItemNumber),
                             secondsSinceFoundInvalidClient = (float)((DateTime.Now - infoPool.playerInfo[i].lastTimeClientInvalid)?.TotalSeconds).GetValueOrDefault(double.PositiveInfinity)
                         };
                         tmp.gradeForFlagDroppedWithKnownPosition(flagTeam,flagVisible,flagDistanceFromBase);

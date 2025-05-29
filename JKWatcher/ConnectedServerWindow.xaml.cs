@@ -3369,7 +3369,7 @@ namespace JKWatcher
             string command = (e.OriginalSource as Button)?.DataContext as string;
             if (command != null)
             {
-                this.addToLog($"Sending quick command '{command}'", true);
+                this.addToLog($"Sending quick command '{command}'", false);
                 List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
                 DoExecuteCommand(command, conns.ToArray());

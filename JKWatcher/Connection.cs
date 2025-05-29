@@ -3061,8 +3061,15 @@ namespace JKWatcher
             if (saberMove[snap.PlayerState.ClientNum] != snap.PlayerState.SaberMove)
             {
                 SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
-                infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
-                infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
+                if (generalized != SaberMovesGeneral.LS_INVALID_GENERAL)
+                {
+                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
+                    infoPool.playerInfo[snap.PlayerState.ClientNum].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
+                }
+                else
+                {
+                    serverWindow.addToLog($"PS Sabermove not generalizable: {snap.PlayerState.SaberMove}, jka {jkaMode}",true);
+                }
             }
             saberMove[snap.PlayerState.ClientNum] = snap.PlayerState.SaberMove;
             saberStyle[snap.PlayerState.ClientNum] = snap.PlayerState.forceData.SaberAnimLevel;
@@ -3379,8 +3386,16 @@ namespace JKWatcher
                         if (saberMove[i] != snap.PlayerState.SaberMove)
                         {
                             SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.PlayerState.SaberMove, jkaMode);
-                            infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
-                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
+                            
+                            if(generalized != SaberMovesGeneral.LS_INVALID_GENERAL)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
+                            }
+                            else
+                            {
+                                serverWindow.addToLog($"PS #2 Sabermove not generalizable: {snap.PlayerState.SaberMove}, jka {jkaMode}", true);
+                            }
                         }
                         saberMove[i] = snap.PlayerState.SaberMove;
                         saberStyle[i] = snap.PlayerState.forceData.SaberAnimLevel;
@@ -3625,8 +3640,15 @@ namespace JKWatcher
                         {
                             SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(snap.Entities[snapEntityNum].SaberMove, jkaMode);
 
-                            infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized,1);
-                            infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized,1);
+                            if(generalized != SaberMovesGeneral.LS_INVALID_GENERAL)
+                            {
+                                infoPool.playerInfo[i].chatCommandTrackingStuff.slashTypeCounter.Add((int)generalized, 1);
+                                infoPool.playerInfo[i].chatCommandTrackingStuffThisGame.slashTypeCounter.Add((int)generalized, 1);
+                            }
+                            else
+                            {
+                                serverWindow.addToLog($"ES Sabermove not generalizable: {snap.Entities[snapEntityNum].SaberMove}, jka {jkaMode}", true);
+                            }
                         }
                         saberMove[i] = snap.Entities[snapEntityNum].SaberMove;
                         saberStyle[i] = snap.Entities[snapEntityNum].FireFlag;
