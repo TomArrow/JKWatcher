@@ -283,7 +283,8 @@ namespace JKWatcher.RandomHelpers
                     lump_t vertsLump = header.GetLump(LUMP_DRAWVERTS);
                     lump_t indexLump = header.GetLump(LUMP_DRAWINDEXES);
 
-                    int surfacesCount = surfacesLump.filelen / Marshal.SizeOf(typeof(dsurface_t));
+                    int surfaceSize = isQ3 ? Marshal.SizeOf(typeof(dsurfaceQ3_t)) : Marshal.SizeOf(typeof(dsurface_t));
+                    int surfacesCount = surfacesLump.filelen / surfaceSize;
                     int vertSize = isQ3 ? Marshal.SizeOf(typeof(mapVertQ3_t)) : Marshal.SizeOf(typeof(mapVert_t));
                     int vertsCount = vertsLump.filelen / vertSize;
                     int indexCount = indexLump.filelen / sizeof(int);
