@@ -429,7 +429,11 @@ namespace JKWatcher
 
             if (extraArgument != null) // This is jka only i think, sending the client num as an extra
             {
-                if (!isNumber(extraArgument))
+                if (extraArgument.Equals("crossServer",StringComparison.InvariantCultureIgnoreCase))
+                {
+                    sentNumber = -2; // we can't possible find this player. he's not from this server.
+                }
+                else if (!isNumber(extraArgument))
                 {
                     serverWindow.addToLog($"Chat message parsing, received extra argument that is not a number: {extraArgument} ({nameChatSegmentA})", true);
                 }
@@ -538,7 +542,12 @@ namespace JKWatcher
 
             if (possiblePlayers.Count == 0)
             {
-                if (sentNumber == -1)
+                if (sentNumber == -2)
+                {
+                    // from another server. cross-server
+                    return null;
+                }
+                else if (sentNumber == -1)
                 {
                     serverWindow.addToLog($"Could not identify sender of (t)chat message. Zero matches: {nameChatSegmentA}", true);
                     return null;
@@ -552,7 +561,12 @@ namespace JKWatcher
             else if (possiblePlayers.Count > 1)
             {
                 bool logErrors = possiblePlayers.Count > botCount && possiblePlayers.Count > ourselvesCount;
-                if (sentNumber == -1)
+                if (sentNumber == -2)
+                {
+                    serverWindow.addToLog($"Could not reliably identify sender of (t)chat message, BUT THIS WAS A CROSS-SERVER MESSAGE. {possiblePlayers.Count} matches ({botCount} bots, {ourselvesCount} ours): {nameChatSegmentA}", true);
+                    return null;
+                }
+                else if (sentNumber == -1)
                 {
                     serverWindow.addToLog($"Could not reliably identify sender of (t)chat message. {possiblePlayers.Count} matches ({botCount} bots, {ourselvesCount} ours): {nameChatSegmentA}", logErrors);
                     return null;
