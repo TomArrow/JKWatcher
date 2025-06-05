@@ -644,6 +644,7 @@ namespace JKWatcher
 
 
         private string chatCommandPublic = "say";
+        private string chatCommandCross = "say_cross";
         private string chatCommandTeam = "say_team";
 
 
@@ -673,6 +674,7 @@ namespace JKWatcher
 
             if (mohMode)
             {
+                chatCommandCross = "dmmessage 0";
                 chatCommandPublic = "dmmessage 0";
                 chatCommandTeam = "dmmessage -1";
                 if (!connectionOptionsWereProvided)
@@ -1027,7 +1029,7 @@ namespace JKWatcher
             nextDisconnectTriggerCheckTimeOut = Math.Min(nextDisconnectTriggerCheckTimeOut,newVal);
         }
 
-
+        TommyTernalFlags ttFlags = 0;
         private void Con_ServerInfoChanged(ServerInfo obj)
         {
             bool mapChangeDetected = false;
@@ -1052,6 +1054,7 @@ namespace JKWatcher
 
             gameType = obj.GameType;
             NWH = obj.NWH;
+            ttFlags = obj.ttFlags;
 
             UpdateSaberVersion();
 
@@ -2849,6 +2852,7 @@ namespace JKWatcher
 
             deleteWatcherBtn.IsEnabled = cameraOperatorsSelected;
 
+            msgSendCrossBtn.IsEnabled = connectionsSelected;
             msgSendBtn.IsEnabled = connectionsSelected;
             msgSendTeamBtn.IsEnabled = connectionsSelected;
             buttonHitBtn.IsEnabled = connectionsSelected;
@@ -3018,6 +3022,17 @@ namespace JKWatcher
             List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
 
             DoExecuteCommand($"{chatCommandPublic} \"" + commandLine.Text + "\"",conns.ToArray());
+        }
+
+        private void msgSendCrossBtn_Click(object sender, RoutedEventArgs e)
+        {
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            if (!this.ttFlags.HasFlag(TommyTernalFlags.TTFLAGSSERVERINFO_HASCROSSSERVERCHAT))
+            {
+                this.addToLog("Sending cross-server chat command but this server does not seem to support it.");
+            }
+            DoExecuteCommand($"{chatCommandCross} \"" + commandLine.Text + "\"",conns.ToArray());
         }
 
         private void msgSendTeamBtn_Click(object sender, RoutedEventArgs e)

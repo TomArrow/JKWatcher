@@ -4570,6 +4570,8 @@ namespace JKWatcher
 
         bool firstGamestateConnectionReceived = false;
 
+        TommyTernalFlags ttFlags = 0;
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState, bool firstGamestateClient) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
@@ -4586,6 +4588,8 @@ namespace JKWatcher
                 serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES ACTIVATED!", false, 5000);
             }
             infoPool.serverSendsAllEntities = obj.SendsAllEntities;
+
+            ttFlags = obj.ttFlags;
 
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
             lastServerInfoChange = DateTime.Now;

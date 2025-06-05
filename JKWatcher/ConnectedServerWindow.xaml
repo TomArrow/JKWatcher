@@ -147,6 +147,7 @@
                 <TextBox x:Name="commandLine" Width="280"></TextBox>
                 <Button x:Name="commandSendBtn" Click="commandSendBtn_Click" IsEnabled="False">Execute</Button>
                 <Button x:Name="commandListExecuteBtn" Click="commandListExecuteBtn_Click" IsEnabled="False" ToolTip="Execute command list">ECL</Button>
+                <Button x:Name="msgSendCrossBtn" Click="msgSendCrossBtn_Click" IsEnabled="False">C</Button>
                 <Button x:Name="msgSendBtn" Click="msgSendBtn_Click" IsEnabled="False">S</Button>
                 <Button x:Name="msgSendTeamBtn" Click="msgSendTeamBtn_Click" IsEnabled="False">T</Button>
                 <Button x:Name="msgSendPlayerBtn" Click="msgSendPlayerBtn_Click" IsEnabled="False">P</Button>

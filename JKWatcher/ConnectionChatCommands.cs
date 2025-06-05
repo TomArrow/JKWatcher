@@ -37,6 +37,8 @@ namespace JKWatcher
         static object infoPoolResetStuffLock = new object();
 
         // For various kinda text processisng stuff / memes
+        string lastCrossServerChat = "";
+        DateTime lastCrossServerChatTime = DateTime.Now;
         string lastPublicChat = "";
         DateTime lastPublicChatTime = DateTime.Now;
         string lastTeamChat = "";
@@ -404,6 +406,7 @@ namespace JKWatcher
             public ChatType type;
             public string message;
             public bool commandComesFromJKWatcher;
+            public bool crossServerBroadcastMessage;
         }
         Regex validSkinRegex = new Regex(@"^[a-zA-z0-9\^]+(?:\/[a-zA-z0-9\^]+)?$", RegexOptions.IgnoreCase|RegexOptions.Compiled|RegexOptions.CultureInvariant);
         enum ChatType
@@ -423,13 +426,24 @@ namespace JKWatcher
         const string privateChatSeparatorNoColor = "^7]: ^";
         const string teamChatSeparatorNoColor = "^7): ^";
         const string publicChatSeparatorNoColor = "^7: ^";
-        ParsedChatMessage? ParseChatMessage(string nameChatSegmentA, string extraArgument = null)
+        const string crossServerPrefix = "^d<^fto all servers^d<^7: ";
+        ParsedChatMessage? ParseChatMessage(string nameChatSegmentA, string extraArgument = null, string extraArgument2 = null)
         {
             int sentNumber = -1;
+            bool isCrossServerBroadcast = false;
+
+            if (extraArgument2 != null && extraArgument2.Equals("crossServerBroadcast",StringComparison.InvariantCultureIgnoreCase))
+            {
+                isCrossServerBroadcast = true;
+            }
 
             if (extraArgument != null) // This is jka only i think, sending the client num as an extra
             {
-                if (extraArgument.Equals("crossServer",StringComparison.InvariantCultureIgnoreCase))
+                if (extraArgument.Equals("crossServerBroadcast", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    isCrossServerBroadcast = true;
+                }
+                else if (extraArgument.Equals("crossServer",StringComparison.InvariantCultureIgnoreCase))
                 {
                     sentNumber = -2; // we can't possible find this player. he's not from this server.
                 }
@@ -444,6 +458,11 @@ namespace JKWatcher
                         sentNumber = -1;
                     }
                 }
+            }
+
+            if(isCrossServerBroadcast && nameChatSegmentA.StartsWith(crossServerPrefix))
+            {
+                nameChatSegmentA = nameChatSegmentA.Substring(crossServerPrefix.Length);
             }
 
             string nameChatSegment = nameChatSegmentA;
@@ -610,7 +629,7 @@ namespace JKWatcher
             int[] ourClientNums = serverWindow.getJKWatcherClientNums();
             bool commandComesFromJKWatcher = ourClientNums.Contains(playerNum) || (messageRaw.StartsWith("   ") && detectedChatType == ChatType.PRIVATE);
 
-            return new ParsedChatMessage() { message = messageRaw.Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType, commandComesFromJKWatcher= commandComesFromJKWatcher };
+            return new ParsedChatMessage() { message = messageRaw.Trim(), playerName = playerName, playerNum = playerNum, type = detectedChatType, commandComesFromJKWatcher= commandComesFromJKWatcher, crossServerBroadcastMessage=isCrossServerBroadcast };
         }
 
         bool isNumber(string str)
@@ -669,7 +688,7 @@ namespace JKWatcher
                     if (!myClientNum.HasValue) return;
                     string nameChatSegment = commandEventArgs.Command.Argv(1);
 
-                    ParsedChatMessage? pmMaybe = ParseChatMessage(nameChatSegment, commandEventArgs.Command.Argc > 2 ? commandEventArgs.Command.Argv(2) : null);
+                    ParsedChatMessage? pmMaybe = ParseChatMessage(nameChatSegment, commandEventArgs.Command.Argc > 2 ? commandEventArgs.Command.Argv(2) : null, commandEventArgs.Command.Argc > 3 ? commandEventArgs.Command.Argv(3) : null);
 
                     if (!pmMaybe.HasValue) return;
 
@@ -716,6 +735,9 @@ namespace JKWatcher
                                 } else if (pm.type == ChatType.TEAM)
                                 {
                                     saySameCmd = $"say_team";
+                                } else if(pm.type == ChatType.PUBLIC && pm.crossServerBroadcastMessage && this.ttFlags.HasFlag(TommyTernalFlags.TTFLAGSSERVERINFO_HASCROSSSERVERCHAT))
+                                {
+                                    saySameCmd = $"say_cross";
                                 }
                                 ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>(), saySameCmd);
                             }
@@ -827,25 +849,25 @@ namespace JKWatcher
                         // Private and team meme responses get their own category each so the rate limiting isn't confusing
                         case "!mock":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
+                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
                             ChatCommandAnswer(pm, MockString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!gaily":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
+                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
                             ChatCommandAnswer(pm, GailyString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!reverse":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
+                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
                             ChatCommandAnswer(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!ruski":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : lastPublicChat;
+                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
                             ChatCommandAnswer(pm, RuskiString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
@@ -1685,7 +1707,14 @@ namespace JKWatcher
                                 {
                                     if(pm.type == ChatType.PUBLIC)
                                     {
-                                        calmSayQueue.Enqueue($"say {demoNoteString}");
+                                        if (pm.crossServerBroadcastMessage && this.ttFlags.HasFlag( TommyTernalFlags.TTFLAGSSERVERINFO_HASCROSSSERVERCHAT))
+                                        {
+                                            calmSayQueue.Enqueue($"say_cross {demoNoteString}");
+                                        }
+                                        else
+                                        {
+                                            calmSayQueue.Enqueue($"say {demoNoteString}");
+                                        }
                                     } else if(pm.type == ChatType.TEAM)
                                     {
                                         calmSayQueue.Enqueue($"say_team {demoNoteString}");
@@ -2314,8 +2343,16 @@ namespace JKWatcher
                                 return;
                             } else if(pm.type == ChatType.PUBLIC && pm.message.Trim().Length > 0)
                             {
-                                lastPublicChat = pm.message;
-                                lastPublicChatTime = DateTime.Now;
+                                if (pm.crossServerBroadcastMessage)
+                                {
+                                    lastCrossServerChat = pm.message;
+                                    lastCrossServerChatTime = DateTime.Now;
+                                }
+                                else
+                                {
+                                    lastPublicChat = pm.message;
+                                    lastPublicChatTime = DateTime.Now;
+                                }
                             } else if(pm.type == ChatType.TEAM && pm.message.Trim().Length > 0)
                             {
                                 lastTeamChat = pm.message;
@@ -2870,7 +2907,17 @@ namespace JKWatcher
             else if (chatType == ChatType.PUBLIC && pub)
             {
                 if (forcePrivateResponse) forcingPrivateResponse = true;
-                else leakyBucketRequester.requestExecution($"say \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                else
+                {
+                    if (pm.crossServerBroadcastMessage && this.ttFlags.HasFlag(TommyTernalFlags.TTFLAGSSERVERINFO_HASCROSSSERVERCHAT))
+                    {
+                        leakyBucketRequester.requestExecution($"say_cross \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                    }
+                    else
+                    {
+                        leakyBucketRequester.requestExecution($"say \"{message}\"", RequestCategory.MEME, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null);
+                    }
+                }
             }
             if ((chatType == ChatType.PRIVATE && priv) || forcingPrivateResponse)
             {
