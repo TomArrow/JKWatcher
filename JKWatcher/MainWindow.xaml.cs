@@ -2906,8 +2906,8 @@ namespace JKWatcher
             {
                 string filename = ofd.FileName;
 
-                byte[] jk2_102data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims102>(Helpers.GetResourceData("data/saberAnimation/jk2_rhandFrames.bin"),File.ReadAllLines(filename));
-                byte[] jk2_104data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims104>(Helpers.GetResourceData("data/saberAnimation/jk2_rhandFrames.bin"),File.ReadAllLines(filename));
+                byte[] jk2_102data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims102>(File.ReadAllLines(filename));
+                byte[] jk2_104data = SaberAnimationStuff.GenerateAnimSaberData<JK2Anims104>(File.ReadAllLines(filename));
 
                 var sfd = new Microsoft.Win32.SaveFileDialog();
                 sfd.Filter = "Animation binary (.abin)|*.abin";
@@ -2941,7 +2941,7 @@ namespace JKWatcher
             {
                 string filename = ofd.FileName;
 
-                byte[] jkadata = SaberAnimationStuff.GenerateAnimSaberData<JKAAnims>(Helpers.GetResourceData("data/saberAnimation/jka_rhandFrames.bin"), File.ReadAllLines(filename));
+                byte[] jkadata = SaberAnimationStuff.GenerateAnimSaberData<JKAAnims>(File.ReadAllLines(filename));
                 
                 var sfd = new Microsoft.Win32.SaveFileDialog();
                 sfd.Filter = "Animation binary (.abin)|*.abin";
@@ -2950,6 +2950,43 @@ namespace JKWatcher
                 if (sfd.ShowDialog() == true)
                 {
                     File.WriteAllBytes(sfd.FileName, jkadata);
+                }
+                /*TaskManager.TaskRun(() => {
+
+                    ZipRecursor zipRecursor = new ZipRecursor(bspRegex, FindIntermissionInBsp);
+                    zipRecursor.HandleFile(filename);
+                    processConflictingIntermissionCamPositions();
+                }, $"Intermission cam finding in file {filename}");*/
+            }
+        }
+        private void generateAnimationBinaryStringGeneralBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var ofd = new Microsoft.Win32.OpenFileDialog();
+            ofd.Filter = "Animation.cfg (.cfg)|*.cfg";
+            if (ofd.ShowDialog() == true)
+            {
+                string filename = ofd.FileName;
+
+                StringBuilder cStr = new StringBuilder();
+
+                byte[] jkadata = SaberAnimationStuff.GenerateAnimSaberData<GeneralAnims>(File.ReadAllLines(filename), cStr);
+                
+                var sfd = new Microsoft.Win32.SaveFileDialog();
+                sfd.Filter = "Animation binary (.abin)|*.abin";
+                sfd.FileName = "jka_anim.abin";
+                sfd.Title = "Save jka animation binary";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllBytes(sfd.FileName, jkadata);
+                }
+
+                sfd = new Microsoft.Win32.SaveFileDialog();
+                sfd.Filter = "C source file (.c)|*.c";
+                sfd.FileName = "animationArray.c";
+                sfd.Title = "Save general animation c array";
+                if (sfd.ShowDialog() == true)
+                {
+                    File.WriteAllText(sfd.FileName, cStr.ToString());
                 }
                 /*TaskManager.TaskRun(() => {
 

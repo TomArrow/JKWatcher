@@ -241,6 +241,7 @@
 
                             <Button x:Name="generateAnimationBinaryBtn" Click="generateAnimationBinaryBtn_Click">Generate JK2 anim binaries from .cfg</Button>
                             <Button x:Name="generateAnimationBinaryJKABtn" Click="generateAnimationBinaryJKABtn_Click">Generate JKA anim binary from .cfg</Button>
+                            <Button x:Name="generateAnimationBinaryStringGeneralBtn" Click="generateAnimationBinaryStringGeneralBtn_Click">Generate general anim binary and c string from concat .cfg</Button>
                         </WrapPanel>
                     </GroupBox>
                 </StackPanel>
