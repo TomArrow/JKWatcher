@@ -658,7 +658,7 @@ namespace JKWatcher
                                             bool serverMatchedButMayNotSatisfyConditions = false;
                                             if (srvTC.FitsRequirements(serverInfo, ref serverMatchedButMayNotSatisfyConditions))
                                             {
-                                                if (!srvTC.pollingInterval.HasValue || fastDelayedConnecterBroken)
+                                                if (!srvTC.pollingInterval.HasValue || srvTC.pollingBroken)
                                                 { // Servers with custom polling interval are handled elsewhere.
 
                                                     srvTCChosen = srvTC;
@@ -844,7 +844,7 @@ namespace JKWatcher
             public DateTime lastTimeGotAnswer = DateTime.Now;
         };
 
-        bool fastDelayedConnecterBroken = false;
+       // bool fastDelayedConnecterBroken = false;
 
         //public bool delayedConnecterActiveCheckIsChecked { get; set; } = false;
 
@@ -890,7 +890,7 @@ namespace JKWatcher
                 {
                     foreach (ServerToConnect srvTC in serversToConnectDelayed)
                     {
-                        if (!srvTC.pollingInterval.HasValue || srvTC.ip == null) continue; // Servers with custom polling interval are handled elsewhere.
+                        if (!srvTC.pollingInterval.HasValue || srvTC.ip == null || !srvTC.active) continue; // Servers with custom polling interval are handled elsewhere.
 
                         bool alreadyConnected = false;
                         lock (connectedServerWindows)
@@ -928,19 +928,19 @@ namespace JKWatcher
                         double millisecondsSinceLastAnswer = (DateTime.Now - serverPollingInfo[srvTC].lastTimeGotAnswer).TotalMilliseconds;
                         if (millisecondsSinceLastAnswer > Math.Max(srvTC.pollingInterval.Value*10,60000))
                         {
-                            if (!fastDelayedConnecterBroken)
+                            if (!srvTC.pollingBroken)
                             {
-                                fastDelayedConnecterBroken = true;
+                                srvTC.pollingBroken = true;
                                 // Let main loop take care of it then.
-                                Helpers.logToFile($"ERROR: fastDelayedConnecter seems to be broken. No answer received in a long time ({millisecondsSinceLastAnswer}ms).");
+                                Helpers.logToFile($"ERROR: fastDelayedConnecter {srvTC.sectionName} seems to be broken. No answer received in a long time ({millisecondsSinceLastAnswer}ms).");
                             }
                         } else
                         {
-                            if (fastDelayedConnecterBroken)
+                            if (srvTC.pollingBroken)
                             {
-                                fastDelayedConnecterBroken = false;
+                                srvTC.pollingBroken = false;
                                 // Let main loop take care of it then.
-                                Helpers.logToFile($"ERROR: fastDelayedConnecter unbroken again. Last answer recent ({millisecondsSinceLastAnswer}ms).");
+                                Helpers.logToFile($"ERROR: fastDelayedConnecter {srvTC.sectionName} unbroken again. Last answer recent ({millisecondsSinceLastAnswer}ms).");
                             }
                         }
 
@@ -1562,6 +1562,7 @@ namespace JKWatcher
             public bool silentMode { get; init; } = false;
             public bool autoUpgradeToCTF { get; init; } = false;
             public int? pollingInterval { get; init; } = null;
+            public bool pollingBroken { get; set; } = false;
             public bool mohProtocol { get; init; } = false;
             public int? maxTimeSinceMapChange { get; init; } = null;
 
