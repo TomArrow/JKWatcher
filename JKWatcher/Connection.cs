@@ -1,4 +1,5 @@
-﻿#define ACCURACYDEBUG
+﻿//#define ACCURACYDEBUG
+//#define KILLHASHDEBUG
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -2031,11 +2032,14 @@ namespace JKWatcher
                 if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
                 {
                     serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
+#if KILLHASHDEBUG
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
                         serverWindow.addToLog($"KILLHASH DEBUG: {killHash} (fc att {attackerWasFlagCarrier} vic {targetWasFlagCarrier}) ({killHashRaw})");
                     }
-                } else
+#endif
+                }
+                else
                 {
                     thisSnapshotObituaryAttackers.Add(attacker, locationOfDeath);
                     infoPool.playerInfo[attacker].position = locationOfDeath;
@@ -2044,10 +2048,12 @@ namespace JKWatcher
                     // Would his self blowup message come before or after this?
                     string attackerName = infoPool.playerInfo[attacker].name;
                     serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
+#if KILLHASHDEBUG
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
                         serverWindow.addToLog($"KILLHASH DEBUG: {killHash} (fc att {attackerWasFlagCarrier} vic {targetWasFlagCarrier})  ({killHashRaw})");
                     }
+#endif
                 }
             } else if(e.EventType == ClientGame.EntityEvent.CtfMessage)
             {
