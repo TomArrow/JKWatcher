@@ -703,7 +703,7 @@ namespace JKWatcher
                                                         }
                                                         connOptions.proxy = proxy;
                                                     }
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null, connOptions);
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,"client0", connOptions);
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
