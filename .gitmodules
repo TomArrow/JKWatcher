@@ -10,3 +10,6 @@
 [submodule "markov"]
 	path = markov
 	url = git@github.com:TomArrow/markov.git
+[submodule "ext/Q3MinimapGenerator"]
+	path = ext/Q3MinimapGenerator
+	url = git@github.com:TomArrow/Q3MinimapGenerator.git

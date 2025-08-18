@@ -102,6 +102,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ext\Q3MinimapGenerator\Q3MinimapGenerator.csproj" />
     <ProjectReference Include="..\ext\WPF-Clock-Based-Date-Time-Picker\DateTimePicker\DateTimePicker.csproj" />
     <ProjectReference Include="..\glicko2-csharp\Glicko2.csproj" />
     <ProjectReference Include="..\JKClient\JKClient\JKClient.csproj" />

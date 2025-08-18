@@ -20,6 +20,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Shell;
 using System.Windows.Threading;
+using Q3MinimapGenerator;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -255,6 +256,8 @@ namespace JKWatcher
 
             // Check botroutes
             BotRouteManager.Initialize();
+
+            ZipRecursor.SetErrorLogger((string a)=> { Helpers.logToFile(a); });
 
             InitializeComponent();
 
