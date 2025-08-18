@@ -316,7 +316,10 @@ namespace JKWatcher
             socksSettingsGlobalBox.DataContext = this.socksSettingsGlobal;
             SpawnArchiveScript();
             this.Closing += MainWindow_Closing;
-            this.Closed += MainWindow_Closed; ;
+            this.Closed += MainWindow_Closed;
+
+            using (Process p = Process.GetCurrentProcess())
+                p.PriorityClass = ProcessPriorityClass.High;
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)

@@ -5498,7 +5498,7 @@ namespace JKWatcher
 
         Regex playerNameSpecialCharsRegex = new Regex(@"[^\w\d ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex playerNameSpecialCharsExceptRoofRegex = new Regex(@"[^\w\d\^ ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
-        Regex serverUsesProtocolRegex = new Regex(@"Server uses protocol version (?<protocol>\d+).", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        Regex serverUsesProtocolRegex = new Regex(@"Server uses protocol version (\^\d)?(?<protocol>\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         string disconnectedString = " disconnected\n";
 
