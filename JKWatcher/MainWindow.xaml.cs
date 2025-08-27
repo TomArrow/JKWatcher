@@ -457,6 +457,8 @@ namespace JKWatcher
 
         List<NetAddress> autoConnectRecentlyClosedBlockList = new List<NetAddress>(); // When we close a window, we don't wanna reconnect to it immediately (because the auto connecter might have requested the server info before we closed the window and thus think players are still on there, meaning our own connection that we just closed)
 
+        double ctfConnecterSleepLeft = 0;
+
         Regex ipv4Regex = new Regex(@"^(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]\d|\d)){3}(?<port>:\d+)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         private async void ctfAutoConnecter(CancellationToken ct)
         {
@@ -471,8 +473,14 @@ namespace JKWatcher
                     }
                 });
 
+                ctfConnecterSleepLeft = nextCheckFast ? 60000 : 60000 * autoJoinCheckInterval;// every 2 min or 1 min if fast recheck requested (see code below)
                 //System.Threading.Thread.Sleep(1000); // wanted to do 1 every second but alas, it triggers rate limit that is 1 per second apparently, if i want to execute any other commands.
-                System.Threading.Thread.Sleep(nextCheckFast ? 60000 :  60000 * autoJoinCheckInterval); // every 2 min or 1 min if fast recheck requested (see code below)
+                while (ctfConnecterSleepLeft > 0)
+                {
+                    ctfConnecterSleepLeft -= 5000;
+                    System.Threading.Thread.Sleep(5000);
+                }
+                ctfConnecterSleepLeft = 0;
 
                 lock (autoConnectRecentlyClosedBlockList)
                 {
@@ -2192,6 +2200,7 @@ namespace JKWatcher
                 }
             }
 
+            ctfConnecterSleepLeft = 0;
             if (serversToConnect.Count > 0)
             {
                 int tries = 0;
@@ -2316,7 +2325,7 @@ namespace JKWatcher
                         tries++;
                     }
                     executionInProgress = false;
-
+                    ctfConnecterSleepLeft = 0;
 
                 },$"Config Executer"); // TODO Config name in task name
             }
@@ -2657,7 +2666,7 @@ namespace JKWatcher
             }
         }
 
-        private void FindIntermissionInBsp(string filename, byte[] fileData, string path)
+        private void FindIntermissionInBsp(string filename, byte[] fileData, string path, object stuff)
         {
             Stack<string> pathStack = new Stack<string>();
             string[] pathPartsArr = path is null ? new string[0] : path.Split(new char[] { '\\','/'});
@@ -3038,7 +3047,7 @@ namespace JKWatcher
         }
 
 
-        private void MakeMinimapFromBSP(string filename, byte[] fileData, string path)
+        private void MakeMinimapFromBSP(string filename, byte[] fileData, string path, object stuff)
         {
             Stack<string> pathStack = new Stack<string>();
             string[] pathPartsArr = path is null ? new string[0] : path.Split(new char[] { '\\', '/' });
@@ -3077,7 +3086,14 @@ namespace JKWatcher
             Debug.WriteLine($"Found {filename} ({mapname}) in {path}");
             mapname = mapname.ToLowerInvariant();
 
-            BSPToMiniMap.MakeMiniMap(mapname, fileData, 0.1f, 500,500,10 );
+            MiniMapRequest request = new MiniMapRequest() {
+                PixelsPerUnit = 0.1f,
+                MaxWidth=500,
+                MaxHeight=500,
+                ExtraBorderUnits=10,
+                OutputFolderPath= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","images","tinymaps")
+            };
+            BSPToMiniMap.MakeMiniMap(mapname, fileData, request);
 
             
         }
