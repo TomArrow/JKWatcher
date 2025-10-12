@@ -5322,7 +5322,23 @@ namespace JKWatcher
                                 break;
                         }
                     }
-                    allArgs.Append(commandEventArgs.Command.Argv(i));
+                    string thePart = commandEventArgs.Command.Argv(i);
+                    int thePartLength = thePart.Length;
+                    int newLines = 0;
+                    while(thePartLength > 0 && thePart[thePartLength - 1] == '\n')
+                    {
+                        newLines++;
+                        thePartLength--;
+                    }
+                    if(newLines > 0 && thePartLength > 0)
+                    {
+                        thePart = thePart.Substring(0, thePartLength);
+                    }
+                    allArgs.Append(thePart);
+                    for(int nl = 0; nl < newLines; nl++)
+                    {
+                        allArgs.Append("\\n");
+                    }
                     allArgs.Append(" ");
                 }
                 if(mohMode && command.Equals("stufftext", StringComparison.OrdinalIgnoreCase))
@@ -5530,7 +5546,7 @@ namespace JKWatcher
                     }
                 }
 
-                if (printText != null && printText.Contains("@@@INVALID_PASSWORD")) {
+                if (printText != null && (printText.Contains("@@@INVALID_PASSWORD") || printText.Contains("@@@INVALID_ESCAPE_TO_MAIN"))) {
 
                     if ((DateTime.Now - lastNewPasswordTried).TotalSeconds > 5) {
                         string passwordsString = Helpers.cachedFileRead("passwords.txt");

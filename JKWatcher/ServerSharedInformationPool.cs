@@ -717,6 +717,7 @@ namespace JKWatcher
         public Team team => this.session.team;
         public PlayerScore scoreThisGame => this.chatCommandTrackingStuffThisGame.score;
         public PlayerScore scoreAll => this.chatCommandTrackingStuff.score;
+        public int ProbableRetCount => this.chatCommandTrackingStuff.ProbableRetCount;
         public PlayerScore currentScore => this.chatCommandTrackingStuff.lastScoreWasSpectating ? this.chatCommandTrackingStuff.spectatingScore: this.chatCommandTrackingStuff.score;
         public bool confirmedBot => this.session.confirmedBot;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
