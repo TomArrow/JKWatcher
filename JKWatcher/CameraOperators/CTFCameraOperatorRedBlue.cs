@@ -240,15 +240,20 @@ namespace JKWatcher.CameraOperators
                 if (false && infoPool.serverSendsAllEntities)
                 {
                     bool anyInSpec = false;
+                    int countActive = 0;
                     // check if at least one connection is not in spec
                     foreach (Connection conn in this.connections)
                     {
-                        if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime < 30000)
+                        if (conn.Status == ConnectionStatus.Active)
                         {
-                            anyInSpec = true;
+                            countActive++;
+                            if(conn.notInSpecTime < 30000)
+                            {
+                                anyInSpec = true;
+                            }
                         }
                     }
-                    if (!anyInSpec)
+                    if (!anyInSpec && countActive > 1) // we carefully try to reconnect one. but only if at least one connection still remains active. just to be safe. this should almost always be the case anyway
                     {
                         foreach (Connection conn in this.connections)
                         {
@@ -264,15 +269,20 @@ namespace JKWatcher.CameraOperators
                 else
                 {
                     bool anyNotInSpec = false;
+                    int countActive = 0;
                     // check if at least one connection is not in spec
                     foreach (Connection conn in this.connections)
                     {
-                        if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
+                        if (conn.Status == ConnectionStatus.Active)
                         {
-                            anyNotInSpec = true;
+                            countActive++;
+                            if (conn.notInSpecTime >= 30000)
+                            {
+                                anyNotInSpec = true;
+                            }
                         }
                     }
-                    if (anyNotInSpec)
+                    if (anyNotInSpec && countActive > 1) // we carefully try to reconnect one. but only if at least one connection still remains active. just to be safe. this should almost always be the case anyway
                     {
                         foreach (Connection conn in this.connections)
                         {
