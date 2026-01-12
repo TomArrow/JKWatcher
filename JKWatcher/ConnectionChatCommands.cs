@@ -2578,7 +2578,7 @@ namespace JKWatcher
                                     // Strobe is a bit flickedy-flicky, needs special heavy duty tools to produce something that's remotely useful
                                     if (reframeAborted)
                                     {
-                                        demoCutCommandReframes.Append("//");
+                                        demoCutCommandReframes.Append("####");
                                     }
                                     demoCutCommandReframes.Append("DemoMerger ");
                                     demoCutCommandReframes.Append($"\"{filename}_reframedSTR{reframeClientNum}{demoExtension}\" ");
@@ -2595,7 +2595,7 @@ namespace JKWatcher
                                 {
                                     if (reframeAborted)
                                     {
-                                        demoCutCommandReframes.Append("//");
+                                        demoCutCommandReframes.Append("####");
                                     }
                                     demoCutCommandReframes.Append("DemoReframer ");
                                     demoCutCommandReframes.Append($"\"{filename}{demoExtension}\" ");
@@ -2634,7 +2634,7 @@ namespace JKWatcher
                             }
                             if (reframeAborted)
                             {
-                                demoCutCommand.Append("//");
+                                demoCutCommand.Append("####");
                             }
                             demoCutCommand.Append("DemoMerger ");
                             demoCutCommand.Append($"\"{filenameGeneric}_reframedMERGE{reframeClientNum}{demoExtension}\" ");

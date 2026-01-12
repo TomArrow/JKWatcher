@@ -2814,6 +2814,8 @@ namespace JKWatcher
         }
         const int RANK_TIED_FLAG = 0x4000;
         const int PMF_INTERMISSION = (1 << 6);
+
+        public int notInSpecTime { get; private set; } // track how long we have not been in spec
         private unsafe void Client_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
             int clientClientNum = (client?.clientNum).GetValueOrDefault(-1); // it's also -1 when no gamestate is received yet
@@ -2845,6 +2847,8 @@ namespace JKWatcher
             //infoPool.isIntermission = client.IsInterMission;
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
+            int shittyMsec = Math.Clamp((lastSnapshot != null) ? (snap.ServerTime-lastSnapshot.ServerTime) : 0, 10,250); // for tracking how long we've not been in spec. idk this is super cringe.
+            
             lastSnapshot = snap;
             int oldRank = lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
             int newRank = snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
@@ -3147,6 +3151,15 @@ namespace JKWatcher
                     // why was I basing it on playermovetype to begin with?
                     serverWindow.addToLog($"^1Warning:^7amNotInSpec false but I'm NOT in spectator Team? clientnum {client.clientNum} ps.clientnum {snap.PlayerState.ClientNum} playermovetype {snap.PlayerState.PlayerMoveType}, snap.PlayerState.Persistant[3] {(Team)snap.PlayerState.Persistant[3]}",true,60000*5,0,ConnectedServerWindow.MentionLevel.NoMention,true);
                 }
+            }
+
+            if (amNotInSpec)
+            {
+                notInSpecTime += shittyMsec;
+            }
+            else
+            {
+                notInSpecTime = 0;
             }
 
             bool teamChangesDetected = false;

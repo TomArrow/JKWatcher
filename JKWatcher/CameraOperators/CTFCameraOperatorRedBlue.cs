@@ -115,6 +115,7 @@ namespace JKWatcher.CameraOperators
 
         private DateTime lastConnectionCountChange = DateTime.Now-new TimeSpan(10,0,0); // have a slight delay before spawning/deleting connections
         const double connectionCountChangeDelaySeconds = 30;
+        private DateTime lastForcedReconnect = DateTime.Now;
         private void HandleStrobe()
         {
             string withStrobeString = this.GetOption("withStrobe") as string;
@@ -234,6 +235,57 @@ namespace JKWatcher.CameraOperators
                 }
 
             }*/
+            if (infoPool.NWHDetected && (DateTime.Now- lastForcedReconnect).TotalSeconds > 15) // deal with misguided admins forcing bots ingame
+            {
+                if (false && infoPool.serverSendsAllEntities)
+                {
+                    bool anyInSpec = false;
+                    // check if at least one connection is not in spec
+                    foreach (Connection conn in this.connections)
+                    {
+                        if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime < 30000)
+                        {
+                            anyInSpec = true;
+                        }
+                    }
+                    if (!anyInSpec)
+                    {
+                        foreach (Connection conn in this.connections)
+                        {
+                            if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
+                            {
+                                lastForcedReconnect = DateTime.Now;
+                                _ = conn.Reconnect();
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    bool anyNotInSpec = false;
+                    // check if at least one connection is not in spec
+                    foreach (Connection conn in this.connections)
+                    {
+                        if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
+                        {
+                            anyNotInSpec = true;
+                        }
+                    }
+                    if (anyNotInSpec)
+                    {
+                        foreach (Connection conn in this.connections)
+                        {
+                            if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
+                            {
+                                lastForcedReconnect = DateTime.Now;
+                                _ = conn.Reconnect();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
 
         }
