@@ -259,6 +259,7 @@ namespace JKWatcher.CameraOperators
                         {
                             if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
                             {
+                                serverWindow.addToLog($"CTF Camera operator: Forcing reconnect due to being out of spec for ~{conn.notInSpecTime} msec and unable to go back to spec otherwise.", true);
                                 lastForcedReconnect = DateTime.Now;
                                 _ = conn.Reconnect();
                                 break;
@@ -288,6 +289,7 @@ namespace JKWatcher.CameraOperators
                         {
                             if (conn.Status == ConnectionStatus.Active && conn.notInSpecTime >= 30000)
                             {
+                                serverWindow.addToLog($"CTF Camera operator: Forcing reconnect due to being out of spec for ~{conn.notInSpecTime} msec and unable to go back to spec otherwise.", true);
                                 lastForcedReconnect = DateTime.Now;
                                 _ = conn.Reconnect();
                                 break;
