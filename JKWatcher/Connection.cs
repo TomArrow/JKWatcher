@@ -224,6 +224,8 @@ namespace JKWatcher
         private Dictionary<string, Property> properties = new Dictionary<string, Property>();
         private object lockobj = new object();
 
+        public bool UpdatingPaused { get; set; } = false;
+
         static DelayedViewData(){
             System.Reflection.PropertyInfo[] sourceProperties = typeof(T).GetProperties();
             foreach(System.Reflection.PropertyInfo property in sourceProperties)
@@ -285,7 +287,7 @@ namespace JKWatcher
                     return false;
                 }
                 Property prop = properties[propName];
-                if ((DateTime.Now - prop.updated).TotalMilliseconds >= millisecondTimeout)
+                if ((DateTime.Now - prop.updated).TotalMilliseconds >= millisecondTimeout && !UpdatingPaused)
                 {
                     prop.updated = DateTime.Now;
                     object value = prop.getter(reference);
@@ -2831,6 +2833,10 @@ namespace JKWatcher
                 }
                 return;
             }
+
+            try {
+            connectionViewData.UpdatingPaused = true; // we might change some values multiple times here. make sure we use the final value.
+
             lastSnapshotParsedOrServerInfoChange = DateTime.Now;
             CurrentTimeSecondEven = (DateTime.Now.Second % 2) > 0; // So we can update some values once per second LOL.
 
@@ -3055,7 +3061,7 @@ namespace JKWatcher
             SpectatedPlayer = client.playerStateClientNum; // Might technically need a playerstate parsed event but ig this will do?
             if (oldSpectatedPlayer != SpectatedPlayer)
             {
-                lastSpectatedPlayerChange = DateTime.Now;
+                lastSpectatedPlayerChange = DateTime.Now; // uh does this break moh somehow? since we update spectatedplayer later to reflect who we are actually following?
             }
 
             int[] snapEntityMapping = new int[Common.MaxGEntities];
@@ -4450,9 +4456,14 @@ namespace JKWatcher
                 }
             }
 
-            connectionViewData?.checkLatchedValues(this);
 
             oldSpectatedPlayer = SpectatedPlayer;
+            }
+            finally
+            {
+                connectionViewData.UpdatingPaused = false;
+                connectionViewData?.checkLatchedValues(this);
+            }
         }
 
         private bool playerIsLikelyBot(int clientNumber)
