@@ -3098,6 +3098,9 @@ namespace JKWatcher
             
         }
 
-        
+        private void checkNowBtn_Click(object sender, RoutedEventArgs e)
+        {
+            ctfConnecterSleepLeft = 0;
+        }
     }
 }

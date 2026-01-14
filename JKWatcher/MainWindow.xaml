@@ -100,10 +100,11 @@
                 <DockPanel>
                     <WrapPanel DockPanel.Dock="Top">
 
-                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2">AllJK2Ver</CheckBox>
+                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2" ToolTip="All JK2 Versions (AllJK2Ver)">AllVer</CheckBox>
                         <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
                         <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
                         <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
+                        <Button x:Name="checkNowBtn" Click="checkNowBtn_Click">CheckNow</Button>
                         <!--<Label ToolTip="Password">PW</Label>
                         <TextBox x:Name="pwListTxt" Width="70"></TextBox>-->
                         <Button x:Name="connectBtn" Click="connectBtn_Click" IsEnabled="False" ToolTip="Connect">Connect</Button>
