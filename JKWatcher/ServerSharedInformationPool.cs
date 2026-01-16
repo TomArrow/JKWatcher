@@ -950,6 +950,7 @@ namespace JKWatcher
     {
         public int value { get; private set; }
         public int oldSum { get; private set; }
+        private Int64 changes;
 
         private static T resetValueCondition = new T();
         public static ConditionalResetValueSummer<T> operator +(ConditionalResetValueSummer<T> a, int b)
@@ -959,6 +960,7 @@ namespace JKWatcher
                 a.oldSum += a.value;
             }
             a.value = b;
+            a.changes++;
             return a;
         }
         public static implicit operator int(ConditionalResetValueSummer<T> a) => a.value;
@@ -970,9 +972,10 @@ namespace JKWatcher
         {
             value = startValue;
             oldSum = 0;
+            changes = 0;
         }
         // Current value or sum
-        public string GetString1(bool block0 = false,string prefixIfNotBlocked = null,Func<int,string> formatCallback = null)
+        public string GetString1(bool blockNoSample = true, bool block0 = false,string prefixIfNotBlocked = null,Func<int,string> formatCallback = null)
         {
             int baseValue = value;
             string theString = formatCallback != null ? formatCallback(value) : value.ToString();
@@ -1070,6 +1073,11 @@ namespace JKWatcher
         public static implicit operator int(ValueAverager<T> a) => a.value;
         public override string ToString()
         {
+            return this.value.ToString();
+        }
+        public string ToStringIfSet()
+        {
+            if (divider == 0) return "";
             return this.value.ToString();
         }
         public double? GetPreciseAverage()

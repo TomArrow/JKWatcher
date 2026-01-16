@@ -931,7 +931,7 @@ namespace JKWatcher.RandomHelpers
             {
                 if (infoPool.NWHDetected)
                 {
-                    columns.Add(new ColumnInfo("FH", 0, 70, normalFont, (a) => { return a.scoreCopy.guantletCount.GetString1(true, null, (a) => { return FormatTime(a); }); }) { noAdvanceAfter = true });
+                    columns.Add(new ColumnInfo("FH", 0, 70, normalFont, (a) => { return a.scoreCopy.guantletCount.GetString1(true,true, null, (a) => { return FormatTime(a); }); }) { noAdvanceAfter = true });
                     columns.Add(new ColumnInfo("", 15, 70, tinyFont, (a) => { return a.scoreCopy.guantletCount.GetString2(true, "^yfff8", (a) => { return FormatTime(a); }); }));
                 }
                 else
@@ -1015,6 +1015,7 @@ namespace JKWatcher.RandomHelpers
                 })
                 { noAdvanceAfter = true });
                 columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => {
+                    if (a.blocksTotal == 0) return "";
                     if ((foundFields & (1 << (int)ScoreFields.BLOCKSTEAM)) > 0 && (foundFields & (1 << (int)ScoreFields.BLOCKSENEMY)) > 0)
                     {
                         if ((foundFields & (1 << (int)ScoreFields.BLOCKSCAPPER)) > 0)
@@ -1186,7 +1187,7 @@ namespace JKWatcher.RandomHelpers
                 }
             }));
 
-            columns.Add(new ColumnInfo("PING", 0, 50, normalFont, (a) => { return a.scoreCopy.ping.ToString(); }) { noAdvanceAfter=true });
+            columns.Add(new ColumnInfo("PING", 0, 50, normalFont, (a) => { return a.scoreCopy.ping.ToStringIfSet(); }) { noAdvanceAfter=true });
             columns.Add(new ColumnInfo("", 15, 50, tinyFont, (a) => { string meansd = a.scoreCopy.ping.GetMeanSDString(); return !string.IsNullOrEmpty(meansd) ? $"^yfff8{meansd}" : ""; }));
 
             csvColumns.Add(new CSVColumnInfo("PING-CURRENT", (a) => { return a.scoreCopy.ping.ToString(); }));
