@@ -147,6 +147,11 @@ namespace JKWatcher.RandomHelpers
         public int[] slashCounts = new int[5];
         public int[] mineGrabs = new int[4];
         public int mineGrabsTotal;
+        public int blocksEnemy;
+        public int blocksEnemyCapper;
+        public int blocksTeam;
+        public int blocksTeamCapper;
+        public int blocksTotal;
 
         public PlayerScore scoreCopy;
 
@@ -506,7 +511,10 @@ namespace JKWatcher.RandomHelpers
             DEFRAGWR,
             GAUNTLETCOUNT,
             //DBSPERCENT,
-            MINEGRABS
+            MINEGRABS,
+            BLOCKSENEMY,
+            BLOCKSCAPPER,
+            BLOCKSTEAM
         }
 
         const int fgAlpha = (int)((float)255 * 0.8f);
@@ -582,6 +590,11 @@ namespace JKWatcher.RandomHelpers
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
                 entry.wrs = kvp.Value.chatCommandTrackingStuff.defragWRCount;
+                entry.blocksEnemy = kvp.Value.chatCommandTrackingStuff.blocksEnemy;
+                entry.blocksEnemyCapper = kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierEnemy;
+                entry.blocksTeam = kvp.Value.chatCommandTrackingStuff.blocksFriendly;
+                entry.blocksTeamCapper = kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierFriendly;
+                entry.blocksTotal = entry.blocksEnemy+ entry.blocksEnemyCapper + entry.blocksTeam + entry.blocksTeamCapper;
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["DBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BLUBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACKSTAB_GENERAL);
@@ -669,6 +682,18 @@ namespace JKWatcher.RandomHelpers
                 if(kvp.Value.chatCommandTrackingStuff.defragWRCount > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.DEFRAGWR);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.blocksEnemy > 0 || kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierEnemy > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.BLOCKSENEMY);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.blocksFriendly > 0 || kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierFriendly > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.BLOCKSTEAM);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierEnemy > 0 || kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierFriendly > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.BLOCKSCAPPER);
                 }
                 switch (entry.team)
                 {
@@ -957,6 +982,56 @@ namespace JKWatcher.RandomHelpers
                     return $"^yfff8{a.mineGrabs[(int)Team.Free]}";
                 }));
             }
+            if ((foundFields & (1 << (int)ScoreFields.BLOCKSTEAM)) > 0 || (foundFields & (1 << (int)ScoreFields.BLOCKSENEMY)) > 0)
+            {
+                columns.Add(new ColumnInfo("BL", 0, 40, normalFont, (a) => {
+                    if (a.blocksTotal == 0) return "";
+                    if ((foundFields & (1 << (int)ScoreFields.BLOCKSTEAM)) > 0 /*&& (foundFields & (1 << (int)ScoreFields.BLOCKSENEMY)) > 0*/)
+                    {
+                        if ((foundFields & (1 << (int)ScoreFields.BLOCKSCAPPER)) > 0)
+                        {
+                            return $"^1^3^1{a.blocksTeamCapper}^7^0^7/^1^0^1{a.blocksTeam}";
+                        }
+                        else
+                        {
+                            return $"^1{a.blocksTeam}";
+                        }
+                    }
+                    else if((foundFields & (1 << (int)ScoreFields.BLOCKSENEMY)) > 0)
+                    {
+                        if ((foundFields & (1 << (int)ScoreFields.BLOCKSCAPPER)) > 0)
+                        {
+                            return $"^2^3^2{a.blocksEnemyCapper}^7^0^7/^2^0^2{a.blocksEnemy}";
+                        }
+                        else
+                        {
+                            return $"^2{a.blocksEnemy}";
+                        }
+                    }
+                    else
+                    {
+                        return $"";
+                    }
+                })
+                { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 40, tinyFont, (a) => {
+                    if ((foundFields & (1 << (int)ScoreFields.BLOCKSTEAM)) > 0 && (foundFields & (1 << (int)ScoreFields.BLOCKSENEMY)) > 0)
+                    {
+                        if ((foundFields & (1 << (int)ScoreFields.BLOCKSCAPPER)) > 0)
+                        {
+                            return $"^2^3^2{a.blocksEnemyCapper}^7^0^7/^2^0^2{a.blocksEnemy}";
+                        }
+                        else
+                        {
+                            return $"^2{a.blocksEnemy}";
+                        }
+                    }
+                    else
+                    {
+                        return $"";
+                    }
+                }));
+            }
             csvColumns.Add(new CSVColumnInfo("MINEGRABS-TOTAL", (a) => { return a.mineGrabsTotal.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("MINEGRABS-REDBASE", (a) => { return a.mineGrabs[(int)Team.Red].ToString(); }));
             csvColumns.Add(new CSVColumnInfo("MINEGRABS-BLUEBASE", (a) => { return a.mineGrabs[(int)Team.Blue].ToString(); }));
@@ -1145,6 +1220,8 @@ namespace JKWatcher.RandomHelpers
             csvColumns.Add(new CSVColumnInfo("GLICKO2-RATING", (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRating(true)}"; }));
             csvColumns.Add(new CSVColumnInfo("GLICKO2-DEVIATION", (a) => { if (a.stats.chatCommandTrackingStuff.rating.GetNumberOfResults(true) <= 0) { return ""; } return $"{(int)a.stats.chatCommandTrackingStuff.rating.GetRatingDeviation(true)}"; }));
 
+
+
             //if ((foundFields & (1 << (int)ScoreFields.DBSPERCENT)) > 0)
             //{
             //    columns.Add(new ColumnInfo("DBS%", 0, 30, normalFont, (a) => { return block0(a.scoreCopy.defendCount.GetString1()); }) { noAdvanceAfter = true });
@@ -1194,7 +1271,6 @@ namespace JKWatcher.RandomHelpers
             }
 
 
-            int dbsIndex = ScoreboardEntry.slashTypeIndex["DBS"];
             foreach (string killtype in killTypesCSV)
             {
                 string stringLocal = killtype;
@@ -1206,14 +1282,21 @@ namespace JKWatcher.RandomHelpers
                 {
                     return a.killTypesRets.GetValueOrDefault(stringLocal, 0).ToString();
                 }));
-                if (stringLocal == "DBS")
+                //if (stringLocal == "DBS")
+                if (ScoreboardEntry.slashTypeIndex.ContainsKey(stringLocal))
                 {
+                    int moveIndex = ScoreboardEntry.slashTypeIndex[stringLocal];
                     csvColumns.Add(new CSVColumnInfo($"{stringLocal}-ATTEMPTS", (a) =>
                     {
-                        return a.slashCounts[dbsIndex].ToString();
+                        return a.slashCounts[moveIndex].ToString();
                     }));
                 }
             }
+
+            csvColumns.Add(new CSVColumnInfo("BLOCKS-TEAM", (a) => { return a.blocksTeam.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("BLOCKS-TEAMCAPPER", (a) => { return a.blocksTeamCapper.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("BLOCKS-ENEMY", (a) => { return a.blocksEnemy.ToString(); }));
+            csvColumns.Add(new CSVColumnInfo("BLOCKS-ENEMYCAPPER", (a) => { return a.blocksEnemyCapper.ToString(); }));
 
             const float sidePadding = 90;
             const float totalWidth = 1920 - sidePadding - sidePadding;

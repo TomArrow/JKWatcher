@@ -1768,18 +1768,21 @@ namespace JKWatcher
 
                         if (this.IsMainChatConnection) {  // Avoid dupes.
 
-
-                            if (targetWasFlagCarrier)
+                            if (intermissionCamSet)
                             {
-                               // infoPool.playerInfo[attacker].chatCommandTrackingStuff.returns++; // tracking elsewhere already
-                                infoPool.playerInfo[target].chatCommandTrackingStuff.returned++;
-                                infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
-                                infoPool.killTrackers[attacker, target].returns++;
-                                infoPool.killTrackersThisGame[attacker, target].returns++;
-                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
-                            } else
-                            {
-                                PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
+                                if (targetWasFlagCarrier)
+                                {
+                                    // infoPool.playerInfo[attacker].chatCommandTrackingStuff.returns++; // tracking elsewhere already
+                                    infoPool.playerInfo[target].chatCommandTrackingStuff.returned++;
+                                    infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
+                                    infoPool.killTrackers[attacker, target].returns++;
+                                    infoPool.killTrackersThisGame[attacker, target].returns++;
+                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
+                                }
+                                else
+                                {
+                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
+                                }
                             }
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
                             infoPool.playerInfo[target].chatCommandTrackingStuff.totalDeaths++;
@@ -3920,6 +3923,8 @@ namespace JKWatcher
             // we might be (?) at a point in time where the new flag status has not yet been parsed, but the new 
             // entities have, so we might mistake a base flag for a dropped one or vice versa.
             List<Vector3> mohBeamsFound = mohFreezeTagDetected ? null : new List<Vector3>();
+                
+            int EF_PLAYER_EVENT = jkaMode ? (1 << 5) : 0x00000010;
             for (int i = client.ClientHandler.MaxClients; i < JKClient.Common.MaxGEntities; i++)
             {
                 int snapEntityNum = snapEntityMapping[i];
@@ -3930,6 +3935,30 @@ namespace JKWatcher
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
                         entityOrPSVisible[i] = true;
+                    }
+
+                    if((snap.Entities[snapEntityNum].EntityFlags & EF_PLAYER_EVENT) > 0 && intermissionCamSet) // if player isnt visible, but his event is, draw that. :P
+                    {
+                        int eventclientnum = snap.Entities[snapEntityNum].OtherEntityNum;
+                        if (eventclientnum >= 0 && eventclientnum < serverMaxClientsLimit && !entityOrPSVisible[eventclientnum] 
+                                && (snap.Entities[snapEntityNum].Position.Base[0] != lastPosition[eventclientnum].X
+                                || snap.Entities[snapEntityNum].Position.Base[1] != lastPosition[eventclientnum].Y
+                                || snap.Entities[snapEntityNum].Position.Base[2] != lastPosition[eventclientnum].Z)
+                        )
+                        {
+                            PrintPositionToLevelshot(new Vector4()
+                            {
+                                X = snap.Entities[snapEntityNum].Position.Base[0],
+                                Y = snap.Entities[snapEntityNum].Position.Base[1],
+                                Z = snap.Entities[snapEntityNum].Position.Base[2],
+                                W = 1
+                            }, levelshotTeamColors[(int)infoPool.playerInfo[eventclientnum].team], infoPool.playerInfo[eventclientnum].confirmedBot || infoPool.playerInfo[eventclientnum].confirmedJKWatcherFightbot);
+
+                            // silly :P hope this breaks nothing, like block detection
+                            lastPosition[eventclientnum].X = snap.Entities[snapEntityNum].Position.Base[0];
+                            lastPosition[eventclientnum].Y = snap.Entities[snapEntityNum].Position.Base[1];
+                            lastPosition[eventclientnum].Z = snap.Entities[snapEntityNum].Position.Base[2];
+                        }
                     }
 
                     if (mohMode && !mohFreezeTagDetected && snap.Entities[snapEntityNum].EntityType == 8) // ET _BEAM
