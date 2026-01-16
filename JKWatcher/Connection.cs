@@ -1207,7 +1207,7 @@ namespace JKWatcher
         {
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
-
+            HandleMapChangeCmds(mapChangeType.SVCMapChange,infoPool.MapName,null);
             serverWindow.SaveLevelshot(infoPool.levelShot, false, 200, 10.0, "_SVC_MAPCHANGE");
         }
 
@@ -4754,6 +4754,7 @@ namespace JKWatcher
                     resetThisGameStats();
                 }
             }
+            string oldMapNameBefore = oldMapName;
             if(obj.MapName != oldMapName)
             {
                 intermissionCamSet = false;
@@ -4771,7 +4772,7 @@ namespace JKWatcher
             }
             if (executeMapChangeCommands && this.HandleAutoCommands)
             {
-                ExecuteCommandList(_connectionOptions.mapChangeCommands,RequestCategory.MAPCHANGECOMMAND);
+                HandleMapChangeCmds(mapChangeType.GameStateMapChange, oldMapNameBefore, obj.MapName);
             }
 
             oldGameName = obj.GameName;
@@ -5226,6 +5227,39 @@ namespace JKWatcher
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
         List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats", "kls" };
 
+        enum mapChangeType { 
+            GameStateMapChange,
+            SVCMapChange,
+            MapRestart,
+            MapRestartEarly,
+        }
+
+        void HandleMapChangeCmds(mapChangeType changeType, string map, string newmap)
+        {
+            if(changeType == mapChangeType.GameStateMapChange || changeType == mapChangeType.MapRestart)
+            {
+                ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
+            }
+            ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
+            foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
+            {
+                if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.MAPCHANGE)
+                {
+                    // 1 = match real map changes (after map change), 2 = match svc_mapchange (before map change), 4 = match map_restarts
+                    int type = cmd.conditionVariable1.ToString().Atoi();
+                    int changeTypeBitted = (1 << (int)changeType);
+                    if ((type & changeTypeBitted) > 0)
+                    {
+                        string commands = cmd.commands
+                            .Replace("$map", string.IsNullOrWhiteSpace(map) ? "" : map, StringComparison.OrdinalIgnoreCase)
+                            .Replace("$newmap", string.IsNullOrWhiteSpace(newmap) ? "" : newmap, StringComparison.OrdinalIgnoreCase)
+                            .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);
+                        ExecuteCommandList(commands, cmd.getRequestCategory(), cmd.GetSpamLevelAsRequestBehavior<string, RequestCategory>());
+                    }
+                }
+            }
+        }
+
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
             string command = commandEventArgs.Command.Argv(0);
@@ -5328,7 +5362,9 @@ namespace JKWatcher
                     this.beQuietUntil = DateTime.Now + new TimeSpan(0,10,0); // Server owner requested us to be quiet for a while. Maybe he wants to debug things. Stop sending commands for 10 minutes.
                     break;
                 case "map_restart":
-                    if (this.HandleAutoCommands) ExecuteCommandList(_connectionOptions.mapChangeCommands, RequestCategory.MAPCHANGECOMMAND);
+                    if (this.HandleAutoCommands) {
+                        HandleMapChangeCmds(mapChangeType.MapRestart, infoPool.MapName, infoPool.MapName); 
+                    }
                     bool wasWarmup = warmup;
                     resetThisGameStats();
                     if (wasWarmup)
@@ -5518,6 +5554,10 @@ namespace JKWatcher
                 case (int)ConfigStringDefines.CS_WARMUP:
                     if(commandEventArgs.Command.Argv(2).Atoi() > 0)
                     {
+                        if (!warmup)
+                        { // avoid doing multiples
+                            HandleMapChangeCmds(mapChangeType.MapRestartEarly, infoPool.MapName, infoPool.MapName);
+                        }
                         warmup = true;
                     }
                     break;

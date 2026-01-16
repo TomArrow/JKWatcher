@@ -224,7 +224,8 @@ namespace JKWatcher
                 {
                     PRINT_CONTAINS, // conditionVariable is print output
                     CHAT_CONTAINS, // conditionVariable is chat output
-                    PLAYERACTIVE_MATCHNAME // conditionVariable is player name
+                    PLAYERACTIVE_MATCHNAME, // conditionVariable is player name
+                    MAPCHANGE, // conditionVariable: 1 = match real map changes (after map change), 2 = match svc_mapchange (before map change), 4 = match map_restarts
                 }
                 public ConditionType type;
                 public Regex conditionVariable1;
@@ -410,6 +411,9 @@ namespace JKWatcher
                                         break;
                                     case "playeractive_matchname":
                                         newCmd.type = ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME;
+                                        break;
+                                    case "mapchange":
+                                        newCmd.type = ConditionalCommand.ConditionType.MAPCHANGE;
                                         break;
                                     default:
                                         anyErrors = true;
