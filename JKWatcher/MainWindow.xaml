@@ -125,6 +125,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Ver" Binding="{Binding Version}" Visibility="{Binding Source={x:Reference allJK2VersionsCheck},Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}"></DataGridTextColumn>
                             <DataGridTextColumn Header="PW" Binding="{Binding NeedPassword}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="UDP" Binding="{Binding UDPDownloads}"></DataGridTextColumn>
                             <DataGridTextColumn Header="Cl" Binding="{Binding ClientsIncludingBots}"></DataGridTextColumn>
                             <DataGridTextColumn Header="RCl" Binding="{Binding RealClients}"></DataGridTextColumn>
                             <DataGridTextColumn Header="Max" Binding="{Binding MaxClients}"></DataGridTextColumn>

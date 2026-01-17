@@ -15,6 +15,7 @@ namespace JKWatcher
         public struct PakDownload
         {
             public string pak;
+            public string pakSavename;
             public int hash;
         }
         private static ConcurrentQueue<PakDownload> filesToDownload = new ConcurrentQueue<PakDownload>();
@@ -22,9 +23,11 @@ namespace JKWatcher
         static Mutex isRunningMutex = new Mutex();
         static bool isRunning = false;
 
-        static string[] fileNameIgnoreList = { "assets0", "assets1", "assets2", "assets5" }; // Don't download these, we have them. lol
+        public static string[] fileNameIgnoreList = { "assets0", "assets1", "assets2","assets3", "assets5" }; // Don't download these, we have them. lol
 
-        static public void Enqueue(string pakUrl, int hash)
+
+
+        static public void Enqueue(string pakUrl, string pakSavename, int hash)
         {
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(pakUrl);
             if(Array.IndexOf(fileNameIgnoreList,fileNameWithoutExt) > -1)
@@ -32,7 +35,7 @@ namespace JKWatcher
                 return;
             }
 
-            filesToDownload.Enqueue(new PakDownload {hash=hash,pak=pakUrl });
+            filesToDownload.Enqueue(new PakDownload {hash=hash,pak=pakUrl,pakSavename= pakSavename });
             lock (isRunningMutex)
             {
                 if (!isRunning)
@@ -42,7 +45,7 @@ namespace JKWatcher
                         {
                             isRunning = false;
                         }
-                    }),$"PakDownloader ({pakUrl},{hash})");
+                    }),$"PakDownloader ({pakUrl},{pakSavename},{hash})");
                     isRunning = true;
                 } else
                 {
@@ -59,7 +62,7 @@ namespace JKWatcher
                 PakDownload currentDownload;
                 while (filesToDownload.TryDequeue(out currentDownload))
                 {
-                    string targetFilename = Path.GetFileNameWithoutExtension(currentDownload.pak) +"_"+Convert.ToHexString(BitConverter.GetBytes(currentDownload.hash)) + Path.GetExtension(currentDownload.pak);
+                    string targetFilename = Path.GetFileNameWithoutExtension(currentDownload.pakSavename) +"_"+Convert.ToHexString(BitConverter.GetBytes(currentDownload.hash)) + Path.GetExtension(currentDownload.pakSavename);
                     string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","pakDownloads", targetFilename);
                     if (!File.Exists(targetPath))
                     {
