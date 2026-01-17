@@ -10,7 +10,7 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <OutputPath></OutputPath>
+    <OutputPath>jka</OutputPath>
     <WarningsAsErrors>;NU1605</WarningsAsErrors>
     <DefineConstants>TRACE</DefineConstants>
   </PropertyGroup>
