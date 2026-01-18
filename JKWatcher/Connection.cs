@@ -1221,7 +1221,7 @@ namespace JKWatcher
                     }
                     else
                     {
-                        serverWindow.addToLog($"Cannot save UDP downloaded file, file already exists: {e.localName} ({e.remoteName} ... {e.checksum})");
+                        serverWindow.addToLog($"Cannot save UDP downloaded file, file already exists: {e.localName} ({e.remoteName} ... {e.checksum})",true);
                     }
                 }
             }
@@ -4661,6 +4661,15 @@ namespace JKWatcher
 
         TommyTernalFlags ttFlags = 0;
 
+        //class UDPDownloadRequest {
+        //    public string localName = "";
+        //    public string remoteName = "";
+        //    public int checksum = 0;;
+        ////}
+
+
+        //Queue<UDPDownloadRequest> udpRequestQueue = new Queue<UDPDownloadRequest>();
+
         // Update player list
         private void Connection_ServerInfoChanged(ServerInfo obj, bool newGameState, bool firstGamestateClient) // TODO Check if there's stuff in here that actually needs to be updated more often (this isnt called on ALL configstring changes)
         {
@@ -4820,10 +4829,13 @@ namespace JKWatcher
 
                 string lastKnownPakNamesCaptured = lastKnownPakNames; // Capture for parallel thread
                 string lastKnownPakChecksumsCaptured = lastKnownPakChecksums;
-                bool httpSuccess = false;
-                if(mvHttpDownloadInfo == null || mvHttpDownloadInfo.Value.httpIsAvailable){
+                bool udpActive = obj.UDPDownloads;
+                if (mvHttpDownloadInfo == null || mvHttpDownloadInfo.Value.httpIsAvailable || udpActive)
+                {
+
                     serverWindow.addToLog("Systeminfo: Referenced paks changed, trying to save to download list.");
                     TaskManager.TaskRun(async () => {
+                        bool httpSuccess = false;
                         string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ");
                         string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ");
                         if(pakNames.Length != pakChecksums.Length)
@@ -4910,6 +4922,10 @@ namespace JKWatcher
                             for(int pkI = 0; pkI<pakNames.Length; pkI++)
                             {
                                 string pakName = pakNames[pkI];
+                                if (PakDownloader.fileNameIgnoreList.Contains(Path.GetFileNameWithoutExtension(pakName)))
+                                {
+                                    continue;
+                                }
                                 string pakChecksum = pakChecksums[pkI];
                                 int pakChecksumInt;
                                 if (int.TryParse(pakChecksum, out pakChecksumInt))
@@ -4917,11 +4933,13 @@ namespace JKWatcher
                                     string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
                                     string suffixTest = $"_{hashString}";
                                     string rawpakname = pakName;
+                                    // TODO remove dl_ prefix too
                                     if (pakName.EndsWith(suffixTest) && pakName.Length > suffixTest.Length) // if we reuploaded our downloaded one, don't redownload it.
                                     {
                                         pakName = pakName.Substring(0, pakName.Length - suffixTest.Length);
                                     }
                                     string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + rawpakname + ".pk3";
+                                    pakName += ".pk3";
                                     serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
                                     downloadLinks.Add($"{pakName},{hashString},{dlLink}");
                                     PakDownloader.Enqueue(dlLink, pakName, pakChecksumInt);
@@ -4936,80 +4954,80 @@ namespace JKWatcher
                                 Helpers.logDownloadLinks(downloadLinksArray);
                             });
                         }
+                        else
+                        {
+                            serverWindow.addToLog("Systeminfo: Referenced paks changed, but http downloads are disabled.");
+                        }
 
 
-                    }, $"Pak HTTP Downloader ({ip},{serverWindow.ServerName})");
+                        if (udpActive && !httpSuccess)
+                        {
+                            serverWindow.addToLog("^2Trying UDP download.");
+                            client?.EndDownloads();
+                            
+                            List<string> udpLog = new List<string>();
+                            for (int pkI = 0; pkI < pakNames.Length; pkI++)
+                            {
+                                string pakName = pakNames[pkI];
+                                if (PakDownloader.fileNameIgnoreList.Contains(Path.GetFileNameWithoutExtension(pakName)))
+                                {
+                                    continue;
+                                }
+                                string pakChecksum = pakChecksums[pkI];
+                                int pakChecksumInt;
+                                if (int.TryParse(pakChecksum, out pakChecksumInt))
+                                {
+                                    string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
+                                    string suffixTest = $"_{hashString}";
+                                    string rawPakname = pakName;
+                                    // TODO remove dl_ prefix too
+                                    if (pakName.EndsWith(suffixTest) && pakName.Length > suffixTest.Length) // if we reuploaded our downloaded one, don't redownload it.
+                                    {
+                                        pakName = pakName.Substring(0, pakName.Length - suffixTest.Length); // oh wait, that will break things no?
+                                    }
+
+                                    pakName += ".pk3";
+                                    rawPakname += ".pk3";
+
+                                    string targetFilename = Path.GetFileNameWithoutExtension(pakName) + "_" + Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt)) + Path.GetExtension(pakName);
+                                    string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads", targetFilename);
+                                    string targetPath2 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP", targetFilename);
+                                    if (!File.Exists(targetPath) && !File.Exists(targetPath2))
+                                    {
+                                        serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
+                                        udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
+                                        client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
+                                        //udpRequestQueue.Enqueue(new UDPDownloadRequest() { remoteName=rawPakname,localName=pakName,checksum= pakChecksumInt });
+                                    }
+
+                                    //string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
+                                    //serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
+                                    //downloadLinks.Add($"{pakName},{hashString},{dlLink}");
+                                    //PakDownloader.Enqueue(dlLink, pakChecksumInt);
+                                }
+                                else
+                                {
+                                    serverWindow.addToLog("Could not parse checksum integer, strange. Discarding.");
+                                }
+                            }
+                            if (udpLog.Count > 0)
+                            {
+                                Helpers.logToSpecificDebugFile(udpLog.ToArray(), "udpDownloadLog.log", true);
+                            }
+                        }
+                        else if (!httpSuccess)
+                        {
+                            serverWindow.addToLog("Systeminfo: Referenced paks changed, but UDP downloads are disabled as well.");
+                        }
+
+                    }, $"Pak HTTP Downloader/UDP Requester ({ip},{serverWindow.ServerName})");
                 }
                 else
                 {
-                    serverWindow.addToLog("Systeminfo: Referenced paks changed, but http downloads are disabled.");
+                    serverWindow.addToLog("Systeminfo: Referenced paks changed, but all download options are disabled.");
                 }
 
-                if (obj.UDPDownloads && !httpSuccess)
-                {
-                    serverWindow.addToLog("^2Trying UDP download.");
-                    client?.ResetDownloads();
-                    string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ");
-                    string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ");
-                    do
-                    {
-                        if (pakNames.Length != pakChecksums.Length)
-                        {
-                            serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
-                            break;
-                        }
-                        else if (pakNames.Length == 0)
-                        {
-                            serverWindow.addToLog("Referenced paks count is 0.");
-                            break;
-                        }
-                        for (int pkI = 0; pkI < pakNames.Length; pkI++)
-                        {
-                            string pakName = pakNames[pkI];
-                            if (PakDownloader.fileNameIgnoreList.Contains(Path.GetFileNameWithoutExtension(pakName)))
-                            {
-                                continue;
-                            }
-                            string pakChecksum = pakChecksums[pkI];
-                            int pakChecksumInt;
-                            if (int.TryParse(pakChecksum, out pakChecksumInt))
-                            {
-                                string hashString = Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt));
-                                string suffixTest = $"_{hashString}";
-                                string rawPakname = pakName;
-                                if (pakName.EndsWith(suffixTest) && pakName.Length > suffixTest.Length) // if we reuploaded our downloaded one, don't redownload it.
-                                {
-                                    pakName = pakName.Substring(0, pakName.Length - suffixTest.Length); // oh wait, that will break things no?
-                                }
-
-                                pakName += ".pk3";
-                                rawPakname += ".pk3";
-
-                                string targetFilename = Path.GetFileNameWithoutExtension(pakName) + "_" + Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt)) + Path.GetExtension(pakName);
-                                string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads", targetFilename);
-                                string targetPath2 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP", targetFilename);
-                                if (!File.Exists(targetPath) && !File.Exists(targetPath2))
-                                {
-                                    serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
-                                    client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
-                                }
-
-                                //string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
-                                //serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
-                                //downloadLinks.Add($"{pakName},{hashString},{dlLink}");
-                                //PakDownloader.Enqueue(dlLink, pakChecksumInt);
-                            }
-                            else
-                            {
-                                serverWindow.addToLog("Could not parse checksum integer, strange. Discarding.");
-                            }
-                        }
-                    } while (false);
-                }
-                else if (!httpSuccess)
-                {
-                    serverWindow.addToLog("Systeminfo: Referenced paks changed, but UDP downloads are disabled as well.");
-                }
+                
             }
 
             ClientNum = client.clientNum;
