@@ -629,7 +629,7 @@ namespace JKWatcher
                 {
                     usedNames.Add(value);
                 }
-                if (!PadawanNameMatch.Match(Q3ColorFormatter.cleanupString(value)).Success && !string.IsNullOrWhiteSpace(value))
+                if (!PadawanNameMatch.Match(Q3ColorFormatter.cleanupString(value, infoPool.hexSupport)).Success && !string.IsNullOrWhiteSpace(value))
                 {
                     LastNonPadawanName = value;
                 }
@@ -1499,6 +1499,7 @@ namespace JKWatcher
         public DateTime lastAnyFlagSeen = DateTime.Now - new TimeSpan(10, 0, 0);
         public int sillyBodyguardPlayer = -1;
         public bool NWHDetected = false;
+        public Q3ColorFormatter.HexColorSupport hexSupport = Q3ColorFormatter.HexColorSupport.Basic;
         public bool mohMode = false;
         public GameType gameType;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
@@ -1799,7 +1800,7 @@ namespace JKWatcher
             List<int> clientNumsNoColorCaseInsensitiveMatch = new List<int>();
 
             string lowerCaseName = searchString.ToLower();
-            string noColorName = Q3ColorFormatter.cleanupString(searchString);
+            string noColorName = Q3ColorFormatter.cleanupString(searchString, hexSupport);
             string noColorLowercaseName = noColorName.ToLower();
 
             foreach (PlayerInfo pi in playerInfo)
@@ -1807,7 +1808,7 @@ namespace JKWatcher
                 if (pi.infoValid && ((1 << (int)pi.session.team) & teamBitMask)>0)
                 {
                     string compareLowerCaseName = pi.session.name.ToLower();
-                    string compareNoColorName = Q3ColorFormatter.cleanupString(pi.session.name);
+                    string compareNoColorName = Q3ColorFormatter.cleanupString(pi.session.name, hexSupport);
                     string compareNoColorLowercaseName = compareNoColorName.ToLower();
 
                     if (pi.session.name.Contains(searchString))

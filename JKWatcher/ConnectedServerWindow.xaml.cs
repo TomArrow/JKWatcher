@@ -1951,7 +1951,7 @@ namespace JKWatcher
 
                 foreach (string stringToAdd in stringsToAdd)
                 {
-                    Run[] runs = Q3ColorFormatter.Q3StringToInlineArray(stringToAdd);
+                    Run[] runs = Q3ColorFormatter.Q3StringToInlineArray(stringToAdd, infoPool.hexSupport);
                     if (runs.Length == 0) continue;
                     linesToAdd.AddRange(runs);
                     linesToAdd.Add(new LineBreak());

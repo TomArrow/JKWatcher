@@ -4748,6 +4748,12 @@ namespace JKWatcher
             {
                 this.NWHDetected = true;
                 infoPool.NWHDetected = true;
+                infoPool.hexSupport = Q3ColorFormatter.HexColorSupport.Lenient;
+                Q3StringToPlaintextConverter textConverter = (Q3StringToPlaintextConverter)serverWindow.Resources["q3StringToPlaintextConverter"];
+                if(textConverter != null)
+                {
+                    textConverter.hexSupport = Q3ColorFormatter.HexColorSupport.Lenient;
+                }
             } else if(obj.GameName.Contains("Movie Battles II", StringComparison.OrdinalIgnoreCase))
             {
                 if (!this.MBIIDetected)
@@ -5164,7 +5170,7 @@ namespace JKWatcher
                                 ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                                 foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                                 {
-                                    if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name)).Success))
+                                    if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PLAYERACTIVE_MATCHNAME && (cmd.conditionVariable1.Match(client.ClientInfo[i].Name).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(client.ClientInfo[i].Name,infoPool.hexSupport)).Success))
                                     {
                                         string commands = cmd.commands
                                             .Replace("$name", client.ClientInfo[i].Name, StringComparison.OrdinalIgnoreCase)
@@ -5749,7 +5755,7 @@ namespace JKWatcher
                     ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                     foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                     {
-                        if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PRINT_CONTAINS && (cmd.conditionVariable1.Match(printText).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(printText)).Success))
+                        if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.PRINT_CONTAINS && (cmd.conditionVariable1.Match(printText).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(printText, infoPool.hexSupport)).Success))
                         {
                             string commands = cmd.commands
                                     .Replace("$myclientnum", this.ClientNum.GetValueOrDefault(-1).ToString(), StringComparison.OrdinalIgnoreCase);

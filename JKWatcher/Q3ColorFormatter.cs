@@ -12,14 +12,20 @@ using System.Windows.Media;
 
 namespace JKWatcher
 {
-    static class Q3ColorFormatter
+    public static class Q3ColorFormatter
     {
 
+        public enum HexColorSupport { 
+            None,
+            Basic,
+            Lenient
+        }
 
 
         static Dictionary<char,int> hexColorStarters = new Dictionary<char,int> { { 'x', 3 },{ 'X',6 },{ 'y', 4 },{ 'Y',8 } };
         // Don't get confused. The "^" in the regex string actually just makes sure it's the beginning of the string. It's not literally matching the "^" even tho it seems that way
         static Regex hexColorRegex = new Regex("^x[0-9a-fA-F]{3}|^y[0-9a-fA-F]{4}|^X[0-9a-fA-F]{6}|^Y[0-9a-fA-F]{8}", RegexOptions.Compiled);
+        static Regex hexColorLenientRegex = new Regex("^x.{3}|^y.{4}|^X.{6}|^Y.{8}", RegexOptions.Compiled);
 
         static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
 
@@ -84,7 +90,7 @@ namespace JKWatcher
             return regions.ToArray();
         }
         
-        public static bool DrawStringQ3<T>(this Drawing.Graphics g, string? s, Drawing.Font font, T layoutRectangle, Drawing.StringFormat? format, bool hexSupport = true, bool contrastSafety = true)
+        public static bool DrawStringQ3<T>(this Drawing.Graphics g, string? s, Drawing.Font font, T layoutRectangle, Drawing.StringFormat? format, HexColorSupport hexSupport = HexColorSupport.Basic, bool contrastSafety = true)
         {
             if (string.IsNullOrWhiteSpace(s)) return true;
 
@@ -151,7 +157,7 @@ namespace JKWatcher
             return true;
         }
 
-        public static Run[] Q3StringToInlineArray(string q3String, bool hexSupport = true, bool contrastSafety=true)
+        public static Run[] Q3StringToInlineArray(string q3String, HexColorSupport hexSupport = HexColorSupport.Basic, bool contrastSafety=true)
         {
             List<Run> runs = new List<Run>();
             StringBuilder sb = new StringBuilder();
@@ -213,7 +219,7 @@ namespace JKWatcher
 
                         // Color is being specified. This
                         int length;
-                        Vector4 color = parseColor(ref q3String,i+1,out length,hexSupport);
+                        Vector4 color = parseColor(q3String,i+1,out length,hexSupport);
                         i += length;
                         if(colorsParsed %2 == 0)
                         {
@@ -266,7 +272,7 @@ namespace JKWatcher
         }
 
         // Returns arrays of chars for fore- and background
-        public static (ColoredChar[], ColoredChar[]) Q3StringToColoredCharArrays(string q3String, bool hexSupport = true, bool contrastSafety = true)
+        public static (ColoredChar[], ColoredChar[]) Q3StringToColoredCharArrays(string q3String, HexColorSupport hexSupport = HexColorSupport.Basic, bool contrastSafety = true)
         {
             List<ColoredChar> chars = new List<ColoredChar>();
             List<ColoredChar> charsBg = new List<ColoredChar>();
@@ -283,7 +289,7 @@ namespace JKWatcher
             return (chars.ToArray(),charsBg.ToArray());
         }
 
-        public static ColoredString[] Q3StringToColoredStringArray(string q3String, bool hexSupport = true, bool contrastSafety=true)
+        public static ColoredString[] Q3StringToColoredStringArray(string q3String, HexColorSupport hexSupport = HexColorSupport.Basic, bool contrastSafety=true)
         {
             List<ColoredString> runs = new List<ColoredString>();
             StringBuilder sb = new StringBuilder();
@@ -345,7 +351,7 @@ namespace JKWatcher
 
                         // Color is being specified. This
                         int length;
-                        Vector4 color = parseColor(ref q3String,i+1,out length,hexSupport);
+                        Vector4 color = parseColor(q3String,i+1,out length,hexSupport);
                         i += length;
                         if(colorsParsed %2 == 0)
                         {
@@ -397,7 +403,7 @@ namespace JKWatcher
             return runs.ToArray();
         }
         
-        public static string cleanupString(string q3String, bool hexSupport = true)
+        public static string cleanupString(string q3String, HexColorSupport hexSupport)
         {
             if (q3String is null) return null;
             //List<Run> runs = new List<Run>();
@@ -423,7 +429,7 @@ namespace JKWatcher
                         
                         // Color is being specified. This
                         int length;
-                        Vector4 color = parseColor(ref q3String,i+1,out length,hexSupport);
+                        Vector4 color = parseColor(q3String,i+1,out length,hexSupport);
                         i += length;
                     }
                 } else
@@ -437,7 +443,7 @@ namespace JKWatcher
 
         // Make each word its own token. colors become their own token too. not ideal or anything but eh :)
         // TODO make it take into account whether there was a space before/after colors? idk.
-        public static string[] tokenizeStringColors(string q3String, bool hexSupport = true)
+        public static string[] tokenizeStringColors(string q3String, HexColorSupport hexSupport = HexColorSupport.Basic)
         {
             if (q3String is null) return null;
             //List<Run> runs = new List<Run>();
@@ -464,7 +470,7 @@ namespace JKWatcher
 
                         // Color is being specified. This
                         int length;
-                        Vector4 color = parseColor(ref q3String, i + 1, out length, hexSupport);
+                        Vector4 color = parseColor(q3String, i + 1, out length, hexSupport);
                         if (currentToken.Length > 0)
                         {
                             tokens.Add(currentToken.ToString());
@@ -621,14 +627,14 @@ namespace JKWatcher
             return (byte)Math.Clamp(color*255f,0f,255f);
         }
 
-        private static Vector4 parseColor(ref string inputString,int startIndex, out int length, bool hexSupport)
+        private static Vector4 parseColor(string inputString,int startIndex, out int length, HexColorSupport hexSupport)
         {
             int charsLeft = inputString.Length - startIndex;
             char firstChar = inputString[startIndex];
-            if (hexSupport && hexColorStarters.ContainsKey(firstChar) && charsLeft > hexColorStarters[firstChar])
+            if (hexSupport > HexColorSupport.None && hexColorStarters.ContainsKey(firstChar) && charsLeft > hexColorStarters[firstChar])
             {
                 string range = inputString.Substring(startIndex, hexColorStarters[firstChar]+1);
-                if (!hexColorRegex.IsMatch(range))
+                if (hexSupport != HexColorSupport.Lenient && !hexColorRegex.IsMatch(range) || hexSupport == HexColorSupport.Lenient && !hexColorLenientRegex.IsMatch(range))
                 {
                     // Interpret color as base jk2 color instead
                     length = 1;
@@ -639,6 +645,23 @@ namespace JKWatcher
                 Vector4 color = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 
                 length = hexColorStarters[firstChar] + 1;
+
+                if(hexSupport == HexColorSupport.Lenient)
+                {
+                    StringBuilder sanitizedInputString = new StringBuilder();
+                    sanitizedInputString.Append(inputString[startIndex]);
+                    for (int i = 1; i < length; i++)
+                    {
+                        char there = inputString[startIndex + i];
+                        if(!(there >= '0' && there <= '9' || there >= 'a' && there <= 'f' || there >= 'A' && there <= 'F'))
+                        {
+                            there = '0';
+                        }
+                        sanitizedInputString.Append(there);
+                    }
+                    inputString = sanitizedInputString.ToString();
+                    startIndex = 0; // eh kinda ugly
+                }
 
                 // Hex color parsing
                 switch (firstChar)
@@ -717,10 +740,11 @@ namespace JKWatcher
     // WPF
     public class Q3StringToPlaintextConverter : IValueConverter
     {
+        public Q3ColorFormatter.HexColorSupport hexSupport = Q3ColorFormatter.HexColorSupport.Basic;
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             if (value == null) return null;
-            return Q3ColorFormatter.cleanupString((string)value);
+            return Q3ColorFormatter.cleanupString((string)value, hexSupport);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)

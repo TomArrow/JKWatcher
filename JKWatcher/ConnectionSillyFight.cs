@@ -106,7 +106,7 @@ namespace JKWatcher
             {
 				foreach(string blockedName in fightBotNameBlacklist)
                 {
-					if (playerName.Contains(blockedName, StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(playerName).Contains(blockedName,StringComparison.OrdinalIgnoreCase))
+					if (playerName.Contains(blockedName, StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(playerName, infoPool.hexSupport).Contains(blockedName,StringComparison.OrdinalIgnoreCase))
 					{
 						serverWindow.addToLog($"Silly fighter player name blacklist match: {playerName} matches {blockedName}.",false,5000); // 5 second time out in case of weird userinfo spam
 						return true;

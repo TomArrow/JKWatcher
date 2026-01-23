@@ -752,7 +752,7 @@ namespace JKWatcher
                                             foreach(string excludeString in ffaAutoJoinExcludeList)
                                             {
                                                 //Match ipv4match;
-                                                if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
+                                                if(serverInfo.HostName.Contains(excludeString,StringComparison.OrdinalIgnoreCase) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(excludeString, StringComparison.OrdinalIgnoreCase))
                                                 {
                                                     serverIsExcluded = true;
                                                     break;
@@ -1795,7 +1795,7 @@ namespace JKWatcher
                 UpdateDailyChance();
                 matchesButMightNotMeetRequirements = false;
                 if (serverInfo.HostName == null) return false;
-                bool matched = serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName).Contains(Q3ColorFormatter.cleanupString(hostName)));
+                bool matched = serverInfo.Address == ip || hostName != null && (serverInfo.HostName.Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(hostName) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(Q3ColorFormatter.cleanupString(hostName, Q3ColorFormatter.HexColorSupport.Basic)));
                 if (generic || matched) // Improve this to also find non-colorcoded terms etc
                 {
                     if (!lastMapNames.ContainsKey(serverInfo.Address) || lastMapNames[serverInfo.Address] != serverInfo.MapName)

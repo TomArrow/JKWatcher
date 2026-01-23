@@ -34,7 +34,7 @@ namespace JKWatcher
             Int64 index = 0;
             foreach(string line in lines)
             {
-                string[] tokens = Q3ColorFormatter.tokenizeStringColors(line, true);
+                string[] tokens = Q3ColorFormatter.tokenizeStringColors(line, Q3ColorFormatter.HexColorSupport.Basic);
                 for(int i = 0; i < tokens.Length; i++)
                 {
                     tokens[i] = string.Intern(tokens[i]); // Save a bit of RAM :)
@@ -118,7 +118,7 @@ namespace JKWatcher
             string[] previousReverse = null;
             if(!string.IsNullOrWhiteSpace(startString))
             {
-                string[] previousTokens = Q3ColorFormatter.tokenizeStringColors(startString,true);
+                string[] previousTokens = Q3ColorFormatter.tokenizeStringColors(startString, Q3ColorFormatter.HexColorSupport.Basic);
                 if(previousTokens != null && previousTokens.Length > 0)
                 {
                     if (previousTokens.Length > 2)

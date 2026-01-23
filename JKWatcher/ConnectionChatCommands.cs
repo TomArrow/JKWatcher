@@ -99,7 +99,7 @@ namespace JKWatcher
             foreach(KeyValuePair<SessionPlayerInfo, KillTracker> kvp in trackers)
             {
                 if (kvp.Key == playerSession) continue; // dont count stuff on self. 
-                string name = Q3ColorFormatter.cleanupString(kvp.Key.GetNameOrLastNonPadaName());
+                string name = Q3ColorFormatter.cleanupString(kvp.Key.GetNameOrLastNonPadaName(), infoPool.hexSupport);
                 if (!string.IsNullOrWhiteSpace(name))
                 {
                     KillTracker theTracker = kvp.Value;
@@ -152,7 +152,7 @@ namespace JKWatcher
                 {
                     continue;
                 }
-                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.playerSessInfo.GetNameOrLastNonPadaName());
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.playerSessInfo.GetNameOrLastNonPadaName(),infoPool.hexSupport);
                 if (strippedName is null) continue;
                 if ((topRatingsString.Length + strippedName.Length) > 150)
                 {
@@ -191,7 +191,7 @@ namespace JKWatcher
             int entryindex = 0;
             foreach (var thisRating in entries)
             {
-                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.Item1);
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.Item1, infoPool.hexSupport);
                 if (strippedName is null) continue;
                 if ((dbsPercentagesString.Length + strippedName.Length) > 150)
                 {
@@ -289,7 +289,7 @@ namespace JKWatcher
                 if (maxLength < int.MaxValue && hasRecordHolder && mapTime.record > maxLength) continue;
                 if ((minLength > 0 || maxLength < int.MaxValue) && !hasRecordHolder) continue;
 
-                string cleanMapName = Q3ColorFormatter.cleanupString(mapTime.MapName.ToLowerInvariant());
+                string cleanMapName = Q3ColorFormatter.cleanupString(mapTime.MapName.ToLowerInvariant(), infoPool.hexSupport);
                 if (string.IsNullOrWhiteSpace(cleanMapName)) continue;
 
                 // mapname filtering
@@ -698,20 +698,20 @@ namespace JKWatcher
 
                     string myName = infoPool.playerInfo[myClientNum.Value].name;
                     string myNameNoSpecialChars = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(myName, "");
-                    string myNameNoSpecialCharsCleanedUp = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myName), "");
+                    string myNameNoSpecialCharsCleanedUp = myName==null ? null: playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myName, infoPool.hexSupport), "");
                     string myBasePlayerName = _connectionOptions.userInfoName;
                     if (_connectionOptions.userInfoName == null)
                     {
                         myBasePlayerName = "Padawan";
                     }
                     string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
-                    string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName), "");
+                    string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName, infoPool.hexSupport), "");
 
                     bool notifyIfMention = !pm.commandComesFromJKWatcher && !infoPool.playerInfo[pm.playerNum].confirmedBot && !infoPool.playerInfo[pm.playerNum].confirmedJKWatcherFightbot; // dont flash taskbar icon if its only some phrase from a bot or some response by us
-                    if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
+                    if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName, infoPool.hexSupport), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, notifyIfMention ? ConnectedServerWindow.MentionLevel.MentionNotify : ConnectedServerWindow.MentionLevel.Mention);
-                    } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
+                    } else if (myBasePlayerName != null && (pm.message.Contains(myBasePlayerName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myBasePlayerName, infoPool.hexSupport), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myBasePlayerNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME (basename): {commandEventArgs.Command.Argv(1)}", false, 0, 0, notifyIfMention ? ConnectedServerWindow.MentionLevel.MentionNotify : ConnectedServerWindow.MentionLevel.Mention);
                     }
@@ -722,7 +722,7 @@ namespace JKWatcher
                         ConditionalCommand[] conditionalCommands = _connectionOptions.conditionalCommandsParsed;
                         foreach (ConditionalCommand cmd in conditionalCommands) // TODO This seems inefficient, hmm
                         {
-                            if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message)).Success))
+                            if ((!cmd.mainConnectionOnly || this.IsMainChatConnection) && cmd.type == ConditionalCommand.ConditionType.CHAT_CONTAINS && (cmd.conditionVariable1.Match(pm.message).Success || cmd.conditionVariable1.Match(Q3ColorFormatter.cleanupString(pm.message, infoPool.hexSupport)).Success))
                             {
                                 string commands = cmd.commands
                                     .Replace("$name", pm.playerName, StringComparison.OrdinalIgnoreCase)
@@ -2957,7 +2957,7 @@ namespace JKWatcher
         string GailyString(string strA)
         {
             StringBuilder sb = new StringBuilder();
-            string str = Q3ColorFormatter.cleanupString(strA);
+            string str = Q3ColorFormatter.cleanupString(strA, infoPool.hexSupport);
             Random rnd = new Random();
             for(int i = 0; i < str.Length; i++)
             {
