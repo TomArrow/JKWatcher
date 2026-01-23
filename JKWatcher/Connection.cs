@@ -1046,6 +1046,15 @@ namespace JKWatcher
             }
         }
 
+        //class UserInfoExtravals : INotifyPropertyChanged
+        //{
+        //    public string ip = "";
+        //    public Int64 serverWindowConnectTime = -1;
+        //
+        //    public event PropertyChangedEventHandler PropertyChanged;
+        //}
+
+
         private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
         {
             if (closedDown) return false;
@@ -1085,6 +1094,9 @@ namespace JKWatcher
 
             //client.Name = "Padawan";
             client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
+
+            client.SetUserInfoKeyValue("g_redteam",$"dcut:{serverWindow.ConnectUnixTime},svip:{ip.ToString()}");
+
             if (jkaMode) // TODO Detect mods and proceed accordingly
             {
                 CheckSumFile[] checkSumFiles = new CheckSumFile[]{
