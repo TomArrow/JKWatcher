@@ -5397,6 +5397,46 @@ namespace JKWatcher
             }
         }
 
+        void KickDetectedMaybeDisconnect()
+        {
+            serverWindow.Dispatcher.BeginInvoke(() => {
+
+                lock (kickInfo)
+                {
+                    int validClientCount = 0;
+                    int privateClientCount = 0;
+                    foreach (PlayerInfo pi in infoPool.playerInfo)
+                    {
+                        if (pi.infoValid)
+                        {
+                            if (pi.clientNum < serverPrivateClientsSetting)
+                            {
+                                privateClientCount++;
+                            }
+                            validClientCount++;
+                        }
+                    }
+                    string status = $"Status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).";
+
+
+                    List<string> kickDebugInfo = new List<string>();
+                    kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                    kickDebugInfo.Add(serverWindow.Title);
+                    kickDebugInfo.Add(status);
+                    kickDebugInfo.AddRange(kickInfo);
+                    kickDebugInfo.Add("\n");
+                    Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
+                    kickInfo.Clear();
+                }
+            });
+
+            if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
+            {
+                serverWindow.addToLog("KICK DISCONNECT TRIGGER: Kick detected. Disconnecting.");
+                serverWindow.requestClose(true);
+            }
+        }
+
         void ServerCommandExecuted(CommandEventArgs commandEventArgs)
         {
             string command = commandEventArgs.Command.Argv(0);
@@ -5409,42 +5449,7 @@ namespace JKWatcher
                         LastTimeConfirmedKicked = DateTime.Now;
                         serverWindow.addToLog("KICK DETECTION: Disconnect after kick detection");
 
-                        serverWindow.Dispatcher.BeginInvoke(()=> {
-
-                            lock (kickInfo)
-                            {
-                                int validClientCount = 0;
-                                int privateClientCount = 0;
-                                foreach (PlayerInfo pi in infoPool.playerInfo)
-                                {
-                                    if (pi.infoValid)
-                                    {
-                                        if (pi.clientNum < serverPrivateClientsSetting)
-                                        {
-                                            privateClientCount++;
-                                        }
-                                        validClientCount++;
-                                    }
-                                }
-                                string status = $"Status: {validClientCount} valid clients, {serverMaxClientsLimit} server client limit, {privateClientCount}/{serverPrivateClientsSetting} private clients).";
-
-
-                                List<string> kickDebugInfo = new List<string>();
-                                kickDebugInfo.Add(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-                                kickDebugInfo.Add(serverWindow.Title);
-                                kickDebugInfo.Add(status);
-                                kickDebugInfo.AddRange(kickInfo);
-                                kickDebugInfo.Add("\n");
-                                Helpers.logToSpecificDebugFile(kickDebugInfo.ToArray(), "kickLog.log", true);
-                                kickInfo.Clear();
-                            }
-                        });
-
-                        if ((_connectionOptions.disconnectTriggersParsed & ConnectedServerWindow.ConnectionOptions.DisconnectTriggers.KICKED) > 0)
-                        {
-                            serverWindow.addToLog("KICK DISCONNECT TRIGGER: Kick detected. Disconnecting.");
-                            serverWindow.requestClose(true);
-                        }
+                        KickDetectedMaybeDisconnect();
                     }
                     break;
                 case "droperror": // MOH servers sometimes send this with optionally a reason
@@ -6117,6 +6122,12 @@ namespace JKWatcher
                     pauseEndedOrStarted = DateTime.Now;
                     gameIsPaused = false;
                     infoPool.gameIsPaused = false;
+                } else if ( 
+                   commandEventArgs.MessageNum == -1 && client?.Status == ConnectionStatus.Challenging && commandEventArgs.Command.Argv(1).Contains("You are banned", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawStringOrConcatenated());
+                    serverWindow.addToLog("KICK DETECTION: Ban during connect detected.");
+                    KickDetectedMaybeDisconnect();
                 }
             }
         }
