@@ -2804,7 +2804,7 @@ namespace JKWatcher
             }
             catch (Exception e2)
             {
-                Helpers.logToFile($"Error doing manual levelshot render (outer): {e.ToString()}");
+                Helpers.logToFile($"Error doing manual levelshot render (outer): {e2.ToString()}");
             }
         }
 
@@ -3101,6 +3101,12 @@ namespace JKWatcher
         private void checkNowBtn_Click(object sender, RoutedEventArgs e)
         {
             ctfConnecterSleepLeft = 0;
+        }
+
+        private void btnPointCloudRenderer_Click(object sender, RoutedEventArgs e)
+        {
+            Dialogs.PointCloudRenderer newWnd = new Dialogs.PointCloudRenderer();
+            newWnd.Show();
         }
     }
 }

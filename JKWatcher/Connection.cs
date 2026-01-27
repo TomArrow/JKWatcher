@@ -1095,7 +1095,10 @@ namespace JKWatcher
             //client.Name = "Padawan";
             client.Name = _connectionOptions.userInfoName == null ? "Padawan" : _connectionOptions.userInfoName;
 
-            client.SetUserInfoKeyValue("g_redteam",$"dcut:{serverWindow.ConnectUnixTime},svip:{ip.ToString()}");
+            if (!mohMode)
+            {
+                client.SetUserInfoKeyValue("g_redteam", $"dcut:{serverWindow.ConnectUnixTime},svip:{ip.ToString()}");
+            }
 
             if (jkaMode) // TODO Detect mods and proceed accordingly
             {

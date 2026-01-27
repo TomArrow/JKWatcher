@@ -236,6 +236,7 @@
 
                             <Button x:Name="btnRenderStackedLevelShot" Click="btnRenderStackedLevelShot_Click">Render stacked levelshot</Button>
                             <Button x:Name="btnRenderStackedMultipleLevelShot" Click="btnRenderStackedMultipleLevelShot_Click">Render levelshot (stack multiple files)</Button>
+                            <Button x:Name="btnPointCloudRenderer" Click="btnPointCloudRenderer_Click">Pointcloud renderer</Button>
                         </WrapPanel>
                     </GroupBox>
                     <GroupBox Header="Saberstuff">
