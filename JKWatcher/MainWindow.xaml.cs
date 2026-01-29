@@ -810,7 +810,7 @@ namespace JKWatcher
 
                                                 lock (connectedServerWindows)
                                                 {
-                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,null,new ConnectedServerWindow.ConnectionOptions(){ conditionalCommands = string.IsNullOrWhiteSpace(ffaAutoJoinConditionalCommands) ? null : ffaAutoJoinConditionalCommands, autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked,playercount_under:1:1200000" : null, proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo) });
+                                                    ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,"client0", new ConnectedServerWindow.ConnectionOptions(){ conditionalCommands = string.IsNullOrWhiteSpace(ffaAutoJoinConditionalCommands) ? null : ffaAutoJoinConditionalCommands, autoUpgradeToCTF = true, autoUpgradeToCTFWithStrobe = ctfAutoJoinWithStrobeActive, attachClientNumToName=false, demoTimeColorNames = false, silentMode = ffaAutoJoinSilentActive, disconnectTriggers = ffaAutoJoinKickable ? "kicked,playercount_under:1:1200000" : null, proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo) });
                                                     connectedServerWindows.Add(newWindow);
                                                     newWindow.Loaded += NewWindow_Loaded;
                                                     newWindow.Closed += NewWindow_Closed;
@@ -1521,7 +1521,7 @@ namespace JKWatcher
             public string hostName { get; init; } = null;
             public bool active { get; set; } = true;
             public string playerName { get; init; } = null;
-            public string password = null;
+            public string password { get; init; } = null;
             public bool autoRecord { get; init; } = false;
             public bool delayed { get; init; } = false;
             public int delayPerWatcher { get; init; } = 0;
