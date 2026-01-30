@@ -1,5 +1,7 @@
-﻿using JKWatcher.RandomHelpers;
+﻿using JKWatcher;
+using JKWatcher.RandomHelpers;
 //using LibVLCSharp.Shared;
+using FFmpeg.AutoGen;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -12,15 +14,16 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using PCRend.FFmpegStuff;
 
-namespace JKWatcher.Dialogs
+namespace PCRend
 {
     /// <summary>
     /// Interaction logic for PointCloudRenderer.xaml
     /// </summary>
-    public partial class PointCloudRenderer : Window
+    public partial class MainWindow : Window
     {
-        public PointCloudRenderer()
+        public MainWindow()
         {
             InitializeComponent();
         }
@@ -147,13 +150,13 @@ namespace JKWatcher.Dialogs
 
                     SaveFileDialog sfd = new SaveFileDialog();
                     sfd.Filter = "TIFF images (.tif;.tiff)|*.tif;*.tiff";
-                    sfd.FileName = Path.ChangeExtension(Path.GetFileName(filename),".tif");
+                    sfd.FileName = Path.ChangeExtension(Path.GetFileName(filename), ".tif");
                     sfd.InitialDirectory = Path.GetDirectoryName(filename);
 
-                    if(sfd.ShowDialog() == true)
+                    if (sfd.ShowDialog() == true)
                     {
                         string filenameOut = sfd.FileName;
-                        TaskManager.TaskRun(() => {
+                        Task.Run(() => {
                             try
                             {
                                 // do the drawing
@@ -172,7 +175,7 @@ namespace JKWatcher.Dialogs
                                     fs.Seek(0, SeekOrigin.Begin);
                                     using (BinaryReader br = new BinaryReader(fs))
                                     {
-                                        for(Int64 i =0;i< count; i++)
+                                        for (Int64 i = 0; i < count; i++)
                                         {
                                             Vector3 pos = new Vector3();
                                             Vector3 color = new Vector3();
@@ -202,7 +205,7 @@ namespace JKWatcher.Dialogs
 
                                 string filenameTiffString = filenameOut;
 
-                                SaveTiff(lsData.data,filenameTiffString);
+                                SaveTiff(lsData.data, filenameTiffString);
 
                                 string filenameString = System.IO.Path.GetFileNameWithoutExtension(filenameTiffString) + "_RENDER_" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                                 string imagesSubDir = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(filenameOut), "lsRender");
@@ -233,7 +236,7 @@ namespace JKWatcher.Dialogs
                             {
                                 Helpers.logToFile($"Error doing pointcloud render render: {ex.ToString()}");
                             }
-                        }, $"Pointcloud renderer {filename}");
+                        });
                     }
 
                 }
@@ -246,7 +249,7 @@ namespace JKWatcher.Dialogs
         }
 
 
-        private void videoTestBtn_Click(object sender, RoutedEventArgs e)
+        private unsafe void videoTestBtn_Click(object sender, RoutedEventArgs e)
         {
 
             try
@@ -255,35 +258,13 @@ namespace JKWatcher.Dialogs
 
                 var ofd = new Microsoft.Win32.OpenFileDialog();
                 //ofd.Filter = "Point cloud (.bin)|*.bin";
-
-                if(ofd.ShowDialog() == true)
+                string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native"); // todo make this nicer... cross-platform? oh well wpf is windumb anyway
+                ffmpeg.RootPath = test;
+                if (ofd.ShowDialog() == true)
                 {
-
-
-                    /*Total trash:
-                    Core.Initialize();
-                    using var libvlc = new LibVLC(enableDebugLogs: true);
-                    using var media = new Media(libvlc, ofd.FileName, FromType.FromPath);
-                    using var mediaplayer = new MediaPlayer(media);
-                    byte[] output = new byte[1920 * 1080 * 3];
-                    var outputHandle = GCHandle.Alloc(output, GCHandleType.Pinned);
-
-                    media.Parse(MediaParseOptions.ParseLocal);
-
-                    mediaplayer.SetVideoFormat("RV24", 1920, 1080, 1920*3);
-                    int index = 0;
-                    mediaplayer.SetVideoCallbacks((IntPtr opaque, IntPtr planes)=> {
-                        Debug.WriteLine("blah");
-                        Marshal.WriteIntPtr(planes, outputHandle.AddrOfPinnedObject());
-                        return IntPtr.Zero;
-                    }, null,(IntPtr a, IntPtr b)=> {
-
-                        Debug.WriteLine(index++);
-                    });
-                    mediaplayer.Play();
-
-                    System.Threading.Thread.Sleep(5000);
-                    outputHandle.Free();*/
+                    VideoStreamDecoder decoder = new VideoStreamDecoder(ofd.FileName);
+                    decoder.TryDecodeNextFrame(out AVFrame frame);
+                    Debug.WriteLine(frame.width);
                 }
             }
             catch (Exception e2)

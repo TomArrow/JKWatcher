@@ -83,7 +83,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="acryptohashnet" Version="2.0.0" />
+    <PackageReference Include="acryptohashnet" Version="3.0.1" />
     <PackageReference Include="AutoMapper" Version="12.0.1" />
     <PackageReference Include="BitMiracle.LibTiff.NET" Version="2.4.649" />
     <PackageReference Include="Fody" Version="6.6.0">
