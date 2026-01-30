@@ -2850,6 +2850,7 @@ namespace JKWatcher
             delBtn.IsEnabled = connectionsSelected;
             reconBtn.IsEnabled = connectionsSelected;
             statsBtn.IsEnabled = connectionsSelected;
+            configstringsBtn.IsEnabled = connectionsSelected;
             unselectBtn.IsEnabled = connectionsSelected;
             recordBtn.IsEnabled = connectionsSelected;
             stopRecordBtn.IsEnabled = connectionsSelected;
@@ -3653,6 +3654,22 @@ namespace JKWatcher
             }
         }
 
+        private void configstringsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (connections.Count == 0) return;
+
+            // we make a copy of the selected items because otherwise the command might change something
+            // that also results in a change of selecteditems and then it would only get the first item.
+            List<Connection> conns = connectionsDataGrid.SelectedItems.Cast<Connection>().ToList();
+
+            foreach (Connection conn in conns)
+            {
+                if (conn != null)
+                {
+                    new ConfigStringsViewWindow(conn.client?.ConfigStrings).Show();
+                }
+            }
+        }
 
         private void buttonHitBtn_Click(object sender, RoutedEventArgs e)
         {
