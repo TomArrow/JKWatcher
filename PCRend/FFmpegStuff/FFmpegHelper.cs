@@ -21,5 +21,17 @@ namespace PCRend.FFmpegStuff
             if (error < 0) throw new ApplicationException(av_strerror(error));
             return error;
         }
+
+        public static unsafe byte[] getpixel(this AVFrame frame, int x, int y)
+        {
+
+            int stride = frame.linesize[0];
+            byte* data = frame.data[0];
+            return new byte[3] {
+                *(data+y*stride + x*3),
+                *(data+y*stride + x*3+1),
+                *(data+y*stride + x*3+2),
+            };
+        }
     }
 }

@@ -248,7 +248,6 @@ namespace PCRend
 
         }
 
-
         private unsafe void videoTestBtn_Click(object sender, RoutedEventArgs e)
         {
 
@@ -262,9 +261,23 @@ namespace PCRend
                 ffmpeg.RootPath = test;
                 if (ofd.ShowDialog() == true)
                 {
-                    VideoStreamDecoder decoder = new VideoStreamDecoder(ofd.FileName);
-                    decoder.TryDecodeNextFrame(out AVFrame frame);
-                    Debug.WriteLine(frame.width);
+                    using (VideoStreamDecoder decoder = new VideoStreamDecoder(ofd.FileName))
+                    {
+                        using (VideoConverter converter = new VideoConverter(decoder.FrameSize, decoder.PixelFormat, decoder.FrameSize, AVPixelFormat.AV_PIX_FMT_RGB24))
+                        {
+                            decoder.TryDecodeNextFrame(out AVFrame frame);
+                            if (decoder.PixelFormat != AVPixelFormat.AV_PIX_FMT_RGB24)
+                            {
+                                frame = converter.Convert(frame);
+                            }
+                            int stride = frame.linesize[0];
+                            byte* data = frame.data[0];
+                            byte[] toppixel = frame.getpixel(0, 0);
+                            byte[] pixel = frame.getpixel(0, frame.height - 1);
+                            Debug.WriteLine(pixel);
+                            Debug.WriteLine(frame.width);
+                        }
+                    }
                 }
             }
             catch (Exception e2)
