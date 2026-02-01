@@ -17,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="FFmpeg.AutoGen" Version="8.0.0" />
     <PackageReference Include="FFmpeg.LGPL" Version="20260130.1.0" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.2" />
   </ItemGroup>
 
   <ItemGroup>

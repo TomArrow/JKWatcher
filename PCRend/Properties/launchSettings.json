@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "PCRend": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

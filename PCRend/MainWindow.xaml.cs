@@ -25,7 +25,40 @@ namespace PCRend
     {
         public MainWindow()
         {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             InitializeComponent();
+            //quickTest();
+        }
+
+        public unsafe void quickTest()
+        {
+
+           // char* test = testString();
+            char* test = parseVideoMetaToString((byte*)0,0,0,0,0,0,(UIntPtr*)0);
+            int strlen = 0;
+            byte* s = (byte*)test;
+            while (*s != '\0')
+            {
+                strlen++;
+                s++;
+            }
+            string testReadString = Encoding.GetEncoding("Windows-1252")?.GetString((byte*)test, strlen);
+            Debug.WriteLine(testReadString);    
+            freeVideoMetaString(test);
+
+        }
+
+        public unsafe string charPtrToString(byte* test)
+        {
+            int strlen = 0;
+            byte* s = (byte*)test;
+            while (*s != '\0')
+            {
+                strlen++;
+                s++;
+            }
+            string testReadString = Encoding.GetEncoding("Windows-1252")?.GetString((byte*)test, strlen);
+            return testReadString;
         }
 
         public bool SaveTiff(float[,,] lsData, string filenameString)
@@ -248,6 +281,13 @@ namespace PCRend
 
         }
 
+        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        public static extern unsafe char* testString();
+        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        public static extern unsafe char* parseVideoMetaToString(byte* buf, int width, int height, int totalHeight, int stride, int multiplier, UIntPtr* rgboffsets3Array);
+        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        public static extern unsafe char* freeVideoMetaString(char* metaString);
+
         private unsafe void videoTestBtn_Click(object sender, RoutedEventArgs e)
         {
 
@@ -272,10 +312,21 @@ namespace PCRend
                             }
                             int stride = frame.linesize[0];
                             byte* data = frame.data[0];
-                            byte[] toppixel = frame.getpixel(0, 0);
-                            byte[] pixel = frame.getpixel(0, frame.height - 1);
-                            Debug.WriteLine(pixel);
-                            Debug.WriteLine(frame.width);
+                            //byte[] toppixel = frame.getpixel(0, 0);
+                            //byte[] pixel = frame.getpixel(0, frame.height - 1);
+                            //UIntPtr[] rgbOffsets = new UIntPtr[4] {(UIntPtr)0, (UIntPtr)1, (UIntPtr)2, (UIntPtr)3 };
+                            UIntPtr[] rgbOffsets = new UIntPtr[4] {(UIntPtr)0, (UIntPtr)1, (UIntPtr)2, (UIntPtr)3 };
+
+                            byte* json = (byte*)0;
+                            fixed (UIntPtr* rgboff = rgbOffsets)
+                            {
+                                json =(byte*)parseVideoMetaToString((byte*)frame.data[0] + frame.linesize[0] * 720, 1280, 720, 720, frame.linesize[0], 3, rgboff);
+
+                                string jsonStr = charPtrToString(json); 
+
+                                //Debug.WriteLine(pixel);
+                                Debug.WriteLine(frame.width);
+                            }
                         }
                     }
                 }

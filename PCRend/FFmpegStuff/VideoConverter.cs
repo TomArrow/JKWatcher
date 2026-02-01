@@ -54,8 +54,7 @@ namespace PCRend.FFmpegStuff {
 
         public AVFrame Convert(AVFrame sourceFrame)
         {
-            //var dstData = new byte_ptrArray4();
-            //var dstLinesize = new int_array4();
+            // i feel like this is really dumb no? manually constructing the frame object and writing properties to it? lots of stuff wont be set.
             AVFrame newFrame = new AVFrame();
             for (uint i = 0; i < 4; i++)
             {
