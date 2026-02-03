@@ -568,7 +568,11 @@ namespace JKWatcher.RandomHelpers
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
 
-            string whenString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            DateTime now = DateTime.Now;
+            string whenString = now.ToString("yyyy-MM-dd HH:mm:ss");
+            DateTime? gameStartUniversalTime = infoPool.gameStartUniversalTime;
+            string whenStringStart = gameStartUniversalTime.HasValue ? gameStartUniversalTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : null;
+            Int64 millisecondsDurationReal = gameStartUniversalTime.HasValue ? (Int64)(now.ToUniversalTime() - gameStartUniversalTime.Value).TotalMilliseconds : 0;
             bool isIntermission = infoPool.isIntermission;
             GameStats gameStats = infoPool.gameStatsThisGame;
             string serverName = infoPool.ServerName;
@@ -1393,7 +1397,10 @@ namespace JKWatcher.RandomHelpers
                 ColumnInfo fakeColumn = new ColumnInfo("Score", 0, 1800, headerFont, (a) => { return winString; }, infoPool.hexSupport);
                 fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry()); // bit awkward but the drawing part is already nicely coded in this... too lazy to redo it, too lazy to abstract it.
                 posY += 30;
-                fakeColumn = new ColumnInfo("Playtime", 0, 1800, normalFont, (a) => { return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}"; }, infoPool.hexSupport);
+                fakeColumn = new ColumnInfo("Playtime", 0, 1800, normalFont, (a) => {
+                    string extraTimeString = whenStringStart == null ? "" : $", Date/Time (start): {whenStringStart}, Total (real): {FormatTime(millisecondsDurationReal)}";
+                    return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}{extraTimeString}";
+                }, infoPool.hexSupport);
                 fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
                 posY += 15;
                 fakeColumn = new ColumnInfo("Mapname(fake column)", 0, 1800, nameFont, (a) => { return $"{mapName} ^7( {serverName} ^7)"; }, infoPool.hexSupport);

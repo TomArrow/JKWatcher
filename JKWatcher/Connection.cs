@@ -4837,6 +4837,7 @@ namespace JKWatcher
 
             oldGameName = obj.GameName;
             infoPool.gameType = currentGameType = obj.GameType;
+            infoPool.gameStartUniversalTime = obj.GameStartUniversalTime;
             isDuelMode = obj.GameType == GameType.Duel || obj.GameType == GameType.PowerDuel;
 
 

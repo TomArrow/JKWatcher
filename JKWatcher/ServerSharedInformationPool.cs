@@ -1502,6 +1502,7 @@ namespace JKWatcher
         public Q3ColorFormatter.HexColorSupport hexSupport = Q3ColorFormatter.HexColorSupport.Basic;
         public bool mohMode = false;
         public GameType gameType;
+        public DateTime? gameStartUniversalTime = null;
         public bool sillyModeOneOf(params SillyMode[] sillyModes)
         {
             if (sillyModes.Contains(sillyMode))
