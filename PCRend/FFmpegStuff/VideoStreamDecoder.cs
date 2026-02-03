@@ -34,7 +34,8 @@ namespace PCRend.FFmpegStuff
                 ffmpeg.av_hwdevice_ctx_create(&_pCodecContext->hw_device_ctx, HWDeviceType, null, null, 0)
                     .ThrowExceptionIfError();
             }
-
+            TimeBase = _pFormatContext->streams[_streamIndex]->time_base;
+            TimeBaseDouble = ffmpeg.av_q2d(TimeBase);
             ffmpeg.avcodec_parameters_to_context(_pCodecContext, _pFormatContext->streams[_streamIndex]->codecpar)
                 .ThrowExceptionIfError();
             ffmpeg.avcodec_open2(_pCodecContext, codec, null).ThrowExceptionIfError();
@@ -50,6 +51,8 @@ namespace PCRend.FFmpegStuff
         public string CodecName { get; }
         public Size FrameSize { get; }
         public AVPixelFormat PixelFormat { get; }
+        public AVRational TimeBase { get; }
+        public double TimeBaseDouble { get; }
 
         public void Dispose()
         {

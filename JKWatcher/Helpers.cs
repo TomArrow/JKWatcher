@@ -17,6 +17,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Linq.Expressions;
+using System.Runtime.CompilerServices;
 
 namespace JKWatcher
 {
@@ -417,12 +418,14 @@ namespace JKWatcher
             return thestring.Length - minus;
         }
 
-        static public byte[] GetResourceData(string path)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static public byte[] GetResourceData(string path, bool callingAssembly = false, Type callingType = null)
         {
             path = path.Replace("\\",".");
             path = path.Replace("/",".");
-            var ass = System.Reflection.Assembly.GetExecutingAssembly();
-            var stream = ass.GetManifestResourceStream(typeof(Helpers),path);
+            var ass = callingAssembly ? System.Reflection.Assembly.GetCallingAssembly() : System.Reflection.Assembly.GetExecutingAssembly();
+            Type type = callingType != null ? callingType : typeof(Helpers);
+            var stream = ass.GetManifestResourceStream(type, path);
             if(stream != null)
             {
                 using (MemoryStream ms = new MemoryStream((int)stream.Length))

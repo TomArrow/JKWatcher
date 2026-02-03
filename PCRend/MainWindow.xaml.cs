@@ -15,6 +15,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using PCRend.FFmpegStuff;
+using System.Text.Json;
+using PCRend.VideoMeta;
 
 namespace PCRend
 {
@@ -286,7 +288,7 @@ namespace PCRend
         [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe char* parseVideoMetaToString(byte* buf, int width, int height, int totalHeight, int stride, int multiplier, UIntPtr* rgboffsets3Array);
         [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
-        public static extern unsafe char* freeVideoMetaString(char* metaString);
+        public static extern unsafe void freeVideoMetaString(char* metaString);
 
         private unsafe void videoTestBtn_Click(object sender, RoutedEventArgs e)
         {
@@ -294,6 +296,7 @@ namespace PCRend
             try
             { // just in case of some invalid directory or whatever
 
+                bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
 
                 var ofd = new Microsoft.Win32.OpenFileDialog();
                 //ofd.Filter = "Point cloud (.bin)|*.bin";
@@ -301,32 +304,108 @@ namespace PCRend
                 ffmpeg.RootPath = test;
                 if (ofd.ShowDialog() == true)
                 {
+                    StringBuilder subtitlesString = new StringBuilder();
+                    UIntPtr[] rgbOffsets = new UIntPtr[4] { (UIntPtr)0, (UIntPtr)1, (UIntPtr)2, (UIntPtr)3 };
+
+                    ConsoleState oldConsole = new ConsoleState();
+                    CenterPrintState oldCenterPrint = new CenterPrintState();
+                    List<Tuple<long,long,string>> subtitleEntries = new List<Tuple<long,long, string>>();
+
                     using (VideoStreamDecoder decoder = new VideoStreamDecoder(ofd.FileName))
                     {
                         using (VideoConverter converter = new VideoConverter(decoder.FrameSize, decoder.PixelFormat, decoder.FrameSize, AVPixelFormat.AV_PIX_FMT_RGB24))
                         {
-                            decoder.TryDecodeNextFrame(out AVFrame frame);
-                            if (decoder.PixelFormat != AVPixelFormat.AV_PIX_FMT_RGB24)
+                            while(decoder.TryDecodeNextFrame(out AVFrame frame))
                             {
-                                frame = converter.Convert(frame);
+                                double exactTime = (double)frame.best_effort_timestamp * decoder.TimeBaseDouble;
+                                long assTimeStamp = 100 * frame.best_effort_timestamp * decoder.TimeBase.num / decoder.TimeBase.den;
+                                var originalFrame = frame;
+                                if (decoder.PixelFormat != AVPixelFormat.AV_PIX_FMT_RGB24)
+                                {
+                                    frame = converter.Convert(frame);
+                                }
+                                int stride = frame.linesize[0];
+                                byte* data = frame.data[0];
+
+                                byte* json = (byte*)0;
+                                fixed (UIntPtr* rgboff = rgbOffsets)
+                                {
+                                    json = (byte*)parseVideoMetaToString((byte*)frame.data[0] + frame.linesize[0] * 720, 1280, 720, 720, frame.linesize[0], 3, rgboff);
+
+                                    string jsonStr = charPtrToString(json);
+
+                                    freeVideoMetaString((char*)json);
+
+                                    try
+                                    {
+                                        JsonSerializerOptions opts = new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
+                                        VideoMeta.VideoMeta meta = JsonSerializer.Deserialize<VideoMeta.VideoMeta>(jsonStr, opts);
+
+                                        ConsolelineSimple[] newLines = meta.getSimpleConsoleLines(3000,true);
+                                        if (!oldConsole.lines.SequenceEqualSafe(newLines))
+                                        {
+
+                                            Debug.WriteLine($"new console state at {exactTime}s");
+                                            if(oldConsole.lines != null && oldConsole.lines.Length > 0)
+                                            {
+                                                subtitleEntries.Add(new Tuple<long,long, string>(oldConsole.startTime,1,oldConsole.getASSString(assTimeStamp)));
+                                            }
+                                            if(newLines != null)
+                                            {
+                                                foreach (ConsolelineSimple line in newLines)
+                                                {
+                                                    Debug.WriteLine($"{line.plaintext}");
+                                                }
+                                            }
+                                            oldConsole.lines = newLines;
+                                            oldConsole.startTime = assTimeStamp;
+                                        }
+
+                                        Centerprint newCenterPrint = meta.centerPrint == null ? null : meta.centerPrint.getColorCorrectedCenterPrint(true);
+                                        if ((newCenterPrint is null) != (oldCenterPrint.cprint is null) || !oldCenterPrint.cprint.Equals(newCenterPrint))
+                                        {
+
+                                            Debug.WriteLine($"new centerprint state at {exactTime}s");
+                                            if(oldCenterPrint.cprint != null && oldCenterPrint.cprint.plaintext.Length > 0)
+                                            {
+                                                subtitleEntries.Add(new Tuple<long,long, string>(oldCenterPrint.startTime,0,oldCenterPrint.getASSString(assTimeStamp)));
+                                            }
+                                            if(newCenterPrint != null)
+                                            {
+                                                Debug.WriteLine($"{newCenterPrint.plaintext}");
+                                            }
+                                            oldCenterPrint.cprint = newCenterPrint;
+                                            oldCenterPrint.startTime = assTimeStamp;
+                                        }
+
+                                        Debug.WriteLine(meta);
+                                    }
+                                    catch (Exception exe)
+                                    {
+                                        Debug.WriteLine(exe.ToString());
+                                    }
+
+                                    //Debug.WriteLine(pixel);
+                                    Debug.WriteLine(frame.width);
+                                }
                             }
-                            int stride = frame.linesize[0];
-                            byte* data = frame.data[0];
-                            //byte[] toppixel = frame.getpixel(0, 0);
-                            //byte[] pixel = frame.getpixel(0, frame.height - 1);
-                            //UIntPtr[] rgbOffsets = new UIntPtr[4] {(UIntPtr)0, (UIntPtr)1, (UIntPtr)2, (UIntPtr)3 };
-                            UIntPtr[] rgbOffsets = new UIntPtr[4] {(UIntPtr)0, (UIntPtr)1, (UIntPtr)2, (UIntPtr)3 };
+                        }
+                    }
 
-                            byte* json = (byte*)0;
-                            fixed (UIntPtr* rgboff = rgbOffsets)
-                            {
-                                json =(byte*)parseVideoMetaToString((byte*)frame.data[0] + frame.linesize[0] * 720, 1280, 720, 720, frame.linesize[0], 3, rgboff);
-
-                                string jsonStr = charPtrToString(json); 
-
-                                //Debug.WriteLine(pixel);
-                                Debug.WriteLine(frame.width);
-                            }
+                    subtitleEntries.Sort();
+                    Debug.WriteLine($"{subtitleEntries.Count} subtitle entries.");
+                    subtitlesString.Append(Encoding.ASCII.GetString(Helpers.GetResourceData("files/skeleton.ass",true,typeof(MainWindow))));
+                    foreach(var entry in subtitleEntries)
+                    {
+                        subtitlesString.AppendLine(entry.Item3);
+                    }
+                    if (makeSubtitles)
+                    {
+                        SaveFileDialog sfd = new SaveFileDialog();
+                        sfd.Filter = "ASSA subtitle (.ass)|*.ass";
+                        if(sfd.ShowDialog() == true)
+                        {
+                            File.WriteAllText(sfd.FileName, subtitlesString.ToString());
                         }
                     }
                 }

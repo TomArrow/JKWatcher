@@ -23,7 +23,12 @@
                 <RadioButton GroupName="pointCloudRadio" IsEnabled="False" Name="pointCloudRadio_fp16">FP16</RadioButton>
             </WrapPanel>
             <Button Click="renderBtn_Click" Name="renderBtn">Render</Button>
-            <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
+            <GroupBox Header="Video">
+                <StackPanel>
+                    <CheckBox Name="makeSubtitlesCheck" IsChecked="True">Make subtitles</CheckBox>
+                    <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
+                </StackPanel>
+            </GroupBox>
         </StackPanel>
     </Grid>
 </Window>
