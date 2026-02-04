@@ -5793,7 +5793,7 @@ namespace JKWatcher
                     }
                 }
 
-                if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
+                if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (this.CameraOperator is null) && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
                     // make sure we dont get forced in
                     leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     duelEndReached = true;
