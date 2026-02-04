@@ -4411,7 +4411,7 @@ namespace JKWatcher
                     )
                     ) // Not following anyone. Let's follow someone.
                 {
-                    if (amNotInSpec) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
+                    if (amNotInSpec && !duelEndReached) // Often sending a "follow" command automatically puts us in spec but on some mods it doesn't. So do this as a backup.
                     {
                         if(lastPlayerState.Stats[0] > 0)
                         {
@@ -4488,7 +4488,10 @@ namespace JKWatcher
                         int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
                         WishSpectatedPlayer = clientToFollow;
-                        leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        if (!duelEndReached) // prevent forcing us back into spectator team and thus into game
+                        {
+                            leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        }
                     }
                     //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
                     else if (highestScorePlayer.Count > 0) // Assuming any players at all exist that are playing atm.
@@ -4496,7 +4499,10 @@ namespace JKWatcher
                         int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
                         WishSpectatedPlayer = clientToFollow;
-                        leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        if (!duelEndReached) // prevent forcing us back into spectator team and thus into game
+                        {
+                            leakyBucketRequester.requestExecution("follow " + clientToFollow, RequestCategory.FOLLOW, 1, 2000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DISCARD_IF_ONE_OF_TYPE_ALREADY_EXISTS);
+                        }
                     }
                 }
 
@@ -4614,6 +4620,7 @@ namespace JKWatcher
             //firstNonIntermissionOfThisMapReceived = false;
             intermissionCamAutoDetectImpossible = false;
             warmup = false;
+            duelEndReached = false;
             activeMatch = false;
             gameIsPaused = false;
             infoPool.gameIsPaused = false;
@@ -5668,6 +5675,7 @@ namespace JKWatcher
         bool warmup = false;
         bool activeMatch = false;
         bool gameIsPaused = false;
+        bool duelEndReached = false;
         DateTime matchStarted = DateTime.Now;
         DateTime pauseEndedOrStarted = DateTime.Now;
         void EvaluateCS(CommandEventArgs commandEventArgs)
@@ -5785,7 +5793,12 @@ namespace JKWatcher
                     }
                 }
 
-                if (printText != null && (printText.Contains("@@@INVALID_PASSWORD") || printText.Contains("@@@INVALID_ESCAPE_TO_MAIN"))) {
+                if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
+                    // make sure we dont get forced in
+                    leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    duelEndReached = true;
+                }
+                else if (printText != null && (printText.Contains("@@@INVALID_PASSWORD") || printText.Contains("@@@INVALID_ESCAPE_TO_MAIN"))) {
 
                     if ((DateTime.Now - lastNewPasswordTried).TotalSeconds > 5) {
                         string passwordsString = Helpers.cachedFileRead("passwords.txt");
