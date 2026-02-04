@@ -330,7 +330,7 @@ namespace PCRend
                                 byte* json = (byte*)0;
                                 fixed (UIntPtr* rgboff = rgbOffsets)
                                 {
-                                    json = (byte*)parseVideoMetaToString((byte*)frame.data[0] + frame.linesize[0] * 720, 1280, 720, 720, frame.linesize[0], 3, rgboff);
+                                    json = (byte*)parseVideoMetaToString((byte*)frame.data[0], originalFrame.width, originalFrame.height, originalFrame.height, frame.linesize[0], 3, rgboff);
 
                                     string jsonStr = charPtrToString(json);
 
@@ -348,7 +348,7 @@ namespace PCRend
                                             Debug.WriteLine($"new console state at {exactTime}s");
                                             if(oldConsole.lines != null && oldConsole.lines.Length > 0)
                                             {
-                                                subtitleEntries.Add(new Tuple<long,long, string>(oldConsole.startTime,1,oldConsole.getASSString(assTimeStamp)));
+                                                subtitleEntries.Add(new Tuple<long,long, string>(oldConsole.startTime,1,oldConsole.getASSString(assTimeStamp,meta.versionAtLeast(0,0,0,3))));
                                             }
                                             if(newLines != null)
                                             {

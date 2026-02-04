@@ -31,6 +31,10 @@ namespace PCRend.VideoMeta {
             }
             return newLines.ToArray();
         }
+        public bool versionAtLeast(int a,int b, int c, int d)
+        {
+            return ((((a)) < ((version))[(0)] || (((a)) == ((version))[(0)] && ((((b)) < ((version))[(1)] || (((b)) == ((version))[(1)] && ((((c)) < ((version))[(2)] || (((c)) == ((version))[(2)] && (((d) <= (version)[3])))))))))));
+        }
     }
 
     public class Invalues
@@ -159,7 +163,7 @@ namespace PCRend.VideoMeta {
     {
         public long startTime = 0;
         public ConsolelineSimple[] lines = null;
-        public string getASSString(long currentTime)
+        public string getASSString(long currentTime, bool hasBgColors)
         {
             //long timeInterval = currentTime - startTime;
             StringBuilder sb = new StringBuilder();
@@ -169,7 +173,7 @@ namespace PCRend.VideoMeta {
             sb.Append($"Console,Console,0,0,0,,");
             foreach(ConsolelineSimple line in lines)
             {
-                line.letters.ASSFormatting(false, sb);
+                line.letters.ASSFormatting(hasBgColors, sb);
                 sb.Append("\\N");
             }
             return sb.ToString();
