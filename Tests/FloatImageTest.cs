@@ -44,7 +44,7 @@ namespace Tests
             {
                 for (int x = 0; x < 1920 / 2; x++)
                 {
-                    ls.data[x,y,0] = 1.0f * ((float)x / 100.0f) + (float)rnd.NextDouble() * 999999.0f;
+                    ls.data[x,y].X = 1.0f * ((float)x / 100.0f) + (float)rnd.NextDouble() * 999999.0f;
                 }
             }
 
@@ -62,10 +62,10 @@ namespace Tests
                 {
                     for (int c = 0; c < 3; c++)
                     {
-                        bool equal = ls.data[x,y,c] == ls2.data[x,y,c];
+                        bool equal = ls.data[x,y].GetIndex(c) == ls2.data[x,y].GetIndex(c);
                         if (!equal && isSame)
                         {
-                            Trace.WriteLine($"Difference at x {x} y {y} c {c}: {ls.data[x, y, c]} vs {ls2.data[x, y, c]}");
+                            Trace.WriteLine($"Difference at x {x} y {y} c {c}: {ls.data[x, y].GetIndex(c)} vs {ls2.data[x, y].GetIndex(c)}");
                         }
                         isSame = isSame && equal;
                     }
@@ -85,7 +85,7 @@ namespace Tests
             {
                 for (int x = 0; x < 1920 / 2; x++)
                 {
-                    ls.data[x,y,0] = 1.0f * ((float)x / 100.0f) + (float)rnd.NextDouble() * 999999.0f;
+                    ls.data[x,y].X = 1.0f * ((float)x / 100.0f) + (float)rnd.NextDouble() * 999999.0f;
                 }
             }
 

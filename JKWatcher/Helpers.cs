@@ -1064,6 +1064,16 @@ namespace JKWatcher
             handle.Free();
             return retVal;
         }
+        public static ReadOnlySpan<T> ReadBytesAsTypeArray<T>(this BinaryReader br, int count, long byteOffset = -1, SeekOrigin seekOrigin = SeekOrigin.Begin) where T : struct
+        {
+            if (!(byteOffset == -1 && seekOrigin == SeekOrigin.Begin))
+            {
+                br.BaseStream.Seek(byteOffset, seekOrigin);
+            }
+            byte[] bytes = br.ReadBytes(Marshal.SizeOf(typeof(T))*count);
+            ReadOnlySpan<T> retVal = MemoryMarshal.Cast<byte,T>(bytes);
+            return retVal;
+        }
         public static void WriteBytesFromType<T>(this BinaryWriter bw, T value, long byteOffset = -1, SeekOrigin seekOrigin = SeekOrigin.Begin)
         {
             if (!(byteOffset == -1 && seekOrigin == SeekOrigin.Begin))

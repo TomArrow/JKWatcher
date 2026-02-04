@@ -3436,7 +3436,7 @@ namespace JKWatcher
         public void MaybeStackZCompLevelShot(LevelShotData levelshotData, bool zCompensated)
         {
             string tiffName = null;
-            float[,,] lsData = null;
+            Vector3[,] lsData = null;
             lock (levelshotData.lastSavedAndAccumTypeLock)
             {
                 // don't stack really tiny amounts of changes. 
@@ -3478,7 +3478,7 @@ namespace JKWatcher
             }, $"Accum shot saver ({netAddress},{ServerName})",true);
         }
 
-        private bool DoAccumShot(string tiffName, float[,,] lsData, bool zCompensated)
+        private bool DoAccumShot(string tiffName, Vector3[,] lsData, bool zCompensated)
         {
             try
             {
@@ -3566,7 +3566,7 @@ namespace JKWatcher
                 + $"_{lastMapName}_{(serverName == null ? netAddress.ToString() : netAddress.ToString())}" + $"_{serverName}"
                 + $"_{gameType.ToString()}" + (NWH ? "_NWH" : "")
                 + (thisGame ? $"_TG{filenameAdd}" : $"{filenameAdd}");
-            float[,,] levelshotDataLocal = (float[,,])levelshotData.data.Clone();
+            Vector3[,] levelshotDataLocal = (Vector3[,])levelshotData.data.Clone();
             TaskManager.TaskRun(()=> {
 
                 try
@@ -3590,7 +3590,7 @@ namespace JKWatcher
 
         
 
-        public void SaveLevelshotReal(float[,,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString)
+        public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString)
         {
 
             string baseFilename = filenameString;

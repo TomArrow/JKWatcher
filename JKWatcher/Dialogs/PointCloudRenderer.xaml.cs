@@ -25,7 +25,7 @@ namespace JKWatcher.Dialogs
             InitializeComponent();
         }
 
-        public bool SaveTiff(float[,,] lsData, string filenameString)
+        public bool SaveTiff(Vector3[,] lsData, string filenameString)
         {
 
             filenameString = Helpers.GetUnusedFilename(filenameString);
@@ -67,16 +67,16 @@ namespace JKWatcher.Dialogs
                         float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
                         float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
                         color /= z1 * z2;
-                        levelShot.data[posX, posY, 0] += color.Z;
-                        levelShot.data[posX, posY, 1] += color.Y;
-                        levelShot.data[posX, posY, 2] += color.X;
+                        levelShot.data[posX, posY].X += color.Z;
+                        levelShot.data[posX, posY].Y += color.Y;
+                        levelShot.data[posX, posY].Z += color.X;
                     }
                     else
                     {
                         // bgr ordering.
-                        levelShot.data[posX, posY, 0] += color.Z;
-                        levelShot.data[posX, posY, 1] += color.Y;
-                        levelShot.data[posX, posY, 2] += color.X;
+                        levelShot.data[posX, posY].X += color.Z;
+                        levelShot.data[posX, posY].Y += color.Y;
+                        levelShot.data[posX, posY].Z += color.X;
                     }
 
                 }

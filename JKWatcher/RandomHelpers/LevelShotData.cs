@@ -73,13 +73,28 @@ namespace JKWatcher.RandomHelpers
 
     }
 
+    public static class LevelShotDataHelpers {
+        public static float GetIndex(this Vector3 me, int index)
+        {
+            switch (index) {
+                case 0:
+                    return me.X;
+                case 1:
+                    return me.Y;
+                case 2:
+                    return me.Z;
+            }
+            throw new Exception($"Invalid Index requested from Vector3: {index}");
+        }
+    }
+
 
     public class LevelShotData
     {
         public const float levelShotFov = 140;
         public const int levelShotWidth = 1920;
         public const int levelShotHeight = 1080;
-        public float[,,] data = new float[levelShotWidth, levelShotHeight, 3];
+        public Vector3[,] data = new Vector3[levelShotWidth, levelShotHeight];
 
         public object lastSavedAndAccumTypeLock = new object();
 
@@ -171,7 +186,7 @@ namespace JKWatcher.RandomHelpers
         {
             lock (lastSavedAndAccumTypeLock)
             {
-                data = new float[levelShotWidth, levelShotHeight, 3];
+                data = new Vector3[levelShotWidth, levelShotHeight];
                 changesSinceLastSaved = 0;
             }
         }
@@ -199,15 +214,16 @@ namespace JKWatcher.RandomHelpers
             Debug.WriteLine($"Levelshot compensation multipliers calculated. Value range from {minMultiplier} to {maxMultiplier}");
         }
 
-        public static void SumData(float[,,] main, float[,,] add)
+        public static void SumData(Vector3[,] main, Vector3[,] add)
         {
             for (int x = 0; x < levelShotWidth; x++)
             {
                 for (int y = 0; y < levelShotHeight; y++)
                 {
-                    main[x, y, 0] += add[x, y, 0];
-                    main[x, y, 1] += add[x, y, 1];
-                    main[x, y, 2] += add[x, y, 2];
+                    main[x, y] += add[x, y];
+                    //main[x, y, 0] += add[x, y, 0];
+                    //main[x, y, 1] += add[x, y, 1];
+                    //main[x, y, 2] += add[x, y, 2];
                 }
             }
         }
@@ -263,9 +279,9 @@ namespace JKWatcher.RandomHelpers
                                 {
                                     for (int x = 0; x < levelShotWidth; x++)
                                     {
-                                        retVal.data[x, y, 0] = br.ReadSingle();
-                                        retVal.data[x, y, 1] = br.ReadSingle();
-                                        retVal.data[x, y, 2] = br.ReadSingle();
+                                        retVal.data[x, y].X = br.ReadSingle();
+                                        retVal.data[x, y].Y = br.ReadSingle();
+                                        retVal.data[x, y].Z = br.ReadSingle();
                                     }
                                 }
                             }
@@ -288,7 +304,7 @@ namespace JKWatcher.RandomHelpers
         {
             return createTiffImage(this.data, null);
         }
-        public static byte[] createTiffImage(float[,,] imageData, Predictor? predictor = null)
+        public static byte[] createTiffImage(Vector3[,] imageData, Predictor? predictor = null)
         {
             using (MemoryStream ms = new MemoryStream())
             {
@@ -318,9 +334,9 @@ namespace JKWatcher.RandomHelpers
                             {
                                 for (int x = 0; x < levelShotWidth; x++)
                                 {
-                                    bw.Write(imageData[x, y, 0]);
-                                    bw.Write(imageData[x, y, 1]);
-                                    bw.Write(imageData[x, y, 2]);
+                                    bw.Write(imageData[x, y].X);
+                                    bw.Write(imageData[x, y].Y);
+                                    bw.Write(imageData[x, y].Z);
                                 }
                             }
                             tiff.WriteScanline(ms2.ToArray(), y);
@@ -342,7 +358,7 @@ namespace JKWatcher.RandomHelpers
             return (1.0f - 1.0f / (1f + (float)Math.Pow(value, 0.833333333333333333f))) * 2.0f; // dont ask me why exactly 0.83333. i just aligned the two derivatives in le graphing calculator :)
         }
 
-        public static Bitmap ToBitmap(float[,,] levelshotDataLocal, uint skipLessThanPixelCount)
+        public static Bitmap ToBitmap(Vector3[,] levelshotDataLocal, uint skipLessThanPixelCount)
         {
             int width = levelshotDataLocal.GetLength(0);
             int height = levelshotDataLocal.GetLength(1);
@@ -357,7 +373,7 @@ namespace JKWatcher.RandomHelpers
                 {
                     for (int c = 0; c < 3; c++)
                     {
-                        float valueHere = levelshotDataLocal[x, y, c];
+                        float valueHere = levelshotDataLocal[x, y].GetIndex(c);
                         if (valueHere > 0.0f)
                         {
                             //totalUsedPixelBrightness += valueHere;
@@ -386,7 +402,7 @@ namespace JKWatcher.RandomHelpers
                 {
                     for (int c = 0; c < 3; c++)
                     {
-                        float valueHere = levelshotDataLocal[x, y, c] * multiplier;
+                        float valueHere = levelshotDataLocal[x, y].GetIndex(c) * multiplier;
                         //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
                         float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
                         byte byteValue = (byte)Math.Clamp(gammaValue * 255.0f * 0.5f, 0, 255.0f);

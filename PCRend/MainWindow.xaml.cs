@@ -17,9 +17,28 @@ using System.Windows;
 using PCRend.FFmpegStuff;
 using System.Text.Json;
 using PCRend.VideoMeta;
+using System.Collections.Concurrent;
 
 namespace PCRend
 {
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct fp32Point
+    {
+        public Vector3 pos;
+        public byte a;
+        public byte b;
+    };
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct fp16Point
+    {
+        public Int16 X;
+        public Int16 Y;
+        public Int16 Z;
+        public byte a;
+        public byte b;
+    };
+
     /// <summary>
     /// Interaction logic for PointCloudRenderer.xaml
     /// </summary>
@@ -63,7 +82,7 @@ namespace PCRend
             return testReadString;
         }
 
-        public bool SaveTiff(float[,,] lsData, string filenameString)
+        public bool SaveTiff(Vector3[,] lsData, string filenameString)
         {
 
             filenameString = Helpers.GetUnusedFilename(filenameString);
@@ -105,20 +124,185 @@ namespace PCRend
                         float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
                         float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
                         color /= z1 * z2;
-                        levelShot.data[posX, posY, 0] += color.Z;
-                        levelShot.data[posX, posY, 1] += color.Y;
-                        levelShot.data[posX, posY, 2] += color.X;
+                        levelShot.data[posX, posY].X += color.Z;
+                        levelShot.data[posX, posY].Y += color.Y;
+                        levelShot.data[posX, posY].Z += color.X;
                     }
                     else
                     {
                         // bgr ordering.
-                        levelShot.data[posX, posY, 0] += color.Z;
-                        levelShot.data[posX, posY, 1] += color.Y;
-                        levelShot.data[posX, posY, 2] += color.X;
+                        levelShot.data[posX, posY].X += color.Z;
+                        levelShot.data[posX, posY].Y += color.Y;
+                        levelShot.data[posX, posY].Z += color.X;
                     }
 
                 }
             }
+        }
+        
+        private void PrintPositionsToImage(List<Tuple<Vector3,Vector3>> posColors, Matrix4x4 modelMatrix, Matrix4x4 camTransform, LevelShotData levelShot, bool zComp = false)
+        {
+            ConcurrentBag<Tuple<int, int, Vector3>> transformed = new ConcurrentBag<Tuple<int, int, Vector3>>();
+            //List<Tuple<int,int, Vector3>> transformed = new List<Tuple<int,int, Vector3>>();
+            //foreach (var posColor in posColors)
+            Parallel.ForEach(posColors,(posColor)=> { 
+                Vector4 levelshotPos = Vector4.Transform(posColor.Item1, camTransform);
+                float theZ = levelshotPos.Z;
+                levelshotPos /= levelshotPos.W;
+                if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                {
+                    int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                    int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                    Vector3 color = new Vector3(posColor.Item2.Z, posColor.Item2.Y, posColor.Item2.X);
+                    if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                    {
+                        transformed.Add(new Tuple<int, int, Vector3>(posX,posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                    }
+                }
+            });
+            posColors.Clear();
+
+            foreach(var point in transformed)
+            {
+                levelShot.data[point.Item1, point.Item2] += point.Item3;
+            }
+
+            /*if (zComp)
+            {
+
+                // z compensated stuff that's stacked for infinity, adding state to a HDR tiff file etc.
+                // z compensation only looks good with ridiculously high amount of samples
+                Vector4 modelSpaceOrigin = Vector4.Transform(pos, modelMatrix);
+                float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
+                float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
+                color /= z1 * z2;
+                levelShot.data[posX, posY].X += color.Z;
+                levelShot.data[posX, posY].Y += color.Y;
+                levelShot.data[posX, posY].Z += color.X;
+            }
+            else
+            {
+                // bgr ordering.
+                levelShot.data[posX, posY].X += color.Z;
+                levelShot.data[posX, posY].Y += color.Y;
+                levelShot.data[posX, posY].Z += color.X;
+            }*/
+
+            
+        }
+        private void PrintPositionsToImage(List<Tuple<byte,byte,Vector3>> posColors, Matrix4x4 modelMatrix, Matrix4x4 camTransform, LevelShotData levelShot, bool zComp = false)
+        {
+            ConcurrentBag<Tuple<int, int, Vector3>> transformed = new ConcurrentBag<Tuple<int, int, Vector3>>();
+            //List<Tuple<int,int, Vector3>> transformed = new List<Tuple<int,int, Vector3>>();
+            //foreach (var posColor in posColors)
+            Parallel.ForEach(posColors,(posColor)=> { 
+                Vector4 levelshotPos = Vector4.Transform(posColor.Item3, camTransform);
+                float theZ = levelshotPos.Z;
+                levelshotPos /= levelshotPos.W;
+                if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                {
+                    int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                    int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                    Vector3 color = new Vector3();
+
+                    color.Z = (float)((posColor.Item1 & 240) | 15);
+                    color.Y = (float)(((posColor.Item1 & 15) << 4) | 15);
+                    color.X = (float)((posColor.Item2 & 240) | 15);
+                    color *= divideby255;
+
+                    if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                    {
+                        transformed.Add(new Tuple<int, int, Vector3>(posX,posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                    }
+                }
+            });
+            posColors.Clear();
+
+            foreach(var point in transformed)
+            {
+                levelShot.data[point.Item1, point.Item2] += point.Item3;
+            }
+
+
+            
+        }
+        private void PrintPositionsToImage(List<fp32Point> posColors, Matrix4x4 modelMatrix, Matrix4x4 camTransform, LevelShotData levelShot, bool zComp = false)
+        {
+            ConcurrentBag<Tuple<int, int, Vector3>> transformed = new ConcurrentBag<Tuple<int, int, Vector3>>();
+            //List<Tuple<int,int, Vector3>> transformed = new List<Tuple<int,int, Vector3>>();
+            //foreach (var posColor in posColors)
+            Parallel.ForEach(posColors,(posColor)=> { 
+                Vector4 levelshotPos = Vector4.Transform(posColor.pos, camTransform);
+                float theZ = levelshotPos.Z;
+                levelshotPos /= levelshotPos.W;
+                if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                {
+                    int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                    int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                    Vector3 color = new Vector3();
+
+                    color.Z = (float)((posColor.a & 240) | 15);
+                    color.Y = (float)(((posColor.a & 15) << 4) | 15);
+                    color.X = (float)((posColor.b & 240) | 15);
+                    color *= divideby255;
+
+                    if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                    {
+                        transformed.Add(new Tuple<int, int, Vector3>(posX,posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                    }
+                }
+            });
+            posColors.Clear();
+
+            foreach(var point in transformed)
+            {
+                levelShot.data[point.Item1, point.Item2] += point.Item3;
+            }
+
+
+            
+        }
+        private void PrintPositionsToImage(IEnumerable<fp32Point> posColors, Matrix4x4 modelMatrix, Matrix4x4 camTransform, LevelShotData levelShot, ref long ticks1,ref long ticks2, bool zComp = false)
+        {
+            Stopwatch sw= new Stopwatch();
+            sw.Restart();
+            ConcurrentBag<Tuple<int, int, Vector3>> transformed = new ConcurrentBag<Tuple<int, int, Vector3>>();
+            //List<Tuple<int,int, Vector3>> transformed = new List<Tuple<int,int, Vector3>>();
+            //foreach (var posColor in posColors)
+            Parallel.ForEach(posColors,(posColor)=> { 
+                Vector4 levelshotPos = Vector4.Transform(posColor.pos, camTransform);
+                float theZ = levelshotPos.Z;
+                levelshotPos /= levelshotPos.W;
+                if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                {
+                    int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                    int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                    Vector3 color = new Vector3();
+
+                    color.Z = (float)((posColor.a & 240) | 15);
+                    color.Y = (float)(((posColor.a & 15) << 4) | 15);
+                    color.X = (float)((posColor.b & 240) | 15);
+                    color *= divideby255;
+
+                    if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                    {
+                        transformed.Add(new Tuple<int, int, Vector3>(posX,posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                    }
+                }
+            });
+            //posColors.Clear();
+
+            ticks1 += sw.ElapsedTicks;
+
+            sw.Restart();
+            foreach (var point in transformed)
+            {
+                levelShot.data[point.Item1, point.Item2] += point.Item3;
+            }
+
+            ticks2 += sw.ElapsedTicks;
+
+
         }
 
         const float divideby255 = 1.0f / 255.0f;
@@ -210,7 +394,89 @@ namespace PCRend
                                     fs.Seek(0, SeekOrigin.Begin);
                                     using (BinaryReader br = new BinaryReader(fs))
                                     {
-                                        for (Int64 i = 0; i < count; i++)
+                                        //List<Tuple<byte,byte, Vector3>> items = new List<Tuple<byte, byte, Vector3>>();
+                                        List<fp32Point> items = new List<fp32Point>();
+                                        fp32Point dummy;
+                                        items.Capacity = 10000000;
+                                        Stopwatch sw = new Stopwatch();
+                                        long ticksread = 0;
+                                        long tickstoarr = 0;
+                                        long ticksprocess1 = 0;
+                                        long ticksprocess2 = 0;
+                                        if (fp32)
+                                        {
+                                            Task printTask = null;
+                                            while (count > 0)
+                                            {
+                                                Int64 batch = Math.Min(10000000, count);
+                                                //for (Int64 i = 0; i < batch; i++)
+                                                //{
+                                                //    items.Add(Helpers.ReadBytesAsType<fp32Point>(br));
+                                                //}
+                                                sw.Restart();
+                                                var points = Helpers.ReadBytesAsTypeArray<fp32Point>(br, (int)batch);
+                                                ticksread += sw.ElapsedTicks; sw.Restart();
+                                                count -= batch;
+                                                fp32Point[] arr = points.ToArray();
+                                                tickstoarr += sw.ElapsedTicks;
+                                                //PrintPositionsToImage(points.ToArray(), modelMatrix, camTransform, lsData, false);
+                                                if (printTask != null)
+                                                {
+                                                    printTask.Wait();
+                                                }
+                                                printTask = Task.Run(()=> {
+                                                    PrintPositionsToImage(arr, modelMatrix, camTransform, lsData, ref ticksprocess1, ref ticksprocess2, false);
+                                                });
+                                                //items.Clear();
+                                                //items.Capacity = 10000000;
+                                            }
+                                            if(printTask != null)
+                                            {
+                                                printTask.Wait();
+                                            }
+
+                                            Console.WriteLine($"{(double)ticksread/(double)Stopwatch.Frequency}s reading, {(double)tickstoarr/(double)Stopwatch.Frequency}s making array, {(double)ticksprocess1/(double)Stopwatch.Frequency}s processing 1, {(double)ticksprocess2/(double)Stopwatch.Frequency}s processing 2");
+
+                                            //for (Int64 i = 0; i < count; i++)
+                                            //{
+                                                //Vector3 pos = new Vector3();
+                                                //Vector3 color = new Vector3();
+                                                //pos.X = br.ReadSingle();
+                                                //pos.Y = br.ReadSingle();
+                                                //pos.Z = br.ReadSingle();
+                                                //byte a = br.ReadByte();
+                                                //byte b = br.ReadByte();
+                                                //dummy = Helpers.ReadBytesAsType<fp32Point>(br);
+                                                //items.Add(Helpers.ReadBytesAsType<fp32Point>(br));
+                                                //items.Add(new Tuple<byte, byte, Vector3>(dummy.a, dummy.b, dummy.pos));
+                                                //if (items.Count >= 10000000 || i == count - 1)
+                                                //{
+                                                //}
+                                            //}
+                                        }
+                                        else
+                                        {
+                                            // only s16 supported for nowfor (Int64 i = 0; i < count; i++)
+                                            for (Int64 i = 0; i < count; i++) { 
+                                                Vector3 pos = new Vector3();
+                                                Vector3 color = new Vector3();
+                                                pos.X = br.ReadInt16();
+                                                pos.Y = br.ReadInt16();
+                                                pos.Z = br.ReadInt16();
+                                                byte a = br.ReadByte();
+                                                byte b = br.ReadByte();
+                                                //items.Add(new Tuple<byte, byte, Vector3>(a, b, pos));
+                                                items.Add(new fp32Point() {a=a,b=b,pos=pos });
+                                                if (items.Count >= 10000000 || i == count - 1)
+                                                {
+                                                    PrintPositionsToImage(items, modelMatrix, camTransform, lsData, false);
+                                                    items.Clear();
+                                                    items.Capacity = 10000000;
+                                                }
+                                            }
+                                        }
+
+                                        /*for (Int64 i = 0; i < count; i++)
                                         {
                                             Vector3 pos = new Vector3();
                                             Vector3 color = new Vector3();
@@ -229,11 +495,17 @@ namespace PCRend
                                             }
                                             byte a = br.ReadByte();
                                             byte b = br.ReadByte();
-                                            color.X = (float)((a & 240) | 15) * divideby255;
-                                            color.Y = (float)(((a & 15) << 4) | 15) * divideby255;
-                                            color.Z = (float)((b & 240) | 15) * divideby255;
-                                            PrintPositionToImage(pos, color, modelMatrix, camTransform, lsData, false);
-                                        }
+                                            //color.X = (float)((a & 240) | 15) * divideby255;
+                                            //color.Y = (float)(((a & 15) << 4) | 15) * divideby255;
+                                            //color.Z = (float)((b & 240) | 15) * divideby255;
+                                            items.Add(new Tuple<byte,byte, Vector3>(a,b,color));
+                                            //PrintPositionToImage(pos, color, modelMatrix, camTransform, lsData, false);
+                                            if (items.Count > 100000 || i == count - 1)
+                                            {
+                                                PrintPositionsToImage(items,modelMatrix, camTransform, lsData, false);
+                                                items.Clear();
+                                            }
+                                        }*/
                                     }
                                 }
 

@@ -2513,9 +2513,9 @@ namespace JKWatcher
 
                     // bgr ordering.
                     /**/
-                    infoPool.levelShotThisGame.data[posX, posY, 0] += color.Z;
-                    infoPool.levelShotThisGame.data[posX, posY, 1] += color.Y;
-                    infoPool.levelShotThisGame.data[posX, posY, 2] += color.X;
+                    infoPool.levelShotThisGame.data[posX, posY].X += color.Z;
+                    infoPool.levelShotThisGame.data[posX, posY].Y += color.Y;
+                    infoPool.levelShotThisGame.data[posX, posY].Z += color.X;
                     lock (infoPool.levelShotThisGame.lastSavedAndAccumTypeLock)
                     {
                         infoPool.levelShotThisGame.changesSinceLastSaved++;
@@ -2528,9 +2528,9 @@ namespace JKWatcher
                             serverWindow.MaybeStackZCompLevelShot(maybeOld,false);
                             serverWindow.SaveLevelshot(maybeOld, false,200,10,"_ACCUMTYPECHANGE");
                         }
-                        infoPool.levelShot.data[posX, posY, 0] += color.Z;
-                        infoPool.levelShot.data[posX, posY, 1] += color.Y;
-                        infoPool.levelShot.data[posX, posY, 2] += color.X;
+                        infoPool.levelShot.data[posX, posY].X += color.Z;
+                        infoPool.levelShot.data[posX, posY].Y += color.Y;
+                        infoPool.levelShot.data[posX, posY].Z += color.X;
                         lock (infoPool.levelShot.lastSavedAndAccumTypeLock)
                         {
                             infoPool.levelShot.changesSinceLastSaved++;
@@ -2552,9 +2552,9 @@ namespace JKWatcher
                             float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
                             float z2 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Z * modelSpaceOrigin.Z);
                             color /= z1 * z2;
-                            infoPool.levelShotZCompNoBot.data[posX, posY, 0] += color.Z;
-                            infoPool.levelShotZCompNoBot.data[posX, posY, 1] += color.Y;
-                            infoPool.levelShotZCompNoBot.data[posX, posY, 2] += color.X;
+                            infoPool.levelShotZCompNoBot.data[posX, posY].X += color.Z;
+                            infoPool.levelShotZCompNoBot.data[posX, posY].Y += color.Y;
+                            infoPool.levelShotZCompNoBot.data[posX, posY].Z += color.X;
                             lock (infoPool.levelShotZCompNoBot.lastSavedAndAccumTypeLock)
                             {
                                 infoPool.levelShotZCompNoBot.changesSinceLastSaved++;
