@@ -650,7 +650,7 @@ namespace JKWatcher
                     this.chatCommandTrackingStuff.LastNonSpectatorTeam = (Team)fixedValue;
                     this.chatCommandTrackingStuffThisGame.LastNonSpectatorTeam = (Team)fixedValue;
                 }
-                _team = value;
+                _team = (Team)fixedValue;
             }
         }
         public bool confirmedBot { get; set; } = false;
