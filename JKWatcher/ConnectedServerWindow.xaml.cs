@@ -43,6 +43,7 @@ namespace JKWatcher
         public bool pingAdjustActive { get; set; } = false;
 
         public bool setBaseSnaps { get; set; } = false;
+        public bool noMove { get; set; } = false;
         public bool forceBaseSnaps { get; set; } = false;
         public int baseSnaps
         {

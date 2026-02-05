@@ -468,6 +468,9 @@
                                     <CheckBox IsChecked="{Binding pingAdjustActive,Mode=TwoWay}">Ping adjust</CheckBox>
                                     <TextBox Width="40" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding pingAdjust,Mode=TwoWay}"></TextBox>
                                 </WrapPanel>
+                                <WrapPanel>
+                                    <CheckBox x:Name="noMoveCheck" IsChecked="{Binding noMove,Mode=TwoWay}">NoMove</CheckBox>
+                                </WrapPanel>
                             </StackPanel>
                             <!--<CheckBox x:Name="netDebugCheck" Checked="netDebugCheck_Checked" Unchecked="netDebugCheck_Checked">NetDebug</CheckBox>-->
                             <WrapPanel>

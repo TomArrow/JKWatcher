@@ -644,10 +644,11 @@ namespace JKWatcher
             }
             set
             {
-                if (value != Team.Spectator)
+                int fixedValue = ((int)value > 3 || (int)value < 0) ? 0 : (int)value; // :/
+                if ((Team)fixedValue != Team.Spectator)
                 {
-                    this.chatCommandTrackingStuff.LastNonSpectatorTeam = value;
-                    this.chatCommandTrackingStuffThisGame.LastNonSpectatorTeam = value;
+                    this.chatCommandTrackingStuff.LastNonSpectatorTeam = (Team)fixedValue;
+                    this.chatCommandTrackingStuffThisGame.LastNonSpectatorTeam = (Team)fixedValue;
                 }
                 _team = value;
             }
