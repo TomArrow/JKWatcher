@@ -4634,6 +4634,7 @@ namespace JKWatcher
                 for (int i=0;i< maxClients; i++)
                 {
                     infoPool.playerInfo[i].session.chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame,infoPool) { onlineSince = DateTime.Now };
+                    infoPool.playerInfo[i].session.team = infoPool.playerInfo[i].session.team; // i know this is dumb but otherwise we maya end up never getting the right "lastnonspectatorteam" correctly after a map_Restart (if there is no serverinfochanged during entire game).
                 }
                 for (int i=0;i< maxClients; i++)
                 {
