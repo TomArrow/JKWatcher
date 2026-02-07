@@ -4131,7 +4131,7 @@ namespace JKWatcher
                         dominance = (GetFlagScoreProbability(Team.Red) + (1.0f-GetFlagScoreProbability(Team.Blue)))*0.5f; // if probability of red flag being scored is 0 and probability of blue flag being scored is 1.0f, that means total red team dominance, and vice versa
                     }
                     return new Tuple<float, float, float>(redFlagRatio,blueFlagRatio,dominance);
-                }, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame);
+                }, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame, serverWindow);
             }
 
             CameraOperator camOpTmp = this.CameraOperator;

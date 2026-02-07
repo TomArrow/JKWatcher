@@ -1435,7 +1435,7 @@ namespace JKWatcher
             }
         }
         // detailCallback must return tuple with: redflagratio, blueflagratio and dominance (0 = red dominates, 1 = blue dominates)
-        public void SetStats(int serverTime, bool isCtf, Func<Tuple<float,float,float>> detailCallback, bool paused, int flagCarrierRed, int flagCarrierBlue, GameEventFlags flags)
+        public void SetStats(int serverTime, bool isCtf, Func<Tuple<float,float,float>> detailCallback, bool paused, int flagCarrierRed, int flagCarrierBlue, GameEventFlags flags, ConnectedServerWindow window)
         {
             lock (datalock)
             {
@@ -1452,7 +1452,14 @@ namespace JKWatcher
                 {
                     timeHere = 0; // this is clearly some kidn of bug. 
                 }
-                lastServerTime = serverTime;
+                if(serverTime > lastServerTime) // don't drift backwards with multiple connections possibly getting packets out of sync
+                {
+                    lastServerTime = serverTime; 
+                } else if (serverTime < lastServerTime - 20000)
+                {
+                    window.addToLog($"SetStats: serverTime drifted back by more than 20 seconds. Mapchange? Resetti {serverTime} < {lastServerTime} - 20000",true);
+                    lastServerTime = serverTime;
+                }
                 if (timeHere > 0)
                 {
                     if ((DateTime.Now - lastFrameRecorded).TotalMilliseconds >= 1000 && isCtf) // record once per second
