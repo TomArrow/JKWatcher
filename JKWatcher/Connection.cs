@@ -2925,7 +2925,7 @@ namespace JKWatcher
             bool changedToIntermission = isIntermission && !wasIntermission;
             wasIntermission = isIntermission;
             infoPool.isIntermission = isIntermission;
-            this.Speed = e.snap.PlayerState.Speed;
+            this.Speed = e.snap.PlayerState.Speed.MaybeFloat(jkaMode);
             PlayerMoveType = snap.PlayerState.PlayerMoveType;
 
             if (!isIntermission)
@@ -3273,7 +3273,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].angles.Y = snap.PlayerState.ViewAngles[1];
                     infoPool.playerInfo[i].angles.Z = snap.PlayerState.ViewAngles[2];
                     infoPool.playerInfo[i].curWeapon = snap.PlayerState.Weapon;
-                    infoPool.playerInfo[i].speed = snap.PlayerState.Speed;
+                    infoPool.playerInfo[i].speed = snap.PlayerState.Speed.MaybeFloat(jkaMode);
                     infoPool.playerInfo[i].groundEntityNum = snap.PlayerState.GroundEntityNum;
                     infoPool.playerInfo[i].torsoAnim = snap.PlayerState.TorsoAnim;
                     infoPool.playerInfo[i].legsAnim = snap.PlayerState.LegsAnimation;

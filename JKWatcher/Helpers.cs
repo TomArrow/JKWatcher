@@ -314,6 +314,18 @@ namespace JKWatcher
             return sum / sumWeight;
         }
 
+
+        public static unsafe float MaybeFloat(this int value, bool isFloat)
+        {
+            if (isFloat)
+            {
+                return *(float*)&value;
+            }
+            else
+            {
+                return value;
+            }
+        }
         public static DateTime? ToEST(this DateTime dateTime)
         {
             try
