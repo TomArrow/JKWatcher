@@ -27,6 +27,7 @@
                 <StackPanel>
                     <CheckBox Name="makeSubtitlesCheck" IsChecked="True">Make subtitles</CheckBox>
                     <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
+                    <Button Click="videoTest2Btn_Click" Name="videoTest2Btn">Videotest2</Button>
                 </StackPanel>
             </GroupBox>
         </StackPanel>

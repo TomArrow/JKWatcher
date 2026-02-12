@@ -687,5 +687,63 @@ namespace PCRend
                 Helpers.logToFile($"Error doing pointcloud video test (outer): {e2.ToString()}");
             }
         }
+
+
+        private unsafe void videoTest2Btn_Click(object sender, RoutedEventArgs e)
+        {
+
+            try
+            { // just in case of some invalid directory or whatever
+
+                bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
+
+                var sfd = new Microsoft.Win32.SaveFileDialog();
+                //ofd.Filter = "Point cloud (.bin)|*.bin";
+                string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native"); // todo make this nicer... cross-platform? oh well wpf is windumb anyway
+                ffmpeg.RootPath = test;
+                if (sfd.ShowDialog() == true)
+                {
+                    //using (FileStream fs = File.OpenWrite(sfd.FileName))
+                    {
+                        System.Drawing.Size size = new System.Drawing.Size(640, 360);
+                        MagicYUVVideoStreamEncoder enc = new MagicYUVVideoStreamEncoder(sfd.FileName, 2, size);
+                        //AVFrame* frameP = ffmpeg.av_frame_alloc();
+                        //AVFrame frame = *frameP;// new AVFrame();
+                        AVFrame frame = new AVFrame();
+                        frame.width = size.Width;
+                        frame.height = size.Height;
+                        frame.format = (int)AVPixelFormat.AV_PIX_FMT_GBRP;
+                        frame.time_base = new AVRational { num = 1, den = 2 }; 
+                        //ffmpeg.av_frame_get_buffer(&frame, 24).ThrowExceptionIfError(); ;
+                        byte[] data = new byte[size.Width * size.Height * 3];
+                        //ffmpeg.av_frame_make_writable(&frame).ThrowExceptionIfError(); ;
+                        fixed (byte* datap = data)
+                        {
+                            frame.data = new byte_ptrArray8();
+                            frame.data[0] = datap;
+                            frame.data[1] = datap+size.Width * size.Height;
+                            frame.data[2] = datap+size.Width * size.Height * 2;
+                            frame.linesize = new int_array8();
+                            frame.linesize[0] = size.Width;
+                            frame.linesize[1] = size.Width;
+                            frame.linesize[2] = size.Width;
+                            //frame.data[0] = datap;
+                            frame.pts = frame.best_effort_timestamp = 0;
+                            enc.Encode(frame);
+                            frame.pts++;
+                            enc.Encode(frame);
+                            frame.pts++;
+                            enc.Encode(frame);
+                        }
+                        enc.Drain();
+                        enc.Dispose();
+                    }
+                }
+            }
+            catch (Exception e2)
+            {
+                Helpers.logToFile($"Error doing pointcloud video test 2 (outer): {e2.ToString()}");
+            }
+        }
     }
 }
