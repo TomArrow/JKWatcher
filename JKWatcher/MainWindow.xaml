@@ -137,6 +137,7 @@
                             <DataGridTextColumn Header="Address" Binding="{Binding Address}"></DataGridTextColumn>
                             <DataGridTextColumn Header="Ping" Binding="{Binding Ping}"></DataGridTextColumn>
                             <DataGridTextColumn Header="MaxPing" Binding="{Binding MaxPing}"></DataGridTextColumn>
+                            <DataGridTextColumn Header="PRD" Binding="{Binding pr_downloads}" Visibility="{Binding Source={x:Reference mohModeCheck},Path=IsChecked,Converter={StaticResource BooleanToVisibilityConverter}}"></DataGridTextColumn>
                         </DataGrid.Columns>
 
                     </DataGrid>
