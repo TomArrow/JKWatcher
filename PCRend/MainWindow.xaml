@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PCRend"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="PCRend" Height="450" Width="800">
     <Grid>
         <StackPanel>
             <WrapPanel>
@@ -33,6 +33,35 @@
                     </WrapPanel>
                     <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
                     <Button Click="videoTest2Btn_Click" Name="videoTest2Btn">Videotest2</Button>
+                    <Button Click="testBtn_Click" Name="testBtn">test</Button>
+                    <GroupBox Header="Status">
+                        <StackPanel>
+                            <WrapPanel>
+                                <Label Width="100">Total Frames</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.TotalFrames}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label Width="100">Read Frames</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.ReadFrames}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label Width="100">Drawn Frames</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.DrawnFrames}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label Width="100">Written Frames</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.WrittenFrames}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label Width="100">Points (percent)</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.ProcessedPoints}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <Label Width="100">Points (batch est)</Label>
+                                <TextBlock IsEnabled="False" Width="100" Text="{Binding windowViewData.ProcessedPointsSub}" TextAlignment="Right"></TextBlock>
+                            </WrapPanel>
+                        </StackPanel>
+                    </GroupBox>
                 </StackPanel>
             </GroupBox>
         </StackPanel>

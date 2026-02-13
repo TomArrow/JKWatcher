@@ -19,6 +19,8 @@ using System.Text.Json;
 using PCRend.VideoMeta;
 using System.Collections.Concurrent;
 using Vim;
+using System.ComponentModel;
+using System.Threading;
 
 namespace PCRend
 {
@@ -43,13 +45,38 @@ namespace PCRend
     /// <summary>
     /// Interaction logic for PointCloudRenderer.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, INotifyPropertyChanged
     {
+
+        public DelayedViewData<MainWindow> windowViewData { get; set; } = new DelayedViewData<MainWindow>();
+        [DelayProperty]
+        public long TotalFrames { get; set; } = 0;
+        [DelayProperty]
+        public long ReadFrames { get; set; } = 0;
+        [DelayProperty]
+        public long DrawnFrames { get; set; } = 0;
+        [DelayProperty]
+        public long WrittenFrames { get; set; } = 0;
+        public long TotalPointCount { get; set; } = 0; // ignoring blurframes!
+        public long ProcessedPointCount { get; set; } = 0; // ignoring blurframes!
+        [DelayProperty]
+        public float ProcessedPoints { get; set; } = 0;
+        [DelayProperty]
+        public float ProcessedPointsSub { get; set; } = 0;
+
         public MainWindow()
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             InitializeComponent();
             //quickTest();
+            this.PropertyChanged += MainWindow_PropertyChanged;
+            this.DataContext = this;
+            TotalFrames = -1;
+        }
+
+        private void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            windowViewData?.UpdateValue(e.PropertyName, this);
         }
 
         public unsafe void quickTest()
@@ -318,20 +345,24 @@ namespace PCRend
                     frame.data[2] = datap + frame.width * frame.height * 2;
 
                     enc.Encode(frame);
+                    WrittenFrames++;
                 }
                 frame.pts++;
             }
         }
 
-        private void PrintPositionsToImages(IReadOnlyList<frameRenderInfo> frames,IEnumerable<fp32Point> posColors, ref long ticks1,ref long ticks2, bool zComp = false)
+        private void PrintPositionsToImages(IReadOnlyList<frameRenderInfo> frames,IEnumerable<fp32Point> posColors, ref long ticks1,ref long ticks2, int blurFrames, bool zComp = false)
         {
             object ticksLock = new object();
             long ticks1local = 0;
             long ticks2local = 0;
+            long totalPoints = blurFrames <= 1 ? frames.Count * posColors.Count() : frames.Count * posColors.Count() * blurFrames - (blurFrames-1) * posColors.Count(); // first frame has no interpolation, but this is all an estimate anyway
+            long donePoints = 0;
             Parallel.ForEach(frames,(overframe)=> {
                 Stopwatch sw = new Stopwatch();
                 sw.Restart();
 
+                long pointsHere = 0;
                 foreach(frameRenderInfo frame in overframe.blendStates)
                 {
                     if (float.IsNaN(frame.fov) || float.IsNaN(frame.pos.X) || float.IsNaN(frame.pos.Y) || float.IsNaN(frame.pos.Z) || float.IsNaN(frame.angles.X) || float.IsNaN(frame.angles.Y) || float.IsNaN(frame.angles.Z))
@@ -360,6 +391,11 @@ namespace PCRend
                                 overframe.lsData.data[posX, posY] += color * LevelShotData.compensationMultipliers[posX, posY];
                                 //transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
                             }
+                        }
+                        pointsHere++;
+                        Interlocked.Increment(ref donePoints);
+                        if (pointsHere % 10000 == 0) {
+                            ProcessedPointsSub = (float)(100.0* (double)donePoints / (double)totalPoints);
                         }
                     }
                 }
@@ -392,7 +428,7 @@ namespace PCRend
 
         const float divideby255 = 1.0f / 255.0f;
 
-        
+        public event PropertyChangedEventHandler PropertyChanged;
 
         private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32, int blurFrames)
         {
@@ -421,6 +457,8 @@ namespace PCRend
                     {
                         fs.Seek(0, SeekOrigin.End);
                         Int64 count = fs.Position / (Int64)itemLength;
+                        Int64 totalCount = count;
+                        TotalPointCount = totalCount * TotalFrames;
                         fs.Seek(0, SeekOrigin.Begin);
                         using (BinaryReader br = new BinaryReader(fs))
                         {
@@ -450,7 +488,9 @@ namespace PCRend
                                         printTask.Wait();
                                     }
                                     printTask = Task.Run(()=> {
-                                        PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, false);
+                                        PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
+                                        ProcessedPointCount += arr.Length * frames.Count;
+                                        ProcessedPoints = (float)( 100.0 * (double)ProcessedPointCount / (double)TotalPointCount);
                                     });
                                 }
                                 if(printTask != null)
@@ -759,20 +799,27 @@ namespace PCRend
         [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void freeVideoMetaString(char* metaString);
 
-        private unsafe void videoTestBtn_Click(object sender, RoutedEventArgs e)
+        private async void videoTestBtn_Click(object sender, RoutedEventArgs e)
+        {
+
+            bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
+            bool makePointCloudVideo = makePointCloudVidCheck.IsChecked == true;
+            bool fp32 = pointCloudRadio_fp32?.IsChecked == true;
+            int blurFrames;
+            if (!int.TryParse(blurFramesTxt.Text, out blurFrames))
+            {
+                blurFrames = 0;
+            }
+            await Task.Run(()=> {
+                doVideo(makeSubtitles, makePointCloudVideo, fp32, blurFrames);
+            });
+        }
+        private unsafe void doVideo(bool makeSubtitles, bool makePointCloudVideo, bool fp32, int blurFrames)
         {
 
             try
             { // just in case of some invalid directory or whatever
 
-                bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
-                bool makePointCloudVideo = makePointCloudVidCheck.IsChecked == true;
-                bool fp32 = pointCloudRadio_fp32?.IsChecked == true;
-                int blurFrames;
-                if(!int.TryParse(blurFramesTxt.Text, out blurFrames))
-                {
-                    blurFrames = 0;
-                }
 
                 string videoFilename = null;
                 string pointcloudFilename = null;
@@ -810,6 +857,12 @@ namespace PCRend
 
                     using (VideoStreamDecoder decoder = new VideoStreamDecoder(ofd.FileName))
                     {
+                        TotalFrames = decoder.FrameCount;
+                        ReadFrames = 0;
+                        DrawnFrames = 0;
+                        ProcessedPoints = 0;
+                        TotalPointCount = 0;
+                        ProcessedPointCount = 0;
                         using (VideoConverter converter = new VideoConverter(decoder.FrameSize, decoder.PixelFormat, decoder.FrameSize, AVPixelFormat.AV_PIX_FMT_RGB24))
                         {
                             Task encoderTask = null;
@@ -835,6 +888,7 @@ namespace PCRend
 
                             while(decoder.TryDecodeNextFrame(out AVFrame frame))
                             {
+                                ReadFrames++;
                                 double exactTime = (double)frame.best_effort_timestamp * decoder.TimeBaseDouble;
                                 long assTimeStamp = 100 * frame.best_effort_timestamp * decoder.TimeBase.num / decoder.TimeBase.den;
                                 var originalFrame = frame;
@@ -931,6 +985,7 @@ namespace PCRend
                                     renderFrames.Clear();
                                     encoderTask = Task.Run(()=> {
                                         RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
+                                        DrawnFrames += frameInfos.Length;
                                     });
                                 }
                             }
@@ -942,6 +997,7 @@ namespace PCRend
                             if (renderFrames != null && renderFrames.Count >= 0)
                             {
                                 RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
+                                DrawnFrames += renderFrames.Count;
                                 renderFrames.Clear();
                             }
                             if(enc != null)
@@ -975,12 +1031,15 @@ namespace PCRend
                 Helpers.logToFile($"Error doing pointcloud video test (outer): {e2.ToString()}");
                 MessageBox.Show($"Error doing pointcloud video test (outer): {e2.ToString()}");
             }
+            finally
+            {
+                windowViewData.checkLatchedValues(this);
+            }
         }
 
 
-        private unsafe void videoTest2Btn_Click(object sender, RoutedEventArgs e)
+        private async unsafe void  videoTest2Btn_Click(object sender, RoutedEventArgs e)
         {
-
             try
             { // just in case of some invalid directory or whatever
 
@@ -1033,6 +1092,11 @@ namespace PCRend
             {
                 Helpers.logToFile($"Error doing pointcloud video test 2 (outer): {e2.ToString()}");
             }
+        }
+
+        private void testBtn_Click(object sender, RoutedEventArgs e)
+        {
+            //TotalFrames++;
         }
     }
 }

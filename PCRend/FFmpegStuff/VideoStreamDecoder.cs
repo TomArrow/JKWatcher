@@ -35,6 +35,7 @@ namespace PCRend.FFmpegStuff
                     .ThrowExceptionIfError();
             }
             TimeBase = _pFormatContext->streams[_streamIndex]->time_base;
+            FrameCount = _pFormatContext->streams[_streamIndex]->nb_frames;
             TimeBaseDouble = ffmpeg.av_q2d(TimeBase);
             ffmpeg.avcodec_parameters_to_context(_pCodecContext, _pFormatContext->streams[_streamIndex]->codecpar)
                 .ThrowExceptionIfError();
@@ -53,7 +54,9 @@ namespace PCRend.FFmpegStuff
         public AVPixelFormat PixelFormat { get; }
         public AVRational TimeBase { get; }
         public double TimeBaseDouble { get; }
+        public long FrameCount { get; }
 
+        private bool _noMoreFrames;
         public void Dispose()
         {
             var pFrame = _pFrame;
@@ -70,6 +73,12 @@ namespace PCRend.FFmpegStuff
 
         public bool TryDecodeNextFrame(out AVFrame frame)
         {
+            if (_noMoreFrames)
+            {
+                frame = *_pFrame;
+                return false;
+            }
+
             ffmpeg.av_frame_unref(_pFrame);
             ffmpeg.av_frame_unref(_receivedFrame);
             int error;
@@ -87,6 +96,31 @@ namespace PCRend.FFmpegStuff
                         {
                             frame = *_pFrame;
                             return false;
+                            /*
+                            _noMoreFrames = true;
+                            ffmpeg.avcodec_send_packet(_pCodecContext, null).ThrowExceptionIfError();
+
+                            do
+                            {
+                                error = ffmpeg.avcodec_receive_frame(_pCodecContext, _pFrame);
+                            } while (error == ffmpeg.AVERROR(ffmpeg.EAGAIN));
+                            if(error == ffmpeg.AVERROR_EOF)
+                            {
+                                frame = *_pFrame;
+                                return false;
+                            }
+                            else
+                            {
+                                error.ThrowExceptionIfError();
+                                if (_pCodecContext->hw_device_ctx != null)
+                                {
+                                    ffmpeg.av_hwframe_transfer_data(_receivedFrame, _pFrame, 0).ThrowExceptionIfError();
+                                    frame = *_receivedFrame;
+                                }
+                                else
+                                    frame = *_pFrame;
+                                return true;
+                            }*/
                         }
 
                         error.ThrowExceptionIfError();
