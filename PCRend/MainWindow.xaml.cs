@@ -356,7 +356,11 @@ namespace PCRend
             object ticksLock = new object();
             long ticks1local = 0;
             long ticks2local = 0;
-            long totalPoints = blurFrames <= 1 ? frames.Count * posColors.Count() : frames.Count * posColors.Count() * blurFrames - (blurFrames-1) * posColors.Count(); // first frame has no interpolation, but this is all an estimate anyway
+            long totalPoints = blurFrames <= 1 ? (long)frames.Count * (long)posColors.Count() : (long)frames.Count * (long)posColors.Count() * (long)blurFrames; // first frame has no interpolation, but this is all an estimate anyway
+            if(DrawnFrames == 0)
+            {
+                totalPoints -= ((long)blurFrames - 1) * (long)posColors.Count();
+            }
             long donePoints = 0;
             Parallel.ForEach(frames,(overframe)=> {
                 Stopwatch sw = new Stopwatch();
