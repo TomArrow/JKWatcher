@@ -17,7 +17,7 @@ namespace PCRend.FFmpegStuff
         //private readonly Stream _stream;
         private readonly int _size;
 
-        public MagicYUVVideoStreamEncoder(string filename, int fps, Size frameSize)
+        public MagicYUVVideoStreamEncoder(string filename, AVRational timebase, Size frameSize)
         {
             //_stream = stream;
             _frameSize = frameSize;
@@ -42,8 +42,10 @@ namespace PCRend.FFmpegStuff
             _pCodecContext->codec_type = AVMediaType.AVMEDIA_TYPE_VIDEO;
             _pCodecContext->width = frameSize.Width;
             _pCodecContext->height = frameSize.Height;
-            _pCodecContext->time_base = new AVRational { num = 1, den = fps };
-            _pCodecContext->framerate = new AVRational { num = fps, den = 1 };
+            //_pCodecContext->time_base = new AVRational { num = 1, den = fps };
+            //_pCodecContext->framerate = new AVRational { num = fps, den = 1 };
+            _pCodecContext->time_base = timebase;
+            _pCodecContext->framerate = new AVRational { num = timebase.den, den = timebase.num };
             _pCodecContext->pix_fmt = AVPixelFormat.AV_PIX_FMT_GBRP;
 
             ffmpeg.avcodec_open2(_pCodecContext, _pCodec, null).ThrowExceptionIfError();
@@ -60,14 +62,27 @@ namespace PCRend.FFmpegStuff
             _size = _linesize * frameSize.Height;
         }
 
+        bool _disposed = false;
+
         public void Dispose()
         {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
             //ffmpeg.avcodec_close(_pCodecContext);
             ffmpeg.av_free(_pCodecContext);
+            ffmpeg.avio_close(_pFormatContext->pb);
+            ffmpeg.avformat_free_context(_pFormatContext);
         }
 
         public void Encode(AVFrame frame)
         {
+            if (_disposed)
+            {
+                return;
+            }
             if (frame.format != (int)_pCodecContext->pix_fmt)
                 throw new ArgumentException("Invalid pixel format.", nameof(frame));
             if (frame.width != _frameSize.Width) throw new ArgumentException("Invalid width.", nameof(frame));
@@ -203,10 +218,8 @@ namespace PCRend.FFmpegStuff
             {
                 ffmpeg.av_packet_free(&pPacket);
             }
-            ffmpeg.av_write_trailer(_pFormatContext); 
-            ffmpeg.avio_close(_pFormatContext->pb);
-
-            ffmpeg.avformat_free_context(_pFormatContext);
+            ffmpeg.av_write_trailer(_pFormatContext);
+            Dispose();
         }
     }
 }

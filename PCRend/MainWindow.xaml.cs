@@ -304,9 +304,207 @@ namespace PCRend
 
 
         }
+        private unsafe void EncodeFrames(IEnumerable<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame)
+        {
+            foreach (frameRenderInfo frameInfo in frames)
+            {
+                byte[] data = LevelShotData.ToByteArray(frameInfo.lsData.data, true);
+                fixed (byte* datap = data)
+                {
+                    frame.data = new byte_ptrArray8();
+                    frame.data[0] = datap;
+                    frame.data[1] = datap + frame.width * frame.height;
+                    frame.data[2] = datap + frame.width * frame.height * 2;
+
+                    enc.Encode(frame);
+                }
+                frame.pts++;
+            }
+        }
+
+        private void PrintPositionsToImages(IReadOnlyList<frameRenderInfo> frames,IEnumerable<fp32Point> posColors, ref long ticks1,ref long ticks2, bool zComp = false)
+        {
+            object ticksLock = new object();
+            long ticks1local = 0;
+            long ticks2local = 0;
+            Parallel.ForEach(frames,(frame)=> {
+                Stopwatch sw = new Stopwatch();
+                sw.Restart();
+                if (float.IsNaN(frame.fov) || float.IsNaN(frame.pos.X) || float.IsNaN(frame.pos.Y) || float.IsNaN(frame.pos.Z) || float.IsNaN(frame.angles.X) || float.IsNaN(frame.angles.Y) || float.IsNaN(frame.angles.Z))
+                {
+                    return;
+                }
+
+                List<Tuple<int, int, Vector3>> transformed = new List<Tuple<int, int, Vector3>>();
+
+                foreach (var posColor in posColors)
+                {
+                    Vector4 levelshotPos = Vector4.Transform(posColor.pos, frame.camTransform);
+                    float theZ = levelshotPos.Z;
+                    levelshotPos /= levelshotPos.W;
+                    if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                    {
+                        int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                        int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                        Vector3 color = new Vector3();
+
+                        color.Z = (float)((posColor.a & 240) | 15);
+                        color.Y = (float)(((posColor.a & 15) << 4) | 15);
+                        color.X = (float)((posColor.b & 240) | 15);
+                        color *= divideby255;
+
+                        if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                        {
+                            transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                        }
+                    }
+                }
+
+                lock (ticksLock)
+                {
+                    ticks1local += sw.ElapsedTicks;
+                }
+
+                sw.Restart();
+                foreach (var point in transformed)
+                {
+                    frame.lsData.data[point.Item1, point.Item2] += point.Item3;
+                }
+
+                lock (ticksLock)
+                {
+                    ticks2local += sw.ElapsedTicks;
+                }
+            });
+
+            ticks1 += ticks1local;
+            ticks2 += ticks2local;
+
+        }
 
         const float divideby255 = 1.0f / 255.0f;
 
+        class frameRenderInfo
+        {
+            public Vector3 pos;
+            public Vector3 angles;
+            public float fov;
+            public Matrix4x4 modelMatrix;
+            public Matrix4x4 camTransform;
+            public LevelShotData lsData = null;
+        }
+
+        private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32)
+        {
+            try
+            { // just in case of some invalid directory or whatever
+
+
+                
+
+                string filename = pointCloudFile;
+
+                for(int i = 0; i < frames.Count(); i++)
+                {
+                    frameRenderInfo frameData = frames[i];
+                    frameData.modelMatrix = ProjectionMatrixHelper.createModelMatrix(frameData.pos, frameData.angles, false);
+                    frameData.camTransform = ProjectionMatrixHelper.createModelProjectionMatrix(frameData.pos, frameData.angles, frameData.fov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
+                    frameData.lsData = new LevelShotData();
+                }
+
+                try
+                {
+                    // do the drawing
+
+                    int itemLength = fp32 ? 14 : 8;
+
+                    using (FileStream fs = new FileStream(filename, FileMode.Open))
+                    {
+                        fs.Seek(0, SeekOrigin.End);
+                        Int64 count = fs.Position / (Int64)itemLength;
+                        fs.Seek(0, SeekOrigin.Begin);
+                        using (BinaryReader br = new BinaryReader(fs))
+                        {
+                            //List<Tuple<byte,byte, Vector3>> items = new List<Tuple<byte, byte, Vector3>>();
+                            List<fp32Point> items = new List<fp32Point>();
+                            fp32Point dummy;
+                            items.Capacity = 10000000;
+                            Stopwatch sw = new Stopwatch();
+                            long ticksread = 0;
+                            long tickstoarr = 0;
+                            long ticksprocess1 = 0;
+                            long ticksprocess2 = 0;
+                            if (fp32)
+                            {
+                                Task printTask = null;
+                                while (count > 0)
+                                {
+                                    Int64 batch = Math.Min(10000000, count);
+                                    sw.Restart();
+                                    var points = Helpers.ReadBytesAsTypeArray<fp32Point>(br, (int)batch);
+                                    ticksread += sw.ElapsedTicks; sw.Restart();
+                                    count -= batch;
+                                    fp32Point[] arr = points.ToArray();
+                                    tickstoarr += sw.ElapsedTicks;
+                                    if (printTask != null)
+                                    {
+                                        printTask.Wait();
+                                    }
+                                    printTask = Task.Run(()=> {
+                                        PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, false);
+                                    });
+                                }
+                                if(printTask != null)
+                                {
+                                    printTask.Wait();
+                                }
+
+                                Console.WriteLine($"{(double)ticksread/(double)Stopwatch.Frequency}s reading, {(double)tickstoarr/(double)Stopwatch.Frequency}s making array, {(double)ticksprocess1/(double)Stopwatch.Frequency}s processing 1, {(double)ticksprocess2/(double)Stopwatch.Frequency}s processing 2");
+
+                            }/*
+                            else
+                            {
+                                // only s16 supported for nowfor (Int64 i = 0; i < count; i++)
+                                for (Int64 i = 0; i < count; i++) { 
+                                    Vector3 pos = new Vector3();
+                                    Vector3 color = new Vector3();
+                                    pos.X = br.ReadInt16();
+                                    pos.Y = br.ReadInt16();
+                                    pos.Z = br.ReadInt16();
+                                    byte a = br.ReadByte();
+                                    byte b = br.ReadByte();
+                                    //items.Add(new Tuple<byte, byte, Vector3>(a, b, pos));
+                                    items.Add(new fp32Point() {a=a,b=b,pos=pos });
+                                    if (items.Count >= 10000000 || i == count - 1)
+                                    {
+                                        PrintPositionsToImage(items, modelMatrix, camTransform, lsData, false);
+                                        items.Clear();
+                                        items.Capacity = 10000000;
+                                    }
+                                }
+                            }*/
+
+                        }
+                    }
+
+                    EncodeFrames(frames, enc, ref frame);
+
+                }
+                catch (Exception ex)
+                {
+                    Helpers.logToFile($"Error doing pointcloud render render: {ex.ToString()}");
+                }
+                    
+                    
+
+                
+            }
+            catch (Exception e2)
+            {
+                Helpers.logToFile($"Error doing pointcloud render (outer): {e2.ToString()}");
+            }
+
+        }
         private void renderBtn_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -569,11 +767,32 @@ namespace PCRend
             { // just in case of some invalid directory or whatever
 
                 bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
+                bool makePointCloudVideo = makePointCloudVidCheck.IsChecked == true;
+                bool fp32 = pointCloudRadio_fp32?.IsChecked == true;
+
+                string videoFilename = null;
+                string pointcloudFilename = null;
+                var sfd0 = new Microsoft.Win32.SaveFileDialog();
+                sfd0.Filter = "AVI video file (.avi)|*.avi";
+                sfd0.Title = "Where to save video file";
+                if (sfd0.ShowDialog() == true)
+                {
+                    videoFilename = sfd0.FileName;
+                    var ofd0 = new Microsoft.Win32.OpenFileDialog();
+                    ofd0.Title = "Find pointcloud file";
+                    ofd0.Filter = "Point cloud (.bin)|*.bin";
+
+                    if (ofd0.ShowDialog() == true)
+                    {
+                        pointcloudFilename = ofd0.FileName;
+                    }
+                }
 
                 var ofd = new Microsoft.Win32.OpenFileDialog();
                 //ofd.Filter = "Point cloud (.bin)|*.bin";
                 string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native"); // todo make this nicer... cross-platform? oh well wpf is windumb anyway
                 ffmpeg.RootPath = test;
+                ofd.Title = "Select Source video";
                 if (ofd.ShowDialog() == true)
                 {
                     StringBuilder subtitlesString = new StringBuilder();
@@ -587,6 +806,26 @@ namespace PCRend
                     {
                         using (VideoConverter converter = new VideoConverter(decoder.FrameSize, decoder.PixelFormat, decoder.FrameSize, AVPixelFormat.AV_PIX_FMT_RGB24))
                         {
+                            Task encoderTask = null;
+                            MagicYUVVideoStreamEncoder enc = null;
+                            AVFrame outFrame = new AVFrame();
+                            List<frameRenderInfo> renderFrames = null;
+                            System.Drawing.Size outVideoSize = new System.Drawing.Size(1920, 1080);
+                            if (!string.IsNullOrWhiteSpace(videoFilename) && !string.IsNullOrWhiteSpace(pointcloudFilename))
+                            {
+                                enc = new MagicYUVVideoStreamEncoder(videoFilename,decoder.TimeBase, outVideoSize);
+                                outFrame.linesize = new int_array8();
+                                outFrame.linesize[0] = outVideoSize.Width;
+                                outFrame.linesize[1] = outVideoSize.Width;
+                                outFrame.linesize[2] = outVideoSize.Width;
+                                outFrame.pts = outFrame.best_effort_timestamp = 0;
+                                outFrame.width = outVideoSize.Width;
+                                outFrame.height = outVideoSize.Height;
+                                outFrame.format = (int)AVPixelFormat.AV_PIX_FMT_GBRP;
+                                outFrame.time_base = decoder.TimeBase; 
+                                renderFrames = new List<frameRenderInfo>();
+                            }
+
                             while(decoder.TryDecodeNextFrame(out AVFrame frame))
                             {
                                 double exactTime = (double)frame.best_effort_timestamp * decoder.TimeBaseDouble;
@@ -612,6 +851,18 @@ namespace PCRend
                                     {
                                         JsonSerializerOptions opts = new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
                                         VideoMeta.VideoMeta meta = JsonSerializer.Deserialize<VideoMeta.VideoMeta>(jsonStr, opts);
+
+                                        if (renderFrames != null)
+                                        {
+                                            if (meta != null)
+                                            {
+                                                renderFrames.Add(new frameRenderInfo() { pos = new Vector3(meta.camera.pos[0], meta.camera.pos[1], meta.camera.pos[2]), angles = new Vector3(meta.camera.ang[0], meta.camera.ang[1], meta.camera.ang[2]), fov = meta.camera.fov });
+                                            }
+                                            else
+                                            {
+                                                renderFrames.Add(new frameRenderInfo() { fov = 120 });
+                                            }
+                                        }
 
                                         ConsolelineSimple[] newLines = meta.getSimpleConsoleLines(3000,true);
                                         if (!oldConsole.lines.SequenceEqualSafe(newLines))
@@ -660,6 +911,33 @@ namespace PCRend
                                     //Debug.WriteLine(pixel);
                                     Debug.WriteLine(frame.width);
                                 }
+                                if(renderFrames != null && renderFrames.Count >= 100)
+                                {
+                                    if(encoderTask != null)
+                                    {
+                                        encoderTask.Wait();
+                                    }
+                                    frameRenderInfo[] frameInfos = renderFrames.ToArray();
+                                    renderFrames.Clear();
+                                    encoderTask = Task.Run(()=> {
+                                        RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32);
+                                    });
+                                }
+                            }
+
+                            if (encoderTask != null)
+                            {
+                                encoderTask.Wait();
+                            }
+                            if (renderFrames != null && renderFrames.Count >= 0)
+                            {
+                                RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32);
+                                renderFrames.Clear();
+                            }
+                            if(enc != null)
+                            {
+                                enc.Drain();
+                                enc.Dispose();
                             }
                         }
                     }
@@ -685,6 +963,7 @@ namespace PCRend
             catch (Exception e2)
             {
                 Helpers.logToFile($"Error doing pointcloud video test (outer): {e2.ToString()}");
+                MessageBox.Show($"Error doing pointcloud video test (outer): {e2.ToString()}");
             }
         }
 
@@ -706,7 +985,7 @@ namespace PCRend
                     //using (FileStream fs = File.OpenWrite(sfd.FileName))
                     {
                         System.Drawing.Size size = new System.Drawing.Size(640, 360);
-                        MagicYUVVideoStreamEncoder enc = new MagicYUVVideoStreamEncoder(sfd.FileName, 2, size);
+                        MagicYUVVideoStreamEncoder enc = new MagicYUVVideoStreamEncoder(sfd.FileName, new AVRational() { num = 2, den = 1}, size);
                         //AVFrame* frameP = ffmpeg.av_frame_alloc();
                         //AVFrame frame = *frameP;// new AVFrame();
                         AVFrame frame = new AVFrame();

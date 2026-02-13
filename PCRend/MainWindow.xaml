@@ -25,7 +25,10 @@
             <Button Click="renderBtn_Click" Name="renderBtn">Render</Button>
             <GroupBox Header="Video">
                 <StackPanel>
-                    <CheckBox Name="makeSubtitlesCheck" IsChecked="True">Make subtitles</CheckBox>
+                    <WrapPanel>
+                        <CheckBox Name="makeSubtitlesCheck" IsChecked="True">Make subtitles</CheckBox>
+                        <CheckBox Name="makePointCloudVidCheck" IsChecked="True">Make pointcloud vid</CheckBox>
+                    </WrapPanel>
                     <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
                     <Button Click="videoTest2Btn_Click" Name="videoTest2Btn">Videotest2</Button>
                 </StackPanel>

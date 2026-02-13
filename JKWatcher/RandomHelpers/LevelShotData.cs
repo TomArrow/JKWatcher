@@ -415,6 +415,85 @@ namespace JKWatcher.RandomHelpers
             bmp = Helpers.ByteArrayToBitmap(bi);
             return bmp;
         }
+        
+        public static byte[] ToByteArray(Vector3[,] levelshotDataLocal, bool planar)
+        {
+            int width = levelshotDataLocal.GetLength(0);
+            int height = levelshotDataLocal.GetLength(1);
+
+            byte[] retVal = new byte[width * height * 3];
+
+            List<float> brightnessValuesList = new List<float>();
+
+            double divider = 0;
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    for (int c = 0; c < 3; c++)
+                    {
+                        float valueHere = levelshotDataLocal[x, y].GetIndex(c);
+                        if (valueHere > 0.0f)
+                        {
+                            //totalUsedPixelBrightness += valueHere;
+                            divider++;
+                            brightnessValuesList.Add(valueHere);
+                        }
+                    }
+                }
+            }
+
+            brightnessValuesList.Sort();
+            float roughMedianBrightness = brightnessValuesList.Count > 0 ? brightnessValuesList[brightnessValuesList.Count / 2] : 1.0f;
+            float multiplier = 1.0f / (float)roughMedianBrightness;
+
+            ByteImage bi = new ByteImage(retVal, width*3,width,height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+
+            if (planar) // GBR
+            {
+                bi.stride = width;
+                for (int c = 0; c < 3; c++)
+                {
+                    int realColorIndex = c == 1 ? 0 : (c == 0 ? 2 : 1);
+                    int baseOffset = bi.stride * height * realColorIndex;
+                    for (int x = 0; x < width; x++)
+                    {
+                        for (int y = 0; y < height; y++)
+                        {
+                            float valueHere = levelshotDataLocal[x, y].GetIndex(c) * multiplier;
+                            //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                            float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
+                            byte byteValue = (byte)Math.Clamp(gammaValue * 255.0f * 0.5f, 0, 255.0f);
+                            int yInv = height - 1 - y;
+                            int xInv = width - 1 - x;
+                            bi.imageData[baseOffset + bi.stride * yInv + xInv] = byteValue;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    for (int y = 0; y < height; y++)
+                    {
+                        for (int c = 0; c < 3; c++)
+                        {
+                            float valueHere = levelshotDataLocal[x, y].GetIndex(c) * multiplier;
+                            //float gammaValue = valueHere > 1.0 ? (float)Math.Pow(valueHere * multiplier, invGamma5) : (float)Math.Pow(valueHere * multiplier, invGamma);
+                            float gammaValue = valueHere > 1.0 ? above1To2SoftApproach(valueHere) : (float)Math.Pow(valueHere, invGamma);
+                            byte byteValue = (byte)Math.Clamp(gammaValue * 255.0f * 0.5f, 0, 255.0f);
+                            int yInv = height - 1 - y;
+                            int xInv = width - 1 - x;
+                            bi.imageData[bi.stride * yInv + xInv * 3 + c] = byteValue;
+                        }
+                    }
+                }
+            }
+
+            return retVal;
+
+        }
 
 
 
