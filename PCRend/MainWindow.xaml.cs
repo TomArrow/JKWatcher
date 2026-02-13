@@ -18,6 +18,7 @@ using PCRend.FFmpegStuff;
 using System.Text.Json;
 using PCRend.VideoMeta;
 using System.Collections.Concurrent;
+using Vim;
 
 namespace PCRend
 {
@@ -327,40 +328,45 @@ namespace PCRend
             object ticksLock = new object();
             long ticks1local = 0;
             long ticks2local = 0;
-            Parallel.ForEach(frames,(frame)=> {
+            Parallel.ForEach(frames,(overframe)=> {
                 Stopwatch sw = new Stopwatch();
                 sw.Restart();
-                if (float.IsNaN(frame.fov) || float.IsNaN(frame.pos.X) || float.IsNaN(frame.pos.Y) || float.IsNaN(frame.pos.Z) || float.IsNaN(frame.angles.X) || float.IsNaN(frame.angles.Y) || float.IsNaN(frame.angles.Z))
+
+                foreach(frameRenderInfo frame in overframe.blendStates)
                 {
-                    return;
+                    if (float.IsNaN(frame.fov) || float.IsNaN(frame.pos.X) || float.IsNaN(frame.pos.Y) || float.IsNaN(frame.pos.Z) || float.IsNaN(frame.angles.X) || float.IsNaN(frame.angles.Y) || float.IsNaN(frame.angles.Z))
+                    {
+                        return;
+                    }
+                    foreach (var posColor in posColors)
+                    {
+                        Vector4 levelshotPos = Vector4.Transform(posColor.pos, frame.camTransform);
+                        float theZ = levelshotPos.Z;
+                        levelshotPos /= levelshotPos.W;
+                        if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                        {
+                            int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                            int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                            Vector3 color = new Vector3();
+
+                            color.Z = (float)((posColor.a & 240) | 15);
+                            color.Y = (float)(((posColor.a & 15) << 4) | 15);
+                            color.X = (float)((posColor.b & 240) | 15);
+                            color *= divideby255 * frame.multiplier;
+
+                            if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                            {
+
+                                overframe.lsData.data[posX, posY] += color * LevelShotData.compensationMultipliers[posX, posY];
+                                //transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                            }
+                        }
+                    }
                 }
 
                 //List<Tuple<int, int, Vector3>> transformed = new List<Tuple<int, int, Vector3>>();
 
-                foreach (var posColor in posColors)
-                {
-                    Vector4 levelshotPos = Vector4.Transform(posColor.pos, frame.camTransform);
-                    float theZ = levelshotPos.Z;
-                    levelshotPos /= levelshotPos.W;
-                    if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
-                    {
-                        int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
-                        int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
-                        Vector3 color = new Vector3();
-
-                        color.Z = (float)((posColor.a & 240) | 15);
-                        color.Y = (float)(((posColor.a & 15) << 4) | 15);
-                        color.X = (float)((posColor.b & 240) | 15);
-                        color *= divideby255;
-
-                        if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
-                        {
-
-                            frame.lsData.data[posX, posY] += color * LevelShotData.compensationMultipliers[posX, posY];
-                            //transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
-                        }
-                    }
-                }
+                
 
                 lock (ticksLock)
                 {
@@ -386,17 +392,9 @@ namespace PCRend
 
         const float divideby255 = 1.0f / 255.0f;
 
-        class frameRenderInfo
-        {
-            public Vector3 pos;
-            public Vector3 angles;
-            public float fov;
-            public Matrix4x4 modelMatrix;
-            public Matrix4x4 camTransform;
-            public LevelShotData lsData = null;
-        }
+        
 
-        private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32)
+        private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32, int blurFrames)
         {
             try
             { // just in case of some invalid directory or whatever
@@ -409,8 +407,7 @@ namespace PCRend
                 for(int i = 0; i < frames.Count(); i++)
                 {
                     frameRenderInfo frameData = frames[i];
-                    frameData.modelMatrix = ProjectionMatrixHelper.createModelMatrix(frameData.pos, frameData.angles, false);
-                    frameData.camTransform = ProjectionMatrixHelper.createModelProjectionMatrix(frameData.pos, frameData.angles, frameData.fov, LevelShotData.levelShotWidth, LevelShotData.levelShotHeight);
+                    frameData.CalcMatrices(blurFrames);
                     frameData.lsData = new LevelShotData();
                 }
 
@@ -771,6 +768,11 @@ namespace PCRend
                 bool makeSubtitles = makeSubtitlesCheck.IsChecked == true;
                 bool makePointCloudVideo = makePointCloudVidCheck.IsChecked == true;
                 bool fp32 = pointCloudRadio_fp32?.IsChecked == true;
+                int blurFrames;
+                if(!int.TryParse(blurFramesTxt.Text, out blurFrames))
+                {
+                    blurFrames = 0;
+                }
 
                 string videoFilename = null;
                 string pointcloudFilename = null;
@@ -814,6 +816,7 @@ namespace PCRend
                             MagicYUVVideoStreamEncoder enc = null;
                             AVFrame outFrame = new AVFrame();
                             List<frameRenderInfo> renderFrames = null;
+                            frameRenderInfo previousFrame = null;
                             System.Drawing.Size outVideoSize = new System.Drawing.Size(1920, 1080);
                             if (!string.IsNullOrWhiteSpace(videoFilename) && !string.IsNullOrWhiteSpace(pointcloudFilename))
                             {
@@ -858,14 +861,17 @@ namespace PCRend
 
                                         if (renderFrames != null)
                                         {
+                                            frameRenderInfo newFrame;
                                             if (meta != null)
                                             {
-                                                renderFrames.Add(new frameRenderInfo() { pos = new Vector3(meta.camera.pos[0], meta.camera.pos[1], meta.camera.pos[2]), angles = new Vector3(meta.camera.ang[0], meta.camera.ang[1], meta.camera.ang[2]), fov = meta.camera.fov });
+                                                newFrame = new frameRenderInfo() { pos = new Vector3(meta.camera.pos[0], meta.camera.pos[1], meta.camera.pos[2]), angles = new Vector3(meta.camera.ang[0], meta.camera.ang[1], meta.camera.ang[2]), fov = meta.camera.fov, oldFrame = previousFrame };
                                             }
                                             else
                                             {
-                                                renderFrames.Add(new frameRenderInfo() { fov = 120 });
+                                                newFrame = new frameRenderInfo() { fov = 120, oldFrame = previousFrame };
                                             }
+                                            renderFrames.Add(newFrame);
+                                            previousFrame = newFrame;
                                         }
 
                                         ConsolelineSimple[] newLines = meta.getSimpleConsoleLines(3000,true);
@@ -924,7 +930,7 @@ namespace PCRend
                                     frameRenderInfo[] frameInfos = renderFrames.ToArray();
                                     renderFrames.Clear();
                                     encoderTask = Task.Run(()=> {
-                                        RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32);
+                                        RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
                                     });
                                 }
                             }
@@ -935,7 +941,7 @@ namespace PCRend
                             }
                             if (renderFrames != null && renderFrames.Count >= 0)
                             {
-                                RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32);
+                                RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
                                 renderFrames.Clear();
                             }
                             if(enc != null)
