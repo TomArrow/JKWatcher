@@ -24,7 +24,8 @@ namespace JKWatcher
         static bool isRunning = false;
 
         public static string[] fileNameIgnoreList = { "assets0", "assets1", "assets2","assets3", "assets5" }; // Don't download these, we have them. lol
-
+        public static string[] fileNameIgnoreListMOH = { "maintt/pak1","maintt/pak2","maintt/pak3","mainta/pak1","mainta/pak3","mainta/pak4","main/Pak0","main/Pak1","main/Pak2","main/Pak3","main/Pak4","main/Pak5"}; // Don't download these, we have them. lol
+        // files that might contain localization: ,"main/Pak7","mainta/pak2","mainta/pak5","maintt/pak4"
 
 
         static public void Enqueue(string pakUrl, string pakSavename, int hash)

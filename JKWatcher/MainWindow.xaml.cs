@@ -1490,6 +1490,7 @@ namespace JKWatcher
                     newWindow.Closed += NewWindow_Closed;
                     newWindow.ShowActivated = false;
                     newWindow.Show();
+                    newWindow.recordAll();
                 }
             }
             /*ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;

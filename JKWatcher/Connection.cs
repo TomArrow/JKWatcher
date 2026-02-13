@@ -4867,8 +4867,8 @@ namespace JKWatcher
                     serverWindow.addToLog("Systeminfo: Referenced paks changed, trying to save to download list.");
                     TaskManager.TaskRun(async () => {
                         bool httpSuccess = false;
-                        string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ");
-                        string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ");
+                        string[] pakNames = lastKnownPakNamesCaptured.Trim(' ').Split(" ",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                        string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                         if(pakNames.Length != pakChecksums.Length)
                         {
                             serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
@@ -4911,7 +4911,7 @@ namespace JKWatcher
                                     browser.Stop();
                                     browser.InternalTaskStarted -= Browser_InternalTaskStarted;
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes (during await): " + e.ToString());
-                                    return;
+                                    goto httpoptionfound;
                                 }
 
                                 MvHttpDownloadInfo tmpDLInfo = new MvHttpDownloadInfo();
@@ -5000,7 +5000,11 @@ namespace JKWatcher
                             for (int pkI = 0; pkI < pakNames.Length; pkI++)
                             {
                                 string pakName = pakNames[pkI];
-                                if (PakDownloader.fileNameIgnoreList.Contains(Path.GetFileNameWithoutExtension(pakName)))
+                                if (!mohMode && PakDownloader.fileNameIgnoreList.Contains(Path.GetFileNameWithoutExtension(pakName)))
+                                {
+                                    continue;
+                                }
+                                if (mohMode && PakDownloader.fileNameIgnoreListMOH.Contains(pakName))
                                 {
                                     continue;
                                 }
