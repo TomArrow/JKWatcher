@@ -335,7 +335,7 @@ namespace PCRend
                     return;
                 }
 
-                List<Tuple<int, int, Vector3>> transformed = new List<Tuple<int, int, Vector3>>();
+                //List<Tuple<int, int, Vector3>> transformed = new List<Tuple<int, int, Vector3>>();
 
                 foreach (var posColor in posColors)
                 {
@@ -355,7 +355,9 @@ namespace PCRend
 
                         if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                         {
-                            transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+
+                            frame.lsData.data[posX, posY] += color * LevelShotData.compensationMultipliers[posX, posY];
+                            //transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
                         }
                     }
                 }
@@ -366,10 +368,10 @@ namespace PCRend
                 }
 
                 sw.Restart();
-                foreach (var point in transformed)
-                {
-                    frame.lsData.data[point.Item1, point.Item2] += point.Item3;
-                }
+                //foreach (var point in transformed)
+                //{
+                //    frame.lsData.data[point.Item1, point.Item2] += point.Item3;
+                //}
 
                 lock (ticksLock)
                 {
@@ -775,7 +777,7 @@ namespace PCRend
                 var sfd0 = new Microsoft.Win32.SaveFileDialog();
                 sfd0.Filter = "AVI video file (.avi)|*.avi";
                 sfd0.Title = "Where to save video file";
-                if (sfd0.ShowDialog() == true)
+                if (makePointCloudVideo && sfd0.ShowDialog() == true)
                 {
                     videoFilename = sfd0.FileName;
                     var ofd0 = new Microsoft.Win32.OpenFileDialog();
@@ -790,8 +792,10 @@ namespace PCRend
 
                 var ofd = new Microsoft.Win32.OpenFileDialog();
                 //ofd.Filter = "Point cloud (.bin)|*.bin";
-                string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native"); // todo make this nicer... cross-platform? oh well wpf is windumb anyway
+                //string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native"); // todo make this nicer... cross-platform? oh well wpf is windumb anyway
+                string test = FFmpegHelper.findFFmpegLibs();
                 ffmpeg.RootPath = test;
+                //MessageBox.Show($"ffmpeg dir: {test}");
                 ofd.Title = "Select Source video";
                 if (ofd.ShowDialog() == true)
                 {

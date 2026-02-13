@@ -52,6 +52,8 @@ namespace PCRend.FFmpegStuff
 
             ffmpeg.avcodec_parameters_from_context(_stream->codecpar, _pCodecContext);
 
+            _stream->time_base = timebase;
+
             ffmpeg.avio_open(&_pFormatContext->pb, filename, ffmpeg.AVIO_FLAG_WRITE).ThrowExceptionIfError();
 
             ffmpeg.avformat_write_header(_pFormatContext, null);

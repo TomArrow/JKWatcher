@@ -1,5 +1,6 @@
 ﻿using FFmpeg.AutoGen;
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace PCRend.FFmpegStuff
@@ -7,6 +8,18 @@ namespace PCRend.FFmpegStuff
 
     internal static class FFmpegHelper
     {
+        public static string findFFmpegLibs()
+        {
+            string test = Path.Combine(AppContext.BaseDirectory, "runtimes", RuntimeInformation.ProcessArchitecture == Architecture.X64 ? "win-x64" : "win-x86", "native");
+            if(File.Exists(Path.Combine(test, "avcodec-62.dll")))
+            {
+                return test;
+            }
+            else
+            {
+                return AppContext.BaseDirectory;
+            }
+        }
         public static unsafe string av_strerror(int error)
         {
             var bufferSize = 1024;
