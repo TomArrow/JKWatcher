@@ -30,6 +30,8 @@
                         <CheckBox Name="makePointCloudVidCheck" IsChecked="True">Make pointcloud vid</CheckBox>
                         <Label>BlurFrames</Label>
                         <TextBox x:Name="blurFramesTxt" Width="30"></TextBox>
+                        <Label>Work group size</Label>
+                        <TextBox x:Name="workGroupSizeText" Width="30">32</TextBox>
                     </WrapPanel>
                     <Button Click="videoTestBtn_Click" Name="videoTestBtn">Videotest</Button>
                     <Button Click="videoTest2Btn_Click" Name="videoTest2Btn">Videotest2</Button>

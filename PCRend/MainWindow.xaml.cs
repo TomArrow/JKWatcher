@@ -443,7 +443,7 @@ namespace PCRend
 
         }
         
-        private void PrintPositionsToImagesOpenTK(IReadOnlyList<frameRenderInfo> frames, IReadOnlyList<fp32Point> posColors, ref long ticks1,ref long ticks2, int blurFrames, bool zComp = false)
+        private void PrintPositionsToImagesOpenTK(IReadOnlyList<frameRenderInfo> frames, IReadOnlyList<fp32Point> posColors, ref long ticks1,ref long ticks2, int blurFrames, int workGroupSize, bool zComp = false)
         {
             object ticksLock = new object();
             long ticks1local = 0;
@@ -455,7 +455,7 @@ namespace PCRend
             //}
             long donePoints = 0;
 
-            int openClCount = posColors.Count() / 32 * 32 == posColors.Count() ? posColors.Count() : (posColors.Count() / 32 + 1) * 32; // round up cuz local work group size must be a clean divisor of total amount
+            int openClCount = posColors.Count() / workGroupSize * workGroupSize == posColors.Count() ? posColors.Count() : (posColors.Count() / workGroupSize + 1) * workGroupSize; // round up cuz local work group size must be a clean divisor of total amount
 
             point_OpenCL[] points = new point_OpenCL[openClCount];
             for(int i=0;i< posColors.Count(); i++)
@@ -466,7 +466,7 @@ namespace PCRend
             foreach(var overframe in frames)
             {
                 frameRenderInfo_OpenCL[] subFrames = overframe.getOpenCLFrames();
-                float[] returnValue = OpenTKRend.RunFrame(subFrames, points.ToArray(), 0);
+                float[] returnValue = OpenTKRend.RunFrame(subFrames, points.ToArray(), 0, workGroupSize);
                 if (returnValue.Length >= LevelShotData.levelShotWidth * LevelShotData.levelShotHeight * 3)
                 {
                     for (int x = 0; x < LevelShotData.levelShotWidth; x++)
@@ -557,7 +557,7 @@ namespace PCRend
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32, int blurFrames)
+        private void RenderFrames(IReadOnlyList<frameRenderInfo> frames, MagicYUVVideoStreamEncoder enc, ref AVFrame frame, string pointCloudFile, bool fp32, int blurFrames, int workGroupSize)
         {
             try
             { // just in case of some invalid directory or whatever
@@ -615,7 +615,7 @@ namespace PCRend
                                         printTask.Wait();
                                     }
                                     printTask = Task.Run(()=> {
-                                        PrintPositionsToImagesOpenTK(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
+                                        PrintPositionsToImagesOpenTK(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, workGroupSize, false);
                                         //PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
                                         ProcessedPointCount += arr.Length * frames.Count;
                                         ProcessedPoints = (float)( 100.0 * (double)ProcessedPointCount / (double)TotalPointCount);
@@ -938,11 +938,16 @@ namespace PCRend
             {
                 blurFrames = 0;
             }
+            int workGroupSize;
+            if (!int.TryParse(workGroupSizeText.Text, out workGroupSize))
+            {
+                workGroupSize = 0;
+            }
             await Task.Run(()=> {
-                doVideo(makeSubtitles, makePointCloudVideo, fp32, blurFrames);
+                doVideo(makeSubtitles, makePointCloudVideo, fp32, blurFrames, workGroupSize);
             });
         }
-        private unsafe void doVideo(bool makeSubtitles, bool makePointCloudVideo, bool fp32, int blurFrames)
+        private unsafe void doVideo(bool makeSubtitles, bool makePointCloudVideo, bool fp32, int blurFrames, int workGroupSize)
         {
 
             try
@@ -988,6 +993,7 @@ namespace PCRend
                         TotalFrames = decoder.FrameCount;
                         ReadFrames = 0;
                         DrawnFrames = 0;
+                        WrittenFrames = 0;
                         ProcessedPoints = 0;
                         TotalPointCount = 0;
                         ProcessedPointCount = 0;
@@ -1112,7 +1118,7 @@ namespace PCRend
                                     frameRenderInfo[] frameInfos = renderFrames.ToArray();
                                     renderFrames.Clear();
                                     encoderTask = Task.Run(()=> {
-                                        RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
+                                        RenderFrames(frameInfos, enc, ref outFrame, pointcloudFilename, fp32, blurFrames, workGroupSize);
                                         DrawnFrames += frameInfos.Length;
                                     });
                                 }
@@ -1124,7 +1130,7 @@ namespace PCRend
                             }
                             if (renderFrames != null && renderFrames.Count >= 0)
                             {
-                                RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32, blurFrames);
+                                RenderFrames(renderFrames, enc, ref outFrame, pointcloudFilename, fp32, blurFrames, workGroupSize);
                                 DrawnFrames += renderFrames.Count;
                                 renderFrames.Clear();
                             }

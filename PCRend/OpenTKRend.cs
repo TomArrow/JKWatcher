@@ -177,7 +177,7 @@ namespace PCRend
             exceptIfError(res, "Error creating command queue");
         }
 
-        public unsafe static float[] RunFrame(frameRenderInfo_OpenCL[] inputFrames, point_OpenCL[] inputPoints, int divideCount)
+        public unsafe static float[] RunFrame(frameRenderInfo_OpenCL[] inputFrames, point_OpenCL[] inputPoints, int divideCount, int workGroupSize)
         {
 
             CLResultCode res;
@@ -250,7 +250,7 @@ namespace PCRend
             exceptIfError(res, "Error setting kernel argument 4.");
 
             watch.Restart();
-            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)(inputPoints.Length) }, new nuint[] { 32 }, 0, null, out eventWhatever);
+            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)(inputPoints.Length) }, new nuint[] { (nuint)workGroupSize }, 0, null, out eventWhatever);
             watch.Stop();
             //Console.WriteLine($"TK execute: {watch.Elapsed.TotalMilliseconds}");
 
