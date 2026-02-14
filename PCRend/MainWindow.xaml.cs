@@ -31,6 +31,18 @@ namespace PCRend
         public Vector3 pos;
         public byte a;
         public byte b;
+        public unsafe point_OpenCL getOpenCLPoint()
+        {
+            point_OpenCL retVal;
+            retVal.pos[0] = pos.X;
+            retVal.pos[1] = pos.Y;
+            retVal.pos[2] = pos.Z;
+            retVal.pos[3] = 1.0f;
+            retVal.color[0] = MainWindow.divideby255 * (float)((a & 240) | 15);
+            retVal.color[1] = MainWindow.divideby255 * (float)(((a & 15) << 4) | 15);
+            retVal.color[2] = MainWindow.divideby255 * (float)((b & 240) | 15);
+            return retVal;
+        }
     };
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct fp16Point
@@ -72,6 +84,7 @@ namespace PCRend
             this.PropertyChanged += MainWindow_PropertyChanged;
             this.DataContext = this;
             TotalFrames = -1;
+            OpenTKRend.prepareTK(1920 * 1080, OpenTK.Compute.OpenCL.DeviceType.Gpu);
         }
 
         private void MainWindow_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -429,8 +442,118 @@ namespace PCRend
             ticks2 += ticks2local;
 
         }
+        
+        private void PrintPositionsToImagesOpenTK(IReadOnlyList<frameRenderInfo> frames, IReadOnlyList<fp32Point> posColors, ref long ticks1,ref long ticks2, int blurFrames, bool zComp = false)
+        {
+            object ticksLock = new object();
+            long ticks1local = 0;
+            long ticks2local = 0;
+            //long totalPoints = blurFrames <= 1 ? (long)frames.Count * (long)posColors.Count() : (long)frames.Count * (long)posColors.Count() * (long)blurFrames; // first frame has no interpolation, but this is all an estimate anyway
+            //if(DrawnFrames == 0)
+            //{
+                //totalPoints -= ((long)blurFrames - 1) * (long)posColors.Count();
+            //}
+            long donePoints = 0;
 
-        const float divideby255 = 1.0f / 255.0f;
+            int openClCount = posColors.Count() / 32 * 32 == posColors.Count() ? posColors.Count() : (posColors.Count() / 32 + 1) * 32; // round up cuz local work group size must be a clean divisor of total amount
+
+            point_OpenCL[] points = new point_OpenCL[openClCount];
+            for(int i=0;i< posColors.Count(); i++)
+            {
+                points[i] = posColors[i].getOpenCLPoint();
+            }
+
+            foreach(var overframe in frames)
+            {
+                frameRenderInfo_OpenCL[] subFrames = overframe.getOpenCLFrames();
+                float[] returnValue = OpenTKRend.RunFrame(subFrames, points.ToArray(), 0);
+                if (returnValue.Length >= LevelShotData.levelShotWidth * LevelShotData.levelShotHeight * 3)
+                {
+                    for (int x = 0; x < LevelShotData.levelShotWidth; x++)
+                    {
+                        for (int y = 0; y < LevelShotData.levelShotHeight; y++)
+                        {
+                            overframe.lsData.data[x, y] = new Vector3(returnValue[y * LevelShotData.levelShotWidth * 3 + x * 3], returnValue[y * LevelShotData.levelShotWidth * 3 + x * 3 + 1], returnValue[y * LevelShotData.levelShotWidth * 3 + x * 3 + 2]);
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("OpenTK returned garbage.");
+                }
+            }
+
+            
+
+            /*Parallel.ForEach(frames,(overframe)=> {
+                Stopwatch sw = new Stopwatch();
+                sw.Restart();
+
+                long pointsHere = 0;
+                foreach(frameRenderInfo frame in overframe.blendStates)
+                {
+                    if (float.IsNaN(frame.fov) || float.IsNaN(frame.pos.X) || float.IsNaN(frame.pos.Y) || float.IsNaN(frame.pos.Z) || float.IsNaN(frame.angles.X) || float.IsNaN(frame.angles.Y) || float.IsNaN(frame.angles.Z))
+                    {
+                        return;
+                    }
+                    foreach (var posColor in posColors)
+                    {
+                        Vector4 levelshotPos = Vector4.Transform(posColor.pos, frame.camTransform);
+                        float theZ = levelshotPos.Z;
+                        levelshotPos /= levelshotPos.W;
+                        if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
+                        {
+                            int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                            int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                            Vector3 color = new Vector3();
+
+                            color.Z = (float)((posColor.a & 240) | 15);
+                            color.Y = (float)(((posColor.a & 15) << 4) | 15);
+                            color.X = (float)((posColor.b & 240) | 15);
+                            color *= divideby255 * frame.multiplier;
+
+                            if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                            {
+
+                                overframe.lsData.data[posX, posY] += color * LevelShotData.compensationMultipliers[posX, posY];
+                                //transformed.Add(new Tuple<int, int, Vector3>(posX, posY, color * LevelShotData.compensationMultipliers[posX, posY]));
+                            }
+                        }
+                        //pointsHere++;
+                        //Interlocked.Increment(ref donePoints);
+                        //if (pointsHere % 10000 == 0) {
+                        //    ProcessedPointsSub = (float)(100.0* (double)donePoints / (double)totalPoints);
+                        //}
+                    }
+                }
+
+            //List<Tuple<int, int, Vector3>> transformed = new List<Tuple<int, int, Vector3>>();
+
+
+
+            lock (ticksLock)
+                {
+                    ticks1local += sw.ElapsedTicks;
+                }
+
+                sw.Restart();
+                //foreach (var point in transformed)
+                //{
+                //    frame.lsData.data[point.Item1, point.Item2] += point.Item3;
+                //}
+
+                lock (ticksLock)
+                {
+                    ticks2local += sw.ElapsedTicks;
+                }
+            });*/
+
+            ticks1 += ticks1local;
+            ticks2 += ticks2local;
+
+        }
+
+        public const float divideby255 = 1.0f / 255.0f;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -492,7 +615,8 @@ namespace PCRend
                                         printTask.Wait();
                                     }
                                     printTask = Task.Run(()=> {
-                                        PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
+                                        PrintPositionsToImagesOpenTK(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
+                                        //PrintPositionsToImages(frames, arr, ref ticksprocess1, ref ticksprocess2, blurFrames, false);
                                         ProcessedPointCount += arr.Length * frames.Count;
                                         ProcessedPoints = (float)( 100.0 * (double)ProcessedPointCount / (double)TotalPointCount);
                                     });
@@ -796,11 +920,11 @@ namespace PCRend
 
         }
 
-        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("videoMetaLib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe char* testString();
-        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("videoMetaLib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe char* parseVideoMetaToString(byte* buf, int width, int height, int totalHeight, int stride, int multiplier, UIntPtr* rgboffsets3Array);
-        [DllImport("videoMetaLib.dll",CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("videoMetaLib.dll", CallingConvention = CallingConvention.Cdecl)]
         public static extern unsafe void freeVideoMetaString(char* metaString);
 
         private async void videoTestBtn_Click(object sender, RoutedEventArgs e)
