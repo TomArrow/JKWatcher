@@ -113,7 +113,8 @@ namespace PCRend
                     __kernel void PaintPoint(__global frameRenderInfo_OpenCL* inputFrames,__global point_OpenCL* inputPoints, __global float* output, int frameCount, int divideCount)
                     {
                         int gid = get_global_id(0);
-                        for(int i=0;i<frameCount;i++){
+                        int i = get_global_id(1);
+                        //for(int i=0;i<frameCount;i++){
                             //frameRenderInfo_OpenCL* frame = &inputFrames[i];
                             //result.x = 
                             float4 levelshotPos = inputFrames[i].c0 * inputPoints[gid].pos.x;
@@ -133,7 +134,7 @@ namespace PCRend
                                     output[1920*3*posY+posX*3+2] += inputPoints[gid].color.z;
                                 }
                             }
-                        }
+                        //}
 
                         //output[0] = 1;
                     }
@@ -250,7 +251,8 @@ namespace PCRend
             exceptIfError(res, "Error setting kernel argument 4.");
 
             watch.Restart();
-            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)(inputPoints.Length) }, new nuint[] { (nuint)workGroupSize }, 0, null, out eventWhatever);
+            //new nuint[] { (nuint)workGroupSize }
+            res = CL.EnqueueNDRangeKernel(queue, kernel, 2, new nuint[] { 0,0 }, new nuint[] { (nuint)(inputPoints.Length),(nuint)(inputFrames.Length) }, null, 0, null, out eventWhatever);
             watch.Stop();
             //Console.WriteLine($"TK execute: {watch.Elapsed.TotalMilliseconds}");
 
