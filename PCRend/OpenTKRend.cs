@@ -124,24 +124,23 @@ namespace PCRend
                             float theZ = levelshotPos.z;
                             levelshotPos /= levelshotPos.w;
                             
-                            //if (theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f)
-                            //{
-                                float4 color = inputPoints[gid].color;
-                                //float4 color = select((float4)(0.0f),inputPoints[gid].color,(int4)(theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f));
+                            if (theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f)
+                            {
+                                //float4 color = inputPoints[gid].color;
                                 int2 pos;
                                 pos.x = (int)(((levelshotPos.x + 1.0f) / 2.0f) * (float)1920);//(float)LevelShotData.levelShotWidth);
                                 pos.y = (int)(((levelshotPos.y + 1.0f) / 2.0f) * (float)1080);//(float)LevelShotData.levelShotHeight);
-                                bool isGood = theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f && pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080;
-                                color = select((float4)(0.0f),color,-(int4)(isGood)); // why - you ask? because MSB needs to be set. and condition cast to int -> 1. but -1 has MSB set. dumb i know.
-                                pos = clamp(pos,(int2)0,(int2)((1920-1),(1080-1)));
+                                //bool isGood = theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f && pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080;
+                                //color = select((float4)(0.0f),color,-(int4)(isGood)); // why - you ask? because MSB needs to be set. and condition cast to int -> 1. but -1 has MSB set. dumb i know.
+                                //pos = clamp(pos,(int2)0,(int2)((1920-1),(1080-1)));
                                 
-                                //if (pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080)
-                                //{
-                                    output[1920*3*pos.y+pos.x*3] += color.x;
-                                    output[1920*3*pos.y+pos.x*3+1] += color.y;
-                                    output[1920*3*pos.y+pos.x*3+2] += color.z;
-                                //}
-                            //}
+                                if (pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080)
+                                {
+                                    output[1920*3*pos.y+pos.x*3] += inputPoints[gid].color.x;
+                                    output[1920*3*pos.y+pos.x*3+1] += inputPoints[gid].color.y;
+                                    output[1920*3*pos.y+pos.x*3+2] += inputPoints[gid].color.z;
+                                }
+                            }
                         }
 
                         //output[0] = 1;
