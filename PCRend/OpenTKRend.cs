@@ -113,8 +113,8 @@ namespace PCRend
                     __kernel void PaintPoint(__global frameRenderInfo_OpenCL* inputFrames,__global point_OpenCL* inputPoints, __global float* output, int frameCount, int divideCount)
                     {
                         int gid = get_global_id(0);
-                        int i = get_global_id(1);
-                        //for(int i=0;i<frameCount;i++){
+                        //int i = get_global_id(1);
+                        for(int i=0;i<frameCount;i++){
                             //frameRenderInfo_OpenCL* frame = &inputFrames[i];
                             //result.x = 
                             float4 levelshotPos = inputFrames[i].c0 * inputPoints[gid].pos.x;
@@ -123,18 +123,26 @@ namespace PCRend
                             levelshotPos += inputFrames[i].c3 * inputPoints[gid].pos.w;
                             float theZ = levelshotPos.z;
                             levelshotPos /= levelshotPos.w;
-                            if (theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f)
-                            {
-                                int posX = (int)(((levelshotPos.x + 1.0f) / 2.0f) * (float)1920);//(float)LevelShotData.levelShotWidth);
-                                int posY = (int)(((levelshotPos.y + 1.0f) / 2.0f) * (float)1080);//(float)LevelShotData.levelShotHeight);
-                                if (posX >= 0 && posX < 1920 && posY >= 0 && posY < 1080)
-                                {
-                                    output[1920*3*posY+posX*3] += inputPoints[gid].color.x;
-                                    output[1920*3*posY+posX*3+1] += inputPoints[gid].color.y;
-                                    output[1920*3*posY+posX*3+2] += inputPoints[gid].color.z;
-                                }
-                            }
-                        //}
+                            
+                            //if (theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f)
+                            //{
+                                float4 color = inputPoints[gid].color;
+                                //float4 color = select((float4)(0.0f),inputPoints[gid].color,(int4)(theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f));
+                                int2 pos;
+                                pos.x = (int)(((levelshotPos.x + 1.0f) / 2.0f) * (float)1920);//(float)LevelShotData.levelShotWidth);
+                                pos.y = (int)(((levelshotPos.y + 1.0f) / 2.0f) * (float)1080);//(float)LevelShotData.levelShotHeight);
+                                bool isGood = theZ > 0 && levelshotPos.x >= -1.0f && levelshotPos.x <= 1.0f && levelshotPos.y >= -1.0f && levelshotPos.y <= 1.0f && pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080;
+                                color = select((float4)(0.0f),color,-(int4)(isGood)); // why - you ask? because MSB needs to be set. and condition cast to int -> 1. but -1 has MSB set. dumb i know.
+                                pos = clamp(pos,(int2)0,(int2)((1920-1),(1080-1)));
+                                
+                                //if (pos.x >= 0 && pos.x < 1920 && pos.y >= 0 && pos.y < 1080)
+                                //{
+                                    output[1920*3*pos.y+pos.x*3] += color.x;
+                                    output[1920*3*pos.y+pos.x*3+1] += color.y;
+                                    output[1920*3*pos.y+pos.x*3+2] += color.z;
+                                //}
+                            //}
+                        }
 
                         //output[0] = 1;
                     }
@@ -252,7 +260,8 @@ namespace PCRend
 
             watch.Restart();
             //new nuint[] { (nuint)workGroupSize }
-            res = CL.EnqueueNDRangeKernel(queue, kernel, 2, new nuint[] { 0,0 }, new nuint[] { (nuint)(inputPoints.Length),(nuint)(inputFrames.Length) }, null, 0, null, out eventWhatever);
+            //res = CL.EnqueueNDRangeKernel(queue, kernel, 2, new nuint[] { 0,0 }, new nuint[] { (nuint)(inputPoints.Length),(nuint)(inputFrames.Length) }, null, 0, null, out eventWhatever);
+            res = CL.EnqueueNDRangeKernel(queue, kernel, 1, new nuint[] { 0 }, new nuint[] { (nuint)(inputPoints.Length) }, new nuint[] { (nuint)workGroupSize }, 0, null, out eventWhatever);
             watch.Stop();
             //Console.WriteLine($"TK execute: {watch.Elapsed.TotalMilliseconds}");
 
