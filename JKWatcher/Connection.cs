@@ -6146,7 +6146,7 @@ namespace JKWatcher
                     gameIsPaused = false;
                     infoPool.gameIsPaused = false;
                 } else if ( 
-                   commandEventArgs.MessageNum == -1 && client?.Status == ConnectionStatus.Challenging && commandEventArgs.Command.Argv(1).Contains("You are banned", StringComparison.InvariantCultureIgnoreCase))
+                   commandEventArgs.MessageNum == -1 && client?.Status == ConnectionStatus.Challenging && (commandEventArgs.Command.Argv(1).StartsWith("Banned.")  || commandEventArgs.Command.Argv(1).Contains("You are banned", StringComparison.InvariantCultureIgnoreCase)))
                 {
                     lock (kickInfo) kickInfo.Add(commandEventArgs.Command.RawStringOrConcatenated());
                     serverWindow.addToLog("KICK DETECTION: Ban during connect detected.");
