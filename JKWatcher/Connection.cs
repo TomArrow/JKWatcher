@@ -4871,8 +4871,24 @@ namespace JKWatcher
                         string[] pakChecksums = lastKnownPakChecksumsCaptured.Trim(' ').Split(" ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                         if(pakNames.Length != pakChecksums.Length)
                         {
-                            serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
-                            return;
+                            // shitty rescue operation
+                            List<string> newPakNames = new List<string>();
+                            MatchCollection pakMatches = pakNamesRescueRegex.Matches(lastKnownPakNamesCaptured);
+                            if(pakMatches != null && pakMatches.Count == pakChecksums.Length)
+                            {
+                                foreach (Match pakMatch in pakMatches)
+                                {
+                                    newPakNames.Add(pakMatch.Groups[0].Value.Trim());
+                                }
+                                pakNames = newPakNames.ToArray();
+                                serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. But rescue mission with regex succeeded. Probably empty spaces in filenames.");
+                            }
+                            else
+                            {
+                                serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
+                                return;
+                            }
+
                         } else if (pakNames.Length == 0)
                         {
                             serverWindow.addToLog("Referenced paks count is 0.");
@@ -4995,7 +5011,8 @@ namespace JKWatcher
                         {
                             serverWindow.addToLog("^2Trying UDP download.");
                             client?.EndDownloads();
-                            
+
+                            List<Tuple<string, string, string,int>> udpToDownload = new List<Tuple<string, string, string, int>>();
                             List<string> udpLog = new List<string>();
                             for (int pkI = 0; pkI < pakNames.Length; pkI++)
                             {
@@ -5029,10 +5046,11 @@ namespace JKWatcher
                                     string targetPath2 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP", targetFilename);
                                     if (!File.Exists(targetPath) && !File.Exists(targetPath2))
                                     {
-                                        serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
-                                        udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
-                                        client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
+                                        //serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
+                                        //udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
+                                        //client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
                                         //udpRequestQueue.Enqueue(new UDPDownloadRequest() { remoteName=rawPakname,localName=pakName,checksum= pakChecksumInt });
+                                        udpToDownload.Add(new Tuple<string, string, string,int>(pakName,rawPakname,pakChecksum,pakChecksumInt));
                                     }
 
                                     //string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
@@ -5044,6 +5062,19 @@ namespace JKWatcher
                                 {
                                     serverWindow.addToLog("Could not parse checksum integer, strange. Discarding.");
                                 }
+                            }
+                            udpToDownload.Sort((a,b)=> { // empty space containing filenames can crash us so... put them last.
+                                return a.Item2.Contains(' ').CompareTo(b.Item2.Contains(' '));
+                            });
+                            foreach(var dl in udpToDownload)
+                            {
+                                string pakName = dl.Item1;
+                                string rawPakname = dl.Item2;
+                                string pakChecksum = dl.Item3;
+                                int pakChecksumInt = dl.Item4;
+                                serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
+                                udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
+                                client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
                             }
                             if (udpLog.Count > 0)
                             {
@@ -5768,6 +5799,9 @@ namespace JKWatcher
         Regex playerNameSpecialCharsRegex = new Regex(@"[^\w\d ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex playerNameSpecialCharsExceptRoofRegex = new Regex(@"[^\w\d\^ ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex serverUsesProtocolRegex = new Regex(@"Server uses protocol version (\^\d)?(?<protocol>\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+        // sometimes paknames can have empty spaces..... on dirty dirty servers :rage:
+        Regex pakNamesRescueRegex = new Regex(@"(?<pak>(?:baseq3\/|base\/|main\/|mainta\/|maintt\/)(?:.(?!baseq3\/|base\/|main\/|mainta\/|maintt\/))*\s*)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         string disconnectedString = " disconnected\n";
 
