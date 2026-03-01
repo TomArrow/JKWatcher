@@ -1308,6 +1308,7 @@ namespace JKWatcher
         }
 
         DateTime lastForcedActivity = DateTime.Now;
+        DateTime lastUcmdDone = DateTime.Now;
 
         Int64 queuedButtonPress = 0;
         public void QueueSingleButtonPress(Int64 btn)
@@ -1367,7 +1368,8 @@ namespace JKWatcher
             // If we haven't gotten any response from the server in the last 10 seconds or so, stop doing any of these. 
             // Because generating these commands can force the client to send usercommands at 142-ish fps and if the server went down or something,
             // we don't wanna spam it.
-            if ((DateTime.Now-lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10)
+            // but do at least one every 10 seconds or so... so we dont get dropped for inactivity in weird situations like udp download situations
+            if ((DateTime.Now-lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10 && (DateTime.Now- lastUcmdDone).TotalSeconds < 10)
             {
                 return;
             }
@@ -1385,6 +1387,8 @@ namespace JKWatcher
                 // we havent gotten a proper playerstate from the server yet. let everything catch up. should only take a few milliseconds. 
                 // Thus avoid ruining our start spectating angle for levelshot perspective.
             }
+
+            lastUcmdDone = DateTime.Now;
 
             // TODO Ready when intermission and only player on server.
 
@@ -1489,7 +1493,7 @@ namespace JKWatcher
                         {
                             modifiableCommand.Upmove = 127; // In expansions, upmove changes who we follow.
                         }
-                        modifiableCommand.Buttons |= (int)UserCommand.Button.MouseMOH;
+                        modifiableCommand.Buttons |= (int)UserCommand.Button.MouseMOH | (int)UserCommand.Button.AnyMOH;
                     }
 
                     lastForcedActivity = DateTime.Now;
@@ -4852,7 +4856,7 @@ namespace JKWatcher
 
             // Check for referencedPaks
             InfoString systemInfo = new InfoString( client.GetMappedConfigstring(ClientGame.Configstring.SystemInfo));
-            if(systemInfo["sv_referencedPakNames"] != lastKnownPakNames || systemInfo["sv_referencedPaks"] != lastKnownPakChecksums)
+            if(systemInfo["sv_referencedPakNames"] != lastKnownPakNames || systemInfo["sv_referencedPaks"] != lastKnownPakChecksums || newGameState)
             {
                 // Referenced paks changed:
                 lastKnownPakNames = systemInfo["sv_referencedPakNames"];
@@ -5046,17 +5050,8 @@ namespace JKWatcher
                                     string targetPath2 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP", targetFilename);
                                     if (!File.Exists(targetPath) && !File.Exists(targetPath2))
                                     {
-                                        //serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
-                                        //udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
-                                        //client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
-                                        //udpRequestQueue.Enqueue(new UDPDownloadRequest() { remoteName=rawPakname,localName=pakName,checksum= pakChecksumInt });
                                         udpToDownload.Add(new Tuple<string, string, string,int>(pakName,rawPakname,pakChecksum,pakChecksumInt));
                                     }
-
-                                    //string dlLink = mvHttpDownloadInfo.Value.urlPrefix + (!mvHttpDownloadInfo.Value.urlPrefix.EndsWith("/") ? "/" : "") + pakName + ".pk3";
-                                    //serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
-                                    //downloadLinks.Add($"{pakName},{hashString},{dlLink}");
-                                    //PakDownloader.Enqueue(dlLink, pakChecksumInt);
                                 }
                                 else
                                 {
@@ -5074,7 +5069,28 @@ namespace JKWatcher
                                 int pakChecksumInt = dl.Item4;
                                 serverWindow.addToLog($"Enqueueing UDP download: {pakName} ({rawPakname} ... {pakChecksum})");
                                 udpLog.Add($"{ip} ({obj.HostName}): {pakName} ({rawPakname} ... {pakChecksum})");
-                                client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
+                                string targetFilename = Path.GetFileNameWithoutExtension(pakName) + "_" + Convert.ToHexString(BitConverter.GetBytes(pakChecksumInt)) + Path.GetExtension(pakName);
+                                byte[] existing = null;
+                                try
+                                {
+                                    using (new GlobalMutexHelper("JKWatcherUDPDownloadPartialMutex", 20000))
+                                    {
+                                        string targetFilenamePartial = targetFilename + ".partudp";
+                                        string targetPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP", targetFilenamePartial);
+                                        if (File.Exists(targetPath))
+                                        {
+                                            existing = File.ReadAllBytes(targetPath);
+                                            serverWindow.addToLog($"Found partial UDP downloaded file {targetFilenamePartial}, using.", true);
+                                        }
+                                        client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt, existing);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    string errorMessage = $"Error checking for UDP download partial: {ex.ToString()}";
+                                    client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
+                                    return;
+                                }
                             }
                             if (udpLog.Count > 0)
                             {
