@@ -503,6 +503,7 @@ namespace JKWatcher
                 CONNECTEDTIME_OVER = 1 << 3,
                 MAPCHANGE = 1 << 4,
                 GAMETYPE_NOT = 1 << 5,
+                DOWNLOADS_FINISHED = 1 << 6,
             }
             private string _disconnectTriggers = null;
             public string disconnectTriggers
@@ -537,6 +538,10 @@ namespace JKWatcher
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("mapchange", StringComparison.OrdinalIgnoreCase))
                                 {
                                     _disconnectTriggersParsed |= DisconnectTriggers.MAPCHANGE;
+                                }
+                                if (_disconnectTriggers != null && triggerTextParts[0].Contains("downloads_finished", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _disconnectTriggersParsed |= DisconnectTriggers.DOWNLOADS_FINISHED;
                                 }
                                 if (_disconnectTriggers != null && triggerTextParts[0].Contains("playercount_under", StringComparison.OrdinalIgnoreCase))
                                 {
@@ -884,6 +889,32 @@ namespace JKWatcher
             infoPool.saberVersion = saberVersion;
         }
 
+        private bool CheckDownloadsFinishedDisconnectTrigger()
+        {
+            if((_connectionOptions.disconnectTriggersParsed & ConnectionOptions.DisconnectTriggers.DOWNLOADS_FINISHED) == 0)
+            {
+                return false;
+            }
+            bool downloadsFinished = true;
+            lock (connectionsCameraOperatorsMutex)
+            {
+                foreach (Connection conn in connections)
+                {
+                    if (!conn.DownloadsFinished)
+                    {
+                        downloadsFinished = false;
+                        break;
+                    }
+                }
+            }
+            if (downloadsFinished)
+            {
+                this.addToLog($"Disconnect trigger tripped: Downloads finished. Disconnecting.");
+                return true;
+            }
+            return false;
+        }
+
         private bool CheckTimedDisconnectTriggers()
         {
             int activeClientCount = 0; // this is kinda fucked cuz infopool isnt actually updated yet xd. well, we're just gonna check in regular intervals.
@@ -1008,12 +1039,26 @@ namespace JKWatcher
             return false;
         }
 
+        DateTime lastDownloadsFinishedTriggerCheck = DateTime.Now;
         DateTime lastDisconnectTriggerCheck = DateTime.Now;
         const double disconnectTriggerCheckDefaultTimeout = 60000;
         double nextDisconnectTriggerCheckTimeOut = disconnectTriggerCheckDefaultTimeout;
 
         private void Conn_SnapshotParsed(object sender, SnapshotParsedEventArgs e)
         {
+            double timeSinceLastDownloadsFinishedDisconnectTriggerCheck = (DateTime.Now - lastDownloadsFinishedTriggerCheck).TotalMilliseconds;
+            if(timeSinceLastDownloadsFinishedDisconnectTriggerCheck > 10000)
+            {
+                lastDownloadsFinishedTriggerCheck = DateTime.Now;
+                if (CheckDownloadsFinishedDisconnectTrigger())
+                {
+                    Dispatcher.BeginInvoke((Action)(() =>
+                    { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
+                        this.Close();
+                    }));
+                    return;
+                }
+            }
             double timeSinceLastDisconnectTriggerCheck = (DateTime.Now - lastDisconnectTriggerCheck).TotalMilliseconds;
             if (timeSinceLastDisconnectTriggerCheck > nextDisconnectTriggerCheckTimeOut)
             {
@@ -1090,7 +1135,7 @@ namespace JKWatcher
                 }
             }
 
-            if (CheckTimedDisconnectTriggers())
+            if (CheckTimedDisconnectTriggers() || CheckDownloadsFinishedDisconnectTrigger())
             {
                 Dispatcher.BeginInvoke((Action)(() =>
                 { // Gotta do begininvoke because I have this in the lock and wanna avoid any weird interaction with the contents of this call leading back into this method causing a deadlock.
@@ -2669,6 +2714,9 @@ namespace JKWatcher
             if (e.PropertyName == "CameraOperator")
             {
                 setMainChatConnection();
+            } else if (e.PropertyName == "DownloadsFinished")
+            {
+                lastDownloadsFinishedTriggerCheck = DateTime.Now - new TimeSpan(10, 0, 0);
             }
         }
 

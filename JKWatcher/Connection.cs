@@ -390,7 +390,9 @@ namespace JKWatcher
                 }
             } 
         } 
-        private string nameOverride = null; 
+        private string nameOverride = null;
+
+        public bool DownloadsFinished { get; private set; } = false;
 
         [DelayProperty]
         public int? ClientNum { get; set; } = null;
@@ -1245,6 +1247,10 @@ namespace JKWatcher
                 string errorMessage = $"Error saving UDP download: {ex.ToString()}";
                 Helpers.logToFile(errorMessage);
                 return;
+            }
+            if (!e.anyLeftInQueue)
+            {
+                DownloadsFinished = true;
             }
         }
 
@@ -4890,12 +4896,14 @@ namespace JKWatcher
                             else
                             {
                                 serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
+                                DownloadsFinished = true;
                                 return;
                             }
 
                         } else if (pakNames.Length == 0)
                         {
                             serverWindow.addToLog("Referenced paks count is 0.");
+                            DownloadsFinished = true;
                             return;
                         }
 
@@ -4970,6 +4978,7 @@ namespace JKWatcher
                         {
 
                             List<string> downloadLinks = new List<string>();
+                            bool anyAdded = false;
                             for(int pkI = 0; pkI<pakNames.Length; pkI++)
                             {
                                 string pakName = pakNames[pkI];
@@ -4994,6 +5003,7 @@ namespace JKWatcher
                                     serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
                                     downloadLinks.Add($"{pakName},{hashString},{dlLink}");
                                     PakDownloader.Enqueue(dlLink, pakName, pakChecksumInt);
+                                    anyAdded = true;
                                     httpSuccess = true;
                                 } else
                                 {
@@ -5004,6 +5014,10 @@ namespace JKWatcher
                             Dispatcher.CurrentDispatcher.Invoke(()=> {
                                 Helpers.logDownloadLinks(downloadLinksArray);
                             });
+                            if (!anyAdded)
+                            {
+                                DownloadsFinished = true;
+                            }
                         }
                         else
                         {
@@ -5061,6 +5075,7 @@ namespace JKWatcher
                             udpToDownload.Sort((a,b)=> { // empty space containing filenames can crash us so... put them last.
                                 return a.Item2.Contains(' ').CompareTo(b.Item2.Contains(' '));
                             });
+                            bool anyAdded = false;
                             foreach(var dl in udpToDownload)
                             {
                                 string pakName = dl.Item1;
@@ -5083,14 +5098,20 @@ namespace JKWatcher
                                             serverWindow.addToLog($"Found partial UDP downloaded file {targetFilenamePartial}, using.", true);
                                         }
                                         client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt, existing);
+                                        anyAdded = true;
                                     }
                                 }
                                 catch (Exception ex)
                                 {
                                     string errorMessage = $"Error checking for UDP download partial: {ex.ToString()}";
                                     client?.EnqueueDownload(rawPakname, pakName, pakChecksumInt);
+                                    anyAdded = true;
                                     return;
                                 }
+                            }
+                            if (!anyAdded)
+                            {
+                                DownloadsFinished = true;
                             }
                             if (udpLog.Count > 0)
                             {
@@ -5109,7 +5130,11 @@ namespace JKWatcher
                     serverWindow.addToLog("Systeminfo: Referenced paks changed, but all download options are disabled.");
                 }
 
-                
+
+            }
+            else
+            {
+                DownloadsFinished = true;
             }
 
             ClientNum = client.clientNum;

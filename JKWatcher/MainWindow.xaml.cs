@@ -1580,6 +1580,8 @@ namespace JKWatcher
             public bool pollingBroken { get; set; } = false;
             public bool mohProtocol { get; init; } = false;
             public int? maxTimeSinceMapChange { get; init; } = null;
+            public string versionFilter { get; init; } = null;
+            public bool udpDl { get; init; } = false;
 
             public ServerInfo lastFittingServerInfo = null;
 
@@ -1633,6 +1635,7 @@ namespace JKWatcher
                 if (hostName == null && ip==null && !generic) throw new Exception("ServerConnectConfig: hostName or ip must be provided or 'generic' must be set.");
                 playerName = config["playerName"]?.Trim();
                 password = config["password"]?.Trim();
+                versionFilter = config["version"]?.Trim();
                 mapChangeCommands = config["mapChangeCommands"]?.Trim();
                 quickCommands = config["quickCommands"]?.Trim();
                 conditionalCommands = config["conditionalCommands"]?.Trim();
@@ -1649,6 +1652,7 @@ namespace JKWatcher
                 pingAdjust = config["pingAdjust"]?.Trim().Atoi();
                 snaps = config["snaps"]?.Trim().Atoi();
                 forceSnaps = config["forceSnaps"]?.Trim().Atoi() > 0;
+                udpDl = config["udpDl"]?.Trim().Atoi() > 0;
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
@@ -1817,6 +1821,8 @@ namespace JKWatcher
                     if (chance < 100 && Connection.getNiceRandom(1,101) > chance) return false;
                     //if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (maxTimeSinceMapChange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && (DateTime.Now - lastMapChanges[serverInfo.Address]).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
+                    if (!string.IsNullOrWhiteSpace(versionFilter) && !string.IsNullOrWhiteSpace(lastFittingServerInfo.ServerGameVersionString) && !lastFittingServerInfo.ServerGameVersionString.Contains(versionFilter,StringComparison.InvariantCultureIgnoreCase)) return false;
+                    if (udpDl && !lastFittingServerInfo.UDPDownloads) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.

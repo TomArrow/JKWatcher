@@ -148,6 +148,14 @@ Set to 1 if this server requires the MOH protocol. Mainly required in combinatio
 
 Maximum time in milliseconds since last detected map change. Mostly makes sense in combination with pollingInterval. If last detected map change happened more than the set amount of milliseconds ago, don't connect.
 
+#### version
+
+Filter by searching for a string in the serverinfo's version property.
+
+#### udpDl
+
+Requires the server to have UDP downloads enabled.
+
 #### inactive
 
 Set to 1 if this connection should be not active by default.
@@ -209,6 +217,7 @@ Possible options:
 - ```playercount_under:8-10:60000```: Disconnects if player count falls under 8 to 10 for more than 1 minute (replace with numbers of your choice. player count can be range or single number without "-")
 - ```connectedtime_over:55-60```: Disconnects if we were connected for more than 55 to 60 minutes (random within that range, change numbers to what you desire or use single number without "-")
 - ```mapchange```: Disconnect if a map change is detected.
+- ```downloads_finished```: Disconnects if all UDP downloads have finished or if none are queued.
 
 #### mapChangeCommands 
 
