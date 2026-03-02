@@ -18,6 +18,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using Salaros.Configuration;
 
 namespace JKWatcher
 {
@@ -151,6 +152,18 @@ namespace JKWatcher
 
     public static class Helpers
     {
+
+        public static bool ContainsKey(this ConfigSection cs, string key, StringComparison stringComparison = StringComparison.InvariantCultureIgnoreCase)
+        {
+            foreach(IConfigKeyValue ele in cs.Keys)
+            {
+                if (ele.Name.Equals(key, stringComparison))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
 
         private static readonly Dictionary<string, string> cachedFileReadCache = new Dictionary<string, string>();
         private static readonly Dictionary<string, DateTime> cachedFileReadLastRead = new Dictionary<string, DateTime>();

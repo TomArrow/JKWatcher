@@ -154,7 +154,11 @@ Filter by searching for a string in the serverinfo's version property.
 
 #### udpDl
 
-Requires the server to have UDP downloads enabled.
+0 or 1. Whether server should have UDP downloads enabled.
+
+#### httpDl
+
+0 or 1. Whether server should have HTTP downloads enabled.
 
 #### inactive
 

@@ -1581,7 +1581,8 @@ namespace JKWatcher
             public bool mohProtocol { get; init; } = false;
             public int? maxTimeSinceMapChange { get; init; } = null;
             public string versionFilter { get; init; } = null;
-            public bool udpDl { get; init; } = false;
+            public bool? udpDl { get; init; } = null;
+            public bool? httpDl { get; init; } = null;
 
             public ServerInfo lastFittingServerInfo = null;
 
@@ -1652,7 +1653,8 @@ namespace JKWatcher
                 pingAdjust = config["pingAdjust"]?.Trim().Atoi();
                 snaps = config["snaps"]?.Trim().Atoi();
                 forceSnaps = config["forceSnaps"]?.Trim().Atoi() > 0;
-                udpDl = config["udpDl"]?.Trim().Atoi() > 0;
+                udpDl = config.ContainsKey("udpDl") ? config["udpDl"]?.Trim().Atoi() > 0 : null;
+                httpDl = config.ContainsKey("httpDl") ? config["httpDl"]?.Trim().Atoi() > 0 : null;
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
@@ -1822,7 +1824,8 @@ namespace JKWatcher
                     //if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (maxTimeSinceMapChange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && (DateTime.Now - lastMapChanges[serverInfo.Address]).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (!string.IsNullOrWhiteSpace(versionFilter) && !string.IsNullOrWhiteSpace(lastFittingServerInfo.ServerGameVersionString) && !lastFittingServerInfo.ServerGameVersionString.Contains(versionFilter,StringComparison.InvariantCultureIgnoreCase)) return false;
-                    if (udpDl && !lastFittingServerInfo.UDPDownloads) return false;
+                    if (udpDl.HasValue && udpDl.Value != lastFittingServerInfo.UDPDownloads) return false;
+                    if (httpDl.HasValue && httpDl.Value != lastFittingServerInfo.HTTPDownloads) return false;
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.

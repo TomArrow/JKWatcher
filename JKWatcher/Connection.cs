@@ -1250,6 +1250,7 @@ namespace JKWatcher
             }
             if (!e.anyLeftInQueue)
             {
+                serverWindow.addToLog("no downloads left in queue. consider downloads finished.");
                 DownloadsFinished = true;
             }
         }
@@ -5016,6 +5017,7 @@ namespace JKWatcher
                             });
                             if (!anyAdded)
                             {
+                                serverWindow.addToLog("no downloads added. consider downloads finished.");
                                 DownloadsFinished = true;
                             }
                         }
@@ -5109,13 +5111,14 @@ namespace JKWatcher
                                     return;
                                 }
                             }
-                            if (!anyAdded)
-                            {
-                                DownloadsFinished = true;
-                            }
                             if (udpLog.Count > 0)
                             {
                                 Helpers.logToSpecificDebugFile(udpLog.ToArray(), "udpDownloadLog.log", true);
+                            }
+                            if (!anyAdded)
+                            {
+                                serverWindow.addToLog("no downloads added. consider downloads finished.");
+                                DownloadsFinished = true;
                             }
                         }
                         else if (!httpSuccess)
@@ -5132,8 +5135,9 @@ namespace JKWatcher
 
 
             }
-            else
+            else if(string.IsNullOrWhiteSpace(systemInfo["sv_referencedPakNames"]) && string.IsNullOrWhiteSpace(systemInfo["sv_referencedPaks"]))
             {
+                serverWindow.addToLog("paknames are empty. consider downloads finished.");
                 DownloadsFinished = true;
             }
 
