@@ -92,6 +92,10 @@ Specific IP to identify this server in normal ```XXX.XXX.XXX.XXX:XXXXX``` format
 
 Search string for the server name to identify this server. You **always** need either this or *ip* (except when generic is 1). This does not need to be the full server name, it can be a part of the server name.
 
+#### hostNameExclude
+
+Search string for the server name to exclude from this entry. Useful for generic=1 entries. This does not need to be the full server name, it can be a part of the server name.
+
 #### playerName
 
 Player name(s) to use when connecting to this server. If multiple names, separate by ```\```, as it can't be part of a player name anyway.
@@ -171,6 +175,19 @@ Minimum amount of real players (non-bots) on server required to connect.
 #### timeFromDisconnect
 
 Minimum amount of time that must have passed since the last time we disconnected from this server, in minutes. Optionally can be a range like "5-10". A random value will be picked in between.
+
+#### timeFromDisconnectOverride
+
+Conditions that reset the timeFromDisconnect condition. Comma-separated. Also specify alternate timeFromDisconnect with : after the reset condition. Possible values: mapchange 
+Example:
+```
+timeFromDisconnectOverride=mapchange:20
+```
+Will allow reconnecting if last disconnect is at least 20 minutes ago, IF map changed since last disconnect
+
+#### timeFromConnect
+
+Minimum amount of time that must have passed since the last time this entry led to a connect, in minutes.
 
 #### retries
 

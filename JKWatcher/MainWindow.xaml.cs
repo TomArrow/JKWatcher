@@ -689,6 +689,7 @@ namespace JKWatcher
                                             if (delayedConnecterActive)
                                             {
                                                 ConnectFromConfig(serverInfo, srvTCChosen);
+                                                srvTCChosen.lastTimeConnected = DateTime.Now;
                                             }
                                             continue;
                                             //serversToConnectDelayed.Remove(srvTCChosen); // actually dont delete it.
@@ -981,6 +982,7 @@ namespace JKWatcher
                                 {
                                     Debug.WriteLine($"Server {stc.ip.ToString()} polled, fits requirements. IsMatch: {isMatchThough}.");
                                     ConnectFromConfig(thisServerInfo, stc);
+                                    stc.lastTimeConnected = DateTime.Now;
                                 }
                             } else
                             {
@@ -1514,12 +1516,15 @@ namespace JKWatcher
 
         class ServerToConnect
         {
+
             private static Regex specialCharacterReplacer = new Regex(@"(?<!\\)\\x(?<number>[0-9a-f]{1,2})", RegexOptions.IgnoreCase|RegexOptions.CultureInvariant|RegexOptions.Compiled);
 
+            public DateTime? lastTimeConnected { get; set; } = null;
             public bool generic { get; init; } = false;
             public string sectionName { get; init; } = null;
             public NetAddress ip { get; init; } = null;
             public string hostName { get; init; } = null;
+            public string hostNameExclude { get; init; } = null;
             public bool active { get; set; } = true;
             public string playerName { get; init; } = null;
             public string password { get; init; } = null;
@@ -1532,6 +1537,8 @@ namespace JKWatcher
             public int minRealPlayers { get; init; } = 0;
             public int timeFromDisconnect { get; init; } = 0;
             public int timeFromDisconnectUpperRange { get; init; } = 0;
+            public int? timeFromDisconnectOverrideMapchange { get; set; } = null;
+            public int? timeFromConnect { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
             public int? pingAdjust { get; init; } = null;
             public bool forceSnaps { get; init; } = false;
@@ -1632,6 +1639,7 @@ namespace JKWatcher
                     throw new Exception("ServerConnectConfig: error parsing IP {}");
                 }
                 hostName = config["hostName"]?.Trim();
+                hostNameExclude = config["hostNameExclude"]?.Trim();
                 if (hostName != null && hostName.Length == 0) hostName = null;
                 if (hostName == null && ip==null && !generic) throw new Exception("ServerConnectConfig: hostName or ip must be provided or 'generic' must be set.");
                 playerName = config["playerName"]?.Trim();
@@ -1657,6 +1665,7 @@ namespace JKWatcher
                 httpDl = config.ContainsKey("httpDl") ? config["httpDl"]?.Trim().Atoi() > 0 : null;
                 pollingInterval = config["pollingInterval"]?.Trim().Atoi();
                 maxTimeSinceMapChange = config["maxTimeSinceMapChange"]?.Trim().Atoi();
+                timeFromConnect = config["timeFromConnect"]?.Trim().Atoi();
                 watchers = config["watchers"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 mapNames = config["maps"]?.Trim().Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
                 minRealPlayers = Math.Max(0,(config["minPlayers"]?.Trim().Atoi()).GetValueOrDefault(0));
@@ -1695,6 +1704,30 @@ namespace JKWatcher
                         timeFromDisconnectUpperRange = Math.Max(0, rangeParts[1].Atoi());
                     }
                 }
+
+                string timeFromDisconnectOverrides = config["timeFromDisconnectOverride"];
+                if (timeFromDisconnectOverrides != null) {
+                    string[] overrides = timeFromDisconnectOverrides.Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach(string overridE in overrides){
+                        string[] parts = overridE.Split(":", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                        if(parts.Length > 0)
+                        {
+                            if (parts[0].Equals("mapchange", StringComparison.InvariantCultureIgnoreCase))
+                            {
+                                if(parts.Length > 1)
+                                {
+                                    timeFromDisconnectOverrideMapchange = parts[1].Atoi();
+                                }
+                                else
+                                {
+                                    timeFromDisconnectOverrideMapchange = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+
+
                 delayed = config["delayed"]?.Trim().Atoi() > 0;
 
                 attachClientNumToName = (config["attachClientNumToName"]?.Trim().Atoi()).GetValueOrDefault(1) > 0;
@@ -1826,6 +1859,9 @@ namespace JKWatcher
                     if (!string.IsNullOrWhiteSpace(versionFilter) && !string.IsNullOrWhiteSpace(lastFittingServerInfo.ServerGameVersionString) && !lastFittingServerInfo.ServerGameVersionString.Contains(versionFilter,StringComparison.InvariantCultureIgnoreCase)) return false;
                     if (udpDl.HasValue && udpDl.Value != lastFittingServerInfo.UDPDownloads) return false;
                     if (httpDl.HasValue && httpDl.Value != lastFittingServerInfo.HTTPDownloads) return false;
+                    bool matchedExclude = !string.IsNullOrWhiteSpace(hostNameExclude) && (serverInfo.HostName.Contains(hostNameExclude) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(hostNameExclude) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(Q3ColorFormatter.cleanupString(hostNameExclude, Q3ColorFormatter.HexColorSupport.Basic)));
+                    if (matchedExclude) return false;
+                    if (timeFromConnect.HasValue && lastTimeConnected.HasValue && (DateTime.Now - lastTimeConnected.Value).TotalMinutes < timeFromConnect.Value) return false; // to limit generic connects a bit.
                     if (timeFromDisconnect > 0 || timeFromDisconnectUpperRange > 0)
                     {
                         // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.
@@ -1838,14 +1874,27 @@ namespace JKWatcher
                         
                         if (lastDisconnect.HasValue)
                         {
-                            double actualMinTimeDelay = timeFromDisconnect;
-                            if (timeFromDisconnectUpperRange > 0 && lastDisconnectTimeRangeModifier.HasValue) // No reason why lastDisconnectTimeRangeModifier shouldn't have a value if lastDisconnect does but let's be safe?
+                            bool overridden = false;
+                            if (timeFromDisconnectOverrideMapchange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && lastMapChanges[serverInfo.Address] > lastDisconnect.Value)
                             {
-                                actualMinTimeDelay = (double)timeFromDisconnect + ((double)timeFromDisconnectUpperRange - (double)timeFromDisconnect) * lastDisconnectTimeRangeModifier.Value;
+                                overridden = true;
+                                if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < timeFromDisconnectOverrideMapchange.Value)
+                                {
+                                    return false;
+                                }
                             }
-                            if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < actualMinTimeDelay)
+
+                            if (!overridden)
                             {
-                                return false;
+                                double actualMinTimeDelay = timeFromDisconnect;
+                                if (timeFromDisconnectUpperRange > 0 && lastDisconnectTimeRangeModifier.HasValue) // No reason why lastDisconnectTimeRangeModifier shouldn't have a value if lastDisconnect does but let's be safe?
+                                {
+                                    actualMinTimeDelay = (double)timeFromDisconnect + ((double)timeFromDisconnectUpperRange - (double)timeFromDisconnect) * lastDisconnectTimeRangeModifier.Value;
+                                }
+                                if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < actualMinTimeDelay)
+                                {
+                                    return false;
+                                }
                             }
                         }
                         
@@ -2313,7 +2362,7 @@ namespace JKWatcher
                                 {
 
                                     ConnectFromConfig(serverInfo,wishServer);
-                                    
+                                    wishServer.lastTimeConnected = DateTime.Now;
                                 }
 
                             }
@@ -2423,6 +2472,7 @@ namespace JKWatcher
                     if (!alreadyConnected)
                     {
                         ConnectFromConfig(serverToConnect.lastFittingServerInfo, serverToConnect);
+                        serverToConnect.lastTimeConnected = DateTime.Now; // since this is manual... dont need to set this in principle?
                     }
                 }
                 else if (ip == null)
@@ -2486,7 +2536,8 @@ namespace JKWatcher
                                 }
                                 if (!alreadyConnected)
                                 {
-                                    ConnectFromConfig(serverInfo, serverToConnect);
+                                    ConnectFromConfig(serverInfo, serverToConnect); 
+                                    serverToConnect.lastTimeConnected = DateTime.Now; // since this is manual... dont need to set this in principle?
                                 }
                             }
                             else if (serverInfo == null)
