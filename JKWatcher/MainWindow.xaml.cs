@@ -1857,8 +1857,8 @@ namespace JKWatcher
                     //if (maxTimeSinceMapChange.HasValue && lastMapChange.HasValue && (DateTime.Now - lastMapChange.Value).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (maxTimeSinceMapChange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && (DateTime.Now - lastMapChanges[serverInfo.Address]).TotalMilliseconds > maxTimeSinceMapChange.Value) return false;
                     if (!string.IsNullOrWhiteSpace(versionFilter) && !string.IsNullOrWhiteSpace(lastFittingServerInfo.ServerGameVersionString) && !lastFittingServerInfo.ServerGameVersionString.Contains(versionFilter,StringComparison.InvariantCultureIgnoreCase)) return false;
-                    if (udpDl.HasValue && udpDl.Value != lastFittingServerInfo.UDPDownloads) return false;
-                    if (httpDl.HasValue && httpDl.Value != lastFittingServerInfo.HTTPDownloads) return false;
+                    if (udpDl.HasValue && (udpDl.Value != lastFittingServerInfo.UDPDownloads || !lastFittingServerInfo.StatusResponseReceived)) return false;
+                    if (httpDl.HasValue && (httpDl.Value != lastFittingServerInfo.HTTPDownloads || !lastFittingServerInfo.StatusResponseReceived)) return false;
                     bool matchedExclude = !string.IsNullOrWhiteSpace(hostNameExclude) && (serverInfo.HostName.Contains(hostNameExclude) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(hostNameExclude) || Q3ColorFormatter.cleanupString(serverInfo.HostName, Q3ColorFormatter.HexColorSupport.Basic).Contains(Q3ColorFormatter.cleanupString(hostNameExclude, Q3ColorFormatter.HexColorSupport.Basic)));
                     if (matchedExclude) return false;
                     if (timeFromConnect.HasValue && lastTimeConnected.HasValue && (DateTime.Now - lastTimeConnected.Value).TotalMinutes < timeFromConnect.Value) return false; // to limit generic connects a bit.
