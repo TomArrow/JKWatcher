@@ -1164,6 +1164,7 @@ namespace JKWatcher
             client.InternalCommandCreated += Client_InternalCommandCreated;
             client.MapChangeServerCommandReceived += Client_MapChangeServerCommandReceived;
             client.DownloadFinished += Client_DownloadFinished;
+            client.DownloadErrored += Client_DownloadErrored;
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -1219,6 +1220,15 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void Client_DownloadErrored(object sender, DownloadErroredEventArgs e)
+        {
+            if (!e.anyLeftInQueue)
+            {
+                serverWindow.addToLog("no downloads left in queue. consider downloads finished.");
+                DownloadsFinished = true;
+            }
         }
 
         private void Client_DownloadFinished(object sender, DownloadFinishedEventArgs e)
@@ -1621,6 +1631,7 @@ namespace JKWatcher
 
         bool wasRecordingADemo = false;
         bool shouldBeRecordingADemo = false;
+        DateTime lastTriedDownloadWithSpaces = DateTime.Now-new TimeSpan(10,0,0);
 
         // Client crashed for some reason
         private async Task ExceptionCallback(JKClientException exception)
@@ -5448,6 +5459,7 @@ namespace JKWatcher
             client.InternalCommandCreated -= Client_InternalCommandCreated;
             client.MapChangeServerCommandReceived -= Client_MapChangeServerCommandReceived;
             client.DownloadFinished -= Client_DownloadFinished;
+            client.DownloadErrored -= Client_DownloadErrored;
             clientStatistics = null;
         }
 
