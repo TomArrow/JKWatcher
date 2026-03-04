@@ -508,6 +508,7 @@ namespace JKWatcher
             {
                 throw new InvalidOperationException("Cannot create connection with null connectionOptions");
             }
+            PakDownloader.DownloadFinishedOrErrored += PakDownloader_DownloadFinishedOrErrored;
             this.PropertyChanged += Connection_PropertyChanged;
             this.GhostPeer = ghostPeer;
             _connectionOptions = connectionOptions;
@@ -538,6 +539,32 @@ namespace JKWatcher
             _ = createConnection(addressA.ToString(), protocolA);
             createPeriodicReconnecter();
             initFightbotValues();
+        }
+
+        HashSet<object> pakDownloaderReferences =new HashSet<object>();
+        private object MakePakDownloaderReference()
+        {
+            object test = new object();
+            lock (pakDownloaderReferences)
+            {
+                pakDownloaderReferences.Add(test);
+            }
+            return test;
+        }
+        private void PakDownloader_DownloadFinishedOrErrored(object sender, HttpDownloadFinishedOrErroredEventArgs e)
+        {
+            lock (pakDownloaderReferences)
+            {
+                if (pakDownloaderReferences.Contains(e.reference))
+                {
+                    pakDownloaderReferences.Remove(e.reference);
+                    if (pakDownloaderReferences.Count == 0)
+                    {
+                        serverWindow.addToLog("no downloads left in pakdownloader references. consider downloads finished.");
+                        DownloadsFinished = true;
+                    }
+                }
+            }
         }
 
         private void Connection_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -1024,6 +1051,7 @@ namespace JKWatcher
                     backgroundTask.Cancel();
                 }
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
+                PakDownloader.DownloadFinishedOrErrored -= PakDownloader_DownloadFinishedOrErrored;
                 this.PropertyChanged -= Connection_PropertyChanged;
                 disconnect();
                 leakyBucketRequester.Stop();
@@ -5014,7 +5042,8 @@ namespace JKWatcher
                                     pakName += ".pk3";
                                     serverWindow.addToLog($"Logged pk3 download url: {dlLink}");
                                     downloadLinks.Add($"{pakName},{hashString},{dlLink}");
-                                    PakDownloader.Enqueue(dlLink, pakName, pakChecksumInt);
+                                    object reference = MakePakDownloaderReference();
+                                    PakDownloader.Enqueue(dlLink, pakName, pakChecksumInt, reference);
                                     anyAdded = true;
                                     httpSuccess = true;
                                 } else

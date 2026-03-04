@@ -10,6 +10,16 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+
+    public class HttpDownloadFinishedOrErroredEventArgs {
+        public object reference = null;
+        public bool success = false;
+        public HttpDownloadFinishedOrErroredEventArgs(object referenceA, bool successA)
+        {
+            success = successA;
+            reference = referenceA;
+        }
+    }
     static class PakDownloader
     {
         public struct PakDownload
@@ -17,6 +27,7 @@ namespace JKWatcher
             public string pak;
             public string pakSavename;
             public int hash;
+            public object reference;
         }
         private static ConcurrentQueue<PakDownload> filesToDownload = new ConcurrentQueue<PakDownload>();
 
@@ -27,16 +38,23 @@ namespace JKWatcher
         public static string[] fileNameIgnoreListMOH = { "maintt/pak1","maintt/pak2","maintt/pak3","mainta/pak1","mainta/pak3","mainta/pak4","main/Pak0","main/Pak1","main/Pak2","main/Pak3","main/Pak4","main/Pak5"}; // Don't download these, we have them. lol
         // files that might contain localization: ,"main/Pak7","mainta/pak2","mainta/pak5","maintt/pak4"
 
+        public static event EventHandler<HttpDownloadFinishedOrErroredEventArgs> DownloadFinishedOrErrored;
+        private static void OnDownloadFinishedOrErrored(object reference, bool success)
+        {
+            HttpDownloadFinishedOrErroredEventArgs args = new HttpDownloadFinishedOrErroredEventArgs(reference, success);
+            DownloadFinishedOrErrored?.Invoke(null, args);
+        }
 
-        static public void Enqueue(string pakUrl, string pakSavename, int hash)
+        static public void Enqueue(string pakUrl, string pakSavename, int hash, object reference)
         {
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(pakUrl);
             if(Array.IndexOf(fileNameIgnoreList,fileNameWithoutExt) > -1)
             {
+                OnDownloadFinishedOrErrored(reference, false);
                 return;
             }
 
-            filesToDownload.Enqueue(new PakDownload {hash=hash,pak=pakUrl,pakSavename= pakSavename });
+            filesToDownload.Enqueue(new PakDownload {hash=hash,pak=pakUrl,pakSavename= pakSavename, reference = reference });
             lock (isRunningMutex)
             {
                 if (!isRunning)
@@ -75,11 +93,17 @@ namespace JKWatcher
                                 byte[] fileData = wc.DownloadData(currentDownload.pak);
                                 Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads"));
                                 File.WriteAllBytes(targetPath, fileData);
+                                OnDownloadFinishedOrErrored(currentDownload.reference, true);
                             }
                         } catch(Exception e)
                         {
+                            OnDownloadFinishedOrErrored(currentDownload.reference, false);
                             // Whatever. If it didnt work it didnt work, don't care. Downloading the pk3s is a nice-to-have, not a top priority.
                         }
+                    }
+                    else
+                    {
+                        OnDownloadFinishedOrErrored(currentDownload.reference, false);
                     }
                 }
             }
