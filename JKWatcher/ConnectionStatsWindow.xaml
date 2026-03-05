@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
-        Title="ConnectionStats" Height="500" Width="800">
+        Title="ConnectionStats" Height="550" Width="800">
     <Window.Resources>
         <Style x:Key="activeKeyStyle" TargetType="TextBox">
             <Style.Triggers>
@@ -57,6 +57,10 @@
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Demosize full flushed:</Label>
                 <TextBox  Margin="0" Padding="2" Text="{Binding demoSizeFullFlushedKiB,Mode=OneWay}"  FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label  Margin="0" Padding="2" Width="120"  FontSize="10">snap numEntities:</Label>
+                <TextBox  Margin="0" Padding="2" Text="{Binding snapEntCount,Mode=OneWay}" Width="80"  FontSize="10" IsReadOnly="True"></TextBox>
             </WrapPanel>
             <WrapPanel>
                 <Label  Margin="0" Padding="2" Width="120"  FontSize="10">Delta snaps:</Label>
