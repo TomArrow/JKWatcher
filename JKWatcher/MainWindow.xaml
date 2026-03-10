@@ -217,6 +217,8 @@
                         <WrapPanel>
                             <Button x:Name="colorDecoderBtn" Click="colorDecoderBtn_Click" IsEnabled="True">ColorDateDecoder</Button>
                             <Button x:Name="calendarBtn" Click="calendarBtn_Click" IsEnabled="True">Calendar</Button>
+                            <CheckBox x:Name="exceptionBtnCheckBox" IsChecked="False"></CheckBox>
+                            <Button x:Name="exceptionBtn" Click="exceptionBtn_Click" IsEnabled="{Binding ElementName=exceptionBtnCheckBox,Path=IsChecked}">Do unhandled exception</Button>
                         </WrapPanel>
                     </GroupBox>
                     <GroupBox Header="Find intermission camera coordinates/angles">

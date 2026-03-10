@@ -21,6 +21,7 @@ using System.Windows.Controls;
 using System.Windows.Shell;
 using System.Windows.Threading;
 using Q3MinimapGenerator;
+using System.Reflection;
 
 // TODO: Javascripts that can be executed and interoperate with the program?
 // Or if too hard, just .ini files that can be parsed for instructions on servers that must be connected etc.
@@ -244,6 +245,7 @@ namespace JKWatcher
 
         public MainWindow()
         {
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             Directory.CreateDirectory(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher"));
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -323,6 +325,55 @@ namespace JKWatcher
 
             using (Process p = Process.GetCurrentProcess())
                 p.PriorityClass = ProcessPriorityClass.High;
+
+            string[] args = Environment.GetCommandLineArgs();
+
+            string configToExec = null;
+            for(int i = 0; i < args.Length; i++)
+            {
+                if(args[i] == "--config" || args[i] == "-c")
+                {
+                    if(i < args.Length - 1)
+                    {
+                        i++;
+                        configToExec = args[i];
+                    }
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(configToExec))
+            {
+                if(configs != null && configs.Contains(configToExec))
+                {
+                    configsComboBox.SelectedItem = configToExec;
+                }
+                doExecuteConfig(configToExec);
+            }
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                Helpers.logToFile(new string[] { "JKWatcher crashed irrecoverably!", e.ToString(), e.ExceptionObject?.ToString() });
+                Helpers.logToSpecificDebugFile(new string[] { "JKWatcher crashed irrecoverably!", e.ToString(), e.ExceptionObject?.ToString() }, "totalCrash.log", false);
+
+                //if (!Debugger.IsAttached)
+                {
+                    string thisBinary = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                    var newProcess = new ProcessStartInfo()
+                    {
+                        FileName = thisBinary,
+                        Arguments = string.IsNullOrWhiteSpace(lastExecutedConfig) ? "" : $"--config {lastExecutedConfig}",
+                        UseShellExecute = true
+                    };
+
+                    Process.Start(newProcess);
+                }
+            } catch(Exception ex)
+            {
+                Helpers.logToFile(new string[] { "JKWatcher crashed irrecoverably, and we failed to handle something after!", e.ToString(), ex.ToString() });
+                Helpers.logToSpecificDebugFile(new string[] { "JKWatcher crashed irrecoverably, and we failed to handle something after!", e.ToString(), ex.ToString() }, "totalCrash.log", false);
+            }
         }
 
         private void MainWindow_Closed(object sender, EventArgs e)
@@ -2394,29 +2445,37 @@ namespace JKWatcher
 
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void executeConfig_Click(object sender, RoutedEventArgs e)
+        public string lastExecutedConfig = null;
+        private void doExecuteConfig(string configName)
         {
-            lock (executionInProgressMutex) { // Wait, does this make sense?
-                if(executionInProgress)
+            lock (executionInProgressMutex)
+            { // Wait, does this make sense?
+                if (executionInProgress)
                 {
                     MessageBox.Show("Execution already in progress, please wait.");
                     return;
                 }
-                string config = configsComboBox.SelectedItem != null ? (string)configsComboBox.SelectedItem : null;
-                if (config != null)
+                try
                 {
-                    try
-                    {
-                        ConfigParser cp = new ConfigParser($"configs/{config}.ini");
-                        executeConfig(cp);
-                        executionInProgress = true;
-                    } catch(Exception ex)
-                    {
-                        string errorString = $"Error executing config: {ex.ToString()}";
-                        Helpers.logToFile(new string[] { errorString });
-                        MessageBox.Show(errorString);
-                    }
+                    ConfigParser cp = new ConfigParser($"configs/{configName}.ini");
+                    executeConfig(cp);
+                    executionInProgress = true;
+                    lastExecutedConfig = configName;
                 }
+                catch (Exception ex)
+                {
+                    string errorString = $"Error executing config: {ex.ToString()}";
+                    Helpers.logToFile(new string[] { errorString });
+                    MessageBox.Show(errorString);
+                }
+            }
+        }
+        private void executeConfig_Click(object sender, RoutedEventArgs e)
+        {
+            string config = configsComboBox.SelectedItem != null ? (string)configsComboBox.SelectedItem : null;
+            if (config != null)
+            {
+                doExecuteConfig(config);
             }
         }
 
@@ -3168,6 +3227,11 @@ namespace JKWatcher
         {
             Dialogs.PointCloudRenderer newWnd = new Dialogs.PointCloudRenderer();
             newWnd.Show();
+        }
+
+        private void exceptionBtn_Click(object sender, RoutedEventArgs e)
+        {
+            throw new Exception("test debug exception");
         }
     }
 }
