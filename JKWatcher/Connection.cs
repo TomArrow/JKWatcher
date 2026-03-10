@@ -502,12 +502,15 @@ namespace JKWatcher
         private string chatCommandPublic = "say";
         private string chatCommandTeam = "say_team";
 
+        DateTime timeSessionStarted = DateTime.Now;
+
         public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
         {
-            if(connectionOptions == null)
+            if (connectionOptions == null)
             {
                 throw new InvalidOperationException("Cannot create connection with null connectionOptions");
             }
+            timeSessionStarted = DateTime.Now;
             PakDownloader.DownloadFinishedOrErrored += PakDownloader_DownloadFinishedOrErrored;
             this.PropertyChanged += Connection_PropertyChanged;
             this.GhostPeer = ghostPeer;
@@ -557,6 +560,14 @@ namespace JKWatcher
             {
                 if (pakDownloaderReferences.Contains(e.reference))
                 {
+                    if (e.success)
+                    {
+                        serverWindow.addToLog("downlad done.");
+                    }
+                    else
+                    {
+                        serverWindow.addToLog($"download failed: {e.reason}");
+                    }
                     pakDownloaderReferences.Remove(e.reference);
                     if (pakDownloaderReferences.Count == 0)
                     {
@@ -6946,7 +6957,7 @@ namespace JKWatcher
             // But instead we're doing the math to see if the numbers add up. If the offset ends up not working out,
             // we revert to the conservative legacy behavior. Could potentially result in weirdness sometimes but we'll see.
             // We'll throw  a little warning.
-            int scoreboardOffset = (commandEventArgs.Command.Argc-4)/readScores;
+            int scoreboardOffset = readScores <= 0 ? 0 : ((commandEventArgs.Command.Argc-4)/readScores);
             if(!(scoreboardOffset == 14 && !this.MBIIDetected) && !(scoreboardOffset == 15 && !this.MBIIDetected) && !(scoreboardOffset == 9 && this.MBIIDetected ))
             {
                 if(this.MBIIDetected)
@@ -7149,150 +7160,160 @@ namespace JKWatcher
 
         public async void startDemoRecord(int iterator=0)
         {
-            client.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
             shouldBeRecordingADemo = true;
-            if(client.Status != ConnectionStatus.Active)
+            try
             {
-                serverWindow.addToLog("Can't record demo when disconnected. But trying to queue recording in case we connect.");
-                return;
-            }
-            if (isRecordingADemo)
-            {
-                if (!client.Demorecording)
-                {
 
-                    serverWindow.addToLog("isRecordingADemo indicates demo is already being recorded, but client says otherwise? Shouldn't really happen, some bug I guess. Try record anyway...");
-                    //isRecordingADemo = false;
-                } else
+                Client theclient = client;
+                client?.SetExtraDemoMetaData(_connectionOptions.extraDemoMetaParsed);
+                if(client?.Status != ConnectionStatus.Active)
                 {
-
-                    serverWindow.addToLog("Demo is already being recorded...");
+                    serverWindow.addToLog("Can't record demo when disconnected. But trying to queue recording in case we connect.");
                     return;
                 }
-            }
-
-            lastDemoIterator = iterator;
-
-            serverWindow.addToLog("Initializing demo recording...");
-            DateTime nowTime = DateTime.Now;
-            string timeString = nowTime.ToString("yyyy-MM-dd_HH-mm-ss");
-            string unusedDemoFilename = Helpers.GetUnusedDemoFilename(Helpers.MakeValidFileName(timeString + "-" + client.ServerInfo.MapName+"_"+client.ServerInfo.HostName+(iterator==0 ? "" : "_"+(iterator+1).ToString())), client.ServerInfo.Protocol);
-
-            TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
-
-            _ = firstPacketRecordedTCS.Task.ContinueWith((Task<bool> s) =>
-            {
-                if (mohMode) return; // Can't write message to myself and these commands don't do anything in MOH anyway.
-
-                // Send a few commands that give interesting outputs, nothing more to it.
-
-                // Some or most of these commands won't do anything on many servers.
-                // On some servers they might display something
-                // clientlist seems to have been a servercommand once, but its now a client command
-                // In short, this stuff might not do anything except throw a wrong cmd error
-                // But on some servers it might give mildly interesting output.
-
-                // Need a timeout because of flood protection which is roughly speaking 1 command per second
-                // We already do a scoreboard command every 2 seconds, so we have about 1 command every 2 seconds left
-                // Go 3 seconds here to be safe. We also still need room to make commands for changing the camera angle.
-                const int timeoutBetweenCommands = 3000;
-
-                string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss G\\MTzzz");
-                ServerInfo curServerInfo = client.ServerInfo;
-                string[] serverInfoParts = new string[] { "Recording demo",
-                    time,
-                    curServerInfo.Address?.ToString(),
-                    curServerInfo.HostName,
-                    curServerInfo.ServerGameVersionString,
-                    curServerInfo.Location,
-                    curServerInfo.Game,
-                    curServerInfo.GameType.ToString(),
-                    curServerInfo.GameName,
-                    curServerInfo.MapName,
-                    curServerInfo.Protocol.ToString(),
-                    curServerInfo.Version.ToString(),
-                    "sv_floodProtect: "+curServerInfo.FloodProtect.ToString(),
-                    time,}; // Just for the occasional lost chat message, send time a second time. Most useful from these infos.
-                serverInfoParts = Helpers.StringChunksOfMaxSize(serverInfoParts,140,", ^7^0^7", "^7^0^7"); // 150 is max message length. We split to 140 size chunks just to be safe
-                foreach (string serverInfoPart in serverInfoParts)
+                if (isRecordingADemo)
                 {
-                    // Tell some info about the server... to myself
-                    // Convenience feature.
-                    leakyBucketRequester.requestExecution("tell " + client.clientNum + " \"   "+ serverInfoPart + "\"", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    if (!client.Demorecording)
+                    {
+
+                        serverWindow.addToLog("isRecordingADemo indicates demo is already being recorded, but client says otherwise? Shouldn't really happen, some bug I guess. Try record anyway...");
+                        //isRecordingADemo = false;
+                    } else
+                    {
+
+                        serverWindow.addToLog("Demo is already being recorded...");
+                        return;
+                    }
                 }
 
-                // NWH / CTFMod (?)
-                leakyBucketRequester.requestExecution("info", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("afk", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                lastDemoIterator = iterator;
 
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode)
-                { // replace with more sophisticated detection
-                    // doing a detection here to not annoy ctf players.
-                    // will still annoy ffa players until better detection.
-                    // Show top 10 scores at start of demo recording.
-                    leakyBucketRequester.requestExecution("say_team !top", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                }
+                serverWindow.addToLog("Initializing demo recording...");
+                DateTime nowTime = DateTime.Now;
+                string timeString = nowTime.ToString("yyyy-MM-dd_HH-mm-ss");
+                string unusedDemoFilename = Helpers.GetUnusedDemoFilename(Helpers.MakeValidFileName(timeString + "-" + client.ServerInfo.MapName+"_"+client.ServerInfo.HostName+(iterator==0 ? "" : "_"+(iterator+1).ToString())), client.ServerInfo.Protocol);
 
-                // TwiMod (DARK etc)
-                leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode) // Might not be accurate idk
+                TaskCompletionSource<bool> firstPacketRecordedTCS = new TaskCompletionSource<bool>();
+
+                _ = firstPacketRecordedTCS.Task.ContinueWith((Task<bool> s) =>
                 {
-                    leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                    leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                }
+                    if (mohMode) return; // Can't write message to myself and these commands don't do anything in MOH anyway.
 
-                // Whatever
-                leakyBucketRequester.requestExecution("serverstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("clientinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
-                leakyBucketRequester.requestExecution("clientlist", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    // Send a few commands that give interesting outputs, nothing more to it.
 
-                /*client.ExecuteCommand("info");
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                client.ExecuteCommand("afk");
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                client.ExecuteCommand("clientstatus");
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                client.ExecuteCommand("specs");
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    // Some or most of these commands won't do anything on many servers.
+                    // On some servers they might display something
+                    // clientlist seems to have been a servercommand once, but its now a client command
+                    // In short, this stuff might not do anything except throw a wrong cmd error
+                    // But on some servers it might give mildly interesting output.
 
-                // OC Defrag
-                if(client.ServerInfo.GameType == GameType.FFA) { // replace with more sophisticated detection
-                    // doing a detection here to not annoy ctf players.
-                    // will still annoy ffa players until better detection.
-                    client.ExecuteCommand("say_team !top"); // Show top 10 scores at start of demo recording.
+                    // Need a timeout because of flood protection which is roughly speaking 1 command per second
+                    // We already do a scoreboard command every 2 seconds, so we have about 1 command every 2 seconds left
+                    // Go 3 seconds here to be safe. We also still need room to make commands for changing the camera angle.
+                    const int timeoutBetweenCommands = 3000;
+
+                    string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss G\\MTzzz");
+                    ServerInfo curServerInfo = client.ServerInfo;
+                    string[] serverInfoParts = new string[] { "Recording demo",
+                        time,
+                        curServerInfo.Address?.ToString(),
+                        curServerInfo.HostName,
+                        curServerInfo.ServerGameVersionString,
+                        curServerInfo.Location,
+                        curServerInfo.Game,
+                        curServerInfo.GameType.ToString(),
+                        curServerInfo.GameName,
+                        curServerInfo.MapName,
+                        curServerInfo.Protocol.ToString(),
+                        curServerInfo.Version.ToString(),
+                        "sv_floodProtect: "+curServerInfo.FloodProtect.ToString(),
+                        time,}; // Just for the occasional lost chat message, send time a second time. Most useful from these infos.
+                    serverInfoParts = Helpers.StringChunksOfMaxSize(serverInfoParts,140,", ^7^0^7", "^7^0^7"); // 150 is max message length. We split to 140 size chunks just to be safe
+                    foreach (string serverInfoPart in serverInfoParts)
+                    {
+                        // Tell some info about the server... to myself
+                        // Convenience feature.
+                        leakyBucketRequester.requestExecution("tell " + client.clientNum + " \"   "+ serverInfoPart + "\"", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    }
+
+                    // NWH / CTFMod (?)
+                    leakyBucketRequester.requestExecution("info", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("afk", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("specs", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("clientstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                    if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode)
+                    { // replace with more sophisticated detection
+                        // doing a detection here to not annoy ctf players.
+                        // will still annoy ffa players until better detection.
+                        // Show top 10 scores at start of demo recording.
+                        leakyBucketRequester.requestExecution("say_team !top", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    }
+
+                    // TwiMod (DARK etc)
+                    leakyBucketRequester.requestExecution("ammodinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("ammodinfo_twitch", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    if (client.ServerInfo.GameType == GameType.FFA && client.ServerInfo.NWH == false && !this.jkaMode && !_connectionOptions.silentMode) // Might not be accurate idk
+                    {
+                        leakyBucketRequester.requestExecution("say_team !dimensions", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                        leakyBucketRequester.requestExecution("say_team !where", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    }
+
+                    // Whatever
+                    leakyBucketRequester.requestExecution("serverstatus", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("clientinfo", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("clientlist", RequestCategory.INFOCOMMANDS, 0, timeoutBetweenCommands, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+
+                    /*client.ExecuteCommand("info");
                     System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                }
+                    client.ExecuteCommand("afk");
+                    System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    client.ExecuteCommand("clientstatus");
+                    System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    client.ExecuteCommand("specs");
+                    System.Threading.Thread.Sleep(timeoutBetweenCommands);
 
-                // TwiMod (DARK etc)
-                client.ExecuteCommand("ammodinfo"); 
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    // OC Defrag
+                    if(client.ServerInfo.GameType == GameType.FFA) { // replace with more sophisticated detection
+                        // doing a detection here to not annoy ctf players.
+                        // will still annoy ffa players until better detection.
+                        client.ExecuteCommand("say_team !top"); // Show top 10 scores at start of demo recording.
+                        System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    }
 
-                // Whatever
-                client.ExecuteCommand("clientinfo");
-                System.Threading.Thread.Sleep(timeoutBetweenCommands);
-                client.ExecuteCommand("clientlist");*/
-            });
+                    // TwiMod (DARK etc)
+                    client.ExecuteCommand("ammodinfo"); 
+                    System.Threading.Thread.Sleep(timeoutBetweenCommands);
 
-            bool success = await client.Record_f(new DemoName_t {name= unusedDemoFilename,time=nowTime }, firstPacketRecordedTCS);
+                    // Whatever
+                    client.ExecuteCommand("clientinfo");
+                    System.Threading.Thread.Sleep(timeoutBetweenCommands);
+                    client.ExecuteCommand("clientlist");*/
+                });
 
-            if (success)
-            {
+                bool success = await client.Record_f(new DemoName_t {name= unusedDemoFilename,time=nowTime }, firstPacketRecordedTCS);
 
-                serverWindow.addToLog("Demo recording started.");
-                isRecordingADemo = true;
-                if (_connectionOptions.demoTimeColorNames)
+                if (success)
                 {
-                    updateName();
-                }
-            }
-            else
-            {
 
-                serverWindow.addToLog("Demo recording failed to start for some reason.");
+                    serverWindow.addToLog("Demo recording started.");
+                    isRecordingADemo = true;
+                    if (_connectionOptions.demoTimeColorNames)
+                    {
+                        updateName();
+                    }
+                }
+                else
+                {
+
+                    serverWindow.addToLog("Demo recording failed to start for some reason.");
+                    isRecordingADemo = false;
+                }
+
+            } catch(Exception e)
+            {
+                serverWindow.addToLog($"WTF Exception in startDemoRecord. client is {client}. Time since session start: {(DateTime.Now-timeSessionStarted).TotalSeconds} seconds. Session start time: {timeSessionStarted}. Exception: {e.ToString()}",true);
                 isRecordingADemo = false;
             }
         }

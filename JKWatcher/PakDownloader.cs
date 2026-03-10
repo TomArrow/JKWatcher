@@ -14,10 +14,12 @@ namespace JKWatcher
     public class HttpDownloadFinishedOrErroredEventArgs {
         public object reference = null;
         public bool success = false;
-        public HttpDownloadFinishedOrErroredEventArgs(object referenceA, bool successA)
+        public string reason = "";
+        public HttpDownloadFinishedOrErroredEventArgs(object referenceA, bool successA, string reasonA)
         {
             success = successA;
             reference = referenceA;
+            reason = reasonA;
         }
     }
     static class PakDownloader
@@ -39,9 +41,9 @@ namespace JKWatcher
         // files that might contain localization: ,"main/Pak7","mainta/pak2","mainta/pak5","maintt/pak4"
 
         public static event EventHandler<HttpDownloadFinishedOrErroredEventArgs> DownloadFinishedOrErrored;
-        private static void OnDownloadFinishedOrErrored(object reference, bool success)
+        private static void OnDownloadFinishedOrErrored(object reference, bool success, string reason)
         {
-            HttpDownloadFinishedOrErroredEventArgs args = new HttpDownloadFinishedOrErroredEventArgs(reference, success);
+            HttpDownloadFinishedOrErroredEventArgs args = new HttpDownloadFinishedOrErroredEventArgs(reference, success, reason);
             DownloadFinishedOrErrored?.Invoke(null, args);
         }
 
@@ -50,7 +52,7 @@ namespace JKWatcher
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(pakUrl);
             if(Array.IndexOf(fileNameIgnoreList,fileNameWithoutExt) > -1)
             {
-                OnDownloadFinishedOrErrored(reference, false);
+                OnDownloadFinishedOrErrored(reference, false,"File on ignore list.");
                 return;
             }
 
@@ -93,17 +95,17 @@ namespace JKWatcher
                                 byte[] fileData = wc.DownloadData(currentDownload.pak);
                                 Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloads"));
                                 File.WriteAllBytes(targetPath, fileData);
-                                OnDownloadFinishedOrErrored(currentDownload.reference, true);
+                                OnDownloadFinishedOrErrored(currentDownload.reference, true, "Success.");
                             }
                         } catch(Exception e)
                         {
-                            OnDownloadFinishedOrErrored(currentDownload.reference, false);
+                            OnDownloadFinishedOrErrored(currentDownload.reference, false, $"Error downloading: {e.ToString()}");
                             // Whatever. If it didnt work it didnt work, don't care. Downloading the pk3s is a nice-to-have, not a top priority.
                         }
                     }
                     else
                     {
-                        OnDownloadFinishedOrErrored(currentDownload.reference, false);
+                        OnDownloadFinishedOrErrored(currentDownload.reference, false, "File already exists.");
                     }
                 }
             }
