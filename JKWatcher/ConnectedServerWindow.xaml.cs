@@ -663,6 +663,8 @@ namespace JKWatcher
 
         public Int64 ConnectUnixTime { init; get; } = ((DateTimeOffset)(DateTime.Now).ToUniversalTime()).ToUnixTimeSeconds();
 
+        public string configItemKey = null;
+        public bool NoTouchGeneralDisconnectTime = false;
         public ConnectedServerWindow(NetAddress netAddressA, ProtocolVersion protocolA, string serverNameA = null, string passwordA = null, ConnectionOptions connectionOptions = null)
         {
             bool connectionOptionsWereProvided = true;
@@ -2777,7 +2779,7 @@ namespace JKWatcher
                     connections.Clear();
                 }
 
-                MainWindow.setServerLastDisconnectedNow(this.netAddress);
+                MainWindow.setServerLastDisconnectedNow(this.netAddress, configItemKey, NoTouchGeneralDisconnectTime);
                 lock (gotKickedLock)
                 {
                     if (gotKicked)

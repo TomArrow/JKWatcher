@@ -155,20 +155,37 @@ namespace JKWatcher
 
 
         static Dictionary<NetAddress,Tuple<DateTime,double>> lastTimeDisconnected = new Dictionary<NetAddress, Tuple<DateTime, double>>(new NetAddressComparer());
+        static Dictionary<NetAddress,Dictionary<string,Tuple<DateTime,double>>> lastTimeDisconnectedByConfigKey = new Dictionary<NetAddress, Dictionary<string, Tuple<DateTime, double>>>(new NetAddressComparer());
         static Dictionary<NetAddress,Tuple<DateTime,double>> lastTimeKicked = new Dictionary<NetAddress, Tuple<DateTime, double>>(new NetAddressComparer());
         static Random timeFromDisconnectedTimeRangeModifierRandom = new Random();
         static Random timeFromKickedTimeRangeModifierRandom = new Random();
 
-        public static void setServerLastDisconnectedNow(NetAddress address)
+        public static void setServerLastDisconnectedNow(NetAddress address, string configItemKey, bool dontTouchGeneralDisconnectTime)
         {
             if (address == null)
             {
                 // idk how it would happen but whatever
                 return;
             }
+            double therandom = 0;
             lock (lastTimeDisconnected)
             {
-                lastTimeDisconnected[address] = new Tuple<DateTime, double>(DateTime.Now, timeFromDisconnectedTimeRangeModifierRandom.NextDouble());
+                therandom = timeFromDisconnectedTimeRangeModifierRandom.NextDouble();
+                if (!dontTouchGeneralDisconnectTime)
+                {
+                    lastTimeDisconnected[address] = new Tuple<DateTime, double>(DateTime.Now, therandom);
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(configItemKey))
+            {
+                lock (lastTimeDisconnectedByConfigKey)
+                {
+                    if (!lastTimeDisconnectedByConfigKey.ContainsKey(address))
+                    {
+                        lastTimeDisconnectedByConfigKey[address] = new Dictionary<string, Tuple<DateTime, double>>(StringComparer.InvariantCultureIgnoreCase);
+                    }
+                    lastTimeDisconnectedByConfigKey[address].Add(configItemKey,new Tuple<DateTime, double>(DateTime.Now, therandom));
+                }
             }
         }
         public static void setServerLastKickedNow(NetAddress address)
@@ -194,6 +211,30 @@ namespace JKWatcher
                 if (lastTimeDisconnected.ContainsKey(address))
                 {
                     return (lastTimeDisconnected[address].Item1, lastTimeDisconnected[address].Item2);
+                } else
+                {
+                    return (null, null);
+                }
+            }
+        }
+        public static (DateTime?,double?) getServerLastDisconnectedByConfigKey(NetAddress address, string configKey)
+        {
+            if (address == null)
+            {
+                return (null,null);
+            }
+            lock (lastTimeDisconnectedByConfigKey)
+            {
+                if (lastTimeDisconnectedByConfigKey.ContainsKey(address))
+                {
+                    if (lastTimeDisconnectedByConfigKey[address].ContainsKey(configKey))
+                    {
+                        return (lastTimeDisconnectedByConfigKey[address][configKey].Item1, lastTimeDisconnectedByConfigKey[address][configKey].Item2);
+                    }
+                    else
+                    {
+                        return (null, null);
+                    }
                 } else
                 {
                     return (null, null);
@@ -1588,6 +1629,9 @@ namespace JKWatcher
             public int minRealPlayers { get; init; } = 0;
             public int timeFromDisconnect { get; init; } = 0;
             public int timeFromDisconnectUpperRange { get; init; } = 0;
+            public int timeFromDisconnectThisConfig { get; init; } = 0;
+            public int timeFromDisconnectThisConfigUpperRange { get; init; } = 0;
+            public bool timeFromDisconnectNoTouch { get; init; } = false;
             public int? timeFromDisconnectOverrideMapchange { get; set; } = null;
             public int? timeFromConnect { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
@@ -1755,6 +1799,22 @@ namespace JKWatcher
                         timeFromDisconnectUpperRange = Math.Max(0, rangeParts[1].Atoi());
                     }
                 }
+
+                timeFromDisconnectString = config["timeFromDisconnectThis"];
+                if (timeFromDisconnectString != null)
+                {
+                    string[] rangeParts = timeFromDisconnectString.Split('-',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                    if(rangeParts.Length > 0)
+                    {
+                        timeFromDisconnectThisConfig = Math.Max(0, rangeParts[0].Atoi());
+                    }
+                    if(rangeParts.Length > 1)
+                    {
+                        timeFromDisconnectThisConfigUpperRange = Math.Max(0, rangeParts[1].Atoi());
+                    }
+                }
+
+                timeFromDisconnectNoTouch = config["timeFromDisconnectNoTouch"]?.Trim().Atoi() > 0;
 
                 string timeFromDisconnectOverrides = config["timeFromDisconnectOverride"];
                 if (timeFromDisconnectOverrides != null) {
@@ -1950,6 +2010,43 @@ namespace JKWatcher
                         }
                         
                     }
+                    if (timeFromDisconnectThisConfig > 0 || timeFromDisconnectThisConfigUpperRange > 0)
+                    {
+                        // Whenever we disconnect, we save the time we disconnected along with a randomly generated 0.0-1.0 double.
+                        // This double modifies the time delay until we can connect again if it was specified as a range, for example 5-10
+                        // Then the random double will define the relative position between 5 and 10. 
+                        // We could directly generate the random here but then it would be a new roll of the dice every time we check if the server fits requirements
+                        // which will sooner or later just end up giving something close to the lower end of the range due to probability,
+                        // thus destroying the potential for true randomness. Hence the random value is generated the moment we disconnect
+                        (DateTime? lastDisconnect,double? lastDisconnectTimeRangeModifier) = MainWindow.getServerLastDisconnectedByConfigKey(serverInfo.Address, this.sectionName);
+                        
+                        if (lastDisconnect.HasValue)
+                        {
+                            bool overridden = false;
+                            if (timeFromDisconnectOverrideMapchange.HasValue && lastMapChanges.ContainsKey(serverInfo.Address) && lastMapChanges[serverInfo.Address] > lastDisconnect.Value)
+                            {
+                                overridden = true;
+                                if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < timeFromDisconnectOverrideMapchange.Value)
+                                {
+                                    return false;
+                                }
+                            }
+
+                            if (!overridden)
+                            {
+                                double actualMinTimeDelay = timeFromDisconnectThisConfig;
+                                if (timeFromDisconnectThisConfigUpperRange > 0 && lastDisconnectTimeRangeModifier.HasValue) // No reason why lastDisconnectTimeRangeModifier shouldn't have a value if lastDisconnect does but let's be safe?
+                                {
+                                    actualMinTimeDelay = (double)timeFromDisconnectThisConfig + ((double)timeFromDisconnectThisConfigUpperRange - (double)timeFromDisconnectThisConfig) * lastDisconnectTimeRangeModifier.Value;
+                                }
+                                if ((DateTime.Now - lastDisconnect.Value).TotalMinutes < actualMinTimeDelay)
+                                {
+                                    return false;
+                                }
+                            }
+                        }
+                        
+                    }
                     if(mapNames != null)
                     {
                         bool mapMatches = false;
@@ -1987,6 +2084,8 @@ namespace JKWatcher
                 lock (connectedServerWindows)
                 {
                     ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo.Address, serverInfo.Protocol, serverInfo.HostName,serverToConnect.password, new ConnectedServerWindow.ConnectionOptions() { userInfoName= serverToConnect.playerName, mapChangeCommands=serverToConnect.mapChangeCommands, quickCommands=serverToConnect.quickCommands,conditionalCommands=serverToConnect.conditionalCommands,disconnectTriggers=serverToConnect.disconnectTriggers,attachClientNumToName=serverToConnect.attachClientNumToName,demoTimeColorNames=serverToConnect.demoTimeColorNames,silentMode=serverToConnect.silentMode, extraDemoMeta=serverToConnect.demoMeta, autoUpgradeToCTF= serverToConnect.autoUpgradeToCTF, autoUpgradeToCTFWithStrobe= serverToConnect.autoUpgradeToCTF,proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo) });
+                    newWindow.configItemKey = serverToConnect.sectionName;
+                    newWindow.NoTouchGeneralDisconnectTime = serverToConnect.timeFromDisconnectNoTouch;
                     connectedServerWindows.Add(newWindow);
                     newWindow.Loaded += NewWindow_Loaded;
                     newWindow.Closed += NewWindow_Closed;

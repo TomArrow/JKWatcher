@@ -176,6 +176,14 @@ Minimum amount of real players (non-bots) on server required to connect.
 
 Minimum amount of time that must have passed since the last time we disconnected from this server, in minutes. Optionally can be a range like "5-10". A random value will be picked in between.
 
+#### timeFromDisconnectThis
+
+Same as timeFromDisconnect, but only counts disconnects from connects using this config section/key.
+
+#### timeFromDisconnectNoTouch
+
+0 or 1. If 1, don't let disconnects from connects by this config item touch the disconnect time for any other item. So that the current item won't ever delay connects by other items.
+
 #### timeFromDisconnectOverride
 
 Conditions that reset the timeFromDisconnect condition. Comma-separated. Also specify alternate timeFromDisconnect with : after the reset condition. Possible values: mapchange 
