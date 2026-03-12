@@ -184,7 +184,7 @@ namespace JKWatcher
                     {
                         lastTimeDisconnectedByConfigKey[address] = new Dictionary<string, Tuple<DateTime, double>>(StringComparer.InvariantCultureIgnoreCase);
                     }
-                    lastTimeDisconnectedByConfigKey[address].Add(configItemKey,new Tuple<DateTime, double>(DateTime.Now, therandom));
+                    lastTimeDisconnectedByConfigKey[address][configItemKey] = new Tuple<DateTime, double>(DateTime.Now, therandom);
                 }
             }
         }
