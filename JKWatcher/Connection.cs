@@ -4195,6 +4195,9 @@ namespace JKWatcher
                 }, infoPool.gameIsPaused, infoPool.teamInfo[(int)Team.Red].lastFlagCarrier, infoPool.teamInfo[(int)Team.Blue].lastFlagCarrier,infoPool.eventFlagsThisGame, serverWindow);
             }
 
+            
+            bool followingPreventsSeeAll = infoPool.serverSendsAllEntitiesToFreeFloatSpecs && !infoPool.serverSendsAllEntities;
+
             CameraOperator camOpTmp = this.CameraOperator;
             bool isSillyCameraOperator = this.CameraOperator is CameraOperators.SillyCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool isFFACameraOperator = this.CameraOperator is CameraOperators.FFACameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
@@ -4202,7 +4205,6 @@ namespace JKWatcher
             bool isCTFCameraOperatorButNotHandlingCTF = isCTFCameraOperator && !(camOpTmp as CameraOperators.CTFCameraOperatorRedBlue).AmHandlingCTF();
             bool isDefragCameraOperator = this.CameraOperator is CameraOperators.OCDCameraOperator;//this.CameraOperator.HasValue && serverWindow.getCameraOperatorOfConnection(this) is CameraOperators.SillyCameraOperator;
             bool maySendFollow = (!isSillyCameraOperator || !amNotInSpec) && (!amNotInSpec || !isDuelMode || jkaMode) && snap.PlayerState.PlayerMoveType != JKClient.PlayerMoveType.Intermission; // In jk2, sending follow while it being ur turn in duel will put you back in spec but fuck up the whole game for everyone as it is always your turn then.
-
 
             if (teamChangesDetected)
             {
@@ -4460,7 +4462,11 @@ namespace JKWatcher
             } else
             {
 
-
+                if (followingPreventsSeeAll && 0 < (snap.PlayerState.PlayerMoveFlags & PMF_FOLLOW))
+                {
+                    // follow without arguments will simply unfollow.
+                    leakyBucketRequester.requestExecution("follow", RequestCategory.FOLLOW, 5, 5000, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                }
                 bool spectatedPlayerIsBot = SpectatedPlayer.HasValue && playerIsLikelyBot(SpectatedPlayer.Value);
                 bool spectatedPlayerIsVeryAfk = SpectatedPlayer.HasValue && playerIsVeryAfk(SpectatedPlayer.Value,true);
                 bool onlyBotsActive = (((DateTime.Now - infoPool.lastBotOnlyConfirmed)?.TotalMilliseconds).GetValueOrDefault(double.PositiveInfinity) < 10000) || infoPool.botOnlyGuaranteed;
@@ -4545,7 +4551,7 @@ namespace JKWatcher
                         }
                     }
                     //if(highestScoreRatioPlayer != -1)
-                    if(highestScoreRatioPlayer.Count > 0)
+                    if(highestScoreRatioPlayer.Count > 0 && !followingPreventsSeeAll)
                     {
                         int clientToFollow = highestScoreRatioPlayer.Count > 1 ? highestScoreRatioPlayer[getNiceRandom(0, highestScoreRatioPlayer.Count)] : highestScoreRatioPlayer[0]; 
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
@@ -4556,7 +4562,7 @@ namespace JKWatcher
                         }
                     }
                     //else if (highestScorePlayer != -1) // Assuming any players at all exist that are playing atm.
-                    else if (highestScorePlayer.Count > 0) // Assuming any players at all exist that are playing atm.
+                    else if (highestScorePlayer.Count > 0 && !followingPreventsSeeAll) // Assuming any players at all exist that are playing atm.
                     {
                         int clientToFollow = highestScorePlayer.Count > 1 ? highestScorePlayer[getNiceRandom(0, highestScorePlayer.Count)] : highestScorePlayer[0];
                         lastRequestedAlwaysFollowSpecClientNum = clientToFollow;
@@ -4770,7 +4776,19 @@ namespace JKWatcher
             {
                 serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES ACTIVATED!", false, 5000);
             }
+            else if (obj.SendsAllEntitiesToFreeFloatSpectators && !infoPool.serverSendsAllEntitiesToFreeFloatSpecs)
+            {
+                if (!obj.SendsAllEntities)
+                {
+                    serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES ^1ONLY ^7TO FREE FLOAT SPECS ACTIVATED!", false, 5000);
+                }
+                else
+                {
+                    serverWindow.addToLog("SERVER SEEMS TO HAVE SENDING ALL ENTITIES TO FREE FLOAT SPECS ACTIVATED!", false, 5000);
+                }
+            }
             infoPool.serverSendsAllEntities = obj.SendsAllEntities;
+            infoPool.serverSendsAllEntitiesToFreeFloatSpecs = obj.SendsAllEntitiesToFreeFloatSpectators;
 
             ttFlags = obj.ttFlags;
 
