@@ -5951,6 +5951,10 @@ namespace JKWatcher
                 if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (this.CameraOperator is null) && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
                     // make sure we dont get forced in
                     leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
+                    leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 400, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 400, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 400, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+                    serverWindow.addToLog($"^1We reached duel end! ^3Quadruple sending team scoreboard cmd just in case!");
                     duelEndReached = true;
                 }
                 else if (printText != null && (printText.Contains("@@@INVALID_PASSWORD") || printText.Contains("@@@INVALID_ESCAPE_TO_MAIN"))) {
