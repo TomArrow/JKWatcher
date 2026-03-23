@@ -569,7 +569,7 @@ namespace JKWatcher
                         serverWindow.addToLog($"download failed: {e.reason}");
                     }
                     pakDownloaderReferences.Remove(e.reference);
-                    if (pakDownloaderReferences.Count == 0)
+                    if (pakDownloaderReferences.Count == 0 && !DownloadsFinished)
                     {
                         serverWindow.addToLog("no downloads left in pakdownloader references. consider downloads finished.");
                         DownloadsFinished = true;
@@ -1263,7 +1263,7 @@ namespace JKWatcher
 
         private void Client_DownloadErrored(object sender, DownloadErroredEventArgs e)
         {
-            if (!e.anyLeftInQueue)
+            if (!e.anyLeftInQueue && !DownloadsFinished)
             {
                 serverWindow.addToLog("no downloads left in queue. consider downloads finished.");
                 DownloadsFinished = true;
@@ -1297,7 +1297,7 @@ namespace JKWatcher
                 Helpers.logToFile(errorMessage);
                 return;
             }
-            if (!e.anyLeftInQueue)
+            if (!e.anyLeftInQueue && !DownloadsFinished)
             {
                 serverWindow.addToLog("no downloads left in queue. consider downloads finished.");
                 DownloadsFinished = true;
@@ -4964,8 +4964,11 @@ namespace JKWatcher
                             }
                             else
                             {
-                                serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
-                                DownloadsFinished = true;
+                                if (!DownloadsFinished)
+                                {
+                                    serverWindow.addToLog("WARNING: Amount of pak names does not match amount of pak checksums. Weird. Aborting pak name logging this time.");
+                                    DownloadsFinished = true;
+                                }
                                 return;
                             }
 
@@ -5084,7 +5087,7 @@ namespace JKWatcher
                             Dispatcher.CurrentDispatcher.Invoke(()=> {
                                 Helpers.logDownloadLinks(downloadLinksArray);
                             });
-                            if (!anyAdded)
+                            if (!anyAdded && !DownloadsFinished)
                             {
                                 serverWindow.addToLog("no downloads added. consider downloads finished.");
                                 DownloadsFinished = true;
@@ -5184,7 +5187,7 @@ namespace JKWatcher
                             {
                                 Helpers.logToSpecificDebugFile(udpLog.ToArray(), "udpDownloadLog.log", true);
                             }
-                            if (!anyAdded)
+                            if (!anyAdded && !DownloadsFinished)
                             {
                                 serverWindow.addToLog("no downloads added. consider downloads finished.");
                                 DownloadsFinished = true;
@@ -5204,7 +5207,7 @@ namespace JKWatcher
 
 
             }
-            else if(string.IsNullOrWhiteSpace(systemInfo["sv_referencedPakNames"]) && string.IsNullOrWhiteSpace(systemInfo["sv_referencedPaks"]))
+            else if(string.IsNullOrWhiteSpace(systemInfo["sv_referencedPakNames"]) && string.IsNullOrWhiteSpace(systemInfo["sv_referencedPaks"]) && !DownloadsFinished)
             {
                 serverWindow.addToLog("paknames are empty. consider downloads finished.");
                 DownloadsFinished = true;
