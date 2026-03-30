@@ -670,7 +670,9 @@ namespace JKWatcher
         struct ConnectionDemoState
         {
             public string demoName;
-            public int demoTime;
+            public Int64 demoTime;
+            public Int64 demoTimeRealDelayed;
+            public Int64 syncFix;
             public int myClientNum;
             public bool isStrobeOperator;
         }
@@ -2460,7 +2462,7 @@ namespace JKWatcher
                     }
                     string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
                     int cutDemosCount = 0;
-                    List<int> demoCutsTimes = new List<int>();
+                    List<Int64> demoCutsTimes = new List<Int64>();
                     if (markRequested)
                     {
 
@@ -2545,6 +2547,13 @@ namespace JKWatcher
                         {
                             cutDemosCount++;
                             demoCutsTimes.Add(demoState.demoTime);
+                            demoCutCommand.Append($"# backup real delayed demo times and syncfix: ");
+                            demoCutCommand.Append(Math.Max(0, demoState.demoTimeRealDelayed - markMinutes * 60000).ToString());
+                            demoCutCommand.Append(" ");
+                            demoCutCommand.Append((demoState.demoTimeRealDelayed + 60000).ToString());
+                            demoCutCommand.Append(" ");
+                            demoCutCommand.Append((demoState.syncFix).ToString());
+                            demoCutCommand.Append("\n");
                             demoCutCommand.Append("DemoCutter ");
                             string demoPath = demoState.demoName;// client?.AbsoluteDemoName;
                             if (demoPath == null)
@@ -2718,7 +2727,7 @@ namespace JKWatcher
             string asClientNum = $"(as {reframeClientNum})";
             string withReframe = reframeRequested ? $"+reframe{asClientNum}" : "";
             int cutDemosCount = 0;
-            List<int> demoCutsTimes = new List<int>();
+            List<Int64> demoCutsTimes = new List<Int64>();
 
             StringBuilder demoCutCommand = new StringBuilder();
             StringBuilder demoCutCommandReframes = new StringBuilder();
@@ -2749,6 +2758,8 @@ namespace JKWatcher
                 {
                     demoName = oneConn.client?.AbsoluteDemoName,
                     demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0),
+                    demoTimeRealDelayed = (oneConn.client?.DemoCurrentTimeRealDelayed).GetValueOrDefault(0),
+                    syncFix = (oneConn.client?.Stats?.demoCurrentTimeSyncFix).GetValueOrDefault(0),
                     myClientNum = (oneConn.client?.clientNum).GetValueOrDefault(-1),
                     isStrobeOperator = (oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) || (oneConn.CameraOperator as CameraOperators.CTFCameraOperatorRedBlue)?.StrobeConnection == oneConn
                 };

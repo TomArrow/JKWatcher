@@ -3613,7 +3613,8 @@ namespace JKWatcher
                     levelshotData.changesSinceLastSaved=0;
                 }
             }
-            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") 
+            DateTime now = DateTime.Now;
+            string filenameString = now.ToString("yyyy-MM-dd HH:mm:ss") 
                 + $"_{lastMapName}_{(serverName == null ? netAddress.ToString() : netAddress.ToString())}" + $"_{serverName}"
                 + $"_{gameType.ToString()}" + (NWH ? "_NWH" : "")
                 + (thisGame ? $"_TG{filenameAdd}" : $"{filenameAdd}");
@@ -3627,7 +3628,7 @@ namespace JKWatcher
                     //lock (forcedLogFileName)
                     using (new GlobalMutexHelper($"JKWatcherLevelshotFilenameMutex{mutexAddress}", 40000))
                     {
-                        SaveLevelshotReal(levelshotDataLocal, thisGame, skipLessThanPixelCount, filenameString);
+                        SaveLevelshotReal(levelshotDataLocal, thisGame, skipLessThanPixelCount, filenameString, now);
                     }
                 }
                 catch (Exception ex)
@@ -3640,12 +3641,23 @@ namespace JKWatcher
         }
 
         
+        (string,string) MakeFullImagePath(string baseFilename, string imagesSubDir)
+        {
+            string filenameString = Helpers.MakeValidFileName(baseFilename) + "_SCORES.png";
+            string csvName = Helpers.MakeValidFileName(baseFilename) + "_SCORES.csv";
+            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
+            csvName = System.IO.Path.Combine(imagesSubDir, csvName);
+            filenameString = Helpers.GetUnusedFilename(filenameString);
+            csvName = Helpers.GetUnusedFilename(csvName);
+            return (filenameString, csvName);
+        }
 
-        public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString)
+        public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString, DateTime now)
         {
 
             string baseFilename = filenameString;
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots");
+
             Directory.CreateDirectory(imagesSubDir);
             filenameString = Helpers.MakeValidFileName(baseFilename) + ".png";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
@@ -3657,14 +3669,46 @@ namespace JKWatcher
 
             bmp.Save(filenameString);
 
-
-            filenameString = Helpers.MakeValidFileName(baseFilename) + "_SCORES.png";
-            string csvName = Helpers.MakeValidFileName(baseFilename) + "_SCORES.csv";
-            filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
-            csvName = System.IO.Path.Combine(imagesSubDir, csvName);
-            filenameString = Helpers.GetUnusedFilename(filenameString);
-            csvName = Helpers.GetUnusedFilename(csvName);
+            string csvName = "";
+            (filenameString, csvName) = MakeFullImagePath(baseFilename, imagesSubDir);
             StringBuilder csvData = new StringBuilder();
+
+            if (now.Day == 1 && now.Month == 4) // april fools
+            {
+                string imagesSubDirNonAprilFools = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "activityShots", "nonAprilFools");
+                Directory.CreateDirectory(imagesSubDirNonAprilFools);
+                Bitmap copy = (Bitmap)bmp.Clone();
+                Regex matchConsonantVowel = new Regex(@"([b-df-hj-np-tv-xz])([aeiouy]+)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
+                MatchEvaluator eval = new MatchEvaluator((Match m)=> {
+                    string vocals = m.Groups[2].Value;
+                    bool[] uppercases = new bool[vocals.Length];
+                    for(int i = 0; i < vocals.Length; i++)
+                    {
+                        uppercases[i] = vocals[i] >= 'A' && vocals[i] <= 'Z';
+                    }
+                    string part2 = uppercases[0] ? "A": "a";
+                    int extra = vocals.Length - 2;
+                    if(extra > 0)
+                    {
+                        for(int i = 0; i < extra; i++)
+                        {
+                            part2 += uppercases[i+1] ? "A": "a";
+                        }
+                    }
+                    part2 += uppercases[uppercases.Length-1] ? "Y" : "y";
+                    return $"{m.Groups[1].Value}{part2}";
+                });
+                ScoreboardRenderer.DrawScoreboard(copy, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
+                copy.Save(filenameString);
+                copy.Dispose();
+                if (csvData.Length > 0)
+                {
+                    File.WriteAllText(csvName, csvData.ToString());
+                }
+                csvData.Clear();
+                (filenameString, csvName) = MakeFullImagePath(baseFilename, imagesSubDirNonAprilFools);
+            }
+
             ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData);
             bmp.Save(filenameString);
             bmp.Dispose();

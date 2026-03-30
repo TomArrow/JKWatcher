@@ -7,6 +7,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace JKWatcher.RandomHelpers
@@ -107,6 +108,8 @@ namespace JKWatcher.RandomHelpers
     class ScoreboardEntry
     {
         public IdentifiedPlayerStats stats;
+
+        public string nameOrLastNonPadaName;
 
         // we copy a few properties to here to sort by.
         // since the player session data could be changed while we are sorting,
@@ -296,9 +299,21 @@ namespace JKWatcher.RandomHelpers
         {
             csv.Append(EscapeValue(name));
         }
-        public string WriteDataColumn(ScoreboardEntry entry)
+        public string WriteDataColumn(ScoreboardEntry entry, ScoreboardRenderer.Options options)
         {
-            return EscapeValue(fetcher(entry));
+            if(options.namesReplaceRegex != null && options.namesReplaceEvaluator != null)
+            {
+                string theString = fetcher(entry);
+                if(theString == null)
+                {
+                    return EscapeValue(theString);
+                }
+                return EscapeValue(options.namesReplaceRegex.Replace(theString, options.namesReplaceEvaluator));
+            }
+            else
+            {
+                return EscapeValue(fetcher(entry));
+            }
         }
         public void WriteDataColumn(StringBuilder csv, ScoreboardEntry entry)
         {
@@ -375,10 +390,14 @@ namespace JKWatcher.RandomHelpers
         static Vector4 v4DKGREY2 = new Vector4(0.15f, 0.15f, 0.15f, 1f);
         static readonly Brush bgBrush = new SolidBrush(vectorToDrawingColor(v4DKGREY2));
 
-        public void DrawString(Graphics g, bool header, float x, float y, ScoreboardEntry entry=  null )
+        public void DrawString(Graphics g, bool header, float x, float y, ScoreboardRenderer.Options options, ScoreboardEntry entry=  null )
         {
             string theString = header ? this.name : GetValueString(entry);
             if (theString is null) return;
+            if (options.namesReplaceRegex != null && options.namesReplaceEvaluator != null)
+            {
+                theString = options.namesReplaceRegex.Replace(theString, options.namesReplaceEvaluator);
+            }
             Font fontToUse = header ? headerFont : font;
 
             if (header)
@@ -497,6 +516,11 @@ namespace JKWatcher.RandomHelpers
         public const float horzPadding = 3;
         public const float vertPadding = 1;
 
+        public class Options {
+            public Regex namesReplaceRegex = null;
+            public MatchEvaluator namesReplaceEvaluator = null;
+        }
+
         enum ScoreFields
         {
             CAPTURES,
@@ -558,12 +582,15 @@ namespace JKWatcher.RandomHelpers
             ServerSharedInformationPool infoPool,
             bool all,
             GameType gameType,
-            StringBuilder csvData
+            StringBuilder csvData,
+            Options options = null
             )
         {
 
             bool anyKillsLogged = false;
             bool anyValidGlicko2 = false;
+
+            if(options is null) options = new Options();
 
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
@@ -590,6 +617,7 @@ namespace JKWatcher.RandomHelpers
             {
                 ScoreboardEntry entry   = new ScoreboardEntry();
                 entry.stats = kvp.Value;
+                entry.nameOrLastNonPadaName = kvp.Value.playerSessInfo.GetNameOrLastNonPadaName();
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
                 entry.realTeam = kvp.Value.playerSessInfo.team;
                 entry.score = kvp.Value.chatCommandTrackingStuff.score.score + kvp.Value.chatCommandTrackingStuff.score.oldScoreSum;
@@ -879,9 +907,9 @@ namespace JKWatcher.RandomHelpers
             csvColumns.Add(new CSVColumnInfo("CL", (a) => { return a.stats.playerSessInfo.clientNum.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("LAST-NONSPEC-TEAM", (a) => { return a.team.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("CURRENT-TEAM", (a) => { return a.realTeam.ToString(); }));
-            columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }, infoPool.hexSupport) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
-            csvColumns.Add(new CSVColumnInfo("NAME-CLEAN", (a) => { return Q3ColorFormatter.cleanupString(a.stats.playerSessInfo.GetNameOrLastNonPadaName(), infoPool.hexSupport); }) );
-            csvColumns.Add(new CSVColumnInfo("NAME-RAW", (a) => { return a.stats.playerSessInfo.GetNameOrLastNonPadaName(); }) );
+            columns.Add(new ColumnInfo("NAME", 0, 220, nameFont, (a) => { return a.nameOrLastNonPadaName; }, infoPool.hexSupport) { overflowMode= ColumnInfo.OverflowMode.AutoScale});
+            csvColumns.Add(new CSVColumnInfo("NAME-CLEAN", (a) => { return Q3ColorFormatter.cleanupString(a.nameOrLastNonPadaName, infoPool.hexSupport); }) );
+            csvColumns.Add(new CSVColumnInfo("NAME-RAW", (a) => { return a.nameOrLastNonPadaName; }) );
             columns.Add(new ColumnInfo("SCORE", 0, 50, normalFont, (a) => { 
                 if(a.scoreCopy.oldScoreSum > 0)
                 {
@@ -1395,16 +1423,16 @@ namespace JKWatcher.RandomHelpers
                     winString = redScore > blueScore ? $"Red leads {redScore}-{blueScore}" : $"Blue leads {blueScore}-{redScore}";
                 }
                 ColumnInfo fakeColumn = new ColumnInfo("Score", 0, 1800, headerFont, (a) => { return winString; }, infoPool.hexSupport);
-                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry()); // bit awkward but the drawing part is already nicely coded in this... too lazy to redo it, too lazy to abstract it.
+                fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry()); // bit awkward but the drawing part is already nicely coded in this... too lazy to redo it, too lazy to abstract it.
                 posY += 30;
                 fakeColumn = new ColumnInfo("Playtime", 0, 1800, normalFont, (a) => {
                     string extraTimeString = whenStringStart == null ? "" : $", Date/Time (start): {whenStringStart}, Total (real): {FormatTime(millisecondsDurationReal)}";
                     return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}{extraTimeString}";
                 }, infoPool.hexSupport);
-                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry());
                 posY += 15;
                 fakeColumn = new ColumnInfo("Mapname(fake column)", 0, 1800, nameFont, (a) => { return $"{mapName} ^7( {serverName} ^7)"; }, infoPool.hexSupport);
-                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry());
                 posY += 30;
 
                 GameStatsFrame[] frames = gameStats.getFrames();
@@ -1504,7 +1532,7 @@ namespace JKWatcher.RandomHelpers
             else
             {
                 ColumnInfo fakeColumn = new ColumnInfo("Mapname(fake column)", 0, 1800, nameFont, (a) => { return $"{mapName} ^7( {serverName} ^7)"; }, infoPool.hexSupport);
-                fakeColumn.DrawString(g, false, posXStart, posY, new ScoreboardEntry());
+                fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry());
                 posY += 20;
             }
 
@@ -1512,7 +1540,7 @@ namespace JKWatcher.RandomHelpers
 
             foreach (var column in columns)
             {
-                column.DrawString(g,true,posX,posY);
+                column.DrawString(g,true,posX,posY, options);
                 if (!column.noAdvanceAfter)
                 {
                     posX += column.width + horzPadding;
@@ -1535,7 +1563,7 @@ namespace JKWatcher.RandomHelpers
                 posY += recordHeight+ vertPadding;
                 posX = posXStart;
 
-                preColumn.DrawString(g,false,posX- preColumn.width-horzPadding, posY, entry);
+                preColumn.DrawString(g,false,posX- preColumn.width-horzPadding, posY, options, entry);
 
                 g.FillRectangle(darkenBgBrush, new RectangleF(posX, posY, 1920.0f - sidePadding - sidePadding, 30.0f)); // darken the bg a bit so it doesnt make the text unreadable
 
@@ -1585,7 +1613,7 @@ namespace JKWatcher.RandomHelpers
 
                 foreach (var column in columns)
                 {
-                    column.DrawString(g, false, posX, posY, entry);
+                    column.DrawString(g, false, posX, posY, options, entry);
                     if (!column.noAdvanceAfter)
                     {
                         posX += column.width + horzPadding;
