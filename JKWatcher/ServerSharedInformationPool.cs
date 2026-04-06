@@ -654,6 +654,7 @@ namespace JKWatcher
             }
         }
         public bool confirmedBot { get; set; } = false;
+        public int tasClient { get; set; } = 0;
         public bool confirmedJKWatcherFightbot { get; set; } = false;
         public string model { get; set; }
     }
@@ -721,6 +722,7 @@ namespace JKWatcher
         public int ProbableRetCount => this.chatCommandTrackingStuff.ProbableRetCount;
         public PlayerScore currentScore => this.chatCommandTrackingStuff.lastScoreWasSpectating ? this.chatCommandTrackingStuff.spectatingScore: this.chatCommandTrackingStuff.score;
         public bool confirmedBot => this.session.confirmedBot;
+        public int tasClient => this.session.tasClient;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
         public DelayedStatusWarner pingWarner = new DelayedStatusWarner();

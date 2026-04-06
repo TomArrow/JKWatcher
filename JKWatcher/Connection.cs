@@ -4618,7 +4618,7 @@ namespace JKWatcher
         {
             DateTime? lastNonZeroPing = infoPool.playerInfo[clientNumber].scoreAll.lastNonZeroPing;
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
-                (infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
+                ((infoPool.playerInfo[clientNumber].tasClient & 2) > 0 || infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
                 (!lastNonZeroPing.HasValue || (DateTime.Now - lastNonZeroPing.Value).TotalMilliseconds > 10000) 
                 && infoPool.playerInfo[clientNumber].scoreAll.pingUpdatesSinceLastNonZeroPing > 10);
         }
@@ -5379,6 +5379,7 @@ namespace JKWatcher
                             infoPool.playerInfo[i].session.model = client.ClientInfo[i].Model;
                             infoPool.playerInfo[i].session.clientNum = client.ClientInfo[i].ClientNum;
                             infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].IsBotBySkill; // client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
+                            infoPool.playerInfo[i].session.tasClient = client.ClientInfo[i].TASClient;
                         }
 
                         // To track rating of ppl who disco. TODO add more than just name to this.
