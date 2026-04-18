@@ -3310,6 +3310,7 @@ namespace JKWatcher
                 MaxWidth=500,
                 MaxHeight=500,
                 ExtraBorderUnits=10,
+                MakeObjFile = true,
                 OutputFolderPath= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher","images","tinymaps")
             };
             BSPToMiniMap.MakeMiniMap(mapname, fileData, request);

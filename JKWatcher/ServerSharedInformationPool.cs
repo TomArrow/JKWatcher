@@ -753,6 +753,7 @@ namespace JKWatcher
         public bool knockedDown;
         public int legsAnim;
         public bool duelInProgress;
+        public int duelIndex;
         public int saberMove;
         public int forcePowersActive;
 

@@ -3339,6 +3339,7 @@ namespace JKWatcher
                     infoPool.playerInfo[i].torsoAnim = snap.PlayerState.TorsoAnim;
                     infoPool.playerInfo[i].legsAnim = snap.PlayerState.LegsAnimation;
                     infoPool.playerInfo[i].duelInProgress = snap.PlayerState.DuelInProgress;
+                    infoPool.playerInfo[i].duelIndex = snap.PlayerState.DuelIndex;
                     infoPool.playerInfo[i].saberMove = snap.PlayerState.SaberMove;
                     infoPool.playerInfo[i].forcePowersActive = snap.PlayerState.forceData.ForcePowersActive;
                     infoPool.playerInfo[i].movementDir = snap.PlayerState.MovementDirection;
@@ -5529,7 +5530,7 @@ namespace JKWatcher
 
         List<string> serverCommandsVerbosityLevel0WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect" };
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
-        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "newDefered", "pstats", "kls" };
+        List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "tstats", "newDefered", "pstats", "kls" };
 
         enum mapChangeType { 
             GameStateMapChange,

@@ -583,8 +583,13 @@ namespace JKWatcher
 			if(infoPool.sillyMode != SillyMode.WALKWAYPOINTS) { 
 				foreach (PlayerInfo pi in infoPool.playerInfo)
 				{
+                    if (myself.duelInProgress && myself.duelIndex != pi.clientNum || !myself.duelInProgress && pi.duelInProgress)
+                    {
+						continue;
+                    }
+
 					//if (infoPool.fightBotTargetingMode == FightBotTargetingMode.NONE) continue;
-					if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum  && !pi.duelInProgress)
+					if (pi.infoValid && pi.IsAlive && pi.team != Team.Spectator && pi.clientNum != myNum)
 					{
 						float curdistance = (pi.position - myPosition).Length();
 						if (amGripped && (pi.forcePowersActive & (1 << 6)) > 0 && curdistance <= maxGripDistance) // To find who is gripping us
