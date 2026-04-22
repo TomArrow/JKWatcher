@@ -1204,6 +1204,8 @@ namespace JKWatcher
             client.MapChangeServerCommandReceived += Client_MapChangeServerCommandReceived;
             client.DownloadFinished += Client_DownloadFinished;
             client.DownloadErrored += Client_DownloadErrored;
+            client.DemoTimeTrackerApproximate.PropertyChanged += DemoTimeTrackerApproximate_PropertyChanged;
+            client.DemoTimeTrackerRealDelayed.PropertyChanged += DemoTimeTrackerRealDelayed_PropertyChanged; 
             clientStatistics = client.Stats;
             Status = client.Status;
             
@@ -1259,6 +1261,27 @@ namespace JKWatcher
 
             serverWindow.addToLog("New connection created.");
             return true;
+        }
+
+        private void DemoTimeTrackerRealDelayed_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != "DemoBaseTime" && e.PropertyName != "DemoStartTime")
+            {
+                return;
+            }
+            Int64? newValue = (sender.GetType().GetProperty(e.PropertyName).GetValue(sender) as Int64?);
+            serverWindow.addToLog($"^3DemoTime Debug: DemoTimeTrackerRealDelayed {e.PropertyName} changed to {newValue}"); Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), $"DemoTimeTrackerRealDelayed {e.PropertyName} changed to {newValue}" }, "demoTimeDebug.log", true);
+        }
+
+        private void DemoTimeTrackerApproximate_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName != "DemoBaseTime" && e.PropertyName != "DemoStartTime")
+            {
+                return;
+            }
+            Int64? newValue = (sender.GetType().GetProperty(e.PropertyName).GetValue(sender) as Int64?);
+            serverWindow.addToLog($"^3DemoTime Debug: DemoTimeTrackerApproximate {e.PropertyName} changed to {newValue}");
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), $"DemoTimeTrackerApproximate {e.PropertyName} changed to {newValue}" },"demoTimeDebug.log",true);
         }
 
         private void Client_DownloadErrored(object sender, DownloadErroredEventArgs e)
@@ -5523,6 +5546,8 @@ namespace JKWatcher
             client.MapChangeServerCommandReceived -= Client_MapChangeServerCommandReceived;
             client.DownloadFinished -= Client_DownloadFinished;
             client.DownloadErrored -= Client_DownloadErrored;
+            client.DemoTimeTrackerApproximate.PropertyChanged -= DemoTimeTrackerApproximate_PropertyChanged;
+            client.DemoTimeTrackerRealDelayed.PropertyChanged -= DemoTimeTrackerRealDelayed_PropertyChanged;
             clientStatistics = null;
         }
 
