@@ -1263,25 +1263,26 @@ namespace JKWatcher
             return true;
         }
 
-        private void DemoTimeTrackerRealDelayed_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void DemoTimeTracker_PropertyChanged(object sender, PropertyChangedEventArgs e, string origin)
         {
             if (e.PropertyName != "DemoBaseTime" && e.PropertyName != "DemoStartTime")
             {
                 return;
             }
             Int64? newValue = (sender.GetType().GetProperty(e.PropertyName).GetValue(sender) as Int64?);
-            serverWindow.addToLog($"^3DemoTime Debug: DemoTimeTrackerRealDelayed {e.PropertyName} changed to {newValue}"); Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), $"DemoTimeTrackerRealDelayed {e.PropertyName} changed to {newValue}" }, "demoTimeDebug.log", true);
+            string what = $"{origin} {e.PropertyName} changed to {newValue}";
+            string meta = $" (recme {this.isRecordingADemo} recmeshould {this.shouldBeRecordingADemo} rec {client?.Demorecording} wait {client?.Demowaiting})";
+            serverWindow.addToLog($"^3DemoTime Debug: {what}{meta}");
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]") + $"{serverWindow.ServerName} ({serverWindow.netAddress?.ToString()}) {what}{meta}"}, "demoTimeDebug.log", true);
+        }
+        private void DemoTimeTrackerRealDelayed_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            DemoTimeTracker_PropertyChanged(sender,e, "DemoTimeTrackerRealDelayed");
         }
 
         private void DemoTimeTrackerApproximate_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if(e.PropertyName != "DemoBaseTime" && e.PropertyName != "DemoStartTime")
-            {
-                return;
-            }
-            Int64? newValue = (sender.GetType().GetProperty(e.PropertyName).GetValue(sender) as Int64?);
-            serverWindow.addToLog($"^3DemoTime Debug: DemoTimeTrackerApproximate {e.PropertyName} changed to {newValue}");
-            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), $"DemoTimeTrackerApproximate {e.PropertyName} changed to {newValue}" },"demoTimeDebug.log",true);
+            DemoTimeTracker_PropertyChanged(sender, e, "DemoTimeTrackerApproximate");
         }
 
         private void Client_DownloadErrored(object sender, DownloadErroredEventArgs e)
