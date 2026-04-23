@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:JKWatcher"
         mc:Ignorable="d"
-        Title="ConnectionStats" Height="550" Width="800">
+        Title="ConnectionStats" Height="570" Width="800">
     <Window.Resources>
         <Style x:Key="activeKeyStyle" TargetType="TextBox">
             <Style.Triggers>
@@ -20,7 +20,7 @@
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
             <RowDefinition></RowDefinition>
-            <RowDefinition Height="1.2*"></RowDefinition>
+            <RowDefinition Height="1.3*"></RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition></ColumnDefinition>
@@ -131,6 +131,11 @@
                 <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Snaps with deltaNum 0 that actually are deltas">Fake Non-Delta:</Label>
                 <TextBox Text="{Binding fakeNonDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
+
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Has sent over a value as delta that hasn't actually changed">Corrupt Delta:</Label>
+                <TextBox Text="{Binding corruptDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
         </StackPanel>
         <StackPanel x:Name="clientStatsPanel3" Grid.Row="2" Grid.Column="2">
 
@@ -169,8 +174,16 @@
             </WrapPanel>
 
             <WrapPanel>
-                <Label Width="120"  Margin="0" Padding="2" FontSize="10" ToolTip="Has sent over a value as delta that hasn't actually changed">Corrupt Delta:</Label>
-                <TextBox Text="{Binding corruptDeltaSnaps,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">currentDemoWrittenServerTime:</Label>
+                <TextBox Text="{Binding currentDemoWrittenServerTime,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">currentDemoWrittenSequenceNumber:</Label>
+                <TextBox Text="{Binding currentDemoWrittenSequenceNumber,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
+            </WrapPanel>
+            <WrapPanel>
+                <Label Width="120"  Margin="0" Padding="2" FontSize="10">currentDemoMaxSequenceNumber:</Label>
+                <TextBox Text="{Binding currentDemoMaxSequenceNumber,Mode=OneWay}" Margin="0" Padding="2" FontSize="10" Width="80" IsReadOnly="True"></TextBox>
             </WrapPanel>
         </StackPanel>
         <StackPanel Grid.Row="2" Grid.Column="3" x:Name="clientStatsPanel4" >

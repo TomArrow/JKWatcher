@@ -2476,6 +2476,7 @@ namespace JKWatcher
                             ConnectionDemoState demoState = new ConnectionDemoState() { 
                                 demoName = oneConn.client?.AbsoluteDemoName, 
                                 demoTime = (oneConn.client?.DemoCurrentTimeApproximate).GetValueOrDefault(0), 
+                                demoTimeRealDelayed = (oneConn.client?.DemoCurrentTimeRealDelayed).GetValueOrDefault(0), 
                                 myClientNum=(oneConn.client?.clientNum).GetValueOrDefault(-1),
                                 isStrobeOperator=(oneConn.CameraOperator is CameraOperators.StrobeCameraOperator) ||(oneConn.CameraOperator as CameraOperators.CTFCameraOperatorRedBlue)?.StrobeConnection == oneConn 
                             };
