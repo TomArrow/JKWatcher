@@ -2746,6 +2746,16 @@ namespace JKWatcher
                 MaybeStackZCompLevelShot(infoPool.levelShot, false);
                 SaveLevelshot(infoPool.levelShot, false, 200, 10, "_CLOSEDOWN");
 
+                List<Window> wndsToclose = new List<Window>(); // idk how much c# would like it if i'm simultaneously foreaching the array im actively removing items from
+                foreach (var window in openSubWindows)
+                {
+                    wndsToclose.Add(window.Key);
+                }
+                foreach(Window window in wndsToclose)
+                {
+                    window.Close();
+                }
+
                 _connectionOptions.PropertyChanged -= _connectionOptions_PropertyChanged;
                 this.Closed -= ConnectedServerWindow_Closed;
                 foreach (CancellationTokenSource backgroundTask in backgroundTasks)
@@ -3382,6 +3392,8 @@ namespace JKWatcher
             updateSnapsSettings();
         }*/
 
+        ConcurrentDictionary<Window,int> openSubWindows = new ConcurrentDictionary<Window, int>(); // i dont rly need a dictionary but concurrentbag doesnt let u remove specific items
+
         private void statsBtn_Click(object sender, RoutedEventArgs e)
         {
             if (connections.Count == 0) return;
@@ -3394,9 +3406,23 @@ namespace JKWatcher
             {
                 if (conn != null)
                 {
-                    new ConnectionStatsWindow(conn).Show();
+                    ConnectionStatsWindow wnd = new ConnectionStatsWindow(conn);
+                    wnd.Closed += Wnd_Closed;
+                    openSubWindows.TryAdd(wnd,0); // meh this is rly shitty
+                    wnd.Show();
                 }
             }
+        }
+
+        private void Wnd_Closed(object sender, EventArgs e)
+        {
+            Window origin = (sender as Window);
+            if(origin == null)
+            {
+                return;
+            }
+            origin.Closed -= Wnd_Closed;
+            openSubWindows.TryRemove(origin,out _); // meh too lazy to make it nicer. hope its ok.
         }
 
         private void netDebugCheck_Checked(object sender, RoutedEventArgs e)
