@@ -5558,6 +5558,46 @@ namespace JKWatcher
         List<string> serverCommandsVerbosityLevel2WhiteList = new List<string>() {"chat","tchat","lchat","print","cp","disconnect","cs" };
         List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "tstats", "newDefered", "pstats", "kls" };
 
+        class CommandTupleCheck : List<string> {
+            public bool Matches(Command cmd)
+            {
+                if (cmd.Argc < this.Count)
+                {
+                    return false;
+                }
+                for(int i = 0; i < this.Count; i++)
+                {
+                    if (this[i] == null)
+                    {
+                        continue;
+                    }
+                    if (cmd.Argv(i) != this[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        };
+
+        class CommandTupleCheckList : List<CommandTupleCheck> { 
+            public bool HasMatch(Command cmd)
+            {
+                foreach (CommandTupleCheck check in this)
+                {
+                    if (check.Matches(cmd))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        };
+
+        CommandTupleCheckList serverCommandTuplesVerbosityLevel0WhiteList = new CommandTupleCheckList() { };
+        CommandTupleCheckList serverCommandTuplesVerbosityLevel2WhiteList = new CommandTupleCheckList() { };
+        CommandTupleCheckList serverCommandTuplesVerbosityLevel3BlackList = new CommandTupleCheckList() { new CommandTupleCheck() { "cp", null, "cptimer" }, new CommandTupleCheck() { "cp", null, "rollspeed" }, new CommandTupleCheck() { "cp", null, "antiloop" }, new CommandTupleCheck() { "cp", null, "racestarted" }, new CommandTupleCheck() { "cp", null, "racestartfailed", "invalidated" } };
+
         enum mapChangeType { 
             GameStateMapChange,
             SVCMapChange,
@@ -5713,11 +5753,41 @@ namespace JKWatcher
                     break;
             }
 
-            if (serverWindow.verboseOutput ==5 || 
-                (serverWindow.verboseOutput >=4 && !serverCommandsVerbosityLevel4BlackList.Contains(commandEventArgs.Command.Argv(0))) || 
-                (serverWindow.verboseOutput >=2 && serverCommandsVerbosityLevel2WhiteList.Contains(commandEventArgs.Command.Argv(0))) || 
-                (serverWindow.verboseOutput ==0 && serverCommandsVerbosityLevel0WhiteList.Contains(commandEventArgs.Command.Argv(0)))
-                ) { 
+
+
+            do {
+                if (serverWindow.verboseOutput < 5)
+                {
+                    if (serverCommandsVerbosityLevel4BlackList.Contains(commandEventArgs.Command.Argv(0)))
+                    {
+                        break;
+                    }
+                    if (serverWindow.verboseOutput < 4)
+                    {
+                        if (serverCommandTuplesVerbosityLevel3BlackList.HasMatch(commandEventArgs.Command))
+                        {
+                            break;
+                        }
+                        if (serverWindow.verboseOutput < 3)
+                        {
+                            bool allow = false;
+                            if (serverCommandsVerbosityLevel0WhiteList.Contains(commandEventArgs.Command.Argv(0)) || serverCommandTuplesVerbosityLevel0WhiteList.HasMatch(commandEventArgs.Command))
+                            {
+                                allow = true;
+                            }
+                            else if (serverWindow.verboseOutput >= 2 && (serverCommandsVerbosityLevel2WhiteList.Contains(commandEventArgs.Command.Argv(0)) || serverCommandTuplesVerbosityLevel2WhiteList.HasMatch(commandEventArgs.Command)))
+                            {
+                                allow = true;
+                            }
+                            if (!allow)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+
                 StringBuilder allArgs = new StringBuilder();
                 if (serverWindow.showCmdMsgNum)
                 {
@@ -5773,7 +5843,7 @@ namespace JKWatcher
                 {
                     serverWindow.addToLog(allArgs.ToString());
                 }
-            }
+            } while(false);
             //addToLog(commandEventArgs.Command.Argv(0)+" "+ commandEventArgs.Command.Argv(1)+" "+ commandEventArgs.Command.Argv(2)+" "+ commandEventArgs.Command.Argv(3));
             Debug.WriteLine(commandEventArgs.Command.Argv(0));
 
