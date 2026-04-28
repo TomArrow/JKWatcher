@@ -5559,13 +5559,22 @@ namespace JKWatcher
         List<string> serverCommandsVerbosityLevel4BlackList = new List<string>() {"scores","tinfo", "tstats", "newDefered", "pstats", "kls" };
 
         class CommandTupleCheck : List<string> {
-            public bool Matches(Command cmd)
+            public bool Matches(Command cmd) 
             {
-                if (cmd.Argc < this.Count)
+                // null in-between is skipped for comparison
+                // null at the end means "enforce eof here" aka match the exact count of arguments before null
+                bool eofEnforced = false;
+                int realcount = this.Count;
+                if(this[this.Count - 1] == null && this.Count > 1)
+                {
+                    realcount -= 1;
+                    eofEnforced = true;
+                }
+                if (cmd.Argc < realcount || eofEnforced && cmd.Argc != realcount)
                 {
                     return false;
                 }
-                for(int i = 0; i < this.Count; i++)
+                for(int i = 0; i < realcount; i++)
                 {
                     if (this[i] == null)
                     {
@@ -5596,7 +5605,7 @@ namespace JKWatcher
 
         CommandTupleCheckList serverCommandTuplesVerbosityLevel0WhiteList = new CommandTupleCheckList() { };
         CommandTupleCheckList serverCommandTuplesVerbosityLevel2WhiteList = new CommandTupleCheckList() { };
-        CommandTupleCheckList serverCommandTuplesVerbosityLevel3BlackList = new CommandTupleCheckList() { new CommandTupleCheck() { "cp", null, "cptimer" }, new CommandTupleCheck() { "cp", null, "rollspeed" }, new CommandTupleCheck() { "cp", null, "antiloop" }, new CommandTupleCheck() { "cp", null, "racestarted" }, new CommandTupleCheck() { "cp", null, "racestartfailed", "invalidated" } };
+        CommandTupleCheckList serverCommandTuplesVerbosityLevel3BlackList = new CommandTupleCheckList() { new CommandTupleCheck() { "cp", "", null }, new CommandTupleCheck() { "cp", null, "cptimer" }, new CommandTupleCheck() { "cp", null, "rollspeed" }, new CommandTupleCheck() { "cp", null, "antiloop" }, new CommandTupleCheck() { "cp", null, "racestarted" }, new CommandTupleCheck() { "cp", null, "racestartfailed", "invalidated" } };
 
         enum mapChangeType { 
             GameStateMapChange,
