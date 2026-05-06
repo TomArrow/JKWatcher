@@ -4794,6 +4794,17 @@ namespace JKWatcher
             if (newGameState)
             {
                 serverWindow.addToLog("New gamestate received. Resetting pendingPlayerSpectatorTeam");
+                string[] configstrings = client?.ConfigStrings;
+                if(configstrings != null)
+                {
+                    lock (oldCS)
+                    {
+                        for (int i = 0; i < configstrings.Length; i++)
+                        {
+                            CheckCSChange(i, configstrings[i]);
+                        }
+                    }
+                }
                 pendingPlayerSpectatorTeam = new bool[128]; // lets forget all about this.
             }
 
@@ -5932,6 +5943,78 @@ namespace JKWatcher
             }
         }
 
+
+        Dictionary<int, InfoString> oldCS = new Dictionary<int, InfoString>();
+        void CheckCSChange(int csNum, string newCS)
+        {
+            if (string.IsNullOrWhiteSpace(newCS))
+            {
+                lock (oldCS)
+                {
+                    if (oldCS.ContainsKey(csNum))
+                    {
+                        oldCS.Remove(csNum);
+                    }
+                }
+            } else if (newCS.Contains('\\'))
+            {
+                StringBuilder sb = new StringBuilder();
+                int changes = 0;
+                InfoString newis = new InfoString(newCS);
+                InfoString oldis = null;
+                lock (oldCS)
+                {
+                    if (oldCS.ContainsKey(csNum))
+                    {
+                        oldis = oldCS[csNum];
+                    }
+                    oldCS[csNum] = newis;
+                }
+                // compare both now.
+                if(oldis != null)
+                {
+                    foreach (var kvp in oldis)
+                    {
+                        if (!newis.ContainsKey(kvp.Key))
+                        {
+                            if (changes > 0)
+                            {
+                                sb.Append(";");
+                            }
+                            changes++;
+                            sb.Append($"-{kvp.Key}(was {kvp.Value})");
+                        }
+                        else if(kvp.Value != newis[kvp.Key])
+                        {
+                            if (changes > 0)
+                            {
+                                sb.Append(";");
+                            }
+                            changes++;
+                            sb.Append($"{kvp.Key}({kvp.Value}=>{newis[kvp.Key]})");
+                        }
+                    }
+                    foreach (var kvp in newis)
+                    {
+                        if (!oldis.ContainsKey(kvp.Key))
+                        {
+                            if (changes > 0)
+                            {
+                                sb.Append(";");
+                            }
+                            changes++;
+                            sb.Append($"+{kvp.Key}({kvp.Value})");
+                        }
+                    }
+                }
+                if (changes > 0)
+                {
+                    serverWindow.addToLog($"CS changes for {csNum}: {sb.ToString()}");
+                }
+            }
+        }
+
+
         bool[] pendingPlayerSpectatorTeam = new bool[128];
 
         bool warmup = false;
@@ -5942,9 +6025,10 @@ namespace JKWatcher
         DateTime pauseEndedOrStarted = DateTime.Now;
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
+            int num = commandEventArgs.Command.Argv(1).Atoi();
+            CheckCSChange(num, commandEventArgs.Command.Argv(2));
             if (mohMode) return; // MOH Doesn't have flag status.
 
-            int num = commandEventArgs.Command.Argv(1).Atoi();
 
             int maxClients = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
 

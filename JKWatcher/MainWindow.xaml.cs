@@ -1598,6 +1598,57 @@ namespace JKWatcher
                 newWindow.Show();
             }*/
         }
+        private void connectIPBtn2_Click(object sender, RoutedEventArgs e)
+        {
+            string ip = ipTxt.Text;
+            string pw = pwTxt.Text.Length > 0 ? pwTxt.Text : null;
+            string userinfoName = userInfoNameTxt.Text.Length > 0 ? userInfoNameTxt.Text : null;
+            ProtocolVersion? protocol = protocols.SelectedItem != null ? (ProtocolVersion)protocols.SelectedItem : null;
+            if(ip.Length > 0 && protocol != null)
+            {
+                lock (connectedServerWindows)
+                {
+                    ConnectedServerWindow.ConnectionOptions connOpts = null;
+                    if (userinfoName != null)
+                    {
+                        connOpts = new ConnectedServerWindow.ConnectionOptions() { pretendToBeRealClient = true};
+                        if (protocol.Value >= ProtocolVersion.Protocol6 && protocol.Value <= ProtocolVersion.Protocol8 || protocol.Value == ProtocolVersion.Protocol17) // TODO Support 15,16?
+                        {
+                            connOpts.LoadMOHDefaults(); // MOH needs different defaults.
+                        }
+                        connOpts.userInfoName = userinfoName;
+                    }
+                    // cant rly determine if nwh here..
+                    //SocksProxy? proxy = this.socksSettingsGlobal.GetProxyForServer(serverInfo);
+                    //if (proxy != null)
+                    //{
+                    //    if (connOpts == null)
+                    //    {
+                    //        connOpts = new ConnectedServerWindow.ConnectionOptions();
+                    //    }
+                    //    connOpts.proxy = proxy;
+                    //}
+                    //ConnectedServerWindow newWindow = new ConnectedServerWindow(ip, protocol.Value);
+                    ConnectedServerWindow newWindow = new ConnectedServerWindow(NetAddress.FromString(ip.Trim()), protocol.Value, null, pw, connOpts);
+                    connectedServerWindows.Add(newWindow);
+                    newWindow.Loaded += NewWindow_Loaded;
+                    newWindow.Closed += NewWindow_Closed;
+                    newWindow.ShowActivated = false;
+                    newWindow.Show();
+                    newWindow.recordAll();
+                }
+            }
+            /*ServerInfo serverInfo = (ServerInfo)serverListDataGrid.SelectedItem;
+            //MessageBox.Show(serverInfo.HostName);
+            if (serverInfo != null)
+            {
+                ConnectedServerWindow newWindow = new ConnectedServerWindow(serverInfo);
+                connectedServerWindows.Add(newWindow);
+                newWindow.Closed += (a, b) => { connectedServerWindows.Remove(newWindow); };
+                                                newWindow.ShowActivated = false;
+                newWindow.Show();
+            }*/
+        }
 
         private void colorDecoderBtn_Click(object sender, RoutedEventArgs e)
         {
