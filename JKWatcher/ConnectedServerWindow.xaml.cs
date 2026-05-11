@@ -651,6 +651,7 @@ namespace JKWatcher
         ConnectionOptions _connectionOptions = null;
 
         private bool mohMode = false;
+        private bool q3Mode = false;
 
 
         private string chatCommandPublic = "say";
@@ -685,6 +686,7 @@ namespace JKWatcher
             protocol = protocolA;
 
             mohMode = protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17; // TODO Support 15,16 too?
+            q3Mode = protocol == ProtocolVersion.Protocol68;
 
             if (mohMode)
             {
@@ -708,7 +710,7 @@ namespace JKWatcher
             connectionsDataGrid.ItemsSource = connections;
             cameraOperatorsDataGrid.ItemsSource = cameraOperators;
 
-            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode ? 64 : 32) {connectionOptions = connectionOptions };
+            infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode || q3Mode ? 64 : 32) {connectionOptions = connectionOptions };
 
             infoPool.ServerName = netAddressA.ToString();
             if (serverNameA != null)

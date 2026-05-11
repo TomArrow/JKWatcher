@@ -1118,6 +1118,9 @@ namespace JKWatcher
             } else if(protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17) // TODO support protocols 15 and 16 for moh too? Or useless?
             {
                 handler = new MOHClientHandler(protocol, ClientVersion.MOH);
+            }  else if(protocol == ProtocolVersion.Protocol68 )
+            {
+                handler = new Q3ClientHandler(protocol);
             } else
             {
                 serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);

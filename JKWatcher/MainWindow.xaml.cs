@@ -598,6 +598,7 @@ namespace JKWatcher
                 int ffaMinPlayersForJoin = 2;
                 int ffaKickReconnectDelay = 0;
                 bool jkaMode = false;
+                bool q3Mode = false;
                 bool mohMode = false;
                 bool allJK2Versions = false;
                 bool delayedConnecterActive = false;
@@ -611,6 +612,7 @@ namespace JKWatcher
                     ffaAutoJoinConditionalCommands = ffaAutojoinConditionalCmdsTxt.Text;
                     ctfAutoJoinConditionalCommands = ctfAutojoinConditionalCmdsTxt.Text;
                     jkaMode = jkaModeCheck.IsChecked == true;
+                    q3Mode = q3ModeCheck.IsChecked == true;
                     mohMode = mohModeCheck.IsChecked == true;
                     allJK2Versions = allJK2VersionsCheck.IsChecked == true;
                     delayedConnecterActive = delayedConnecterActiveCheck.IsChecked == true;
@@ -688,6 +690,10 @@ namespace JKWatcher
                     {
                         serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8,true)) { RefreshTimeout = 30000L, ForceStatus = true };
                     }
+                    else if (q3Mode)
+                    {
+                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol68)) { RefreshTimeout = 30000L, ForceStatus = true };
+                    }
                     else
                     {
                         serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus = true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
@@ -737,7 +743,7 @@ namespace JKWatcher
                             }
                         }
                         bool statusReceived = serverInfo.StatusResponseReceived; // We get this value first because it seems in rare situations 1.03 servers can slip through. Maybe status just arrives a bit later and then with very unlucky timing the status received underneath passes but higher up the version was still set to JO_v1_02 because the status hadn't been received yet?
-                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions || delayedConnectServersCount > 0)
+                        if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || q3Mode || mohMode || allJK2Versions || delayedConnectServersCount > 0)
                         {
                             bool alreadyConnected = false;
                             lock (connectedServerWindows)
@@ -1232,10 +1238,12 @@ namespace JKWatcher
 
 
             bool jkaMode = false;
+            bool q3Mode = false;
             bool mohMode = false;
             bool allJK2Versions = false;
             Dispatcher.Invoke(() => {
                 jkaMode = jkaModeCheck.IsChecked == true;
+                q3Mode = q3ModeCheck.IsChecked == true;
                 mohMode = mohModeCheck.IsChecked == true;
                 allJK2Versions = allJK2VersionsCheck.IsChecked == true;
             });
@@ -1248,6 +1256,10 @@ namespace JKWatcher
             else if (mohMode)
             {
                 serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { ForceStatus = true };
+            }
+            else if (q3Mode)
+            {
+                serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68)) { ForceStatus = true };
             }
             else
             {
@@ -1286,7 +1298,7 @@ namespace JKWatcher
                     {
                         stc.FitsRequirements(serverInfo, ref tmp); // Just to update a serverinfo in there if needed.
                     }
-                    if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || mohMode || allJK2Versions)
+                    if (serverInfo.Version == ClientVersion.JO_v1_02 || jkaMode || q3Mode || mohMode || allJK2Versions)
                     {
                         filteredServers.Add(serverInfo);
                     }
@@ -2403,11 +2415,16 @@ namespace JKWatcher
             {
                 mohModeCheck.IsChecked = true;
             }
+            if (cp.GetValue("__general__", "q3Mode", 0) == 1)
+            {
+                q3ModeCheck.IsChecked = true;
+            }
             if (cp.GetValue("__general__", "allJK2Versions", 0) == 1)
             {
                 allJK2VersionsCheck.IsChecked = true;
             }
             bool jkaMode = jkaModeCheck.IsChecked == true;
+            bool q3Mode = q3ModeCheck.IsChecked == true;
             bool mohMode = mohModeCheck.IsChecked == true;
             List<ServerToConnect> serversToConnect = new List<ServerToConnect>();
             lock (serversToConnectDelayed)
@@ -2504,6 +2521,10 @@ namespace JKWatcher
                         else if (mohMode)
                         {
                             serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { RefreshTimeout = 10000L, ForceStatus = true };
+                        }
+                        else if (q3Mode)
+                        {
+                            serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68)) { RefreshTimeout = 10000L, ForceStatus = true };
                         } else
                         {
                             serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L, ForceStatus = true }; 
@@ -2693,6 +2714,7 @@ namespace JKWatcher
                     try
                     {
                         bool jkaMode = jkaModeCheck.IsChecked == true;
+                        bool q3Mode = q3ModeCheck.IsChecked == true;
                         bool mohMode = mohModeCheck.IsChecked == true;
 
                         IBrowserHandler bHandler = null;
@@ -2703,6 +2725,10 @@ namespace JKWatcher
                         else if (mohMode)
                         {
                             bHandler = new MOHBrowserHandler(ProtocolVersion.Protocol8, true);
+                        }
+                        else if (q3Mode)
+                        {
+                            bHandler = new Q3BrowserHandler(ProtocolVersion.Protocol68);
                         }
                         else
                         {

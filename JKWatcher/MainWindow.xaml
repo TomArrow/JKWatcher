@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:JKWatcher" 
         xmlns:local1="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="MainWindow" Height="450" Width="1000">
     <Window.Resources>
         <local:Q3StringToPlaintextConverter x:Key="q3StringToPlaintextConverter"></local:Q3StringToPlaintextConverter>
         <local1:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"></local1:BooleanToVisibilityConverter>
@@ -20,11 +20,21 @@
             <RowDefinition Height="30"></RowDefinition>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200"></ColumnDefinition>
             <ColumnDefinition></ColumnDefinition>
             <ColumnDefinition Width="200"></ColumnDefinition>
         </Grid.ColumnDefinitions>
-
-        <DockPanel Grid.Column="1">
+        <DockPanel Grid.Column="0">
+            <StackPanel>
+                <WrapPanel>
+                    <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2" ToolTip="All JK2 Versions (AllJK2Ver)">AllVer</CheckBox>
+                    <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
+                    <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
+                    <CheckBox x:Name="q3ModeCheck" Padding="2" Margin="2">Q3</CheckBox>
+                </WrapPanel>
+            </StackPanel>
+        </DockPanel>
+        <DockPanel Grid.Column="2">
             <StackPanel DockPanel.Dock="Top">
                 <GroupBox Header="Autorecord">
                     <StackPanel>
@@ -95,14 +105,11 @@
                 
             </TabControl>
         </DockPanel>
-        <TabControl Grid.Row="0">
+        <TabControl Grid.Row="0" Grid.Column="1">
             <TabItem Header="Server Browser">
                 <DockPanel>
                     <WrapPanel DockPanel.Dock="Top">
 
-                        <CheckBox x:Name="allJK2VersionsCheck" Padding="2" Margin="2" ToolTip="All JK2 Versions (AllJK2Ver)">AllVer</CheckBox>
-                        <CheckBox x:Name="jkaModeCheck" Padding="2" Margin="2">JKA</CheckBox>
-                        <CheckBox x:Name="mohModeCheck" Padding="2" Margin="2">MOH</CheckBox>
                         <Button x:Name="refreshBtn" Click="refreshBtn_Click">Refresh</Button>
                         <Button x:Name="checkNowBtn" Click="checkNowBtn_Click">CheckNow</Button>
                         <!--<Label ToolTip="Password">PW</Label>
