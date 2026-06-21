@@ -2556,6 +2556,7 @@ namespace JKWatcher
         public int[] lastTorsoAnimFlipBit = new int[64];
         public float[] lastXYVelocity = new float[64];
         public bool[] playerHasFlag = new bool[64];
+        public int[] commandTimes = new int[64];
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
@@ -3324,6 +3325,8 @@ namespace JKWatcher
                 if((snapEntityNum == -1 || mohMode) && i == snap.PlayerState.ClientNum)
                 {
                     checkPingWarning(infoPool.playerInfo[i], snap.ServerTime - snap.PlayerState.CommandTime, true);
+                    checkPingWarningWeird(infoPool.playerInfo[i], snap.PlayerState.CommandTime, commandTimes[i], snap.ServerTime, oldServerTime);
+                    commandTimes[i] = snap.PlayerState.CommandTime;
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
                     if (// due to snapping we have to compare distance instead of just equality
@@ -3579,6 +3582,8 @@ namespace JKWatcher
                     if(snap.Entities[snapEntityNum].Position.Type == TrajectoryType.TR_LINEAR_STOP)
                     {
                         checkPingWarning(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time - snap.PlayerState.CommandTime, true);
+                        checkPingWarningWeird(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time, commandTimes[i], snap.ServerTime, oldServerTime);
+                        commandTimes[i] = snap.Entities[snapEntityNum].Position.Time;
                     }
                     if((snap.Entities[snapEntityNum].EntityFlags & EF_CONNECTION)>0)
                     {
@@ -7055,6 +7060,53 @@ namespace JKWatcher
                 else
                 {
                     publicWarningsQueue.Append($"{pi.name} ^7is ^1999'd");
+                }
+            }
+
+        }
+        
+        // nwh's antilag makes 999'd players still get commandtime updates, and breaks proper ping display as 999. 
+        // but typically the commandtime updates are rare and hundreds of ms. so if there are no small commandtime updates,
+        // we can somewhat safely assume a player is lagged out
+        void checkPingWarningWeird(PlayerInfo pi, int commandTime, int oldCommandTime, int serverTime, int oldServerTime)
+        {
+
+            if (pi.team == Team.Spectator || serverTime > oldServerTime + 50 || !infoPool.serverSendsAllEntities) return; // if snaps is below 20, we can't trust this that well. also if we're not getting sent all info from all players, we can't rly trust it either.
+            bool softMode = !activeMatch || (DateTime.Now - matchStarted).TotalSeconds < 10.0;
+            bool pingBad = commandTime == oldCommandTime || commandTime > oldCommandTime + 100;
+            if (!pi.pingWarnerWeird.check(pingBad, 5.0,gameIsPaused ? 60.0 : 10.0, softMode))
+            {
+                return;
+            }
+            if (_connectionOptions.silentMode || !NWHDetected) return;
+            if (currentGameType != GameType.CTF && currentGameType != GameType.CTY) return;
+            int playercountRed = 0;
+            int playercountBlue = 0;
+            foreach(PlayerInfo piOther in infoPool.playerInfo)
+            {
+                if(piOther.infoValid && !piOther.confirmedBot && (piOther.scoreAll.ping != 0 || piOther.scoreAll.pingUpdatesSinceLastNonZeroPing < 4))
+                {
+                    switch (piOther.team) {
+                        case Team.Red:
+                            playercountRed++;
+                            break;
+                        case Team.Blue:
+                            playercountBlue++;
+                            break;
+                    }
+
+                }
+            }
+            if (playercountRed < 5 || playercountRed > 7 || playercountBlue < 5 || playercountBlue > 7) return;
+            lock (publicWarningsQueue)
+            {
+                if(publicWarningsQueue.Length > 0)
+                {
+                    publicWarningsQueue.Append($", {pi.name} ^7is ^1lagged out");
+                }
+                else
+                {
+                    publicWarningsQueue.Append($"{pi.name} ^7is ^1lagged out");
                 }
             }
 

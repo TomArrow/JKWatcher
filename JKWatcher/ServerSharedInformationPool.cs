@@ -725,6 +725,7 @@ namespace JKWatcher
         public int tasClient => this.session.tasClient;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
+        public DelayedStatusWarner pingWarnerWeird = new DelayedStatusWarner(); // for nwh where 999 doesnt register anymore due to antilag
         public DelayedStatusWarner pingWarner = new DelayedStatusWarner();
         public DelayedStatusWarner afkWarner = new DelayedStatusWarner();
 
