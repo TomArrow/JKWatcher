@@ -3884,6 +3884,10 @@ namespace JKWatcher
                         //infoPool.playerInfo[i].lastNotVisible = DateTime.Now;
                     //}
                     
+                    if(infoPool.serverSendsAllEntities && i < infoPool.playerInfo.Length){ // player not ingame at all, dont track.
+                        infoPool.playerInfo[i].pingWarnerWeird.reset();
+                    }
+
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedInvisible[SpectatedPlayer.Value, i] = DateTime.Now;
@@ -5303,6 +5307,8 @@ namespace JKWatcher
                         // Whole JkWatcher instance based
                         if (infoPool.playerInfo[i].infoValid != client.ClientInfo[i].InfoValid) {
 
+                            infoPool.playerInfo[i].pingWarnerWeird.reset();
+                            infoPool.playerInfo[i].pingWarner.reset();
                             infoPool.playerInfo[i].session.confirmedJKWatcherFightbot = false; // If there's any connect/disconnect at all, we need to re-confirm this, just to be safe.
 
                             // Client connected/disconnected. Masybe reset some stats

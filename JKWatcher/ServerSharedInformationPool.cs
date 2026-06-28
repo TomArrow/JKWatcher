@@ -665,6 +665,14 @@ namespace JKWatcher
         DateTime? _firstStatusSatisfied = null;
         DateTime? _lastTimeWarned = null;
         // soft: dont warn.
+        public void reset()
+        {
+            lock (meLock)
+            {
+                _firstStatusSatisfied = null;
+                _lastTimeWarned = null;
+            }
+        }
         public bool check(bool statusSatisfied, double secondsDelayWarning, double secondsDelayWarnAgain, bool soft)
         {
             lock (meLock)
