@@ -2507,6 +2507,13 @@ namespace JKWatcher
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
         };
 
+        private void ResetAllPlayerWeirdLaggedOutDetectors()
+        {
+            foreach(PlayerInfo pi in infoPool.playerInfo)
+            {
+                pi.pingWarnerWeird.reset();
+            }
+        }
 
         private void CommitRatings(bool temporary = false, bool onlyThisGame = false, int minResultCountPerPlayer = 0)
         {
@@ -2557,6 +2564,7 @@ namespace JKWatcher
         public float[] lastXYVelocity = new float[64];
         public bool[] playerHasFlag = new bool[64];
         public int[] commandTimes = new int[64];
+        public int[] commandTimesServerTime = new int[64];
 
         private Vector3 delta_angles;
         private float baseSpeed = 0;
@@ -3185,6 +3193,7 @@ namespace JKWatcher
 
             if (changedToIntermission && this.IsMainChatConnection)
             {
+                ResetAllPlayerWeirdLaggedOutDetectors();
                 if(!mohMode && currentGameType != GameType.Duel && currentGameType != GameType.PowerDuel)
                 {
                     serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 0, 10, "_INTERMISSION");
@@ -3325,8 +3334,9 @@ namespace JKWatcher
                 if((snapEntityNum == -1 || mohMode) && i == snap.PlayerState.ClientNum)
                 {
                     checkPingWarning(infoPool.playerInfo[i], snap.ServerTime - snap.PlayerState.CommandTime, true);
-                    checkPingWarningWeird(infoPool.playerInfo[i], snap.PlayerState.CommandTime, commandTimes[i], snap.ServerTime, oldServerTime);
+                    checkPingWarningWeird(infoPool.playerInfo[i], snap.PlayerState.CommandTime, commandTimes[i], snap.ServerTime, commandTimesServerTime[i]);
                     commandTimes[i] = snap.PlayerState.CommandTime;
+                    commandTimesServerTime[i] = snap.ServerTime;
                     infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
                     if (// due to snapping we have to compare distance instead of just equality
@@ -3582,8 +3592,9 @@ namespace JKWatcher
                     if(snap.Entities[snapEntityNum].Position.Type == TrajectoryType.TR_LINEAR_STOP)
                     {
                         checkPingWarning(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time - snap.PlayerState.CommandTime, true);
-                        checkPingWarningWeird(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time, commandTimes[i], snap.ServerTime, oldServerTime);
+                        checkPingWarningWeird(infoPool.playerInfo[i], snap.Entities[snapEntityNum].Position.Time, commandTimes[i], snap.ServerTime, commandTimesServerTime[i]);
                         commandTimes[i] = snap.Entities[snapEntityNum].Position.Time;
+                        commandTimesServerTime[i] = snap.ServerTime;
                     }
                     if((snap.Entities[snapEntityNum].EntityFlags & EF_CONNECTION)>0)
                     {
