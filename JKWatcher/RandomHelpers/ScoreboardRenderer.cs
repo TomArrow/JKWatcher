@@ -619,6 +619,7 @@ namespace JKWatcher.RandomHelpers
 
         public static void DrawScoreboard(
             Bitmap bmp,
+            DateTime now,
             bool thisGame,
             bool activeMatch,
             ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNames, 
@@ -641,7 +642,6 @@ namespace JKWatcher.RandomHelpers
             if (!thisGame) infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, true);
             else infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, true);
 
-            DateTime now = DateTime.Now;
             string whenString = now.ToString("yyyy-MM-dd HH:mm:ss");
             DateTime? gameStartUniversalTime = infoPool.gameStartUniversalTime;
             string whenStringStart = gameStartUniversalTime.HasValue ? gameStartUniversalTime.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : null;
@@ -1431,7 +1431,7 @@ namespace JKWatcher.RandomHelpers
                 if (!a.isStillActivePlayer)
                 {
                     string lastSeenString = "";
-                    TimeSpan timeSince = DateTime.Now - a.lastSeen;
+                    TimeSpan timeSince = now - a.lastSeen;
                     if (timeSince.TotalDays > 1.0)
                     {
                         lastSeenString = $"{(int)timeSince.TotalDays}D";

@@ -3733,7 +3733,7 @@ namespace JKWatcher
                     part2 += uppercases[uppercases.Length-1] ? "Y" : "y";
                     return $"{m.Groups[1].Value}{part2}";
                 });
-                ScoreboardRenderer.DrawScoreboard(copy, thisGame, activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
+                ScoreboardRenderer.DrawScoreboard(copy, now, thisGame, activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
                 copy.Save(filenameString);
                 copy.Dispose();
                 if (csvData.Length > 0)
@@ -3749,7 +3749,7 @@ namespace JKWatcher
                 (filenameString, csvName, jsonName) = MakeFullImagePath(baseFilename, imagesSubDirNonAprilFools);
             }
 
-            ScoreboardRenderer.DrawScoreboard(bmp, thisGame,activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
+            ScoreboardRenderer.DrawScoreboard(bmp, now, thisGame,activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             bmp.Save(filenameString);
             bmp.Dispose();
 
@@ -3772,12 +3772,13 @@ namespace JKWatcher
 
         private void testScoreboardBtn_Click(object sender, RoutedEventArgs e)
         {
-            string filenameString = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName+"_SCORETEST";
+            DateTime now = DateTime.Now;
+            string filenameString = now.ToString("yyyy-MM-dd HH:mm:ss") + "_" + lastMapName + "_" + (serverName == null ? netAddress.ToString() : netAddress.ToString()) + "_" + serverName+"_SCORETEST";
 
             Bitmap bmp = new Bitmap(1920, 1080, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             StringBuilder csvData = new StringBuilder();
             StringBuilder jsonData = new StringBuilder();
-            ScoreboardRenderer.DrawScoreboard(bmp,false,activeMatch,infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
+            ScoreboardRenderer.DrawScoreboard(bmp, now, false,activeMatch,infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "tests");
             Directory.CreateDirectory(imagesSubDir);
             filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
