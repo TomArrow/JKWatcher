@@ -678,8 +678,12 @@ namespace JKWatcher.RandomHelpers
                 if(entry.team != Team.Spectator && activeMatch && thisGame) // for players in an active match, add nwh id info. for spectators or for pubs, let them have some privacy
                 {
                     entry.nwhIdInfo = new JSONNWHIdInfo();
-                    entry.nwhIdInfo.nwhId = kvp.Key.nwhId.id;
-                    entry.nwhIdInfo.likelyPlayer = kvp.Key.nwhId.playerName;
+                    PlayerId nwhId = kvp.Key.nwhId;
+                    if(!(nwhId is null))
+                    {
+                        entry.nwhIdInfo.nwhId = kvp.Key.nwhId.id;
+                        entry.nwhIdInfo.likelyPlayer = kvp.Key.nwhId.playerName;
+                    }
                 }
                 entry.realTeam = kvp.Value.playerSessInfo.team;
                 entry.score = kvp.Value.chatCommandTrackingStuff.score.score + kvp.Value.chatCommandTrackingStuff.score.oldScoreSum;

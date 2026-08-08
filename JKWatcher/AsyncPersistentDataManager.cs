@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using AutoMapper;
 
 namespace JKWatcher
 {
@@ -47,6 +48,8 @@ namespace JKWatcher
 
         static ConcurrentDictionary<object, T> items = new ConcurrentDictionary<object,T>(new PrimaryKeyEqualityComparer());
         static ConcurrentQueue<T> itemsToPersist = new ConcurrentQueue<T>();
+
+        static IMapper mapper = null;
 
         static System.Reflection.PropertyInfo primaryKeyProperty = null;
         public static void Init()
@@ -125,6 +128,11 @@ namespace JKWatcher
         }
 
         static AsyncPersistentDataManager(){
+            // create mapper so we can "hydrate" existing object instances after reloading from .db
+            var cfg = new MapperConfiguration(cfg=> {
+                cfg.CreateMap<T, T>();
+            });
+            mapper = cfg.CreateMapper();
 
             // Find primary key
             System.Reflection.PropertyInfo[] members = typeof(T).GetProperties();
@@ -167,9 +175,18 @@ namespace JKWatcher
                     var dataQuery = db.Table<T>();
                     foreach (T entry in dataQuery)
                     {
-                        setupChangedListener(entry);
                         object primaryKeyValue = primaryKeyProperty.GetValue(entry);
-                        items[primaryKeyValue] = entry;
+                        T existingObject = getByPrimaryKey(primaryKeyValue);
+                        if(existingObject is null)
+                        {
+                            setupChangedListener(entry);
+                            items[primaryKeyValue] = entry;
+                        }
+                        else
+                        {
+                            // "hydrate" the object we already have and that might be referenced in various places, instead of creating detached copies.
+                            mapper.Map<T,T>(entry,existingObject);
+                        }
                     }
                     db.Close();
                     db.Dispose();
