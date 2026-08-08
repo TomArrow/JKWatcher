@@ -7,6 +7,7 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -105,34 +106,65 @@ namespace JKWatcher.RandomHelpers
         }
     }
 
-    class ScoreboardEntry
+    public class JSONGameInfo {
+        public List<ScoreboardEntry> playerData { get; set; } = new List<ScoreboardEntry>();
+        public DateTime finishTime { get; set; }
+        public DateTime? startTime { get; set; }
+        public Int64 millisecondsDurationReal { get; set; }
+        public GameStats gameStats { get; set; }
+        public string serverName { get; set; }
+        public string mapName { get; set; }
+        public string serverIp { get; set; }
+        public int redScore;
+        public int blueScore;
+    }
+
+
+    public class JSONPlayerKillInfo {
+        public string name { get; set; }
+        public Guid guid { get; set; }
+        public int kills { get; set; }
+        public int rets { get; set; }
+        public Dictionary<string, int> killTypes { get; set; } = new Dictionary<string, int>();
+        public Dictionary<string, int> retTypes { get; set; } = new Dictionary<string, int>();
+    }
+
+
+    public class ScoreboardEntry
     {
+        // special stuff only for CSV
+        public Dictionary<string,string> csvData { get; set; }  = new Dictionary<string, string>();// for json output mirroring the old csv data
+        public List<JSONPlayerKillInfo> killed { get; set; } = new List<JSONPlayerKillInfo>();
+        public List<JSONPlayerKillInfo> killedBy { get; set; } = new List<JSONPlayerKillInfo>();
+        public Guid guid { get; set; } // so references to other players (like who killed who) can be stably associated
+
+        // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
 
-        public string nameOrLastNonPadaName;
+        public string nameOrLastNonPadaName { get; set; }
 
         // we copy a few properties to here to sort by.
         // since the player session data could be changed while we are sorting,
         // sorting might throw an exception, so we first create copies of the sort-relevant data.
-        public bool isStillActivePlayer;
-        public bool activeSinceLastThisGameReset;
-        public Team team;
-        public Team realTeam;
-        public int score;
-        public DateTime lastSeen;
-        public int teamScore;
-        public Dictionary<string, int> killTypes = new Dictionary<string, int>();
-        public Dictionary<string, int> killTypesRets = new Dictionary<string, int>();
+        public bool isStillActivePlayer { get; set; }
+        public bool activeSinceLastThisGameReset { get; set; }
+        public Team team { get; set; }
+        public Team realTeam { get; set; }
+        public int score { get; set; }
+        public DateTime lastSeen { get; set; }
+        public int teamScore { get; set; }
+        public Dictionary<string, int> killTypes { get; set; } = new Dictionary<string, int>();
+        public Dictionary<string, int> killTypesRets { get; set; } = new Dictionary<string, int>();
 
-        public bool fightBot;
-        public bool isBot;
+        public bool fightBot { get; set; }
+        public bool isBot { get; set; }
 
-        public int runs;
-        public int top10s;
-        public int wrs;
+        public int runs { get; set; }
+        public int top10s { get; set; }
+        public int wrs { get; set; }
 
-        public int returns;// This is just for convenience.
-        public int returnsOldSum;
+        public int returns { get; set; }// This is just for convenience.
+        public int returnsOldSum { get; set; }
 
         //public int dfas;
         //public int ydfas;
@@ -148,13 +180,13 @@ namespace JKWatcher.RandomHelpers
             { "YDFA",4 },
         };
         public int[] slashCounts = new int[5];
-        public int[] mineGrabs = new int[4];
-        public int mineGrabsTotal;
-        public int blocksEnemy;
-        public int blocksEnemyCapper;
-        public int blocksTeam;
-        public int blocksTeamCapper;
-        public int blocksTotal;
+        public int[] mineGrabs { get; set; } = new int[4];
+        public int mineGrabsTotal { get; set; }
+        public int blocksEnemy { get; set; }
+        public int blocksEnemyCapper { get; set; }
+        public int blocksTeam { get; set; }
+        public int blocksTeamCapper { get; set; }
+        public int blocksTotal { get; set; }
 
         public PlayerScore scoreCopy;
 
@@ -322,6 +354,10 @@ namespace JKWatcher.RandomHelpers
             {
                 Helpers.logToFile($"CSV column {name} data is null wtf",true);
                 data = "";
+            }
+            if (!string.IsNullOrWhiteSpace(name)) // for json output containing the old csv style data as a backup
+            {
+                entry.csvData[name] = data;
             }
             csv.Append(EscapeValue(data));
         }
@@ -583,9 +619,12 @@ namespace JKWatcher.RandomHelpers
             bool all,
             GameType gameType,
             StringBuilder csvData,
+            StringBuilder jsonData,
             Options options = null
             )
         {
+
+            JSONGameInfo jsonGameInfo = new JSONGameInfo();
 
             bool anyKillsLogged = false;
             bool anyValidGlicko2 = false;
@@ -606,6 +645,15 @@ namespace JKWatcher.RandomHelpers
             string mapName = infoPool.MapName;
             int redScore = infoPool.ScoreRed;
             int blueScore = infoPool.ScoreBlue;
+            jsonGameInfo.finishTime = now.ToUniversalTime();
+            jsonGameInfo.startTime = gameStartUniversalTime;
+            jsonGameInfo.millisecondsDurationReal = millisecondsDurationReal;
+            jsonGameInfo.gameStats = gameStats;
+            jsonGameInfo.serverName = serverName;
+            jsonGameInfo.mapName = mapName;
+            jsonGameInfo.serverIp = infoPool.address.ToString();
+            jsonGameInfo.redScore = redScore;
+            jsonGameInfo.blueScore = blueScore;
             List<ScoreboardEntry> entries = new List<ScoreboardEntry>();
             Dictionary<string, int> killTypesCounts = new Dictionary<string, int>();
             Dictionary<string, int> killTypesCountsMax = new Dictionary<string, int>();
@@ -616,6 +664,7 @@ namespace JKWatcher.RandomHelpers
             foreach(var kvp in ratingsAndNames)
             {
                 ScoreboardEntry entry   = new ScoreboardEntry();
+                entry.guid = kvp.Key.guid;
                 entry.stats = kvp.Value;
                 entry.nameOrLastNonPadaName = kvp.Value.playerSessInfo.GetNameOrLastNonPadaName();
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
@@ -821,7 +870,11 @@ namespace JKWatcher.RandomHelpers
                     entry.killTypesRets[keyName]+= kt.Value;
                 }
 
+                SetJSONKillsData(entry,true);
+                SetJSONKillsData(entry,false);
+
                 entries.Add(entry);
+                jsonGameInfo.playerData.Add(entry);
             }
 
             const int maxScoreEntries = 32;
@@ -1631,6 +1684,20 @@ namespace JKWatcher.RandomHelpers
                 }
                 csvData.Append("\n");
             }
+
+            // do json data
+            try
+            {
+                JsonSerializerOptions opts = new JsonSerializerOptions() { NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString, WriteIndented = true };
+                jsonData.Append(JsonSerializer.Serialize<JSONGameInfo>(jsonGameInfo,opts));
+            } catch(Exception ex)
+            {
+                jsonData.Append("null"); // idk
+            }
+            
+            // json data end
+
+
             g.Flush();
             g.Dispose();
 
@@ -1674,6 +1741,50 @@ namespace JKWatcher.RandomHelpers
                 killTypeIndex++;
             }
             return killTypesString.ToString();
+        }
+
+        private static void SetJSONKillsData(ScoreboardEntry entry,bool victim)
+        {
+            SessionPlayerInfo playerSession = entry.stats.playerSessInfo;
+            ChatCommandTrackingStuff trackingStuff = entry.stats.chatCommandTrackingStuff;
+            ConcurrentDictionary<SessionPlayerInfo, KillTracker> trackers = victim ? trackingStuff.killTrackersOnMe : trackingStuff.killTrackersOnOthers;
+            foreach (KeyValuePair<SessionPlayerInfo, KillTracker> kvp in trackers)
+            {
+                if (kvp.Key == playerSession) continue; // dont count stuff on self. 
+                KillTracker theTracker = kvp.Value;
+                
+                if(theTracker.kills <= 0 && theTracker.returns <= 0)
+                {
+                    continue;
+                }
+
+                JSONPlayerKillInfo jpki = new JSONPlayerKillInfo();
+                jpki.guid = kvp.Key.guid;
+                jpki.name = kvp.Key.GetNameOrLastNonPadaName();
+                jpki.kills = theTracker.kills;
+                jpki.rets = theTracker.returns;
+                var killTypes = theTracker.GetKillTypes();
+                foreach(var killType in killTypes)
+                {
+                    jpki.killTypes[killType.Key.name] = killType.Value;
+                }
+                killTypes = theTracker.GetKillTypesReturns();
+                foreach(var killType in killTypes)
+                {
+                    jpki.retTypes[killType.Key.name] = killType.Value;
+                }
+                if (victim)
+                {
+                    entry.killedBy.Add(jpki);
+                }
+                else
+                {
+                    entry.killed.Add(jpki);
+                }
+            }
+
+            //otherPersonData.Sort((a, b) => { return -a.Value.Item1.CompareTo(b.Value.Item1); });
+
         }
 
         private static string MakeKillsOnString(ScoreboardEntry entry, bool victim, int lengthLimit = 99999)

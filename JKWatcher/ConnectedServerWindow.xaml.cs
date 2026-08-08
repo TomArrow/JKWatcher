@@ -713,6 +713,7 @@ namespace JKWatcher
             infoPool = new ServerSharedInformationPool(protocolA == ProtocolVersion.Protocol26, mohMode || q3Mode ? 64 : 32) {connectionOptions = connectionOptions };
 
             infoPool.ServerName = netAddressA.ToString();
+            infoPool.address = netAddressA;
             if (serverNameA != null)
             {
                 ServerName = serverNameA; // This will also change title.
@@ -3669,15 +3670,18 @@ namespace JKWatcher
         }
 
         
-        (string,string) MakeFullImagePath(string baseFilename, string imagesSubDir)
+        (string,string,string) MakeFullImagePath(string baseFilename, string imagesSubDir)
         {
             string filenameString = Helpers.MakeValidFileName(baseFilename) + "_SCORES.png";
             string csvName = Helpers.MakeValidFileName(baseFilename) + "_SCORES.csv";
+            string jsonName = Helpers.MakeValidFileName(baseFilename) + "_SCORES.json";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
             csvName = System.IO.Path.Combine(imagesSubDir, csvName);
+            jsonName = System.IO.Path.Combine(imagesSubDir, jsonName);
             filenameString = Helpers.GetUnusedFilename(filenameString);
             csvName = Helpers.GetUnusedFilename(csvName);
-            return (filenameString, csvName);
+            jsonName = Helpers.GetUnusedFilename(jsonName);
+            return (filenameString, csvName, jsonName);
         }
 
         public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString, DateTime now)
@@ -3698,8 +3702,10 @@ namespace JKWatcher
             bmp.Save(filenameString);
 
             string csvName = "";
-            (filenameString, csvName) = MakeFullImagePath(baseFilename, imagesSubDir);
+            string jsonName = "";
+            (filenameString, csvName, jsonName) = MakeFullImagePath(baseFilename, imagesSubDir);
             StringBuilder csvData = new StringBuilder();
+            StringBuilder jsonData = new StringBuilder();
 
             if (now.Day == 1 && now.Month == 4) // april fools
             {
@@ -3726,7 +3732,7 @@ namespace JKWatcher
                     part2 += uppercases[uppercases.Length-1] ? "Y" : "y";
                     return $"{m.Groups[1].Value}{part2}";
                 });
-                ScoreboardRenderer.DrawScoreboard(copy, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
+                ScoreboardRenderer.DrawScoreboard(copy, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
                 copy.Save(filenameString);
                 copy.Dispose();
                 if (csvData.Length > 0)
@@ -3734,16 +3740,25 @@ namespace JKWatcher
                     File.WriteAllText(csvName, csvData.ToString());
                 }
                 csvData.Clear();
-                (filenameString, csvName) = MakeFullImagePath(baseFilename, imagesSubDirNonAprilFools);
+                if (jsonData.Length > 0)
+                {
+                    File.WriteAllText(jsonName, jsonData.ToString());
+                }
+                jsonData.Clear();
+                (filenameString, csvName, jsonName) = MakeFullImagePath(baseFilename, imagesSubDirNonAprilFools);
             }
 
-            ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData);
+            ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             bmp.Save(filenameString);
             bmp.Dispose();
 
             if (csvData.Length > 0)
             {
                 File.WriteAllText(csvName, csvData.ToString());
+            }
+            if (jsonData.Length > 0)
+            {
+                File.WriteAllText(jsonName, jsonData.ToString());
             }
 
 
@@ -3760,20 +3775,28 @@ namespace JKWatcher
 
             Bitmap bmp = new Bitmap(1920, 1080, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             StringBuilder csvData = new StringBuilder();
-            ScoreboardRenderer.DrawScoreboard(bmp,false,infoPool.ratingsAndNames, infoPool, true, gameType, csvData);
+            StringBuilder jsonData = new StringBuilder();
+            ScoreboardRenderer.DrawScoreboard(bmp,false,infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "tests");
             Directory.CreateDirectory(imagesSubDir);
             filenameString = Helpers.MakeValidFileName(filenameString) + ".png";
             string csvName = Helpers.MakeValidFileName(filenameString) + ".csv";
+            string jsonName = Helpers.MakeValidFileName(filenameString) + ".json";
             filenameString = System.IO.Path.Combine(imagesSubDir, filenameString);
             csvName = System.IO.Path.Combine(imagesSubDir, csvName);
+            jsonName = System.IO.Path.Combine(imagesSubDir, jsonName);
             filenameString = Helpers.GetUnusedFilename(filenameString);
             csvName = Helpers.GetUnusedFilename(csvName);
+            jsonName = Helpers.GetUnusedFilename(jsonName);
             bmp.Save(filenameString);
             bmp.Dispose();
             if (csvData.Length > 0)
             {
                 File.WriteAllText(csvName, csvData.ToString());
+            }
+            if (jsonData.Length > 0)
+            {
+                File.WriteAllText(jsonName, jsonData.ToString());
             }
         }
 

@@ -572,6 +572,7 @@ namespace JKWatcher
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
         
         public int clientNum { get; set; }
+        public Guid guid = Guid.NewGuid();
         public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
         public void ResetChatCommandTrackingStuff(RatingCalculator ratingCalculator, RatingCalculator ratingCalculatorThisGame)
@@ -1554,6 +1555,7 @@ namespace JKWatcher
         public string GameTime { get; private set; }
         public int GameSeconds => gameTime;
         public string ServerName = "";
+        public NetAddress address = null;
         public string MapName { get; set; }
         public int ScoreRed { get; set; }
         public int ScoreBlue { get; set; }
