@@ -572,8 +572,8 @@ namespace JKWatcher
         //public PlayerIdentity identity = new PlayerIdentity(); // changes when other player fills the slot
         
         public int clientNum { get; set; }
-        public string nwhId { get; set; }
-        public string nwhIdPlayerGuess { get; set; }
+        public PlayerId nwhId { get; set; }
+        //public string nwhIdPlayerGuess { get; set; }
         public Guid guid = Guid.NewGuid();
         public ChatCommandTrackingStuff chatCommandTrackingStuff = null;
         public ChatCommandTrackingStuff chatCommandTrackingStuffThisGame = null;
@@ -726,7 +726,7 @@ namespace JKWatcher
             yield return this.chatCommandTrackingStuffThisGame;
         }
         public string name => this.session.name;
-        public string nwhId => this.session.nwhId;
+        public PlayerId nwhId => this.session.nwhId;
         public string model => this.session.model;
         public Team team => this.session.team;
         public PlayerScore scoreThisGame => this.chatCommandTrackingStuffThisGame.score;

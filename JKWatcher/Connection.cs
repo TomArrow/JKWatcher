@@ -6177,7 +6177,13 @@ namespace JKWatcher
                 //lastConfigStringClientNum
                 if (printText != null && NWHDetected && lastConfigStringClientNum > 0 && lastConfigStringClientNum < infoPool.MaxServerClients && printText.Contains("@@@PLCONNECT") && (nwhPlayerConnectMatch= playerConnectNWH.Match(printText)).Success && infoPool.playerInfo[lastConfigStringClientNum].name.Equals(nwhPlayerConnectMatch.Groups["name"].Value) ) {
                     string nwhIdShort = nwhPlayerConnectMatch.Groups["id"].Value;
-                    infoPool.playerInfo[lastConfigStringClientNum].session.nwhId = nwhIdShort;
+                    PlayerId playerId = AsyncPersistentDataManager<PlayerId>.getByPrimaryKey(nwhIdShort);
+                    if (playerId == null)
+                    {
+                        playerId = new PlayerId() { id = nwhIdShort};
+                        AsyncPersistentDataManager<PlayerId>.addItem(playerId);
+                    }
+                    infoPool.playerInfo[lastConfigStringClientNum].session.nwhId = playerId;
                     serverWindow.addToLog($"^1NWH-ID detected for client {lastConfigStringClientNum}: {nwhIdShort}");
                     duelEndReached = true;
                 }

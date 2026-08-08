@@ -189,6 +189,14 @@ namespace JKWatcher
 	}
 
 
+	public class PlayerId : INotifyPropertyChanged
+	{
+		[PrimaryKey]
+		public string id { get; set; }
+		public string playerName { get; set; }
+		public event PropertyChangedEventHandler PropertyChanged;
+	}
+
 
 	class ServerInfoPublic
 	{

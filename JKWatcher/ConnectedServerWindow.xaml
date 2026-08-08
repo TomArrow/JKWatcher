@@ -76,7 +76,8 @@
                     <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
                     <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>
                     <DataGridTextColumn Header="G2TG" Binding="{Binding g2RatingThisGame}"></DataGridTextColumn>
-                    <DataGridTextColumn Header="NWHID" Binding="{Binding nwhId}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="NWHID" Binding="{Binding nwhId.id}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="NWHID-Name" Binding="{Binding nwhId.playerName}"></DataGridTextColumn>
                 </DataGrid.Columns>
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
@@ -427,7 +428,7 @@
             </TabControl>
             <StackPanel x:Name="connectionSettingsControls">
                 <TabControl>
-                    <TabItem Header="Settings">
+                    <TabItem Header="Sett.">
                         <StackPanel>
                             <!--<CheckBox IsChecked="True" x:Name="unixTimeNameColorsCheck" Checked="unixTimeNameColorsCheck_Checked" Unchecked="unixTimeNameColorsCheck_Checked">Demotime name colors</CheckBox>
                 <CheckBox IsChecked="True" x:Name="attachClientNumToNameCheck" Checked="attachClientNumToNameCheck_Checked" Unchecked="attachClientNumToNameCheck_Checked">Attach clientNum</CheckBox>-->
@@ -444,7 +445,7 @@
                             </WrapPanel>
                         </StackPanel>
                     </TabItem>
-                    <TabItem Header="Network">
+                    <TabItem Header="Net">
                         <StackPanel>
                             <StackPanel x:Name="snapsSettingsControls">
 
@@ -478,6 +479,16 @@
                                 <CheckBox x:Name="netDebugCheck" IsChecked="{Binding netDebug,Mode=TwoWay}">NetDbg</CheckBox>
                                 <CheckBox IsChecked="{Binding fightDebug,Mode=TwoWay}">FightDbg</CheckBox>
                             </WrapPanel>
+                        </StackPanel>
+                    </TabItem>
+                    <TabItem Header="Misc">
+                        <StackPanel>
+                            <GroupBox Header="playerId">
+                                <StackPanel DataContext="{Binding ElementName=playerListDataGrid,Path=SelectedItem}">
+                                    <TextBox IsEnabled="False" Text="{Binding nwhId.id}"></TextBox>
+                                    <TextBox Text="{Binding nwhId.playerName,Mode=TwoWay}"></TextBox>
+                                </StackPanel>
+                            </GroupBox>
                         </StackPanel>
                     </TabItem>
                 </TabControl>

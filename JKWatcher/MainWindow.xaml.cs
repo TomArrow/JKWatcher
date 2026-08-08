@@ -292,6 +292,7 @@ namespace JKWatcher
 
             AsyncPersistentDataManager<IntermissionCamPosition>.Init();
             AsyncPersistentDataManager<DefragAverageMapTime>.Init();
+            AsyncPersistentDataManager<PlayerId>.Init();
 
             SaberAnimationStuff.Init();
 
