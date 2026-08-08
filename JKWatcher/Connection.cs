@@ -1336,7 +1336,7 @@ namespace JKWatcher
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
             HandleMapChangeCmds(mapChangeType.SVCMapChange,infoPool.MapName,null);
-            serverWindow.SaveLevelshot(infoPool.levelShot, false, 200, 10.0, "_SVC_MAPCHANGE");
+            serverWindow.SaveLevelshot(infoPool.levelShot, false, activeMatch, 200, 10.0, "_SVC_MAPCHANGE");
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
@@ -2625,7 +2625,7 @@ namespace JKWatcher
                         if (maybeOld != null)
                         {
                             serverWindow.MaybeStackZCompLevelShot(maybeOld,false);
-                            serverWindow.SaveLevelshot(maybeOld, false,200,10,"_ACCUMTYPECHANGE");
+                            serverWindow.SaveLevelshot(maybeOld, false, activeMatch, 200,10,"_ACCUMTYPECHANGE");
                         }
                         infoPool.levelShot.data[posX, posY].X += color.Z;
                         infoPool.levelShot.data[posX, posY].Y += color.Y;
@@ -3197,7 +3197,7 @@ namespace JKWatcher
                 ResetAllPlayerWeirdLaggedOutDetectors();
                 if(!mohMode && currentGameType != GameType.Duel && currentGameType != GameType.PowerDuel)
                 {
-                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 0, 10, "_INTERMISSION");
+                    serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true,activeMatch, 0, 10, "_INTERMISSION");
                 }
                 if (!_connectionOptions.silentMode)
                 {
@@ -4710,11 +4710,11 @@ namespace JKWatcher
                     string trimmedCmd = mutableCmd.Trim();
                     if (trimmedCmd.StartsWith("levelshotThisGame",StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true, 200, 10.0, "_CCMD");
+                        serverWindow.SaveLevelshot(infoPool.levelShotThisGame,true,activeMatch, 200, 10.0, "_CCMD");
                     }
                     else if (trimmedCmd.StartsWith("levelshot", StringComparison.InvariantCultureIgnoreCase))
                     {
-                        serverWindow.SaveLevelshot(infoPool.levelShot, false,200, 10.0, "_CCMD");
+                        serverWindow.SaveLevelshot(infoPool.levelShot, false, activeMatch, 200, 10.0, "_CCMD");
                     }
                     else if ((match = waitCmdRegex.Match(mutableCmd)).Success && match.Groups.Count > 1)
                     {
@@ -4739,6 +4739,7 @@ namespace JKWatcher
             warmup = false;
             duelEndReached = false;
             activeMatch = false;
+            serverWindow.activeMatch = false;
             gameIsPaused = false;
             infoPool.gameIsPaused = false;
             lastMyUserCommandServerTime = 0;
@@ -5792,6 +5793,7 @@ namespace JKWatcher
                     if (wasWarmup)
                     {
                         activeMatch = true;
+                        serverWindow.activeMatch = true;
                         matchStarted = DateTime.Now;
                     }
                     break;
@@ -6049,6 +6051,7 @@ namespace JKWatcher
         bool duelEndReached = false;
         DateTime matchStarted = DateTime.Now;
         DateTime pauseEndedOrStarted = DateTime.Now;
+        int lastConfigStringClientNum = -1; // to associate PLCONNECT with configstring
         void EvaluateCS(CommandEventArgs commandEventArgs)
         {
             int num = commandEventArgs.Command.Argv(1).Atoi();
@@ -6069,6 +6072,7 @@ namespace JKWatcher
                 // The pendingPlayerSpectatorTeam will be reset either here with next cs that has him in a team, or when we see him in spectator team, 
                 // or on new gamestate
                 int clientNum = num - csPlayers;
+                lastConfigStringClientNum = clientNum;
                 string info = commandEventArgs.Command.Argv(2);
                 pendingPlayerSpectatorTeam[clientNum] = info.Contains("\\t\\3",StringComparison.InvariantCultureIgnoreCase) || info.StartsWith("t\\3", StringComparison.InvariantCultureIgnoreCase);
                 clientsWhoDontWantTOrCannotoBeSpectated[clientNum] = DateTime.Now - new TimeSpan(1, 0, 0); // reset this. player may have been connecting and now he is fully connected.
@@ -6135,6 +6139,8 @@ namespace JKWatcher
         Regex playerNameSpecialCharsExceptRoofRegex = new Regex(@"[^\w\d\^ ]", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
         Regex serverUsesProtocolRegex = new Regex(@"Server uses protocol version (\^\d)?(?<protocol>\d+)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
+        Regex playerConnectNWH = new Regex(@"\^2\[CONNECT\]: \^7(?<name>.*?) @@@PLCONNECT \^2\[\^7(?<id>[^\.\]]*)\.\.\.\^2\]\^7\n", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
         // sometimes paknames can have empty spaces..... on dirty dirty servers :rage:
         Regex pakNamesRescueRegex = new Regex(@"(?<pak>(?:baseq3\/|base\/|main\/|mainta\/|maintt\/)(?:.(?!baseq3\/|base\/|main\/|mainta\/|maintt\/))*\s*)", RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -6142,6 +6148,7 @@ namespace JKWatcher
 
         void EvaluatePrint(CommandEventArgs commandEventArgs)
         {
+            Match nwhPlayerConnectMatch;
             Match specMatch;
             Match unknownCmdMatch;
             Match mohChatMatch;
@@ -6167,8 +6174,14 @@ namespace JKWatcher
                         }
                     }
                 }
-
-                if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (this.CameraOperator is null) && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
+                //lastConfigStringClientNum
+                if (printText != null && NWHDetected && lastConfigStringClientNum > 0 && lastConfigStringClientNum < infoPool.MaxServerClients && printText.Contains("@@@PLCONNECT") && (nwhPlayerConnectMatch= playerConnectNWH.Match(printText)).Success && infoPool.playerInfo[lastConfigStringClientNum].name.Equals(nwhPlayerConnectMatch.Groups["name"].Value) ) {
+                    string nwhIdShort = nwhPlayerConnectMatch.Groups["id"].Value;
+                    infoPool.playerInfo[lastConfigStringClientNum].session.nwhId = nwhIdShort;
+                    serverWindow.addToLog($"^1NWH-ID detected for client {lastConfigStringClientNum}: {nwhIdShort}");
+                    duelEndReached = true;
+                }
+                else if (printText != null && printText.Contains("@@@HIT_THE_KILL_LIMIT") && (this.CameraOperator is null) && (currentGameType == GameType.Duel || currentGameType == GameType.PowerDuel)) {
                     // make sure we dont get forced in
                     leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.DELETE_PREVIOUS_OF_SAME_TYPE);
                     leakyBucketRequester.requestExecution("team scoreboard", RequestCategory.FOLLOW, 20, 400, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);

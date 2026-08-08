@@ -1097,7 +1097,7 @@ namespace JKWatcher
                 {
                     MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot,true);
                     MaybeStackZCompLevelShot(infoPool.levelShot, false);
-                    SaveLevelshot(infoPool.levelShot, false, 200, 10.0,"_SI_MAPCHANGE");
+                    SaveLevelshot(infoPool.levelShot, false, activeMatch, 200, 10.0,"_SI_MAPCHANGE");
                     infoPool.resetLevelShot(false, true);
                     if (lastMapName != null)
                     {
@@ -2747,7 +2747,7 @@ namespace JKWatcher
 
                 MaybeStackZCompLevelShot(infoPool.levelShotZCompNoBot,true);
                 MaybeStackZCompLevelShot(infoPool.levelShot, false);
-                SaveLevelshot(infoPool.levelShot, false, 200, 10, "_CLOSEDOWN");
+                SaveLevelshot(infoPool.levelShot, false, activeMatch, 200, 10, "_CLOSEDOWN");
 
                 List<Window> wndsToclose = new List<Window>(); // idk how much c# would like it if i'm simultaneously foreaching the array im actively removing items from
                 foreach (var window in openSubWindows)
@@ -3610,20 +3610,21 @@ namespace JKWatcher
 
         private void levelshotBtn_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot,false,0,0, "_BTN");
+            SaveLevelshot(infoPool.levelShot,false, activeMatch, 0,0, "_BTN");
         }
 
         private void levelshotBtnOver200_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot, false, 200,10, "_BTN200");
+            SaveLevelshot(infoPool.levelShot, false, activeMatch, 200,10, "_BTN200");
         }
         private void levelshotThisGameBtnOver200_Click(object sender, RoutedEventArgs e)
         {
-            SaveLevelshot(infoPool.levelShot, true, 200, 10, "_BTNTG200");
+            SaveLevelshot(infoPool.levelShot, true, activeMatch, 200, 10, "_BTNTG200");
         }
 
+        public bool activeMatch = false; // don't really trust this tbh, just something connections set for us.
 
-        public void SaveLevelshot(LevelShotData levelshotData, bool thisGame, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0,string filenameAdd = null)
+        public void SaveLevelshot(LevelShotData levelshotData, bool thisGame, bool activeMatchA, uint skipLessThanPixelCount = 0, double blockIfOtherLevelshotInPastSeconds = 0.0,string filenameAdd = null)
         {
             if (levelshotData is null) return;
             lock (levelshotData.lastSavedAndAccumTypeLock)
@@ -3657,7 +3658,7 @@ namespace JKWatcher
                     //lock (forcedLogFileName)
                     using (new GlobalMutexHelper($"JKWatcherLevelshotFilenameMutex{mutexAddress}", 40000))
                     {
-                        SaveLevelshotReal(levelshotDataLocal, thisGame, skipLessThanPixelCount, filenameString, now);
+                        SaveLevelshotReal(levelshotDataLocal, thisGame, activeMatchA, skipLessThanPixelCount, filenameString, now);
                     }
                 }
                 catch (Exception ex)
@@ -3684,7 +3685,7 @@ namespace JKWatcher
             return (filenameString, csvName, jsonName);
         }
 
-        public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, uint skipLessThanPixelCount, string filenameString, DateTime now)
+        public void SaveLevelshotReal(Vector3[,] levelshotDataLocal, bool thisGame, bool activeMatchA, uint skipLessThanPixelCount, string filenameString, DateTime now)
         {
 
             string baseFilename = filenameString;
@@ -3732,7 +3733,7 @@ namespace JKWatcher
                     part2 += uppercases[uppercases.Length-1] ? "Y" : "y";
                     return $"{m.Groups[1].Value}{part2}";
                 });
-                ScoreboardRenderer.DrawScoreboard(copy, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
+                ScoreboardRenderer.DrawScoreboard(copy, thisGame, activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData, new ScoreboardRenderer.Options() { namesReplaceRegex = matchConsonantVowel, namesReplaceEvaluator = eval });
                 copy.Save(filenameString);
                 copy.Dispose();
                 if (csvData.Length > 0)
@@ -3748,7 +3749,7 @@ namespace JKWatcher
                 (filenameString, csvName, jsonName) = MakeFullImagePath(baseFilename, imagesSubDirNonAprilFools);
             }
 
-            ScoreboardRenderer.DrawScoreboard(bmp, thisGame, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
+            ScoreboardRenderer.DrawScoreboard(bmp, thisGame,activeMatchA, thisGame ? infoPool.ratingsAndNamesThisGame: infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             bmp.Save(filenameString);
             bmp.Dispose();
 
@@ -3776,7 +3777,7 @@ namespace JKWatcher
             Bitmap bmp = new Bitmap(1920, 1080, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
             StringBuilder csvData = new StringBuilder();
             StringBuilder jsonData = new StringBuilder();
-            ScoreboardRenderer.DrawScoreboard(bmp,false,infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
+            ScoreboardRenderer.DrawScoreboard(bmp,false,activeMatch,infoPool.ratingsAndNames, infoPool, true, gameType, csvData, jsonData);
             string imagesSubDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "images", "tests");
             Directory.CreateDirectory(imagesSubDir);
             filenameString = Helpers.MakeValidFileName(filenameString) + ".png";

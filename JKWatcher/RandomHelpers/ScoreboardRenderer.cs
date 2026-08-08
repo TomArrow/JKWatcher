@@ -129,14 +129,20 @@ namespace JKWatcher.RandomHelpers
         public Dictionary<string, int> retTypes { get; set; } = new Dictionary<string, int>();
     }
 
+    public class JSONNWHIdInfo { 
+        public string nwhId { get; set; }
+        public string likelyPlayer { get; set; }
+    }
+
 
     public class ScoreboardEntry
     {
         // special stuff only for CSV
-        public Dictionary<string,string> csvData { get; set; }  = new Dictionary<string, string>();// for json output mirroring the old csv data
+        public Dictionary<string, string> csvData { get; set; } = new Dictionary<string, string>();// for json output mirroring the old csv data
         public List<JSONPlayerKillInfo> killed { get; set; } = new List<JSONPlayerKillInfo>();
         public List<JSONPlayerKillInfo> killedBy { get; set; } = new List<JSONPlayerKillInfo>();
         public Guid guid { get; set; } // so references to other players (like who killed who) can be stably associated
+        public JSONNWHIdInfo nwhIdInfo { get; set; } = null;
 
         // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
@@ -614,6 +620,7 @@ namespace JKWatcher.RandomHelpers
         public static void DrawScoreboard(
             Bitmap bmp,
             bool thisGame,
+            bool activeMatch,
             ConcurrentDictionary<SessionPlayerInfo, IdentifiedPlayerStats> ratingsAndNames, 
             ServerSharedInformationPool infoPool,
             bool all,
@@ -668,6 +675,12 @@ namespace JKWatcher.RandomHelpers
                 entry.stats = kvp.Value;
                 entry.nameOrLastNonPadaName = kvp.Value.playerSessInfo.GetNameOrLastNonPadaName();
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
+                if(entry.team != Team.Spectator && activeMatch && thisGame) // for players in an active match, add nwh id info. for spectators or for pubs, let them have some privacy
+                {
+                    entry.nwhIdInfo = new JSONNWHIdInfo();
+                    entry.nwhIdInfo.nwhId = kvp.Key.nwhId;
+                    entry.nwhIdInfo.likelyPlayer = kvp.Key.nwhIdPlayerGuess;
+                }
                 entry.realTeam = kvp.Value.playerSessInfo.team;
                 entry.score = kvp.Value.chatCommandTrackingStuff.score.score + kvp.Value.chatCommandTrackingStuff.score.oldScoreSum;
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;

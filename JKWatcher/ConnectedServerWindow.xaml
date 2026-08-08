@@ -76,6 +76,7 @@
                     <DataGridTextColumn Header="Skin" Binding="{Binding model}"></DataGridTextColumn>
                     <DataGridTextColumn Header="G2" Binding="{Binding g2Rating}"></DataGridTextColumn>
                     <DataGridTextColumn Header="G2TG" Binding="{Binding g2RatingThisGame}"></DataGridTextColumn>
+                    <DataGridTextColumn Header="NWHID" Binding="{Binding nwhId}"></DataGridTextColumn>
                 </DataGrid.Columns>
                 <DataGrid.RowStyle>
                     <Style TargetType="DataGridRow">
