@@ -2312,6 +2312,7 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
+                    infoPool.teamInfo[(int)team].reliableFlagCarrierTracker.setFlagCarrierIfEqual(pi.clientNum,-1,serverTime);
                     serverWindow.addToLog(pi.name + " captured the "+teamAsString+" flag.");
 
                     if (this.IsMainChatConnection)
