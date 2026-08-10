@@ -378,18 +378,18 @@ namespace JKWatcher
         private string lastKnownPakNames = "";
         private string lastKnownPakChecksums = "";
 
-        public string NameOverride { 
+        public string NameOverride {
             get {
                 return nameOverride;
             }
-            set { 
-                if(value != nameOverride)
+            set {
+                if (value != nameOverride)
                 {
                     nameOverride = value;
                     updateName();
                 }
-            } 
-        } 
+            }
+        }
         private string nameOverride = null;
 
         public bool DownloadsFinished { get; private set; } = false;
@@ -419,7 +419,7 @@ namespace JKWatcher
             }
             set
             {
-                if(_index != value)
+                if (_index != value)
                 {
                     _index = value;
                     updateName();
@@ -504,7 +504,7 @@ namespace JKWatcher
 
         DateTime timeSessionStarted = DateTime.Now;
 
-        public Connection( NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
+        public Connection(NetAddress addressA, ProtocolVersion protocolA, ConnectedServerWindow serverWindowA, ServerSharedInformationPool infoPoolA, ConnectedServerWindow.ConnectionOptions connectionOptions, string passwordA = null, /*string userInfoNameA = null, bool dateTimeColorNamesA = false, bool attachClientNumToNameA = false,*/ SnapsSettings snapsSettingsA = null, bool ghostPeer = false)
         {
             if (connectionOptions == null)
             {
@@ -544,7 +544,7 @@ namespace JKWatcher
             initFightbotValues();
         }
 
-        HashSet<object> pakDownloaderReferences =new HashSet<object>();
+        HashSet<object> pakDownloaderReferences = new HashSet<object>();
         private object MakePakDownloaderReference()
         {
             object test = new object();
@@ -586,7 +586,7 @@ namespace JKWatcher
         internal static int GameTypeStringToBitMask(string gameTypesString)
         {
             int gameTypes = 0;
-            string[] gameTypesStrings = gameTypesString?.Trim().Split(new char[] { ',' , ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            string[] gameTypesStrings = gameTypesString?.Trim().Split(new char[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             if (gameTypesStrings != null)
             {
                 foreach (string gameTypeString in gameTypesStrings)
@@ -653,16 +653,16 @@ namespace JKWatcher
 
         private void _connectionOptions_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if(e.PropertyName == "demoTimeColorNames" || e.PropertyName == "userInfoName" || e.PropertyName == "attachClientNumToName")
+            if (e.PropertyName == "demoTimeColorNames" || e.PropertyName == "userInfoName" || e.PropertyName == "attachClientNumToName")
             {
                 updateName();
-            } else if(e.PropertyName == "skin")
+            } else if (e.PropertyName == "skin")
             {
                 updateSkin();
-            } else if(e.PropertyName == "netDebug")
+            } else if (e.PropertyName == "netDebug")
             {
                 updateNetDebug();
-            } else if(e.PropertyName == "miscUserInfoValues")
+            } else if (e.PropertyName == "miscUserInfoValues")
             {
                 updateMiscUserInfo();
             }
@@ -671,7 +671,7 @@ namespace JKWatcher
         public void SetPassword(string passwordA)
         {
             password = passwordA;
-            if(client != null)
+            if (client != null)
             {
                 client.Password = password != null ? password : "";
             }
@@ -700,7 +700,7 @@ namespace JKWatcher
             var localClient = client;
             if (localClient != null)
             {
-                string nameToUse = nameOverride == null ? ( _connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan" ) : nameOverride;
+                string nameToUse = nameOverride == null ? (_connectionOptions.userInfoName != null ? _connectionOptions.userInfoName : "Padawan") : nameOverride;
 
                 if (nameToUse.Contains('\\'))
                 {
@@ -720,15 +720,15 @@ namespace JKWatcher
                 if (!mohMode && _connectionOptions.demoTimeColorNames && localClient.Demorecording && !nameToUse.Contains("^"))
                 {
                     DemoName_t demoName = client.getDemoName();
-                    if(demoName != null) // Pointless I guess, hmm
+                    if (demoName != null) // Pointless I guess, hmm
                     {
                         DateTime demoStartTime = demoName.time;
                         string colorCodes = Convert.ToString(((DateTimeOffset)demoStartTime.ToUniversalTime()).ToUnixTimeSeconds(), 8);
-                        while(colorCodes.Length < 12)
+                        while (colorCodes.Length < 12)
                         {
                             colorCodes = "0" + colorCodes;
                         }
-                        if(colorCodes.Length > 12)
+                        if (colorCodes.Length > 12)
                         {
                             serverWindow.addToLog("Datetime Colorcode for name is more than 12 letters! Weird.", true);
                         }
@@ -773,14 +773,14 @@ namespace JKWatcher
                                         tmpName.Append(nameToUse[i + indexExtra]);
                                     }
                                 }
-                                while (nameToUse.Length > (i+indexExtra))
+                                while (nameToUse.Length > (i + indexExtra))
                                 {
                                     tmpName.Append(nameToUse[i + indexExtra]);
                                     i++;
                                 }
                                 //if (nameToUse.Length > 12)
                                 //{
-                                 //   tmpName.Append(nameToUse.Substring(12));
+                                //   tmpName.Append(nameToUse.Substring(12));
                                 //}
                                 nameToUse = tmpName.ToString();
                             } else
@@ -832,7 +832,7 @@ namespace JKWatcher
                 if (_connectionOptions.attachClientNumToName && !clientNumAlreadyAdded)
                 {
                     int clientNum = (client?.clientNum).GetValueOrDefault(-1);
-                    if(clientNum != -1)
+                    if (clientNum != -1)
                     {
                         nameToUse += $" ^7(^2{clientNum}^7)";
                     }
@@ -841,7 +841,7 @@ namespace JKWatcher
                 localClient.Name = nameToUse;
             }
         }
-        
+
         private void updateSkin()
         {
             var localClient = client;
@@ -858,11 +858,11 @@ namespace JKWatcher
             KeyValuePair<string, string>[] userInfo = _connectionOptions.miscUserInfoValues.ToArray();
             if (localClient != null && userInfo != null && userInfo.Length > 0)
             {
-                if(userInfo.Length > 1)
+                if (userInfo.Length > 1)
                 {
                     localClient.SkipUserInfoUpdatesAfterNextNChanges(userInfo.Length - 1);
                 }
-                foreach(KeyValuePair<string, string> pair in userInfo)
+                foreach (KeyValuePair<string, string> pair in userInfo)
                 {
                     localClient.SetUserInfoKeyValue(pair.Key, pair.Value);
                 }
@@ -882,7 +882,7 @@ namespace JKWatcher
             var tokenSource = new CancellationTokenSource();
             var ct = tokenSource.Token;
             TaskManager.RegisterTask(Task.Factory.StartNew(() => { periodicReconnecter(ct); }, ct, TaskCreationOptions.LongRunning, TaskScheduler.Default).ContinueWith((t) => {
-               serverWindow.addToLog(t.Exception.ToString(), true);
+                serverWindow.addToLog(t.Exception.ToString(), true);
             }, TaskContinuationOptions.OnlyOnFaulted), $"Periodic reconnecter ({serverWindow.netAddress},{serverWindow.ServerName})");
             backgroundTasks.Add(tokenSource);
         }
@@ -891,7 +891,7 @@ namespace JKWatcher
         {
             while (true)
             {
-                System.Threading.Thread.Sleep(5*60*1000); // 5 minutes
+                System.Threading.Thread.Sleep(5 * 60 * 1000); // 5 minutes
                 //ct.ThrowIfCancellationRequested();
                 if (ct.IsCancellationRequested) return;
 
@@ -925,7 +925,7 @@ namespace JKWatcher
 
             // Game Intermission
             // Technically the below won't turn into a say but will give an error which isnt nice either.
-            "give", "giveother", "god", "notarget", "noclip", "kill", "teamtask", "levelshot", "follow", "follownext", "followprev", "team", "duelteam", "siegeclass", "forcechanged", "where", "callvote", "vote", "callteamvote", "teamvote", "gc", "setviewpos", "stats" 
+            "give", "giveother", "god", "notarget", "noclip", "kill", "teamtask", "levelshot", "follow", "follownext", "followprev", "team", "duelteam", "siegeclass", "forcechanged", "where", "callvote", "vote", "callteamvote", "teamvote", "gc", "setviewpos", "stats"
         };
         string[] intermissionCommandWhitelistJK2 = new string[] { 
             
@@ -953,7 +953,7 @@ namespace JKWatcher
         }
         [DependsOn("beQuietUntil", "CurrentTimeSecondEven"), DelayProperty]
         public int QuietModeTimeOut { get {
-                return beQuietUntil > DateTime.Now ? (int)(beQuietUntil-DateTime.Now).TotalSeconds : 0;
+                return beQuietUntil > DateTime.Now ? (int)(beQuietUntil - DateTime.Now).TotalSeconds : 0;
             } }
 
         private void LeakyBucketRequester_CommandExecuting(object sender, LeakyBucketRequester<string, RequestCategory>.CommandExecutingEventArgs e)
@@ -961,9 +961,9 @@ namespace JKWatcher
             // Check if the command is supported by server (it's just a crude array that gets elements added if server responds that a command is unsupported. Don't waste time, burst allowance, bandwidth and demo size sending useless commands).
             bool firstNonSpaceFound = false;
             int firstTrueSpace = -1;
-            for(int i = 0; i < e.Command.Length; i++)
+            for (int i = 0; i < e.Command.Length; i++)
             {
-                if(e.Command[i] == ' ')
+                if (e.Command[i] == ' ')
                 {
                     if (firstNonSpaceFound)
                     {
@@ -1008,7 +1008,7 @@ namespace JKWatcher
             if (client.Status == ConnectionStatus.Active) // safety check
             {
                 int unacked = client.GetUnacknowledgedReliableCommandCount();
-                if(unacked < 5)
+                if (unacked < 5)
                 {
 
                     if (beQuietUntil > DateTime.Now && !_connectionOptions.ignoreQuietMode) // Server requested us to be quiet for a bit.
@@ -1096,7 +1096,7 @@ namespace JKWatcher
         //}
 
 
-        private async Task<bool> createConnection( string ipA, ProtocolVersion protocolA,int timeOut = 30000)
+        private async Task<bool> createConnection(string ipA, ProtocolVersion protocolA, int timeOut = 30000)
         {
             if (closedDown) return false;
 
@@ -1106,28 +1106,28 @@ namespace JKWatcher
             protocol = protocolA;
 
             IClientHandler handler = null;
-            if(protocol == ProtocolVersion.Protocol15)
+            if (protocol == ProtocolVersion.Protocol15)
             {
                 handler = new JOClientHandler(ProtocolVersion.Protocol15, ClientVersion.JO_v1_02);
-            } else if(protocol == ProtocolVersion.Protocol16)
+            } else if (protocol == ProtocolVersion.Protocol16)
             {
                 handler = new JOClientHandler(ProtocolVersion.Protocol16, ClientVersion.JO_v1_04);
-            } else if(protocol == ProtocolVersion.Protocol26)
+            } else if (protocol == ProtocolVersion.Protocol26)
             {
                 handler = new JAClientHandler(ProtocolVersion.Protocol26, ClientVersion.JA_v1_01);
-            } else if(protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17) // TODO support protocols 15 and 16 for moh too? Or useless?
+            } else if (protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol == ProtocolVersion.Protocol17) // TODO support protocols 15 and 16 for moh too? Or useless?
             {
                 handler = new MOHClientHandler(protocol, ClientVersion.MOH);
-            }  else if(protocol == ProtocolVersion.Protocol68 )
+            } else if (protocol == ProtocolVersion.Protocol68)
             {
                 handler = new Q3ClientHandler(protocol);
             } else
             {
-                serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.",true);
+                serverWindow.addToLog($"ERROR: Tried to create connection using protocol {protocol}. Not supported.", true);
                 return false;
             }
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
-            client = new Client(handler,_connectionOptions.proxy) { GhostPeer = this.GhostPeer,NWHEngine= nwhEngine, DebugNet=_connectionOptions.netDebug }; // Todo make more flexible
+            client = new Client(handler, _connectionOptions.proxy) { GhostPeer = this.GhostPeer, NWHEngine = nwhEngine, DebugNet = _connectionOptions.netDebug }; // Todo make more flexible
 
             if (_connectionOptions.pretendToBeRealClient)
             {
@@ -1151,7 +1151,7 @@ namespace JKWatcher
                     new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets1.hl")},
                     new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets2.hl")},
                     new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejka/assets3.hl"),hasCgame=true,hasUI=true},
-                }; 
+                };
                 client.SetAssetChecksumFiles(checkSumFiles);
             }
             else
@@ -1165,7 +1165,7 @@ namespace JKWatcher
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl"),hasCgame=true,hasUI=true},
                     };
                 }
-                else if ( protocol == ProtocolVersion.Protocol16) // JK2 1.04
+                else if (protocol == ProtocolVersion.Protocol16) // JK2 1.04
                 {
                     checkSumFiles = new CheckSumFile[]{
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets0.hl")},
@@ -1180,11 +1180,11 @@ namespace JKWatcher
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets1.hl")},
                         new CheckSumFile(){ headerLongData = Helpers.GetResourceData("hl/basejk2/assets2.hl"),hasCgame=true,hasUI=true},
                     };
-                } 
+                }
                 client.SetAssetChecksumFiles(checkSumFiles);
             }
 
-            if(password != null)
+            if (password != null)
             {
                 client.Password = password;
             }
@@ -1208,10 +1208,10 @@ namespace JKWatcher
             client.DownloadFinished += Client_DownloadFinished;
             client.DownloadErrored += Client_DownloadErrored;
             client.DemoTimeTrackerApproximate.PropertyChanged += DemoTimeTrackerApproximate_PropertyChanged;
-            client.DemoTimeTrackerRealDelayed.PropertyChanged += DemoTimeTrackerRealDelayed_PropertyChanged; 
+            client.DemoTimeTrackerRealDelayed.PropertyChanged += DemoTimeTrackerRealDelayed_PropertyChanged;
             clientStatistics = client.Stats;
             Status = client.Status;
-            
+
             client.Start(ExceptionCallback);
             Status = client.Status;
 
@@ -1221,22 +1221,22 @@ namespace JKWatcher
                 //Task connectTask = client.Connect(ip, protocol);
                 Task connectTask = client.Connect(ip);
                 bool didConnect = false;
-                await TaskManager.TaskRun(()=> {
+                await TaskManager.TaskRun(() => {
                     try
                     {
 
                         didConnect = connectTask.Wait(timeOut);
-                    } catch(TaskCanceledException e)
+                    } catch (TaskCanceledException e)
                     {
                         // Who cares.
                         didConnect = false;
                     }
-                },$"Connection Connecter ({ip},{serverWindow.ServerName})");
+                }, $"Connection Connecter ({ip},{serverWindow.ServerName})");
                 if (!didConnect)
                 {
                     Status = client.Status;
                     serverWindow.addToLog($"Failed to create connection. Timeout after {timeOut} milliseconds. May still connect who knows.", true);
-                    connectTask.ContinueWith((a)=> {
+                    connectTask.ContinueWith((a) => {
                         Status = client.Status;
                         if (shouldBeRecordingADemo)
                         {
@@ -1244,14 +1244,14 @@ namespace JKWatcher
                             startDemoRecord();
                         }
                         afterConnect();
-                    },TaskContinuationOptions.NotOnCanceled);
+                    }, TaskContinuationOptions.NotOnCanceled);
                     return false;
-                } 
+                }
 
-            } catch(Exception e)
+            } catch (Exception e)
             {
                 Status = client.Status;
-                serverWindow.addToLog("Failed to create connection: "+e.ToString(),true);
+                serverWindow.addToLog("Failed to create connection: " + e.ToString(), true);
                 return false;
             }
             Status = client.Status;
@@ -1276,11 +1276,11 @@ namespace JKWatcher
             string what = $"{origin} {e.PropertyName} changed to {newValue}";
             string meta = $" (recme {this.isRecordingADemo} recmeshould {this.shouldBeRecordingADemo} rec {client?.Demorecording} wait {client?.Demowaiting})";
             serverWindow.addToLog($"^3DemoTime Debug: {what}{meta}");
-            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]") + $"{serverWindow.ServerName} ({serverWindow.netAddress?.ToString()}) {what}{meta}"}, "demoTimeDebug.log", true);
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]") + $"{serverWindow.ServerName} ({serverWindow.netAddress?.ToString()}) {what}{meta}" }, "demoTimeDebug.log", true);
         }
         private void DemoTimeTrackerRealDelayed_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            DemoTimeTracker_PropertyChanged(sender,e, "DemoTimeTrackerRealDelayed");
+            DemoTimeTracker_PropertyChanged(sender, e, "DemoTimeTrackerRealDelayed");
         }
 
         private void DemoTimeTrackerApproximate_PropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -1310,11 +1310,11 @@ namespace JKWatcher
                     {
                         serverWindow.addToLog($"Saving UDP downloaded file: {e.localName} ({e.remoteName} ... {e.checksum})");
                         Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "pakDownloadsUDP"));
-                        File.WriteAllBytes(targetPath2,e.data);
+                        File.WriteAllBytes(targetPath2, e.data);
                     }
                     else
                     {
-                        serverWindow.addToLog($"Cannot save UDP downloaded file, file already exists: {e.localName} ({e.remoteName} ... {e.checksum})",true);
+                        serverWindow.addToLog($"Cannot save UDP downloaded file, file already exists: {e.localName} ({e.remoteName} ... {e.checksum})", true);
                     }
                 }
             }
@@ -1335,22 +1335,22 @@ namespace JKWatcher
         {
             serverWindow.addToLog("svc_mapchange received.");
             lastMapChangeOrMapChangeServerCommandOrGameState = DateTime.Now;
-            HandleMapChangeCmds(mapChangeType.SVCMapChange,infoPool.MapName,null);
+            HandleMapChangeCmds(mapChangeType.SVCMapChange, infoPool.MapName, null);
             serverWindow.SaveLevelshot(infoPool.levelShot, false, activeMatch, 200, 10.0, "_SVC_MAPCHANGE");
         }
 
         private void Client_InternalCommandCreated(object sender, InternalCommandCreatedEventArgs e)
         {
             // We wanna integrate internal commands here with our nice leaky bucket flood protection
-            leakyBucketRequester?.requestExecution(e.command,RequestCategory.JKCLIENTINTERNAL, 10, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
+            leakyBucketRequester?.requestExecution(e.command, RequestCategory.JKCLIENTINTERNAL, 10, 0, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE);
             e.handledExternally = true;
         }
 
         private void Client_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
         {
-            serverWindow.addToLog($"JKClient error message: {e.errorMessage}; detail length: {(e.errorMessageDetail is null ? 0 : e.errorMessageDetail.Length)} characters. Detail logged to jkClientErrors.log",true);
-            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), e.errorMessage, e.errorMessageDetail, e.possibleRelatedMessage.debugMessage, (e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null) ? $"Error contained possibly related message, dumping into jkClientErrorMessageDump.bin":null }, "jkClientErrors.log", true);
-            if(e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null)
+            serverWindow.addToLog($"JKClient error message: {e.errorMessage}; detail length: {(e.errorMessageDetail is null ? 0 : e.errorMessageDetail.Length)} characters. Detail logged to jkClientErrors.log", true);
+            Helpers.logToSpecificDebugFile(new string[] { DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss G\\MTzzz]"), serverWindow.ServerName, serverWindow.netAddress?.ToString(), e.errorMessage, e.errorMessageDetail, e.possibleRelatedMessage.debugMessage, (e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null) ? $"Error contained possibly related message, dumping into jkClientErrorMessageDump.bin" : null }, "jkClientErrors.log", true);
+            if (e.possibleRelatedMessage != null && e.possibleRelatedMessage.Data != null)
             {
                 Helpers.logToSpecificDebugFile(e.possibleRelatedMessage.Data, "jkClientErrorMessageDump.bin", false);
             }
@@ -1363,30 +1363,30 @@ namespace JKWatcher
 
         private void Client_DebugEventHappened(object sender, object e)
         {
-            if(e is ConfigStringMismatch)
+            if (e is ConfigStringMismatch)
             {
                 ConfigStringMismatch info = (ConfigStringMismatch)e;
-                serverWindow.addToLog($"DEBUG: Config string mismatch: \"{info.intendedString}\" became \"{info.actualString}\"",true);
-                TaskManager.TaskRun(()=> {
-                    using(MemoryStream ms = new MemoryStream()) { 
+                serverWindow.addToLog($"DEBUG: Config string mismatch: \"{info.intendedString}\" became \"{info.actualString}\"", true);
+                TaskManager.TaskRun(() => {
+                    using (MemoryStream ms = new MemoryStream()) {
                         ms.Write(Encoding.UTF8.GetBytes($"{info.intendedString}\n{info.actualString}\n"));
-                        if(info.oldGsStringData != null)
+                        if (info.oldGsStringData != null)
                         {
                             ms.Write(info.oldGsStringData);
                             ms.Write(Encoding.UTF8.GetBytes($"\n"));
                         }
-                        if(info.newGsStringData != null)
+                        if (info.newGsStringData != null)
                         {
                             ms.Write(info.newGsStringData);
                             ms.Write(Encoding.UTF8.GetBytes($"\n"));
                         }
-                        Helpers.logToSpecificDebugFile(ms.ToArray(),"configStringMismatch.data");
+                        Helpers.logToSpecificDebugFile(ms.ToArray(), "configStringMismatch.data");
                     }
-                },$"Configstring Mismatch Logger ({ip},{serverWindow.ServerName})");
-            } else if(e is NetDebug)
+                }, $"Configstring Mismatch Logger ({ip},{serverWindow.ServerName})");
+            } else if (e is NetDebug)
             {
                 NetDebug nb = (NetDebug)e;
-                Helpers.logToSpecificDebugFile(new string[] {nb.debugString },"netDebug.log",true);
+                Helpers.logToSpecificDebugFile(new string[] { nb.debugString }, "netDebug.log", true);
             }
         }
 
@@ -1425,7 +1425,7 @@ namespace JKWatcher
         {
             durationButtonPressType = type;
             durationButtonPress = btn;
-            durationButtonPressUntil = DateTime.Now + new TimeSpan(0,0,0,0,milliseconds);
+            durationButtonPressUntil = DateTime.Now + new TimeSpan(0, 0, 0, 0, milliseconds);
         }
 
         enum FakeButton : Int64
@@ -1452,21 +1452,21 @@ namespace JKWatcher
             // Because generating these commands can force the client to send usercommands at 142-ish fps and if the server went down or something,
             // we don't wanna spam it.
             // but do at least one every 10 seconds or so... so we dont get dropped for inactivity in weird situations like udp download situations
-            if ((DateTime.Now-lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10 && (DateTime.Now- lastUcmdDone).TotalSeconds < 10)
+            if ((DateTime.Now - lastSnapshotParsedOrServerInfoChange).TotalSeconds > 10 && (DateTime.Now - lastUcmdDone).TotalSeconds < 10)
             {
                 return;
             }
 
-            if (!mohMode && !intermissionCamSet && ((DateTime.Now-lastMapChangeOrMapChangeServerCommandOrGameState).TotalSeconds <10 || modifiableCommand.ServerTime < 10000) )
+            if (!mohMode && !intermissionCamSet && ((DateTime.Now - lastMapChangeOrMapChangeServerCommandOrGameState).TotalSeconds < 10 || modifiableCommand.ServerTime < 10000))
             {
                 // give ourselves a chance to capture intermission cam cleanly.
                 // intermission cam stuff doesnt work in MOH anyway atm hence !mohMode
                 return;
             }
 
-            if(lastSnapshot.PlayerState.CommandTime <= 0)
+            if (lastSnapshot.PlayerState.CommandTime <= 0)
             {
-                return; 
+                return;
                 // we havent gotten a proper playerstate from the server yet. let everything catch up. should only take a few milliseconds. 
                 // Thus avoid ruining our start spectating angle for levelshot perspective.
             }
@@ -1548,7 +1548,7 @@ namespace JKWatcher
                             modifiableCommand.Upmove = upMove;
                         } else if (newServerTime < modifiableCommand.ServerTime)
                         {
-                            insertCommands.Add(new UserCommand() { Buttons = cmdRealButtons, ServerTime = newServerTime,Upmove= upMove });
+                            insertCommands.Add(new UserCommand() { Buttons = cmdRealButtons, ServerTime = newServerTime, Upmove = upMove });
                         } else
                         {
                             // Shouldn't happen
@@ -1558,13 +1558,13 @@ namespace JKWatcher
                         previousServerTime = newServerTime;
                         lastAppliedQueueButtonPress = DateTime.Now;
                     }
-                    
+
                 }
             }
             if (amNotInSpec)
             {
                 DoSillyThings(ref modifiableCommand, in previousCommand);
-            }            
+            }
             else
             {
                 if ((DateTime.Now - lastForcedActivity).TotalMilliseconds > 60000) // Avoid getting inactivity dropped, so just send a single forward move once a minute.
@@ -1587,9 +1587,9 @@ namespace JKWatcher
                     modifiableCommand.Upmove = -127; // crouch lets us go down real quick
                 }
             }
-            if(this.CameraOperator == null)
+            if (this.CameraOperator == null)
             {
-                if(doClicks > 0 && lastWasClick == false)
+                if (doClicks > 0 && lastWasClick == false)
                 {
                     doClicks--;
                     lastWasClick = true;
@@ -1618,7 +1618,7 @@ namespace JKWatcher
             {
                 int delay = 1000 + (int)(1000 * Math.Pow(2, reconnectTriesCount));
                 System.Threading.Thread.Sleep(delay); // The more retries fail, the larger the delay between tries grows.
-                serverWindow.addToLog($"Reconnect try {reconnectTriesCount+1}. Delay {delay} ms.");
+                serverWindow.addToLog($"Reconnect try {reconnectTriesCount + 1}. Delay {delay} ms.");
                 if (reconnectTriesCount >= reconnectMaxTries)
                 {
                     serverWindow.addToLog($"Giving up on reconnect after {reconnectTriesCount} tries.", true);
@@ -1697,7 +1697,7 @@ namespace JKWatcher
 
         bool wasRecordingADemo = false;
         bool shouldBeRecordingADemo = false;
-        DateTime lastTriedDownloadWithSpaces = DateTime.Now-new TimeSpan(10,0,0);
+        DateTime lastTriedDownloadWithSpaces = DateTime.Now - new TimeSpan(10, 0, 0);
 
         // Client crashed for some reason
         private async Task ExceptionCallback(JKClientException exception)
@@ -1707,7 +1707,7 @@ namespace JKWatcher
                 serverWindow.addToLog("[ExceptionCallback] Hit Disconnect recursion limit trying to restart the connection. Giving up.", true);
                 return;
             }
-            serverWindow.addToLog("JKClient crashed: " + exception.ToString(),true);
+            serverWindow.addToLog("JKClient crashed: " + exception.ToString(), true);
             Debug.WriteLine(exception);
 
             if (isRecordingADemo)
@@ -1759,7 +1759,7 @@ namespace JKWatcher
             int snapshotNumber, serverTime;
             ((IJKClientImport)client).GetCurrentSnapshotNumber(out snapshotNumber, out serverTime);
 
-            if(snapshotNumber != lastEventSnapshotNumber)
+            if (snapshotNumber != lastEventSnapshotNumber)
             {
                 thisSnapshotObituaryVictims.Clear();
                 thisSnapshotObituaryAttackers.Clear();
@@ -1778,14 +1778,14 @@ namespace JKWatcher
                 int attacker = e.Entity.CurrentState.OtherEntityNum2;
 
                 var pos = e.Entity.CurrentState.Position;
-                Vector3 deathPosition = new Vector3() { X=pos.Base[0],Y=pos.Base[1],Z=pos.Base[2]};
+                Vector3 deathPosition = new Vector3() { X = pos.Base[0], Y = pos.Base[1], Z = pos.Base[2] };
 
                 string killHashRaw;
                 UInt64 killHash = e.Entity.CurrentState.GetKillHash(infoPool, out killHashRaw);
 
                 bool targetWasFlagCarrier = false;
                 bool attackerWasFlagCarrier = false;
-                if(target >= 0 && target < infoPool.playerInfo.Length) // TODO Rethink this some day. Horrible!
+                if (target >= 0 && target < infoPool.playerInfo.Length) // TODO Rethink this some day. Horrible!
                 {
                     PlayerInfo targetInfo = infoPool.playerInfo[target];
                     lock (targetInfo.lastReturnedInfoLock)
@@ -1810,7 +1810,7 @@ namespace JKWatcher
                             targetWasFlagCarrier = true;
                             serverWindow.addToLog($"OBITUARY DEBUG: Player {target} identified as former flag carrier due to lastReturnedKillhash matching.");
                         }
-                        else if(targetWasFlagCarrier)
+                        else if (targetWasFlagCarrier)
                         {
                             serverWindow.addToLog($"OBITUARY DEBUG: Player {target} identified as former flag carrier due to reliableFlagCarrierTracker.");
                         }
@@ -1818,7 +1818,7 @@ namespace JKWatcher
                 }
 
                 //MeansOfDeath mod = (MeansOfDeath)e.Entity.CurrentState.EventParm;
-                MeansOfDeathGeneral mod = RandomArraysAndStuff.GeneralizeMod(e.Entity.CurrentState.EventParm,jkaMode,this.MBIIDetected);
+                MeansOfDeathGeneral mod = RandomArraysAndStuff.GeneralizeMod(e.Entity.CurrentState.EventParm, jkaMode, this.MBIIDetected);
 
                 if (attacker >= 0 && attacker < client.ClientHandler.MaxClients && attacker != target) // Kill tracking, only do on one connection to keep things consistent.
                 {
@@ -1833,7 +1833,7 @@ namespace JKWatcher
                         {
 
                             int saberMoveAttacker = saberMove[attacker];
-                            SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(saberMoveAttacker,jkaMode);
+                            SaberMovesGeneral generalized = RandomArraysAndStuff.GeneralizeSaberMove(saberMoveAttacker, jkaMode);
 
                             //string killType = Enum.GetName(typeof(SaberMovesGeneral), generalized);
                             string killType = RandomArraysAndStuff.saberMoveNamesGeneral.ContainsKey(generalized) ? RandomArraysAndStuff.saberMoveNamesGeneral[generalized] : "WEIRDSABER";
@@ -1846,7 +1846,7 @@ namespace JKWatcher
                             {
                                 killTypeShort = killTypeShort.Substring(1);
                             }
-                            if(killType == "")
+                            if (killType == "")
                             {
                                 switch (saberStyle[attacker]) {
                                     case 1:
@@ -1868,16 +1868,16 @@ namespace JKWatcher
                                 }
 
                             }
-                            KillType kt = new KillType() { name=killType, shortname=killTypeShort };
+                            KillType kt = new KillType() { name = killType, shortname = killTypeShort };
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.killTrackers[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
                             infoPool.killTrackersThisGame[attacker, target].TrackKill(kt, killHash, targetWasFlagCarrier); // This avoids dupes automatically
-                            
+
                         } else
                         {
                             string killType = Enum.GetName(typeof(MeansOfDeathGeneral), mod);
-                            string killTypeShort = (mod >= 0 && (int)mod< modNamesGeneral.Length) ? modNamesGeneral[(int)mod] : "WEIRD";
+                            string killTypeShort = (mod >= 0 && (int)mod < modNamesGeneral.Length) ? modNamesGeneral[(int)mod] : "WEIRD";
                             if (killType == null) {
                                 killType = "WEIRD_UNKNOWN";
                             } else if (killType.StartsWith("MOD_"))
@@ -1886,7 +1886,7 @@ namespace JKWatcher
                             }
                             if (killType.EndsWith("_GENERAL"))
                             {
-                                killType = killType.Substring(0,killType.Length-8);
+                                killType = killType.Substring(0, killType.Length - 8);
                             }
                             if (killTypeShort.StartsWith("MOD_"))
                             {
@@ -1926,7 +1926,7 @@ namespace JKWatcher
                             infoPool.killTrackersThisGame[attacker, target].kills++;
                             infoPool.killTrackersThisGame[attacker, target].lastKillTime = DateTime.Now;
 
-                            if ((DateTime.Now-infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
+                            if ((DateTime.Now - infoPool.playerInfo[target].lastMovementDirChange).TotalSeconds < 10.0) // for purposes of elo, don't count kills on afk players
                             {
                                 if (!jkaMode && (mod == MeansOfDeathGeneral.MOD_TRIP_MINE_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_TIMED_MINE_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_DET_PACK_SPLASH_GENERAL || mod == MeansOfDeathGeneral.MOD_SENTRY_GENERAL)) goto noGlicko2; // TODO Make projectile mines count, like if they are thrown at somebody. Prolly annoying to code tho (see demo tools)
                                 AliveInfo targetAliveInfo = infoPool.playerInfo[target].lastAliveInfo;
@@ -1950,7 +1950,7 @@ namespace JKWatcher
                                                 // Doesn't seem like he was really fighting back. Potentially Don't count. TODO better way to do this?
 
                                                 DateTime? nearSince = infoPool.playerInfo[target].inProximitySince[attacker];
-                                                if(!nearSince.HasValue || (DateTime.Now - nearSince.Value).TotalSeconds < 4.0) // isn't near or hasn't been near for at least 4 seconds
+                                                if (!nearSince.HasValue || (DateTime.Now - nearSince.Value).TotalSeconds < 4.0) // isn't near or hasn't been near for at least 4 seconds
                                                 {
                                                     // If this player has been nearby (within 400 units) for at least 4 seconds,
                                                     // we will count the kill as the player reasonably could be expected to be aware of the other player's presence
@@ -1963,14 +1963,14 @@ namespace JKWatcher
                                 }
 
                                 double killWeight = 1.0;
-                                if(infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
+                                if (infoPool.serverSendsAllEntities && (currentGameType == GameType.CTF || currentGameType == GameType.CTY))
                                 {
                                     // For ctf, check how many enemies are nearby.
                                     int nearbyEnemies = 1; // 1 is the killer
                                     Team victimTeam = infoPool.playerInfo[target].team;
                                     foreach (PlayerInfo pi in infoPool.playerInfo)
                                     {
-                                        if (pi.clientNum != attacker && pi.infoValid && pi.team != Team.Spectator && pi.IsAlive && pi.team != victimTeam && pi.lastFullPositionUpdate.HasValue && (DateTime.Now- pi.lastFullPositionUpdate.Value).TotalMilliseconds < 100.0 && Vector3.Distance(deathPosition,pi.position) < 300.0)
+                                        if (pi.clientNum != attacker && pi.infoValid && pi.team != Team.Spectator && pi.IsAlive && pi.team != victimTeam && pi.lastFullPositionUpdate.HasValue && (DateTime.Now - pi.lastFullPositionUpdate.Value).TotalMilliseconds < 100.0 && Vector3.Distance(deathPosition, pi.position) < 300.0)
                                         {
                                             nearbyEnemies++;
                                         }
@@ -1980,7 +1980,7 @@ namespace JKWatcher
 
                                 infoPool.ratingPeriodResults.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuff.rating, infoPool.playerInfo[target].chatCommandTrackingStuff.rating, killWeight);
                                 infoPool.ratingPeriodResultsThisGame.AddResult(infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.rating, infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.rating, killWeight);
-                                if(infoPool.ratingPeriodResults.GetResultCount() >= 10*infoPool.ratingPeriodResults.GetActiveParticipantCount())
+                                if (infoPool.ratingPeriodResults.GetResultCount() >= 10 * infoPool.ratingPeriodResults.GetActiveParticipantCount())
                                 {
                                     // I tried first with 15 as the cutoff, but it reduced precision it seems
                                     // Then I tried 1000 but that also reduced precision because if a rating period never ends during a game,
@@ -1989,21 +1989,21 @@ namespace JKWatcher
                                     // I then plotted the average deviation for each length of rating period from 5 to 300 with 10 players and the sweet spot does seem
                                     // to be around 100 to 150. So I'm guessing what was said about 10-15 per player being ideal appears to be accurate
                                     infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults);
-                                } 
-                                if(infoPool.ratingPeriodResultsThisGame.GetResultCount() >= 10*infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
+                                }
+                                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() >= 10 * infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
                                 {
                                     infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame);
                                     thisGameRatingCommitCount++;
                                 }
                             }
-                            noGlicko2:
+                        noGlicko2:
 
                             bool killTrackersSynced = infoPool.killTrackers[attacker, target].trackingMatch && infoPool.killTrackers[target, attacker].trackingMatch && infoPool.killTrackers[attacker, target].trackedMatchKills == infoPool.killTrackers[target, attacker].trackedMatchDeaths && infoPool.killTrackers[attacker, target].trackedMatchDeaths == infoPool.killTrackers[target, attacker].trackedMatchKills;
                             if (infoPool.killTrackers[attacker, target].trackingMatch)
                             {
                                 infoPool.killTrackers[attacker, target].trackedMatchKills++;
-                                if(!killTrackersSynced && !_connectionOptions.silentMode) { 
-                                    leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^0^7Match against {infoPool.playerInfo[target].name}^7^0^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"",RequestCategory.KILLTRACKER,0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE,null,null);
+                                if (!killTrackersSynced && !_connectionOptions.silentMode) {
+                                    leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^0^7Match against {infoPool.playerInfo[target].name}^7^0^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
                                 }
                             }
                             if (infoPool.killTrackers[target, attacker].trackingMatch)
@@ -2014,7 +2014,7 @@ namespace JKWatcher
                                     leakyBucketRequester.requestExecution($"tell {attacker} \"   ^7^0^7Match against {infoPool.playerInfo[target].name}^7^0^7: {infoPool.killTrackers[attacker, target].trackedMatchKills}-{infoPool.killTrackers[attacker, target].trackedMatchDeaths}\"", RequestCategory.KILLTRACKER, 0, ChatMemeCommandsDelay, LeakyBucketRequester<string, RequestCategory>.RequestBehavior.ENQUEUE, null, null);
                                 }
                             }
-                            if(killTrackersSynced && !_connectionOptions.silentMode)
+                            if (killTrackersSynced && !_connectionOptions.silentMode)
                             {
                                 int smallerClientNum = Math.Min(attacker, target); // Keep the public kill tracker always in same order.
                                 int biggerClientNum = Math.Max(attacker, target);
@@ -2031,7 +2031,7 @@ namespace JKWatcher
                 locationOfDeath.Z = copyOfEntity.CurrentState.Position.Base[2];
                 if (target < 0 || target >= client.ClientHandler.MaxClients)
                 {
-                    serverWindow.addToLog("EntityEvent Obituary: value "+target+" is out of bounds.");
+                    serverWindow.addToLog("EntityEvent Obituary: value " + target + " is out of bounds.");
                     return;
                 }
 
@@ -2043,7 +2043,7 @@ namespace JKWatcher
                         infoPool.teamInfo[teamToCheck].flagDroppedPosition = locationOfDeath;
                         infoPool.teamInfo[teamToCheck].lastFlagDroppedPositionUpdate = DateTime.Now;
                         // Remmeber flag carrier deaths so we can keep the camera nearby for a bit longer if it was a relevant manner of death (everything that's not suicide)
-                        if(attacker != target) // If it was suicide we don't care
+                        if (attacker != target) // If it was suicide we don't care
                         {
                             if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
                             {
@@ -2054,14 +2054,15 @@ namespace JKWatcher
                                 infoPool.teamInfo[teamToCheck].lastFlagCarrierFragged = DateTime.Now;
                             }
                         }
-                        
-                            
+
+
                     }
                 }
 
                 thisSnapshotObituaryVictims.Add(target, locationOfDeath);
 
-                infoPool.playerInfo[target].IsAlive = false;
+                //infoPool.playerInfo[target].IsAlive = false;
+                SetClientDeathState(target, false, (attacker >= 0 && attacker < client.ClientHandler.MaxClients) ? attacker : -1);
                 infoPool.playerInfo[target].lastAliveStatusUpdated = DateTime.Now;
                 infoPool.playerInfo[target].lastDeathPosition = locationOfDeath;
                 infoPool.playerInfo[target].lastDeath = DateTime.Now;
@@ -2070,7 +2071,7 @@ namespace JKWatcher
                 string targetName = infoPool.playerInfo[target].name;
 
 
-                if (this.IsMainChatConnection && MeansOfDeathGeneral.MOD_FALLING_GENERAL == mod && attacker!=target && attacker>=0 && attacker< client.ClientHandler.MaxClients)
+                if (this.IsMainChatConnection && MeansOfDeathGeneral.MOD_FALLING_GENERAL == mod && attacker != target && attacker >= 0 && attacker < client.ClientHandler.MaxClients)
                 {
                     infoPool.playerInfo[attacker].chatCommandTrackingStuff.doomkills++;
                     infoPool.playerInfo[attacker].chatCommandTrackingStuffThisGame.doomkills++;
@@ -2169,7 +2170,7 @@ namespace JKWatcher
 
                 if (attacker < 0 || attacker >= client.ClientHandler.MaxClients)
                 {
-                    serverWindow.addToLog(targetName + " was "+ (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
+                    serverWindow.addToLog(targetName + " was " + (killString == null ? "killed" : killString) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
 #if KILLHASHDEBUG
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
@@ -2185,7 +2186,7 @@ namespace JKWatcher
                     // Can we also set the setalive of the attacker here? he might have blown himself up too.
                     // Would his self blowup message come before or after this?
                     string attackerName = infoPool.playerInfo[attacker].name;
-                    serverWindow.addToLog(attackerName + " "+(killString == null ? "killed" : killString)+" " +( (target==attacker)? "himself": targetName) + (killString == null || generic? " [" + mod.ToString() + "]" : ""));
+                    serverWindow.addToLog(attackerName + " " + (killString == null ? "killed" : killString) + " " + ((target == attacker) ? "himself" : targetName) + (killString == null || generic ? " [" + mod.ToString() + "]" : ""));
 #if KILLHASHDEBUG
                     if (this.serverWindow.getAllConnectionCount() > 1)
                     {
@@ -2193,7 +2194,7 @@ namespace JKWatcher
                     }
 #endif
                 }
-            } else if(e.EventType == ClientGame.EntityEvent.CtfMessage)
+            } else if (e.EventType == ClientGame.EntityEvent.CtfMessage)
             {
                 CtfMessageType messageType = (CtfMessageType)e.Entity.CurrentState.EventParm;
                 int playerNum = e.Entity.CurrentState.TrickedEntityIndex;
@@ -2219,12 +2220,12 @@ namespace JKWatcher
                         teamAsString = "red";
                         otherTeamAsString = "blue";
                         break;
-                    default:break;
+                    default: break;
                 }
 
                 PlayerInfo pi = null;
 
-                if(playerNum >= 0 && playerNum <= client.ClientHandler.MaxClients)
+                if (playerNum >= 0 && playerNum <= client.ClientHandler.MaxClients)
                 {
                     pi = infoPool.playerInfo[playerNum];
                 }
@@ -2279,7 +2280,7 @@ namespace JKWatcher
                         // We remember the death message. It had a position. We can use that. :)
                         infoPool.teamInfo[(int)otherTeam].flagDroppedPosition = thisSnapshotObituaryAttackers[playerNum];
                         infoPool.teamInfo[(int)otherTeam].lastFlagDroppedPositionUpdate = DateTime.Now;
-                    } 
+                    }
                     serverWindow.addToLog(pi.name + " killed carrier of " + otherTeamAsString + " flag.");
                     if (this.IsMainChatConnection)
                     {
@@ -2312,8 +2313,8 @@ namespace JKWatcher
                     infoPool.teamInfo[(int)team].lastFlagCarrierValidUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastFlagUpdate = DateTime.Now;
                     infoPool.teamInfo[(int)team].lastTimeFlagWasSeenAtBase = DateTime.Now;
-                    infoPool.teamInfo[(int)team].reliableFlagCarrierTracker.setFlagCarrierIfEqual(pi.clientNum,-1,serverTime);
-                    serverWindow.addToLog(pi.name + " captured the "+teamAsString+" flag.");
+                    infoPool.teamInfo[(int)team].reliableFlagCarrierTracker.setFlagCarrierIfEqual(pi.clientNum, -1, serverTime);
+                    serverWindow.addToLog(pi.name + " captured the " + teamAsString + " flag.");
 
                     if (this.IsMainChatConnection)
                     {
@@ -2341,14 +2342,14 @@ namespace JKWatcher
             else if (e.EventType == ClientGame.EntityEvent.ForceDrained)
             {
                 int targetNum = e.Entity.CurrentState.Owner;
-                if(targetNum >= 0 && targetNum < client.ClientHandler.MaxClients)
+                if (targetNum >= 0 && targetNum < client.ClientHandler.MaxClients)
                 {
                     infoPool.playerInfo[targetNum].lastDrainedEvent = DateTime.Now;
                 }
             }
             else if (e.EventType == ClientGame.EntityEvent.Jump)
             {
-                if(e.Entity.CurrentState.Number == ClientNum)
+                if (e.Entity.CurrentState.Number == ClientNum)
                 {
                     //jumpReleasedThisJump = false;
                     countFramesJumpReleasedThisJump = 0;
@@ -2358,14 +2359,14 @@ namespace JKWatcher
             {
                 bool playerEvent = (e.Entity.CurrentState.EntityFlags & EF_PLAYER_EVENT) > 0;
                 int clientNum = playerEvent ? e.Entity.CurrentState.OtherEntityNum : e.Entity.CurrentState.Number;
-                if(clientNum < 0 || clientNum >= (client?.ClientHandler?.MaxClients).GetValueOrDefault(32))
+                if (clientNum < 0 || clientNum >= (client?.ClientHandler?.MaxClients).GetValueOrDefault(32))
                 {
                     serverWindow.addToLog($"^1EntityEvent.ItemPickup: ^7couldn't determine client num, found {clientNum}, playerevent {playerEvent}, entitynum {e.Entity.CurrentState.Number}, otherentitynum {e.Entity.CurrentState.OtherEntityNum}", true);
                 }
                 else
                 {
                     int itemnum = e.Entity.CurrentState.EventParm;
-                    if(itemnum < 0 || itemnum >= Common.MaxGEntities)
+                    if (itemnum < 0 || itemnum >= Common.MaxGEntities)
                     {
                         serverWindow.addToLog($"^1EntityEvent.ItemPickup: ^7couldn't determine item num, found {itemnum}, clientnum {clientNum}", true);
                     }
@@ -2423,7 +2424,7 @@ namespace JKWatcher
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.emptySnaps;
-                } else if (snapsSettings.forceBotOnlySnaps && (((DateTime.Now-infoPool.lastBotOnlyConfirmed)?.TotalMilliseconds).GetValueOrDefault(double.PositiveInfinity) < 10000 || infoPool.botOnlyGuaranteed) )
+                } else if (snapsSettings.forceBotOnlySnaps && (((DateTime.Now - infoPool.lastBotOnlyConfirmed)?.TotalMilliseconds).GetValueOrDefault(double.PositiveInfinity) < 10000 || infoPool.botOnlyGuaranteed))
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.botOnlySnaps;
@@ -2493,12 +2494,12 @@ namespace JKWatcher
 
         int lastRequestedAlwaysFollowSpecClientNum = -1;
         DateTime[] clientsWhoDontWantTOrCannotoBeSpectated = new DateTime[64] { // Looool this is cringe xd
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
-            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), 
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
+            DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
             DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1), DateTime.Now.AddYears(-1),
@@ -2510,7 +2511,7 @@ namespace JKWatcher
 
         private void ResetAllPlayerWeirdLaggedOutDetectors()
         {
-            foreach(PlayerInfo pi in infoPool.playerInfo)
+            foreach (PlayerInfo pi in infoPool.playerInfo)
             {
                 pi.pingWarnerWeird.reset();
             }
@@ -2520,13 +2521,13 @@ namespace JKWatcher
         {
             if (this.IsMainChatConnection)
             {
-                if (!onlyThisGame && infoPool.ratingPeriodResults.GetResultCount() > minResultCountPerPlayer* infoPool.ratingPeriodResults.GetActiveParticipantCount())
+                if (!onlyThisGame && infoPool.ratingPeriodResults.GetResultCount() > minResultCountPerPlayer * infoPool.ratingPeriodResults.GetActiveParticipantCount())
                 {
-                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults,temporary);
+                    infoPool.ratingCalculator.UpdateRatings(infoPool.ratingPeriodResults, temporary);
                 }
-                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() > minResultCountPerPlayer* infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
+                if (infoPool.ratingPeriodResultsThisGame.GetResultCount() > minResultCountPerPlayer * infoPool.ratingPeriodResultsThisGame.GetActiveParticipantCount())
                 {
-                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame,temporary);
+                    infoPool.ratingCalculatorThisGame.UpdateRatings(infoPool.ratingPeriodResultsThisGame, temporary);
                     if (!temporary)
                     {
                         thisGameRatingCommitCount++;
@@ -2535,17 +2536,17 @@ namespace JKWatcher
             }
         }
 
-        
+
 
         private bool firstSpectatorSnapshotOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
         // private bool firstNonIntermissionOfThisMapReceived = false; // first snapshot that has an actual position of us in the map. first few playerstates are always zero'd until server gets our command.
         private bool intermissionCSReceived = false;
         public bool intermissionCamSet { get; set; } = false;
         public bool intermissionCamTrueIntermission { get; set; } = false;
-        DateTime lastIntermissionCamCachedReadTry = DateTime.Now - new TimeSpan(10,0,0);
+        DateTime lastIntermissionCamCachedReadTry = DateTime.Now - new TimeSpan(10, 0, 0);
         public bool intermissionCamAutoDetectImpossible { get; set; } = false; // we have followed someone. if we now go back to spectator pmt, we can't safely assume that we will get intermission coordinates
-        public Vector3 intermissionCamPos { get; private set; }  = new Vector3();
-        public Vector3 intermissionCamAngles { get; private set; }  = new Vector3();
+        public Vector3 intermissionCamPos { get; private set; } = new Vector3();
+        public Vector3 intermissionCamAngles { get; private set; } = new Vector3();
         Matrix4x4 intermissionCamTransform = new Matrix4x4();
         Matrix4x4 intermissionCamModelMatrix = new Matrix4x4();
         LevelShotAccumType levelshotAccumType = new LevelShotAccumType() { zCompensationVersion = ProjectionMatrixHelper.ZCompensationVersion };
@@ -2604,9 +2605,9 @@ namespace JKWatcher
             levelshotPos /= levelshotPos.W;
             if (theZ > 0 && levelshotPos.X >= -1.0f && levelshotPos.X <= 1.0f && levelshotPos.Y >= -1.0f && levelshotPos.Y <= 1.0f)
             {
-                int posX = (int)(((levelshotPos.X+1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
-                int posY = (int)(((levelshotPos.Y+1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
-                if(posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
+                int posX = (int)(((levelshotPos.X + 1.0f) / 2.0f) * (float)LevelShotData.levelShotWidth);
+                int posY = (int)(((levelshotPos.Y + 1.0f) / 2.0f) * (float)LevelShotData.levelShotHeight);
+                if (posX >= 0 && posX < LevelShotData.levelShotWidth && posY >= 0 && posY < LevelShotData.levelShotHeight)
                 {
                     color *= LevelShotData.compensationMultipliers[posX, posY];
 
@@ -2624,8 +2625,8 @@ namespace JKWatcher
                         // let's stack the normal levelshot too. looks better on some maps, especially defrag (since start is heavily favored and no even distribution)
                         if (maybeOld != null)
                         {
-                            serverWindow.MaybeStackZCompLevelShot(maybeOld,false);
-                            serverWindow.SaveLevelshot(maybeOld, false, activeMatch, 200,10,"_ACCUMTYPECHANGE");
+                            serverWindow.MaybeStackZCompLevelShot(maybeOld, false);
+                            serverWindow.SaveLevelshot(maybeOld, false, activeMatch, 200, 10, "_ACCUMTYPECHANGE");
                         }
                         infoPool.levelShot.data[posX, posY].X += color.Z;
                         infoPool.levelShot.data[posX, posY].Y += color.Y;
@@ -2641,11 +2642,11 @@ namespace JKWatcher
                     {
                         // z compensated stuff that's stacked for infinity, adding state to a HDR tiff file etc.
                         // z compensation only looks good with ridiculously high amount of samples
-                        if (infoPool.levelShotZCompNoBot.IsAccumTypeOkayMaybeReset(in levelshotAccumType, oldMapName ,out LevelShotData maybeOldZ))
+                        if (infoPool.levelShotZCompNoBot.IsAccumTypeOkayMaybeReset(in levelshotAccumType, oldMapName, out LevelShotData maybeOldZ))
                         {
-                            if(maybeOldZ != null)
+                            if (maybeOldZ != null)
                             {
-                                serverWindow.MaybeStackZCompLevelShot(maybeOldZ,true);
+                                serverWindow.MaybeStackZCompLevelShot(maybeOldZ, true);
                             }
                             Vector4 modelSpaceOrigin = Vector4.Transform(pos, intermissionCamModelMatrix);
                             float z1 = (float)Math.Sqrt(modelSpaceOrigin.X * modelSpaceOrigin.X + modelSpaceOrigin.Y * modelSpaceOrigin.Y);
@@ -2665,7 +2666,7 @@ namespace JKWatcher
             }
         }
 
-        readonly Vector3[] levelshotTeamColors = new Vector3[4] { 
+        readonly Vector3[] levelshotTeamColors = new Vector3[4] {
             new Vector3(0.5f, 1.0f, 0.5f), // Free
             new Vector3(1.0f, 0.5f, 0.5f), // Red
             new Vector3(0.5f, 0.5f, 1.0f), // Blue
@@ -2674,7 +2675,7 @@ namespace JKWatcher
 
 
         const float killFactor = 10f;
-        readonly Vector3[] levelshotKillTeamColors = new Vector3[4] { 
+        readonly Vector3[] levelshotKillTeamColors = new Vector3[4] {
             new Vector3(0f, killFactor, 0f), // Free
             new Vector3(killFactor, 0f, 0f), // Red
             new Vector3(0f, 0f, killFactor), // Blue
@@ -2697,12 +2698,12 @@ namespace JKWatcher
             float closestTeamsq = float.PositiveInfinity;
             float closestOtherTeamsq = float.PositiveInfinity;
             Team otherTeam = team == Team.Red ? Team.Blue : Team.Red;
-            foreach(PlayerInfo pi in infoPool.playerInfo)
+            foreach (PlayerInfo pi in infoPool.playerInfo)
             {
-                if (pi.infoValid && pi.team >= Team.Red && pi.team <=Team.Blue && pi.clientNum != excludeClient)
+                if (pi.infoValid && pi.team >= Team.Red && pi.team <= Team.Blue && pi.clientNum != excludeClient)
                 {
                     DateTime? lastfullPosUpdate = pi.lastFullPositionUpdate;
-                    if(lastfullPosUpdate.HasValue && (DateTime.Now-lastfullPosUpdate.Value).TotalMilliseconds < 1000)
+                    if (lastfullPosUpdate.HasValue && (DateTime.Now - lastfullPosUpdate.Value).TotalMilliseconds < 1000)
                     {
                         float distsq = (location - pi.position).LengthSquared();
                         float pressureAdd = 0;
@@ -2712,18 +2713,18 @@ namespace JKWatcher
                         } else if (distsq <= (500.0f * 500.0f))
                         {
                             pressureAdd = 0.5f;
-                        } else if (distsq <= (1000.0f* 1000.0f))
+                        } else if (distsq <= (1000.0f * 1000.0f))
                         {
                             pressureAdd = 0.25f;
-                        } 
-                        if(pi.team == team)
+                        }
+                        if (pi.team == team)
                         {
                             thisTeamPressure += pressureAdd;
-                            if(closestTeamsq > distsq)
+                            if (closestTeamsq > distsq)
                             {
                                 closestTeamsq = distsq;
                             }
-                        } else if(pi.team == otherTeam)
+                        } else if (pi.team == otherTeam)
                         {
                             otherTeamPressure += pressureAdd;
                             if (closestOtherTeamsq > distsq)
@@ -2769,9 +2770,9 @@ namespace JKWatcher
                     PlayerInfo carrier = infoPool.playerInfo[teamInfo.lastFlagCarrier];
                     pressure = GetTeamPressure(team, carrier.position, carrier.clientNum, out pressureMagnitude, out closestTeam, out closestOtherTeam); // flag team's pressurer on carrier
                     basePos = GetTeamFlagBasePos(otherTeam);
-                    float otherPadDist = basePos.HasValue ? Math.Max(0.0f,(Math.Min((carrier.position - basePos.Value).Length(),550.0f)-50.0f)) : 500.0f;
+                    float otherPadDist = basePos.HasValue ? Math.Max(0.0f, (Math.Min((carrier.position - basePos.Value).Length(), 550.0f) - 50.0f)) : 500.0f;
 
-                    if(pressureMagnitude < 1.0f && pressureMagnitude>0.0f) // if pressure is far away, scale it down.
+                    if (pressureMagnitude < 1.0f && pressureMagnitude > 0.0f) // if pressure is far away, scale it down.
                     {
                         pressure *= pressureMagnitude;
                     }
@@ -2782,13 +2783,13 @@ namespace JKWatcher
 
                     pressure = 1.0f - pressure; // reverse it
 
-                    return 0.1f + flagratio * 0.4f + flagratio * 0.4f * pressure + (1.0f-(otherPadDist/500.0f))*0.1f;// to get full probability, flagratio must be full, pressure must be full and distance to own pad must be 0 (50 units distance counts as 0)
+                    return 0.1f + flagratio * 0.4f + flagratio * 0.4f * pressure + (1.0f - (otherPadDist / 500.0f)) * 0.1f;// to get full probability, flagratio must be full, pressure must be full and distance to own pad must be 0 (50 units distance counts as 0)
                     break;
                 case FlagStatus.FLAG_DROPPED:
                     flagratio = GetFlagRatio(team);
                     pressure = GetTeamPressure(otherTeam, teamInfo.flagDroppedPosition, -1, out pressureMagnitude, out closestTeam, out closestOtherTeam);
 
-                    if(closestTeam < closestOtherTeam)
+                    if (closestTeam < closestOtherTeam)
                     {
                         if (pressureMagnitude < 1.0f && pressureMagnitude > 0.0f) // if pressure is far away, scale it down.
                         {
@@ -2797,8 +2798,8 @@ namespace JKWatcher
                         pressure *= 0.5f;
                     }
 
-                    return 0.1f +0.8f*flagratio* pressure;
-                    
+                    return 0.1f + 0.8f * flagratio * pressure;
+
                     break;
                 case FlagStatus.FLAG_ATBASE:
                     basePos = GetTeamFlagBasePos(team);
@@ -2806,7 +2807,7 @@ namespace JKWatcher
                     {
                         return 0.0f;
                     }
-                    pressure = GetTeamPressure(otherTeam, basePos.Value,-1,out pressureMagnitude, out closestTeam, out closestOtherTeam);
+                    pressure = GetTeamPressure(otherTeam, basePos.Value, -1, out pressureMagnitude, out closestTeam, out closestOtherTeam);
                     return pressure * 0.1f;
                     break;
             }
@@ -2871,17 +2872,17 @@ namespace JKWatcher
                 case FlagStatus.FLAG_TAKEN:
                     PlayerInfo carrier = infoPool.playerInfo[teamInfo.lastFlagCarrier];
                     DateTime? lastFullPosTime = carrier.lastFullPositionUpdate;
-                    if (lastFullPosTime.HasValue && (DateTime.Now- lastFullPosTime.Value).TotalMilliseconds < 2000)
+                    if (lastFullPosTime.HasValue && (DateTime.Now - lastFullPosTime.Value).TotalMilliseconds < 2000)
                     {
-                        float dist = Vector3.Dot(vecToOtherFlagBase, carrier.position-basePosThisTeam);
+                        float dist = Vector3.Dot(vecToOtherFlagBase, carrier.position - basePosThisTeam);
                         flagratio = dist / distToOtherFlagBase;
                     }
-                    break; 
+                    break;
                 case FlagStatus.FLAG_DROPPED:
                     DateTime? lastDropperPosTime = teamInfo.lastFlagDroppedPositionUpdate;
-                    if (lastDropperPosTime.HasValue && (DateTime.Now- lastDropperPosTime.Value).TotalMilliseconds < 2000)
+                    if (lastDropperPosTime.HasValue && (DateTime.Now - lastDropperPosTime.Value).TotalMilliseconds < 2000)
                     {
-                        float dist = Vector3.Dot(vecToOtherFlagBase, teamInfo.flagDroppedPosition- basePosThisTeam);
+                        float dist = Vector3.Dot(vecToOtherFlagBase, teamInfo.flagDroppedPosition - basePosThisTeam);
                         flagratio = dist / distToOtherFlagBase;
                     }
                     break;
@@ -2944,7 +2945,7 @@ namespace JKWatcher
             {
                 string angleDecodeAsStringSafe = Helpers.DemoCuttersanitizeFilename(angleDecodeAsString, false);
                 string hexString = BitConverter.ToString(angleDecodeResult);
-                if(angleDecodeAsString == jkwatcherBotString)
+                if (angleDecodeAsString == jkwatcherBotString)
                 {
                     if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot)
                     {
@@ -2954,13 +2955,64 @@ namespace JKWatcher
                         //serverWindow.addToLog($"FIGHTBOT DETECTION: client {clientNum} ({infoPool.playerInfo[clientNum].name}) re-detected as fightbot (already known).");
                     }
                     infoPool.playerInfo[clientNum].session.confirmedJKWatcherFightbot = true;
-                    this.client?.SetClientAsBot(clientNum,true);
+                    this.client?.SetClientAsBot(clientNum, true);
                 } else
                 {
                     serverWindow.addToLog($"ANGLE MESSAGE RECEIVED from client {clientNum} ({infoPool.playerInfo[clientNum].name}): {angleDecodeAsStringSafe} (safe string representation); hex: {hexString}");
                 }
             }
         }
+
+
+        class DeathTimeTracker
+        {
+            public bool alive = true;
+            public int killer = -1;
+            public DateTime deathTime = DateTime.Now;
+        }
+
+        DeathTimeTracker[] localDeathTrack = new DeathTimeTracker[64] { new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker(), new DeathTimeTracker() };
+        private void SetClientDeathState(int clientNum, bool isAlive, int killerNum = -1)
+        {
+            infoPool.playerInfo[clientNum].IsAlive = isAlive;
+            if (infoPool.serverSendsAllEntities && this.IsMainChatConnection)
+            {
+                int lastKiller = localDeathTrack[clientNum].killer;
+                if (localDeathTrack[clientNum].alive && !isAlive)
+                {
+                    localDeathTrack[clientNum].deathTime = DateTime.Now;
+                }
+                else if (!localDeathTrack[clientNum].alive && isAlive && lastKiller != -1)
+                {
+                    // respawned.
+                    double msSinceDeath = (double)(DateTime.Now - localDeathTrack[clientNum].deathTime).TotalMilliseconds;
+                    serverWindow.addToLog($"^3Player {infoPool.playerInfo[clientNum].name} respawn time debug: {msSinceDeath} ms");
+                    if (lastKiller != clientNum)
+                    {
+                        //msSinceDeath -= 1000.0; // 1 second is the minimum anyway. - actually, leave it. or we might end up dividing by values near 0 and otherwise exaggerate smaller differences?
+                        if (msSinceDeath < 10000) // otherwise afk or sth, ignore
+                        {
+                            infoPool.playerInfo[clientNum].chatCommandTrackingStuff.respawnWait.AddValue(msSinceDeath);
+                            infoPool.playerInfo[clientNum].chatCommandTrackingStuffThisGame.respawnWait.AddValue(msSinceDeath);
+                            infoPool.playerInfo[lastKiller].chatCommandTrackingStuff.respawnWaitCaused.AddValue(msSinceDeath);
+                            infoPool.playerInfo[lastKiller].chatCommandTrackingStuffThisGame.respawnWaitCaused.AddValue(msSinceDeath);
+                            infoPool.killTrackers[lastKiller, clientNum].respawnWaitCaused.AddValue(msSinceDeath);
+                            infoPool.killTrackersThisGame[lastKiller, clientNum].respawnWaitCaused.AddValue(msSinceDeath);
+                        }
+                    }
+                    localDeathTrack[clientNum].killer = -1;
+                }
+            }
+            localDeathTrack[clientNum].alive = isAlive;
+            if (isAlive)
+            {
+                localDeathTrack[clientNum].killer = -1;
+            } else if(killerNum != -1)
+            {
+                localDeathTrack[clientNum].killer = killerNum;
+            }
+        }
+
         const int RANK_TIED_FLAG = 0x4000;
         const int PMF_INTERMISSION = (1 << 6);
 
@@ -3338,7 +3390,8 @@ namespace JKWatcher
                     checkPingWarningWeird(infoPool.playerInfo[i], snap.PlayerState.CommandTime, commandTimes[i], snap.ServerTime, commandTimesServerTime[i]);
                     commandTimes[i] = snap.PlayerState.CommandTime;
                     commandTimesServerTime[i] = snap.ServerTime;
-                    infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    //infoPool.playerInfo[i].IsAlive = snap.PlayerState.Stats[0] > 0; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    SetClientDeathState(i, snap.PlayerState.Stats[0] > 0);
                     infoPool.playerInfo[i].lastAliveStatusUpdated = DateTime.Now;
                     if (// due to snapping we have to compare distance instead of just equality
                         Math.Abs(AngleSubtract(infoPool.playerInfo[i].angles.X, snap.PlayerState.ViewAngles[0])) > 3.0f
@@ -3617,7 +3670,8 @@ namespace JKWatcher
                         infoPool.playerInfo[i].infoValid = true;
                     }
                     bool deadFlagSet = (snap.Entities[snapEntityNum].EntityFlags & EFDeadFlag) > 0;
-                    infoPool.playerInfo[i].IsAlive = !deadFlagSet; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    //infoPool.playerInfo[i].IsAlive = !deadFlagSet; // We do this so that if a player respawns but isn't visible, we don't use his (useless) position
+                    SetClientDeathState(i, !deadFlagSet);
                     bool frozenStatus = mohFreezeTagDetected && snap.Entities[snapEntityNum].Solid==0;
                     if(infoPool.playerInfo[i].IsFrozen != frozenStatus)
                     {
@@ -6885,7 +6939,8 @@ namespace JKWatcher
                             if(!mohExpansion) infoPool.playerInfo[iClientNum].infoValid = true;
                             if (!mohFreezeTagDetected || bIsDead) // Freeze-Tag doesn't get proper death info in scoreboard. It does seem to get it short-term, so we can count "dead" as reliable, but not "alive".
                             { // Freeze tag breaks the alive status in scoreboards for some reason
-                                infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                                //infoPool.playerInfo[iClientNum].IsAlive = !bIsDead;
+                                SetClientDeathState(iClientNum, !bIsDead);
                                 infoPool.playerInfo[iClientNum].lastAliveStatusUpdated = DateTime.Now;
                             }
                             infoPool.playerInfo[iClientNum].session.team = realTeam;

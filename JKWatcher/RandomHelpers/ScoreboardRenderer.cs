@@ -134,6 +134,12 @@ namespace JKWatcher.RandomHelpers
         public string likelyPlayer { get; set; }
     }
 
+    public class JSONRollsInfo {
+        public int rolls { get; set; }
+        public float rollsPerMinute { get; set; }
+        public int withFlag { get; set; }
+        public float withFlagPerMinute { get; set; }
+    }
 
     public class ScoreboardEntry
     {
@@ -143,6 +149,8 @@ namespace JKWatcher.RandomHelpers
         public List<JSONPlayerKillInfo> killedBy { get; set; } = new List<JSONPlayerKillInfo>();
         public Guid guid { get; set; } // so references to other players (like who killed who) can be stably associated
         public JSONNWHIdInfo nwhIdInfo { get; set; } = null;
+        public double? tiltFactor { get; set; } = null;
+        public JSONRollsInfo rolls { get; set; } = new JSONRollsInfo();
 
         // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
@@ -671,11 +679,21 @@ namespace JKWatcher.RandomHelpers
             foreach(var kvp in ratingsAndNames)
             {
                 ScoreboardEntry entry   = new ScoreboardEntry();
-                entry.guid = kvp.Key.guid;
                 entry.stats = kvp.Value;
                 entry.nameOrLastNonPadaName = kvp.Value.playerSessInfo.GetNameOrLastNonPadaName();
                 entry.team = kvp.Value.chatCommandTrackingStuff.LastNonSpectatorTeam;
-                if(entry.team != Team.Spectator && activeMatch && thisGame) // for players in an active match, add nwh id info. for spectators or for pubs, let them have some privacy
+
+                // mostly for json:
+                entry.guid = kvp.Key.guid;
+                float minuteCount = (float)(DateTime.Now - kvp.Value.chatCommandTrackingStuff.onlineSince).TotalMinutes;
+                entry.rolls.rollsPerMinute = entry.rolls.rolls = kvp.Value.chatCommandTrackingStuff.rolls.value;
+                entry.rolls.rollsPerMinute /= minuteCount;
+                entry.rolls.withFlagPerMinute = entry.rolls.withFlag = kvp.Value.chatCommandTrackingStuff.rollsWithFlag.value;
+                entry.rolls.withFlagPerMinute /= minuteCount;
+                entry.tiltFactor = kvp.Value.chatCommandTrackingStuff.CalculateRespawnTimeCausedFactor(kvp.Key, thisGame);
+                // mostly for json end
+
+                if (entry.team != Team.Spectator && activeMatch && thisGame) // for players in an active match, add nwh id info. for spectators or for pubs, let them have some privacy
                 {
                     entry.nwhIdInfo = new JSONNWHIdInfo();
                     PlayerId nwhId = kvp.Key.nwhId;

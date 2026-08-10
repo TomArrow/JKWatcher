@@ -168,6 +168,49 @@ namespace JKWatcher
             }
             return topRatingsString.ToString();
         }
+        private string MakeTiltString(bool thisGame, bool all)
+        {
+
+            List<KeyValuePair<SessionPlayerInfo, IdentifiedPlayerStats>> ratingData = (thisGame ? infoPool.ratingsAndNamesThisGame : infoPool.ratingsAndNames).ToList();
+            List<Tuple<SessionPlayerInfo, IdentifiedPlayerStats, double>> tiltFactors = new List<Tuple<SessionPlayerInfo, IdentifiedPlayerStats, double>>();
+
+            foreach (KeyValuePair<SessionPlayerInfo, IdentifiedPlayerStats> thisRating in ratingData)
+            {
+                ChatCommandTrackingStuff tracker = thisGame ? thisRating.Key.chatCommandTrackingStuffThisGame : thisRating.Key.chatCommandTrackingStuff;
+                double? tiltFactor = tracker.CalculateRespawnTimeCausedFactor(thisRating.Key, thisGame);
+                if (!tiltFactor.HasValue)
+                {
+                    continue;
+                }
+                tiltFactors.Add(new Tuple<SessionPlayerInfo, IdentifiedPlayerStats, double>(thisRating.Key, thisRating.Value, tiltFactor.Value));
+            }
+
+            tiltFactors.Sort((a, b) => { return -a.Item3.CompareTo(b.Item3); });
+
+            StringBuilder topTiltString = new StringBuilder();
+            int tiltIndex = 0;
+            foreach (Tuple<SessionPlayerInfo, IdentifiedPlayerStats, double> thisRating in tiltFactors)
+            {
+                if((DateTime.Now-thisRating.Item2.lastSeenActive).TotalSeconds > 60 && !all)
+                {
+                    continue;
+                }
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Item2.playerSessInfo.GetNameOrLastNonPadaName(),infoPool.hexSupport);
+                if (strippedName is null) continue;
+                if ((topTiltString.Length + strippedName.Length) > 150)
+                {
+                    break;
+                }
+                if (tiltIndex != 0)
+                {
+                    topTiltString.Append(", ");
+                }
+                //topRatingsString.Append($"{strippedName} ({(int)thisRating.Key.GetRating()}+-{(int)thisRating.Key.GetRatingDeviation()})");
+                topTiltString.Append($"{strippedName} ({(int)(thisRating.Item3*100.0)}*/.)");
+                tiltIndex++;
+            }
+            return topTiltString.ToString();
+        }
         private string MakeDBSPercentagesString(bool thisGame, bool all)
         {
             // Make temporary ratings (so we can get up to date data without having to have rating periods so short they make the algorithm overall very imprecise)
@@ -1037,6 +1080,12 @@ namespace JKWatcher
                             ChatCommandAnswer(pm, $"^7^0^7Glicko2{Glicko2Version} top: {glicko2RatingsString}", true, true, true);
                             notDemoCommand = true;
                             break;
+                        case "!tilt":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            string tltString = MakeTiltString(thisGameParamFound, stringParams.Contains("all"));
+                            ChatCommandAnswer(pm, $"^7^0^7Top Tilters: {tltString}", true, true, true);
+                            notDemoCommand = true;
+                            break;
                         case "!doomer":
                             if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
                             int mostDooms = 0;
@@ -1897,7 +1946,7 @@ namespace JKWatcher
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!kills !killsOn !killedBy !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
-                            ChatCommandAnswer(pm, "!rets !retsOn !retBy !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top", true, true, true, true);
+                            ChatCommandAnswer(pm, "!rets !retsOn !retBy !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top !tilt", true, true, true, true);
                             ChatCommandAnswer(pm, "(add 'thisgame' at end to get stats for current game)", true, true, true, true);
                             notDemoCommand = true;
                             break;

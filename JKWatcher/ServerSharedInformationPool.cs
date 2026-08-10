@@ -301,16 +301,27 @@ namespace JKWatcher
         private double divider = 0.0;
         public void AddValue(double value, double weight = 1.0)
         {
-            if(weight <= 0.0)
+            if(weight == 0.0)
             {
-                throw new InvalidOperationException("Cannot call AverageHelper with a weight of 0");
+                return;
+            } else if(weight < 0.0)
+            {
+                throw new InvalidOperationException("Cannot call AverageHelper with a weight of lower than 0");
             }
-            total += value;
+            total += value * weight;
             divider += weight;
         }
         public double? GetAverage()
         {
             return divider == 0.0 ? null : total / divider;
+        }
+        public double GetDivider()
+        {
+            return divider;
+        }
+        public double GetTotal()
+        {
+            return total;
         }
     }
 
@@ -377,6 +388,31 @@ namespace JKWatcher
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];
+
+        // tilt factor
+        public AverageHelper respawnWait = new AverageHelper();
+        public AverageHelper respawnWaitCaused = new AverageHelper();
+        public double? CalculateRespawnTimeCausedFactor(SessionPlayerInfo selfexclude, bool thisGame) // aka tilt factor
+        {
+            AverageHelper tiltAvg = new AverageHelper();
+            foreach(var kvp in killTrackersOnOthers)
+            {
+                SessionPlayerInfo othersession = kvp.Key;
+                if (othersession == selfexclude) continue;
+                KillTracker kt = kvp.Value;
+                ChatCommandTrackingStuff tracker = thisGame ? othersession.chatCommandTrackingStuffThisGame : othersession.chatCommandTrackingStuff;
+                double? avgCaused = kt.respawnWaitCaused.GetAverage(); // his average when we killed him
+                double? avgOther = tracker.respawnWait.GetAverage(); // his average overall
+                double avgCausedSamples = kt.respawnWaitCaused.GetDivider();
+                if (!avgCaused.HasValue || !avgOther.HasValue)
+                {
+                    continue;
+                }
+                double avgAdjusted = avgCaused.Value / avgOther.Value;
+                tiltAvg.AddValue(avgAdjusted, avgCausedSamples); // using avgCausedSamples as weight
+            }
+            return tiltAvg.GetAverage();
+        }
 
         // adapt from demo tools
         Int64 hitBySaberCount;
@@ -1332,6 +1368,8 @@ namespace JKWatcher
         public int trackedMatchDeaths;
 
         public BlocksTracker blocksTracker = new BlocksTracker();
+
+        public AverageHelper respawnWaitCaused = new AverageHelper();
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
