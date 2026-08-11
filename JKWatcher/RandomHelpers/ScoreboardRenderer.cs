@@ -151,6 +151,7 @@ namespace JKWatcher.RandomHelpers
         public JSONNWHIdInfo nwhIdInfo { get; set; } = null;
         public double? tiltFactor { get; set; } = null;
         public JSONRollsInfo rolls { get; set; } = new JSONRollsInfo();
+        public Dictionary<string, UInt64> strafeStyles { get; set; } = new Dictionary<string, UInt64>();
 
         // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
@@ -907,6 +908,7 @@ namespace JKWatcher.RandomHelpers
 
                 SetJSONKillsData(entry,true);
                 SetJSONKillsData(entry,false);
+                SetStrafeStyles(entry,kvp.Value.chatCommandTrackingStuff.strafeStyleSamples);
 
                 entries.Add(entry);
                 jsonGameInfo.playerData.Add(entry);
@@ -1738,6 +1740,20 @@ namespace JKWatcher.RandomHelpers
 
         }
 
+        public static void SetStrafeStyles(ScoreboardEntry entry, UInt64[] strafeStyles)
+        {
+            entry.strafeStyles.Clear();
+
+            for (int i = 0; i < strafeStyles.Length; i++)
+            {
+                string movementName = Enum.GetName(typeof(MovementDir), (MovementDir)i);
+                if (string.IsNullOrWhiteSpace(movementName))
+                {
+                    movementName = i.ToString();
+                }
+                entry.strafeStyles[movementName] = strafeStyles[i];
+            }
+        }
 
         public static string MakeKillTypesString(Dictionary<string, int> killTypes,Dictionary<string, int> retTypes, string[] excludedKillTypes, int lengthLimit = 99999)
         {
