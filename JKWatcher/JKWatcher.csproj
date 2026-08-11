@@ -103,6 +103,7 @@
     <PackageReference Include="sqlite-net-pcl" Version="1.8.116" />
     <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
     <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+    <PackageReference Include="T-Digest" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>

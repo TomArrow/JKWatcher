@@ -14,6 +14,7 @@ using static JKWatcher.ConnectedServerWindow;
 using JKWatcher.RandomHelpers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using TDigest;
 
 namespace JKWatcher
 {
@@ -295,7 +296,15 @@ namespace JKWatcher
         }
     }
 
-    public class AverageHelper
+    public abstract class AbstractAverageHelper
+    {
+        public abstract void AddValue(double value);
+        public abstract double? GetAverage();
+        public abstract double GetDivider();
+        public abstract double GetTotal();
+    }
+
+    public class AverageHelper : AbstractAverageHelper
     {
         private double total;
         private double divider = 0.0;
@@ -311,15 +320,47 @@ namespace JKWatcher
             total += value * weight;
             divider += weight;
         }
-        public double? GetAverage()
+
+        public override void AddValue(double value)
+        {
+            AddValue(value, 1.0);
+        }
+
+        public override double? GetAverage()
         {
             return divider == 0.0 ? null : total / divider;
         }
-        public double GetDivider()
+        public override double GetDivider()
         {
             return divider;
         }
-        public double GetTotal()
+        public override double GetTotal()
+        {
+            return total;
+        }
+    }
+    public class TDigestHelper : AbstractAverageHelper
+    {
+        private MergingDigest digest = new MergingDigest(100);
+        private double total = 0.0;
+        private double divider = 0.0;
+
+        public override void AddValue(double value)
+        {
+            digest.Add(value);
+            total += value;
+            divider += 1;
+        }
+
+        public override double? GetAverage()
+        {
+            return divider == 0.0 ? null : digest.Quantile(.50);
+        }
+        public override double GetDivider()
+        {
+            return divider;
+        }
+        public override double GetTotal()
         {
             return total;
         }
@@ -390,8 +431,8 @@ namespace JKWatcher
         public UInt64[] strafeStyleSamples = new UInt64[8];
 
         // tilt factor
-        public AverageHelper respawnWait = new AverageHelper();
-        public AverageHelper respawnWaitCaused = new AverageHelper();
+        public TDigestHelper respawnWait = new TDigestHelper();
+        public TDigestHelper respawnWaitCaused = new TDigestHelper();
         public double? CalculateRespawnTimeCausedFactor(SessionPlayerInfo selfexclude, bool thisGame) // aka tilt factor
         {
             AverageHelper tiltAvg = new AverageHelper();
@@ -1369,7 +1410,7 @@ namespace JKWatcher
 
         public BlocksTracker blocksTracker = new BlocksTracker();
 
-        public AverageHelper respawnWaitCaused = new AverageHelper();
+        public TDigestHelper respawnWaitCaused = new TDigestHelper();
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
