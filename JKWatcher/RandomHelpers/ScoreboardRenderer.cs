@@ -106,6 +106,16 @@ namespace JKWatcher.RandomHelpers
         }
     }
 
+    public class JSONDominanceInfo
+    {
+        public float dominanceMeanApproximate { get; set; }
+        public float dominanceMedianApproximate { get; set; }
+        public float redFlagMeanApproximate { get; set; }
+        public float redFlagMedianApproximate { get; set; }
+        public float blueFlagMeanApproximate { get; set; }
+        public float blueFlagMeanMedianApproximate { get; set; }
+    }
+
     public class JSONGameInfo {
         public List<ScoreboardEntry> playerData { get; set; } = new List<ScoreboardEntry>();
         public DateTime finishTime { get; set; }
@@ -115,8 +125,9 @@ namespace JKWatcher.RandomHelpers
         public string serverName { get; set; }
         public string mapName { get; set; }
         public string serverIp { get; set; }
-        public int redScore;
-        public int blueScore;
+        public JSONDominanceInfo dominance { get; set; }
+        public int redScore { get; set; }
+        public int blueScore { get; set; }
     }
 
 
@@ -177,6 +188,8 @@ namespace JKWatcher.RandomHelpers
         public int runs { get; set; }
         public int top10s { get; set; }
         public int wrs { get; set; }
+
+        public int scoreOpportunities { get; set; }
 
         public int returns { get; set; }// This is just for convenience.
         public int returnsOldSum { get; set; }
@@ -591,7 +604,8 @@ namespace JKWatcher.RandomHelpers
             MINEGRABS,
             BLOCKSENEMY,
             BLOCKSCAPPER,
-            BLOCKSTEAM
+            BLOCKSTEAM,
+            SCOREOPPORTUNITIES
         }
 
         const int fgAlpha = (int)((float)255 * 0.8f);
@@ -705,6 +719,7 @@ namespace JKWatcher.RandomHelpers
                     }
                 }
                 entry.realTeam = kvp.Value.playerSessInfo.team;
+                entry.scoreOpportunities = kvp.Value.chatCommandTrackingStuff.scoreOpportunities;
                 entry.score = kvp.Value.chatCommandTrackingStuff.score.score + kvp.Value.chatCommandTrackingStuff.score.oldScoreSum;
                 entry.runs = kvp.Value.chatCommandTrackingStuff.defragRunsFinished;
                 entry.top10s = kvp.Value.chatCommandTrackingStuff.defragTop10RunCount;
@@ -757,6 +772,10 @@ namespace JKWatcher.RandomHelpers
                 if(kvp.Value.chatCommandTrackingStuff.score.captures > 0)
                 {
                     foundFields |= (1 << (int)ScoreFields.CAPTURES);
+                }
+                if(kvp.Value.chatCommandTrackingStuff.scoreOpportunities > 0)
+                {
+                    foundFields |= (1 << (int)ScoreFields.SCOREOPPORTUNITIES);
                 }
                 if(kvp.Value.chatCommandTrackingStuff.score.defendCount > 0)
                 {
@@ -1021,6 +1040,13 @@ namespace JKWatcher.RandomHelpers
             }
             csvColumns.Add(new CSVColumnInfo("CAPTURES-CURRENT", (a) => { return a.scoreCopy.captures.value.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("CAPTURES-SUM", (a) => { return (a.scoreCopy.captures.value + a.scoreCopy.captures.oldSum).ToString(); }));
+            if ((foundFields & (1 << (int)ScoreFields.SCOREOPPORTUNITIES)) >0)
+            {
+                columns.Add(new ColumnInfo("CO", 0, 20, normalFont, (a) => { return block0(a.scoreOpportunities.ToString()); }, infoPool.hexSupport) /*{ noAdvanceAfter = true }*/);
+                //columns.Add(new ColumnInfo("", 15, 20, tinyFont, (a) => { return block0(a.scoreCopy.captures.GetString2(), "^yfff8"); }, infoPool.hexSupport));
+            }
+            csvColumns.Add(new CSVColumnInfo("CAPTURES-OPPORTUNITIES", (a) => { return a.scoreOpportunities.ToString(); }));
+            //csvColumns.Add(new CSVColumnInfo("CAPTURES-SUM", (a) => { return (a.scoreCopy.captures.value + a.scoreCopy.captures.oldSum).ToString(); }));
             if ((foundFields & (1 << (int)ScoreFields.RETURNS)) >0)
             {
                 columns.Add(new ColumnInfo("R", 0, 25, normalFont, (a) => { 
@@ -1512,12 +1538,50 @@ namespace JKWatcher.RandomHelpers
                 {
                     winString = redScore > blueScore ? $"Red leads {redScore}-{blueScore}" : $"Blue leads {blueScore}-{redScore}";
                 }
+                
+                GameStatsFrame[] frames = gameStats.getFrames();
+
+                if(frames.Length > 0) {
+
+                    TDigestHelper dominanceMean = new TDigestHelper();
+                    TDigestHelper redFlagMean = new TDigestHelper();
+                    TDigestHelper blueFlagMean = new TDigestHelper();
+                    UInt64 values = 0;
+                    // first save some info for the json
+                    foreach (var frame in frames)
+                    {
+                        if (frame.paused)
+                        {
+                            continue;
+                        }
+                        dominanceMean.AddValue(frame.dominance);
+                        redFlagMean.AddValue(frame.redFlagRatio);
+                        blueFlagMean.AddValue(frame.blueFlagRatio);
+                        values++;
+                    }
+                    if (values > 0)
+                    {
+                        jsonGameInfo.dominance = new JSONDominanceInfo();
+                        jsonGameInfo.dominance.dominanceMeanApproximate = (float)dominanceMean.GetRealMean().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.dominanceMedianApproximate = (float)dominanceMean.GetAverage().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.redFlagMeanApproximate = (float)redFlagMean.GetRealMean().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.redFlagMedianApproximate = (float)redFlagMean.GetAverage().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.blueFlagMeanApproximate = (float)blueFlagMean.GetRealMean().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.blueFlagMeanMedianApproximate = (float)blueFlagMean.GetAverage().GetValueOrDefault(0);
+                    }
+                }
+
                 ColumnInfo fakeColumn = new ColumnInfo("Score", 0, 1800, headerFont, (a) => { return winString; }, infoPool.hexSupport);
                 fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry()); // bit awkward but the drawing part is already nicely coded in this... too lazy to redo it, too lazy to abstract it.
                 posY += 30;
                 fakeColumn = new ColumnInfo("Playtime", 0, 1800, normalFont, (a) => {
                     string extraTimeString = whenStringStart == null ? "" : $", Date/Time (start): {whenStringStart}, Total (real): {FormatTime(millisecondsDurationReal)}";
-                    return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}{extraTimeString}";
+                    string extraDominanceString = "";
+                    if(!(jsonGameInfo.dominance is null))
+                    {
+                        extraDominanceString = $", Dominance: {(int)(jsonGameInfo.dominance.dominanceMeanApproximate*100.0)}μ/{(int)(jsonGameInfo.dominance.dominanceMedianApproximate * 100.0)}med, Flagpos: ^1(R){(int)(jsonGameInfo.dominance.redFlagMeanApproximate*100.0)}μ/{(int)(jsonGameInfo.dominance.redFlagMedianApproximate * 100.0)}med, ^x0af(B){(int)(jsonGameInfo.dominance.blueFlagMeanApproximate*100.0)}μ/{(int)(jsonGameInfo.dominance.blueFlagMeanMedianApproximate * 100.0)}med ^7";
+                    }
+                    return $"Playtime: {FormatTime(gameStats.timeTotal-gameStats.pausedTime)}, Pausetime: {FormatTime(gameStats.pausedTime)}, Total: {FormatTime(gameStats.timeTotal)}, Date/Time: {whenString}{extraTimeString}{extraDominanceString}";
                 }, infoPool.hexSupport);
                 fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry());
                 posY += 15;
@@ -1525,10 +1589,10 @@ namespace JKWatcher.RandomHelpers
                 fakeColumn.DrawString(g, false, posXStart, posY, options, new ScoreboardEntry());
                 posY += 30;
 
-                GameStatsFrame[] frames = gameStats.getFrames();
                 // draw a bit of stats of how the game went
                 if (frames.Length > 1) // must be > 1 so we dont divide by zero and stuff.
                 {
+                    // now do some drawing
                     float statusheight = 100.0f;
                     float bgWidth = 1920.0f - sidePadding - sidePadding;
                     GameStatsFrame startFrame = frames[0];

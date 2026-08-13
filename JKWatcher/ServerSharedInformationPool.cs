@@ -356,6 +356,10 @@ namespace JKWatcher
         {
             return divider == 0.0 ? null : digest.Quantile(.50);
         }
+        public double? GetRealMean()
+        {
+            return divider == 0.0 ? null : total / divider;
+        }
         public override double GetDivider()
         {
             return divider;
@@ -426,6 +430,8 @@ namespace JKWatcher
         public bool berserkerVote;
         public DateTime lastBodyguardStart;
         public DateTime onlineSince = DateTime.Now;
+        public int scoreOpportunities;
+        public DateTime lastScoreOpportunity = DateTime.Now - new TimeSpan(6, 0, 0);
         //public int totalTimeVisible;
         //public int lastKnownServerTime;
         public UInt64[] strafeStyleSamples = new UInt64[8];

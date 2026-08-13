@@ -2749,6 +2749,83 @@ namespace JKWatcher
                 return thisTeamPressure / totalPressure;
             }
         }
+
+        // whether the flag belonging to specified team has a good likelihood of scoring now
+        // this is the case if:
+        // - it is taken.
+        // - carrier team's flag is not taken 
+        //      - OR carrier team's flag is being held 
+        //          - AND the carrier's team has someone within 300 units of it (gotta be careful cuz we cant see walls, this might already lead to some errors rn)
+        //          - AND the carrier's team has someone closer to it than the flag team 
+        //          - OR has someone within 200 units of it (roll distance) and flag team no closer than 100 units
+        // - flag carrier's distance to his own pad is closer than enemy and closer than 500 units (walls not much of a concern for most maps for pad)
+        // TODO maybe consider vertical distance cuz of maps like mp/ctf3?
+        //
+        // returns client number that might score. or -1 if none.
+        int CheckScoreOpportunity(Team flagTeam)
+        {
+
+            TeamInfo flagTeamInfo = infoPool.teamInfo[(int)flagTeam];
+
+            if(flagTeamInfo.flag != FlagStatus.FLAG_TAKEN)
+            {
+                return -1;
+            }
+
+            Team flagCarrierTeam = flagTeam == Team.Red ? Team.Blue : Team.Red;
+            TeamInfo teamInfoCarrier = infoPool.teamInfo[(int)flagCarrierTeam];
+
+            if (teamInfoCarrier.flag != FlagStatus.FLAG_ATBASE)
+            {
+                if (teamInfoCarrier.flag == FlagStatus.FLAG_DROPPED)
+                {
+                    // hold?
+                    DateTime? lastDropperPosTime = teamInfoCarrier.lastFlagDroppedPositionUpdate;
+                    if (!lastDropperPosTime.HasValue || (DateTime.Now - lastDropperPosTime.Value).TotalMilliseconds > 2000)
+                    {
+                        return -1;
+                    }
+
+                    float holdClosestFlagTeam, holdClosestCarrierTeam;
+                    GetTeamPressure(flagTeam, teamInfoCarrier.flagDroppedPosition, -1, out _, out holdClosestFlagTeam, out holdClosestCarrierTeam);
+                    if(holdClosestCarrierTeam > 300 || holdClosestFlagTeam < holdClosestCarrierTeam && ( holdClosestCarrierTeam > 200 || holdClosestFlagTeam < 100))
+                    {
+                        // flag team is closer than flag carrier team, so it's not a hold.
+                        return -1;
+                    }
+
+                } else
+                {
+                    return -1;
+                }
+            }
+
+            Vector3? carrierOwnFlagBasePos;
+            float closestFlagTeam;
+            carrierOwnFlagBasePos = GetTeamFlagBasePos(flagCarrierTeam);
+
+            if (!carrierOwnFlagBasePos.HasValue)
+            {
+                return -1;
+            }
+
+            PlayerInfo carrier = infoPool.playerInfo[flagTeamInfo.lastFlagCarrier];
+            DateTime? lastFullPosTime = carrier.lastFullPositionUpdate;
+            if (!lastFullPosTime.HasValue || (DateTime.Now - lastFullPosTime.Value).TotalMilliseconds > 2000)
+            {
+                return -1;
+            }
+            GetTeamPressure(flagTeam, carrierOwnFlagBasePos.Value, -1, out _, out closestFlagTeam, out _);
+            float carrierOwnFlagBaseDistance = (carrier.position - carrierOwnFlagBasePos.Value).Length();
+
+            if(carrierOwnFlagBaseDistance < 500 && (carrierOwnFlagBaseDistance < closestFlagTeam || carrierOwnFlagBaseDistance < 200 && closestFlagTeam > 100))
+            {
+                return carrier.clientNum;
+            }
+            return -1;
+
+        }
+
         const float third = 1.0f / 3.0f;
         // returns the probability that the flag of a particular team will be captured
         float GetFlagScoreProbability(Team team)
@@ -2986,7 +3063,7 @@ namespace JKWatcher
                 {
                     // respawned.
                     double msSinceDeath = (double)(DateTime.Now - localDeathTrack[clientNum].deathTime).TotalMilliseconds;
-                    serverWindow.addToLog($"^3Player {infoPool.playerInfo[clientNum].name} respawn time debug: {msSinceDeath} ms");
+                    //serverWindow.addToLog($"^3Player {infoPool.playerInfo[clientNum].name} respawn time debug: {msSinceDeath} ms");
                     if (lastKiller != clientNum)
                     {
                         //msSinceDeath -= 1000.0; // 1 second is the minimum anyway. - actually, leave it. or we might end up dividing by values near 0 and otherwise exaggerate smaller differences?
@@ -4283,6 +4360,34 @@ namespace JKWatcher
 
             if (!infoPool.isIntermission)// && this.IsMainChatConnection) meh doesnt matter, only important thing are flags and already taken care of
             {
+                if (this.IsMainChatConnection && infoPool.serverSendsAllEntities)
+                {
+                    Team[] relevantTeams = new Team[] { Team.Red, Team.Blue };
+                    foreach(Team relevantTeam in relevantTeams)
+                    {
+                        int possibleCappa = CheckScoreOpportunity(relevantTeam);
+                        if (possibleCappa > -1)
+                        {
+                            DateTime now = DateTime.Now;
+                            PlayerInfo piCappa = infoPool.playerInfo[possibleCappa];
+                            bool newOpp = false;
+                            foreach (ChatCommandTrackingStuff trackerthing in piCappa.GetChatCommandTrackers())
+                            {
+                                if ((now - trackerthing.lastScoreOpportunity).TotalMilliseconds > 3500) // if last one was seen less than 3.5 seconds ago, just count it as the same. arbitrary? meh, it feels right-ish :p
+                                {
+                                    trackerthing.scoreOpportunities++;
+                                    newOpp = true;
+                                }
+                                trackerthing.lastScoreOpportunity = now;
+                            }
+                            if (newOpp)
+                            {
+                                serverWindow.addToLog($"^3SCORE OPPORTUNITY DEBUG: Player {piCappa.clientNum} has score opportunity for {relevantTeam} flag ({piCappa.name})");
+                            }
+                        }
+                    }
+                }
+
                 infoPool.gameStatsThisGame.SetStats(snap.ServerTime, infoPool.gameType == GameType.CTF || infoPool.gameType == GameType.CTY, ()=> {
                     // this is in a callback now. we only need to store this data every second or so, so don't waste time calculating it on every frame.
                     float redFlagRatio = float.NaN;
