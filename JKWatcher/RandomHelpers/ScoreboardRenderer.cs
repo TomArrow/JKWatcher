@@ -114,6 +114,7 @@ namespace JKWatcher.RandomHelpers
         public float redFlagMedianApproximate { get; set; }
         public float blueFlagMeanApproximate { get; set; }
         public float blueFlagMeanMedianApproximate { get; set; }
+        public GameStatsFrame[] frames { get; set; }
     }
 
     public class JSONGameInfo {
@@ -1568,6 +1569,7 @@ namespace JKWatcher.RandomHelpers
                         jsonGameInfo.dominance.redFlagMedianApproximate = (float)redFlagMean.GetAverage().GetValueOrDefault(0);
                         jsonGameInfo.dominance.blueFlagMeanApproximate = (float)blueFlagMean.GetRealMean().GetValueOrDefault(0);
                         jsonGameInfo.dominance.blueFlagMeanMedianApproximate = (float)blueFlagMean.GetAverage().GetValueOrDefault(0);
+                        jsonGameInfo.dominance.frames = frames;
                     }
                 }
 
