@@ -424,6 +424,10 @@ namespace JKWatcher
         public int returned;
         public int totalKills;
         public int totalDeaths;
+        public int totalSelfDeaths;
+        public int totalSuicides;
+        public int totalSuicidesNearbyEnemy;
+        public int totalWorldDeaths;
         public bool fightBotIgnore;
         public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;

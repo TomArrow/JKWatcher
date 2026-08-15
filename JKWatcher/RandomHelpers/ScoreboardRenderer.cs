@@ -106,6 +106,7 @@ namespace JKWatcher.RandomHelpers
         }
     }
 
+
     public class JSONDominanceInfo
     {
         public float dominanceMeanApproximate { get; set; }
@@ -153,6 +154,13 @@ namespace JKWatcher.RandomHelpers
         public float withFlagPerMinute { get; set; }
     }
 
+    public class JSONOtherDeaths
+    {
+        public int suicides { get; set; }
+        public int suicidesWithNearbyEnemy { get; set; }
+        public int selfDeaths { get; set; }
+        public int worldDeaths { get; set; }
+    }
     public class ScoreboardEntry
     {
         // special stuff only for CSV
@@ -164,6 +172,7 @@ namespace JKWatcher.RandomHelpers
         public double? tiltFactor { get; set; } = null;
         public JSONRollsInfo rolls { get; set; } = new JSONRollsInfo();
         public Dictionary<string, UInt64> strafeStyles { get; set; } = new Dictionary<string, UInt64>();
+        public JSONOtherDeaths otherDeaths { get; set; } = new JSONOtherDeaths();
 
         // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
@@ -338,7 +347,8 @@ namespace JKWatcher.RandomHelpers
     {
         Func<ScoreboardEntry, string> fetcher = null;
         string name = null;
-        public CSVColumnInfo(string nameA, Func<ScoreboardEntry, string> fetchFunc)
+        bool skipJson = false; // mostly adding csv stuff to the json for backwards compatibility. for new stuff we dont need it.
+        public CSVColumnInfo(string nameA, Func<ScoreboardEntry, string> fetchFunc, bool skipJsonA = false)
         {
             if (nameA is null || fetchFunc is null)
             {
@@ -346,6 +356,7 @@ namespace JKWatcher.RandomHelpers
             }
             name = nameA;
             fetcher = fetchFunc;
+            skipJson = skipJsonA;
         }
         public static string EscapeValue(string input)
         {
@@ -384,7 +395,7 @@ namespace JKWatcher.RandomHelpers
                 Helpers.logToFile($"CSV column {name} data is null wtf",true);
                 data = "";
             }
-            if (!string.IsNullOrWhiteSpace(name)) // for json output containing the old csv style data as a backup
+            if (!string.IsNullOrWhiteSpace(name) && !skipJson) // for json output containing the old csv style data as a backup
             {
                 entry.csvData[name] = data;
             }
@@ -631,9 +642,9 @@ namespace JKWatcher.RandomHelpers
         static readonly Brush darkenBgBrush = new SolidBrush(Color.FromArgb(bgAlpha, 0, 0, 0));
         static readonly Pen linePen = new Pen(Color.FromArgb(bgAlpha/2, 128, 128, 128),0.5f);
 
-        private static string block0(string input, string prefixIfUnblocked="")
+        private static string block0(string input, string prefixIfUnblocked="", string suffixIfUnblocked="")
         {
-            return input == "0" ? "" : $"{prefixIfUnblocked}{input}";
+            return input == "0" ? "" : $"{prefixIfUnblocked}{input}{suffixIfUnblocked}";
         }
 
         private static float exaggerate0to1scale(float input)
@@ -661,6 +672,7 @@ namespace JKWatcher.RandomHelpers
             JSONGameInfo jsonGameInfo = new JSONGameInfo();
 
             bool anyKillsLogged = false;
+            bool anyOtherDeaths = false;
             bool anyValidGlicko2 = false;
 
             if(options is null) options = new Options();
@@ -732,6 +744,14 @@ namespace JKWatcher.RandomHelpers
                 entry.blocksTeam = kvp.Value.chatCommandTrackingStuff.blocksFriendly;
                 entry.blocksTeamCapper = kvp.Value.chatCommandTrackingStuff.blocksFlagCarrierFriendly;
                 entry.blocksTotal = entry.blocksEnemy+ entry.blocksEnemyCapper + entry.blocksTeam + entry.blocksTeamCapper;
+                entry.otherDeaths.suicides = kvp.Value.chatCommandTrackingStuff.totalSuicides;
+                entry.otherDeaths.suicidesWithNearbyEnemy = kvp.Value.chatCommandTrackingStuff.totalSuicidesNearbyEnemy;
+                entry.otherDeaths.selfDeaths = kvp.Value.chatCommandTrackingStuff.totalSelfDeaths;
+                entry.otherDeaths.worldDeaths = kvp.Value.chatCommandTrackingStuff.totalWorldDeaths;
+                if(entry.otherDeaths.suicides > 0 || entry.otherDeaths.selfDeaths > 0 || entry.otherDeaths.worldDeaths > 0)
+                {
+                    anyOtherDeaths = true;
+                }
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["DBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BLUBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACKSTAB_GENERAL);
@@ -1275,9 +1295,11 @@ namespace JKWatcher.RandomHelpers
                     { overflowMode = ColumnInfo.OverflowMode.WrapClip });
                 }
             }
-            if (anyKillsLogged)
+            if (anyKillsLogged || anyOtherDeaths)
             {
-                columns.Add(new ColumnInfo("K/D", 0, 55, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }, infoPool.hexSupport));
+                columns.Add(new ColumnInfo("K/D", 0, 55, normalFont, (a) => { if (a.stats.chatCommandTrackingStuff.totalKills == 0 && a.stats.chatCommandTrackingStuff.totalDeaths == 0) { return ""; } return $"{a.stats.chatCommandTrackingStuff.totalKills}/{a.stats.chatCommandTrackingStuff.totalDeaths}"; }, infoPool.hexSupport) { noAdvanceAfter = true });
+                columns.Add(new ColumnInfo("", 15, 55, tinyFont, (a) => { 
+                    return $"^yfff8{block0(a.otherDeaths.suicides.ToString(), "K", block0(a.otherDeaths.suicidesWithNearbyEnemy.ToString(), "(^yf998", ")^yfff8"))}{block0(a.otherDeaths.selfDeaths.ToString(), "/S")}{block0(a.otherDeaths.worldDeaths.ToString(), "/W")}"; }, infoPool.hexSupport) { });
             } else if(gameType > GameType.Team && ((foundFields & (1 << (int)ScoreFields.KILLS)) > 0 || (foundFields & (1 << (int)ScoreFields.TOTALKILLS)) > 0))
             {
                 // MOH
@@ -1451,6 +1473,11 @@ namespace JKWatcher.RandomHelpers
             csvColumns.Add(new CSVColumnInfo("BLOCKS-TEAMCAPPER", (a) => { return a.blocksTeamCapper.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("BLOCKS-ENEMY", (a) => { return a.blocksEnemy.ToString(); }));
             csvColumns.Add(new CSVColumnInfo("BLOCKS-ENEMYCAPPER", (a) => { return a.blocksEnemyCapper.ToString(); }));
+
+            csvColumns.Add(new CSVColumnInfo("OTHERDEATHS-SUICIDE", (a) => { return a.otherDeaths.suicides.ToString(); }, true));
+            csvColumns.Add(new CSVColumnInfo("OTHERDEATHS-SUICIDEWITHNEARBYENEMY", (a) => { return a.otherDeaths.suicidesWithNearbyEnemy.ToString(); }, true));
+            csvColumns.Add(new CSVColumnInfo("OTHERDEATHS-SELFDEATHS", (a) => { return a.otherDeaths.selfDeaths.ToString(); }, true));
+            csvColumns.Add(new CSVColumnInfo("OTHERDEATHS-WORLDDEATHS", (a) => { return a.otherDeaths.worldDeaths.ToString(); }, true));
 
             const float sidePadding = 90;
             const float totalWidth = 1920 - sidePadding - sidePadding;

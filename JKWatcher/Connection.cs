@@ -2023,6 +2023,37 @@ namespace JKWatcher
                         }
                     }
                 }
+                else if (this.IsMainChatConnection)
+                {
+                    lock (infoPool.killTrackers) {
+                        if (attacker == target)
+                        {
+                            if (mod == MeansOfDeathGeneral.MOD_SUICIDE_GENERAL)
+                            {
+                                infoPool.playerInfo[target].chatCommandTrackingStuff.totalSuicides++;
+                                infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.totalSuicides++;
+                                Team targetTeam = infoPool.playerInfo[target].team;
+                                Team enemyTeam = infoPool.playerInfo[target].team == Team.Free ? Team.Free : (infoPool.playerInfo[target].team == Team.Red ? Team.Blue : Team.Red);
+                                GetTeamPressure(enemyTeam, deathPosition, -1, out _, out float closestEnemy, out _);
+                                if (closestEnemy < 250.0f)
+                                {
+                                    infoPool.playerInfo[target].chatCommandTrackingStuff.totalSuicidesNearbyEnemy++;
+                                    infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.totalSuicidesNearbyEnemy++;
+                                }
+                            }
+                            else
+                            {
+                                infoPool.playerInfo[target].chatCommandTrackingStuff.totalSelfDeaths++;
+                                infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.totalSelfDeaths++;
+                            }
+                        }
+                        else if (attacker >= client.ClientHandler.MaxClients)
+                        {
+                            infoPool.playerInfo[target].chatCommandTrackingStuff.totalWorldDeaths++;
+                            infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.totalWorldDeaths++;
+                        }
+                    }
+                }
 
                 ClientEntity copyOfEntity = e.Entity; // This is necessary in order to read the fixed float arrays. Don't ask why, idk.
                 Vector3 locationOfDeath;
@@ -2757,8 +2788,10 @@ namespace JKWatcher
         //      - OR carrier team's flag is being held 
         //          - AND the carrier's team has someone within 300 units of it (gotta be careful cuz we cant see walls, this might already lead to some errors rn)
         //          - AND the carrier's team has someone closer to it than the flag team 
-        //          - OR has someone within 200 units of it (roll distance) and flag team no closer than 100 units
-        // - flag carrier's distance to his own pad is closer than enemy and closer than 500 units (walls not much of a concern for most maps for pad)
+        //              - OR has someone within 200 units of it (roll distance) and flag team no closer than 100 units
+        // - flag carrier's distance to his own pad is closer than 500 units (walls not much of a concern for most maps for pad)
+        // - flag carrier's distance to his own pad is closer than closest flag team member
+        //      - OR flag carrier's distance to his own pad is under 200 units and closest flag team member is over 100 units from pad (could roll)
         // TODO maybe consider vertical distance cuz of maps like mp/ctf3?
         //
         // returns client number that might score. or -1 if none.

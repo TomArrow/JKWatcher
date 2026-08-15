@@ -2112,6 +2112,13 @@ namespace JKWatcher
                                     namesAdded++;
                                 }
                             }
+                            string nwhname = infoPool.playerInfo[numberParams[0]].nwhId?.playerName;
+                            if (activeMatch && infoPool.playerInfo[numberParams[0]].team != Team.Spectator && !string.IsNullOrWhiteSpace(nwhname))
+                            {
+                                sb2.Append(namesAdded > 0 ? " ," : "");
+                                sb2.Append(nwhname);
+                                namesAdded++;
+                            }
                             ChatCommandAnswer(pm, $"{countQualifier}{infoPool.playerInfo[numberParams[0]].name} other names: {sb2.ToString()}", true, true, true);
 
                             notDemoCommand = true;
