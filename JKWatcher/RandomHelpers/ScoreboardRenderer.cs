@@ -619,6 +619,8 @@ namespace JKWatcher.RandomHelpers
         static readonly Pen redFlagPen = new Pen(redFlagBrush,1.0f);
         static readonly Pen blueFlagPen = new Pen(blueFlagBrush, 1.0f);
         static readonly Pen dominancePen = new Pen(dominanceBrush, 0.5f);
+        static readonly Pen redFlagThickPen = new Pen(redFlagBrush, 1.7f);
+        static readonly Pen blueFlagThickPen = new Pen(blueFlagBrush, 1.7f);
         static readonly Brush redTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, 255, color0_2, color0_2));
         static readonly Brush blueTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_2, color0_2, 255));
         static readonly Brush freeTeamBrush = new SolidBrush(Color.FromArgb(bgAlpha, color0_8, color0_8, 0));
@@ -1668,15 +1670,48 @@ namespace JKWatcher.RandomHelpers
                     // now draw events (captures/ returns etc)
                     for (int i = 0; i < frames.Length; i++)
                     {
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.BlueScoreChance))
+                        {// maybe these need i-1 for the pos?
+                            float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            g.DrawRectangle(redFlagPen, new Rectangle((int)newposX - 6, (int)posY - 6, 12, 12));
+                        }
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.RedScoreChance))
+                        {// maybe these need i-1 for the pos?
+                            float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            g.DrawRectangle(blueFlagPen, new Rectangle((int)newposX - 6, (int)(posY + statusheight) - 6, 12, 12));
+                        }
+
                         if (frames[i].flags.HasFlag(GameEventFlags.Flags.BlueCapture))
                         {// maybe these need i-1 for the pos?
                             float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
-                            g.FillRectangle(redFlagBrush, new RectangleF(newposX-5, posY-5, 10, 10));
+                            g.FillRectangle(redFlagBrush, new RectangleF(newposX-4, posY-4, 8, 8));
                         }
                         if (frames[i].flags.HasFlag(GameEventFlags.Flags.RedCapture))
                         {
                             float newposX = posXStart + bgWidth * ((float)i / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
-                            g.FillRectangle(blueFlagBrush, new RectangleF(newposX-5, posY-5+statusheight, 10, 10));
+                            g.FillRectangle(blueFlagBrush, new RectangleF(newposX-4, posY-4+statusheight, 8, 8));
+                        }
+
+
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.BlueReturn))
+                        {// maybe these need i-1 for the pos?
+                            int posIndexOffset = i == 0 ? 0 : -1;
+                            int posIndex = i+ posIndexOffset;
+                            float newposX = posXStart + bgWidth * ((float)posIndex / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            float realPosY = posY + frames[posIndex].redFlagRatio.ValueOrDefault(0.0f) * statusheight;
+                            // lil X symbol
+                            g.DrawLine(redFlagThickPen, new PointF(newposX - 4, (int)realPosY - 4), new PointF(newposX + 4, (int)realPosY + 4));
+                            g.DrawLine(redFlagThickPen, new PointF(newposX - 4, (int)realPosY + 4), new PointF(newposX + 4, (int)realPosY - 4));
+                        }
+                        if (frames[i].flags.HasFlag(GameEventFlags.Flags.RedReturn))
+                        {// maybe these need i-1 for the pos?
+                            int posIndexOffset = i == 0 ? 0 : -1;
+                            int posIndex = i+ posIndexOffset;
+                            float newposX = posXStart + bgWidth * ((float)posIndex / (float)(frames.Length - 1)); // wont divide by 0 cuz if (frames.Length > 1)
+                            float realPosY = posY + (1.0f-frames[posIndex].blueFlagRatio.ValueOrDefault(0.0f)) * statusheight;
+                            // lil X symbol
+                            g.DrawLine(blueFlagThickPen, new PointF(newposX - 4, (int)realPosY - 4), new PointF(newposX + 4, (int)realPosY + 4));
+                            g.DrawLine(blueFlagThickPen, new PointF(newposX - 4, (int)realPosY + 4), new PointF(newposX + 4, (int)realPosY - 4));
                         }
                     }
 

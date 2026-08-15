@@ -310,7 +310,8 @@ namespace JKWatcher
         private double divider = 0.0;
         public void AddValue(double value, double weight = 1.0)
         {
-            if(weight == 0.0)
+            if (double.IsNaN(value) || double.IsInfinity(value)) return; // just in case
+            if (weight == 0.0)
             {
                 return;
             } else if(weight < 0.0)
@@ -347,6 +348,7 @@ namespace JKWatcher
 
         public override void AddValue(double value)
         {
+            if (double.IsNaN(value) || double.IsInfinity(value)) return; // just in case
             digest.Add(value);
             total += value;
             divider += 1;
@@ -1506,6 +1508,8 @@ namespace JKWatcher
             BlueCapture=8,
             RedPickup=16,
             BluePickup=32,
+            RedScoreChance=64,
+            BlueScoreChance=128,
         }
         public GameEventFlags.Flags flags;
 

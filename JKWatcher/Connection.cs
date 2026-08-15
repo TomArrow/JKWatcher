@@ -4382,6 +4382,14 @@ namespace JKWatcher
                             }
                             if (newOpp)
                             {
+                                if (relevantTeam == Team.Red)
+                                {
+                                    infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.RedScoreChance;
+                                }
+                                else
+                                {
+                                    infoPool.eventFlagsThisGame.flags |= GameEventFlags.Flags.BlueScoreChance;
+                                }
                                 serverWindow.addToLog($"^3SCORE OPPORTUNITY DEBUG: Player {piCappa.clientNum} has score opportunity for {relevantTeam} flag ({piCappa.name})");
                             }
                         }
