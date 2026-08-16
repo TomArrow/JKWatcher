@@ -6,6 +6,21 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+	public enum itemType_t
+	{
+		IT_BAD,
+		IT_WEAPON,              // EFX: rotate + upscale + minlight
+		IT_AMMO,                // EFX: rotate
+		IT_ARMOR,               // EFX: rotate + minlight
+		IT_HEALTH,              // EFX: static external sphere + rotating internal
+		IT_POWERUP,             // instant on, timer based
+								// EFX: rotate + external ring that rotates
+		IT_HOLDABLE,            // single use, holdable item
+								// EFX: rotate + bob
+		IT_PERSISTANT_POWERUP,
+		IT_TEAM
+	}
+
 	class JOStuff { 
 
 	public enum EntityFlags :int {
@@ -183,7 +198,7 @@ namespace JKWatcher
 			WP_NUM_WEAPONS
 		}
 
-		public enum holdable_t
+		/*public enum holdable_t
 		{
 			HI_NONE,
 
@@ -195,7 +210,7 @@ namespace JKWatcher
 			HI_SENTRY_GUN,
 
 			HI_NUM_HOLDABLE
-		}
+		}*/
 		public enum powerup_t : int
 		{
 			PW_NONE,
@@ -230,62 +245,8 @@ namespace JKWatcher
 
 		}
 
-		public enum itemType_t
-		{
-			IT_BAD,
-			IT_WEAPON,              // EFX: rotate + upscale + minlight
-			IT_AMMO,                // EFX: rotate
-			IT_ARMOR,               // EFX: rotate + minlight
-			IT_HEALTH,              // EFX: static external sphere + rotating internal
-			IT_POWERUP,             // instant on, timer based
-									// EFX: rotate + external ring that rotates
-			IT_HOLDABLE,            // single use, holdable item
-									// EFX: rotate + bob
-			IT_PERSISTANT_POWERUP,
-			IT_TEAM
-		}
 
-		public class ItemListArray : List<gitem_s>
-		{
-			public ItemListArray()
-			{
-			}
-			public void Add(string classname,string pickup_sound,string[] world_model,string view_model,string icon,int quantity,itemType_t giType,int giTag,string precaches,string sounds)
-			{
-				this.Add(new gitem_s()
-				{
-					classname = classname,
-					pickup_sound = pickup_sound,
-					world_model = world_model,
-					view_model=view_model,
-					icon=icon,
-					quantity=quantity,
-					giType=giType,
-					giTag=giTag,
-					precaches=precaches,
-					sounds=sounds
-				});
-			}
-		}
 
-		public struct gitem_s
-		{
-			public string classname;    // spawning name
-			public string pickup_sound;
-			public string[] world_model; // up to MaxItemModels
-			public string view_model;
-
-			public string icon;
-			//	char		*pickup_name;	// for printing on pickup
-
-			public int quantity;       // for ammo how much, or duration of powerup
-			public itemType_t giType;          // itemType_t.IT_* flags
-
-			public int giTag;
-
-			public string precaches;        // string of all models and images this item will use
-			public string sounds;       // string of all sounds this item will use
-		}
 
 		//static int[] stuff = new int[]  { 1,2,3};
 
@@ -382,7 +343,7 @@ namespace JKWatcher
 			/* pickup *///	"Seeker Drone",
 					120,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_SEEKER,
+					(int)holdable_general_t.HI_SEEKER,
 			/* precache */ "",
 			/* sounds */ ""
 				},
@@ -400,7 +361,7 @@ namespace JKWatcher
 			/* pickup *///	"Forcefield",
 					120,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_SHIELD,
+					(int)holdable_general_t.HI_SHIELD,
 			/* precache */ "",
 			/* sounds */ "sound/weapons/detpack/stick.wav sound/movers/doors/forcefield_on.wav sound/movers/doors/forcefield_off.wav sound/movers/doors/forcefield_lp.wav sound/effects/bumpfield.wav"
 				},
@@ -418,7 +379,7 @@ namespace JKWatcher
 			/* pickup *///	"Bacta Canister",
 					25,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_MEDPAC,
+					(int)holdable_general_t.HI_MEDPAC,
 			/* precache */ "",
 			/* sounds */ ""
 				},
@@ -436,7 +397,7 @@ namespace JKWatcher
 			/* pickup *///	"Datapad",
 					1,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_DATAPAD,
+					(int)holdable_general_t.HI_DATAPAD,
 			/* precache */ "",
 			/* sounds */ ""
 				},
@@ -454,7 +415,7 @@ namespace JKWatcher
 			/* pickup *///	"Binoculars",
 					60,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_BINOCULARS,
+					(int)holdable_general_t.HI_BINOCULARS,
 			/* precache */ "",
 			/* sounds */ ""
 				},
@@ -472,7 +433,7 @@ namespace JKWatcher
 			/* pickup *///	"Sentry Gun",
 					120,
 					itemType_t.IT_HOLDABLE,
-					(int)holdable_t.HI_SENTRY_GUN,
+					(int)holdable_general_t.HI_SENTRY_GUN,
 			/* precache */ "",
 			/* sounds */ ""
 				},
@@ -730,7 +691,7 @@ namespace JKWatcher
 			/*QUAKED (int)ammo_t.AMMO_thermal (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
 			*/
 				{
-					"(int)ammo_t.AMMO_thermal",
+					"ammo_thermal",
 					"sound/weapons/w_pkup.wav",
 					new string[] { "models/weapons2/thermal/thermal_pu.md3",
 					"models/weapons2/thermal/thermal_w.glm", null, null},
@@ -747,7 +708,7 @@ namespace JKWatcher
 			/*QUAKED (int)ammo_t.AMMO_tripmine (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
 			*/
 				{
-					"(int)ammo_t.AMMO_tripmine",
+					"ammo_tripmine",
 					"sound/weapons/w_pkup.wav",
 					new string[] { "models/weapons2/laser_trap/laser_trap_pu.md3",
 					"models/weapons2/laser_trap/laser_trap_w.glm", null, null},
@@ -764,7 +725,7 @@ namespace JKWatcher
 			/*QUAKED (int)ammo_t.AMMO_detpack (.3 .3 1) (-16 -16 -16) (16 16 16) suspended
 			*/
 				{
-					"(int)ammo_t.AMMO_detpack",
+					"ammo_detpack",
 					"sound/weapons/w_pkup.wav",
 					new string[] { "models/weapons2/detpack/det_pack_pu.md3", "models/weapons2/detpack/det_pack_proj.glm", "models/weapons2/detpack/det_pack_w.glm", null},
 			/* view */		"models/weapons2/detpack/det_pack.md3", 
@@ -869,7 +830,7 @@ namespace JKWatcher
 			Don't place this
 			*/
 				{
-					"(int)ammo_t.AMMO_force",
+					"ammo_force",
 					"sound/player/pickupenergy.wav",
 					new string[] { "models/items/energy_cell.md3",
 					null, null, null},
@@ -887,7 +848,7 @@ namespace JKWatcher
 			Ammo for the Bryar and Blaster pistols.
 			*/
 				{
-					"(int)ammo_t.AMMO_blaster",
+					"ammo_blaster",
 					"sound/player/pickupenergy.wav",
 					new string[] { "models/items/energy_cell.md3",
 					null, null, null},
@@ -905,7 +866,7 @@ namespace JKWatcher
 			Ammo for Tenloss Disruptor, Wookie Bowcaster, and the Destructive Electro Magnetic Pulse (demp2 ) guns
 			*/
 				{
-					"(int)ammo_t.AMMO_powercell",
+					"ammo_powercell",
 					"sound/player/pickupenergy.wav",
 					new string[] { "models/items/power_cell.md3",
 					null, null, null},
@@ -923,7 +884,7 @@ namespace JKWatcher
 			Ammo for Imperial Heavy Repeater and the Golan Arms Flechette
 			*/
 				{
-					"(int)ammo_t.AMMO_metallic_bolts",
+					"ammo_metallic_bolts",
 					"sound/player/pickupenergy.wav",
 					new string[] { "models/items/metallic_bolts.md3",
 					null, null, null},
@@ -941,7 +902,7 @@ namespace JKWatcher
 			Ammo for Merr-Sonn portable missile launcher
 			*/
 				{
-					"(int)ammo_t.AMMO_rockets",
+					"ammo_rockets",
 					"sound/player/pickupenergy.wav",
 					new string[] { "models/items/rockets.md3",
 					null, null, null},
@@ -1076,7 +1037,7 @@ namespace JKWatcher
 		BG_FindItemForHoldable
 		==============
 		*/
-		public static int? BG_FindItemForHoldable(holdable_t pw)
+		public static int? BG_FindItemForHoldable(holdable_general_t pw)
 		{
 			int i;
 

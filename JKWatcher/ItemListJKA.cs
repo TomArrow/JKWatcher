@@ -6,6 +6,74 @@ using System.Threading.Tasks;
 
 namespace JKWatcher
 {
+	public enum holdable_general_t
+	{
+		HI_NONE,
+
+		HI_SEEKER,
+		HI_SHIELD,
+		HI_MEDPAC,
+		HI_DATAPAD,
+		HI_MEDPAC_BIG,
+		HI_BINOCULARS,
+		HI_SENTRY_GUN,
+		HI_JETPACK,
+
+		HI_HEALTHDISP,
+		HI_AMMODISP,
+		HI_EWEB,
+		HI_CLOAK,
+
+		HI_NUM_HOLDABLE
+	}
+
+	public struct gitem_s
+	{
+		public string classname;    // spawning name
+		public string pickup_sound;
+		public string[] world_model; // up to MaxItemModels
+		public string view_model;
+
+		public string icon;
+		//	char		*pickup_name;	// for printing on pickup
+
+		public int quantity;       // for ammo how much, or duration of powerup
+		public itemType_t giType;          // itemType_t.IT_* flags
+
+		public int giTag;
+
+		public string precaches;        // string of all models and images this item will use
+		public string sounds;       // string of all sounds this item will use
+		public string description;
+	}
+	public class ItemListArray : List<gitem_s>
+	{
+		public ItemListArray()
+		{
+		}
+		public gitem_s? TryGet(int index)
+        {
+			return (index < 0 || index > this.Count) ? null : this[index];
+        }
+		public void Add(string classname, string pickup_sound, string[] world_model, string view_model, string icon, int quantity, itemType_t giType, int giTag, string precaches, string sounds = "", string description = "")
+		{
+			this.Add(new gitem_s()
+			{
+				classname = classname,
+				pickup_sound = pickup_sound,
+				world_model = world_model,
+				view_model = view_model,
+				icon = icon,
+				quantity = quantity,
+				giType = giType,
+				giTag = giTag,
+				precaches = precaches,
+				sounds = sounds,
+				description = description
+			});
+		}
+	}
+
 	class JKAStuff
 	{
 
@@ -216,7 +284,7 @@ namespace JKWatcher
 				WP_NUM_WEAPONS
 			}
 
-			public enum holdable_t
+			/*public enum holdable_t
 			{
 				HI_NONE,
 
@@ -234,7 +302,7 @@ namespace JKWatcher
 				HI_CLOAK,
 
 				HI_NUM_HOLDABLE
-			}
+			}*/
 			public enum powerup_t : int
 			{
 				PW_NONE,
@@ -270,66 +338,7 @@ namespace JKWatcher
 
 			}
 
-			public enum itemType_t
-			{
-				IT_BAD,
-				IT_WEAPON,              // EFX: rotate + upscale + minlight
-				IT_AMMO,                // EFX: rotate
-				IT_ARMOR,               // EFX: rotate + minlight
-				IT_HEALTH,              // EFX: static external sphere + rotating internal
-				IT_POWERUP,             // instant on, timer based
-											// EFX: rotate + external ring that rotates
-				IT_HOLDABLE,            // single use, holdable item
-											// EFX: rotate + bob
-				IT_PERSISTANT_POWERUP,
-				IT_TEAM
-			}
-
-
-			public class ItemListArray : List<gitem_s>
-			{
-				public ItemListArray()
-				{
-				}
-				public void Add(string classname, string pickup_sound, string[] world_model, string view_model, string icon, int quantity, itemType_t giType, int giTag, string precaches, string sounds="", string description="")
-				{
-					this.Add(new gitem_s()
-					{
-						classname = classname,
-						pickup_sound = pickup_sound,
-						world_model = world_model,
-						view_model = view_model,
-						icon = icon,
-						quantity = quantity,
-						giType = giType,
-						giTag = giTag,
-						precaches = precaches,
-						sounds = sounds,
-						description = description
-					});
-				}
-			}
-
-			public struct gitem_s
-			{
-				public string classname;    // spawning name
-				public string pickup_sound;
-				public string[] world_model; // up to MaxItemModels
-				public string view_model;
-
-				public string icon;
-				//	char		*pickup_name;	// for printing on pickup
-
-				public int quantity;       // for ammo how much, or duration of powerup
-				public itemType_t giType;          // itemType_t.IT_* flags
-
-				public int giTag;
-
-				public string precaches;        // string of all models and images this item will use
-				public string sounds;       // string of all sounds this item will use
-				public string description;
-			}
-
+			
 			//static int[] stuff = new int[]  { 1,2,3};
 
 			static public ItemListArray bg_itemlist = new ItemListArray() {
@@ -431,7 +440,7 @@ Instant medpack pickup, heals 25
 /* pickup *///	"Seeker Drone",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_SEEKER,
+		(int)holdable_general_t.HI_SEEKER,
 /* precache */ "",
 /* sounds */ "",
 		"@MENUS_AN_ATTACK_DRONE_SIMILAR"                    // description
@@ -451,7 +460,7 @@ Portable shield
 /* pickup *///	"Forcefield",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_SHIELD,
+		(int)holdable_general_t.HI_SHIELD,
 /* precache */ "",
 /* sounds */ "sound/weapons/detpack/stick.wav sound/movers/doors/forcefield_on.wav sound/movers/doors/forcefield_off.wav sound/movers/doors/forcefield_lp.wav sound/effects/bumpfield.wav",
 		"@MENUS_THIS_STATIONARY_ENERGY"                 // description
@@ -471,7 +480,7 @@ Bacta canister pickup, heals 25 on use
 /* pickup *///	"Bacta Canister",
 		25,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_MEDPAC,
+		(int)holdable_general_t.HI_MEDPAC,
 /* precache */ "",
 /* sounds */ "",
 		"@SP_INGAME_BACTA_DESC"                 // description
@@ -491,7 +500,7 @@ Big bacta canister pickup, heals 50 on use
 /* pickup *///	"Bacta Canister",
 		25,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_MEDPAC_BIG,
+		(int)holdable_general_t.HI_MEDPAC_BIG,
 /* precache */ "",
 /* sounds */ "",
 		"@SP_INGAME_BACTA_DESC"                 // description
@@ -511,7 +520,7 @@ These will be standard equipment on the player - DO NOT PLACE
 /* pickup *///	"Binoculars",
 		60,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_BINOCULARS,
+		(int)holdable_general_t.HI_BINOCULARS,
 /* precache */ "",
 /* sounds */ "",
 		"@SP_INGAME_LA_GOGGLES_DESC"                    // description
@@ -531,7 +540,7 @@ Sentry gun inventory pickup.
 /* pickup *///	"Sentry Gun",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_SENTRY_GUN,
+		(int)holdable_general_t.HI_SENTRY_GUN,
 /* precache */ "",
 /* sounds */ "",
 		"@MENUS_THIS_DEADLY_WEAPON_IS"                  // description
@@ -551,7 +560,7 @@ Do not place.
 /* pickup *///	"Sentry Gun",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_JETPACK,
+		(int)holdable_general_t.HI_JETPACK,
 /* precache */ "effects/boba/jet.efx",
 /* sounds */ "sound/chars/boba/JETON.wav sound/chars/boba/JETHOVER.wav sound/effects/fire_lp.wav",
 		"@MENUS_JETPACK_DESC"                   // description
@@ -571,7 +580,7 @@ Do not place. For siege classes ONLY.
 /* pickup *///	"Sentry Gun",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_HEALTHDISP,
+		(int)holdable_general_t.HI_HEALTHDISP,
 /* precache */ "",
 /* sounds */ "",
 		""                  // description
@@ -591,7 +600,7 @@ Do not place. For siege classes ONLY.
 /* pickup *///	"Sentry Gun",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_AMMODISP,
+		(int)holdable_general_t.HI_AMMODISP,
 /* precache */ "",
 /* sounds */ "",
 		""                  // description
@@ -611,7 +620,7 @@ Do not place. For siege classes ONLY.
 /* pickup *///	"Sentry Gun",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_EWEB,
+		(int)holdable_general_t.HI_EWEB,
 /* precache */ "",
 /* sounds */ "",
 		"@MENUS_EWEB_DESC"                  // description
@@ -631,7 +640,7 @@ Do not place. For siege classes ONLY.
 /* pickup *///	"Seeker Drone",
 		120,
 	itemType_t.IT_HOLDABLE,
-		(int)holdable_t.HI_CLOAK,
+		(int)holdable_general_t.HI_CLOAK,
 /* precache */ "",
 /* sounds */ "",
 		"@MENUS_CLOAK_DESC"                 // description
@@ -1388,12 +1397,13 @@ Only in One Flag CTF games
 			}
 
 
+
 			/*
 			==============
 			BG_FindItemForHoldable
 			==============
-			
-			public static int? BG_FindItemForHoldable(holdable_t pw)
+			*/
+			public static int? BG_FindItemForHoldable(holdable_general_t pw)
 			{
 				int i;
 
@@ -1408,7 +1418,7 @@ Only in One Flag CTF games
 				//Com_Error(ERR_DROP, "HoldableItem not found");
 
 				return null;
-			}*/
+			}
 
 
 			

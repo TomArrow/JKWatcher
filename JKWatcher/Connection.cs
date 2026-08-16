@@ -2403,7 +2403,9 @@ namespace JKWatcher
                     }
                     else
                     {
-                        if (entityKinds[itemnum] == EntityKind.Mine)
+                        string itemname = entityItemNames[itemnum];
+                        bool isMine = entityKinds[itemnum] == EntityKind.Mine;
+                        if (isMine || !string.IsNullOrWhiteSpace(itemname))
                         {
                             Trajectory basePos = e.Entity.CurrentState.Position;
                             Vector3 pos;
@@ -2412,28 +2414,22 @@ namespace JKWatcher
                             pos.Z = basePos.Base[2];
                             float positionratio = GetBaseRatio(pos);
                             PlayerInfo pi = infoPool.playerInfo[clientNum];
+                            Team itemTeam = Team.Free;
                             if (float.IsFinite(positionratio))
                             {
-                                Team mineOwnerTeam = positionratio < 0.5f ? Team.Red : Team.Blue;
+                                itemTeam = positionratio < 0.5f ? Team.Red : Team.Blue;
+                            }
 
-                                if (pi.team == mineOwnerTeam)
-                                {
-                                    //pi.chatCommandTrackingStuff.minePickupCounter.Add(1);
-                                    //pi.chatCommandTrackingStuffThisGame.minePickupCounter.Add(1);
-                                    //serverWindow.addToLog($"^2EntityEvent.ItemPickup: ^7Client {clientNum} picked up {mineOwnerTeam} (own team) mines.", true);
-                                }
-                                else
-                                {
-                                    //pi.chatCommandTrackingStuff.minePickupCounterEnemy.Add(1);
-                                    //pi.chatCommandTrackingStuffThisGame.minePickupCounterEnemy.Add(1);
-                                    //serverWindow.addToLog($"^2EntityEvent.ItemPickup: ^7Client {clientNum} picked up {mineOwnerTeam} (enemy team) mines.", true);
-                                }
-                                pi.chatCommandTrackingStuff.minePickupCounter[(int)mineOwnerTeam].Add(1);
-                                pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)mineOwnerTeam].Add(1);
-                            } else
+                            if (!string.IsNullOrWhiteSpace(itemname))
                             {
-                                pi.chatCommandTrackingStuff.minePickupCounter[(int)Team.Free].Add(1);
-                                pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)Team.Free].Add(1);
+                                serverWindow.addToLog($"^3Item debug: Item {itemname} picked up by client {pi.clientNum}: {pi.name}");
+                                pi.chatCommandTrackingStuff.itemPickupCounter[(int)itemTeam].Add(itemname,1);
+                                pi.chatCommandTrackingStuffThisGame.itemPickupCounter[(int)itemTeam].Add(itemname,1);
+                            }
+                            if(isMine)
+                            {
+                                pi.chatCommandTrackingStuff.minePickupCounter[(int)itemTeam].Add(1);
+                                pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)itemTeam].Add(1);
                             }
                         }
                     }
@@ -2587,6 +2583,7 @@ namespace JKWatcher
         //public AliveInfo[] lastAliveInfo = new AliveInfo[64];
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         EntityKind[] entityKinds = new EntityKind[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
+        string[] entityItemNames = new string[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
         public int[] saberMove = new int[64];
         public int[] saberStyle = new int[64];
         public Vector3[] lastVelocity = new Vector3[64];
@@ -4251,6 +4248,7 @@ namespace JKWatcher
                 if (snapEntityNum != -1/*entities[i].CurrentValid*/)
                 {
                     bool entityKindFound = false;
+                    bool itemNameFound = false;
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
@@ -4341,6 +4339,17 @@ namespace JKWatcher
                         }
                     } else if (snap.Entities[snapEntityNum].EntityType == ETItem)
                     {
+                        string itemname = infoPool.itemList?.TryGet(snap.Entities[snapEntityNum].ModelIndex)?.classname;
+                        if (!string.IsNullOrWhiteSpace(itemname))
+                        {
+                            string oldName = entityItemNames[i];
+                            if (string.IsNullOrWhiteSpace(oldName) || !oldName.Equals(itemname))
+                            {
+                                serverWindow.addToLog($"^3Item debug: Found {itemname} as entity {i}");
+                            }
+                            entityItemNames[i] = itemname;
+                            itemNameFound = true;
+                        }
                         if(snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ||
                             snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Blue].flagItemNumber
                             )
@@ -4379,6 +4388,10 @@ namespace JKWatcher
                     if (!entityKindFound)
                     {
                         entityKinds[i] = EntityKind.Unknown;
+                    }
+                    if (!itemNameFound)
+                    {
+                        entityItemNames[i] = null;
                     }
                 }
                 else

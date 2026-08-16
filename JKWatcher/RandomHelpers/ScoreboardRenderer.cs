@@ -147,6 +147,12 @@ namespace JKWatcher.RandomHelpers
         public string likelyPlayer { get; set; }
     }
 
+    public class JSONItemPickups
+    {
+        public Dictionary<string, int> blueBase { get; set; } = null;
+        public Dictionary<string, int> redBase { get; set; } = null;
+        public Dictionary<string, int> nonTeamed { get; set; } = null;
+    }
     public class JSONRollsInfo {
         public int rolls { get; set; }
         public float rollsPerMinute { get; set; }
@@ -173,6 +179,7 @@ namespace JKWatcher.RandomHelpers
         public JSONRollsInfo rolls { get; set; } = new JSONRollsInfo();
         public Dictionary<string, UInt64> strafeStyles { get; set; } = new Dictionary<string, UInt64>();
         public JSONOtherDeaths otherDeaths { get; set; } = new JSONOtherDeaths();
+        public JSONItemPickups itemPickups { get; set; } = new JSONItemPickups();
 
         // normal stuff, some may be done {get;set;} for csv too
         public IdentifiedPlayerStats stats;
@@ -752,6 +759,9 @@ namespace JKWatcher.RandomHelpers
                 {
                     anyOtherDeaths = true;
                 }
+                entry.itemPickups.blueBase = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Blue].GetDictionary();
+                entry.itemPickups.redBase = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Red].GetDictionary();
+                entry.itemPickups.nonTeamed = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Free].GetDictionary();
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["DBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_CR_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACK_GENERAL);
                 entry.slashCounts[ScoreboardEntry.slashTypeIndex["BLUBS"]] = kvp.Value.chatCommandTrackingStuff.slashTypeCounter.GetValue((int)SaberMovesGeneral.LS_A_BACKSTAB_GENERAL);

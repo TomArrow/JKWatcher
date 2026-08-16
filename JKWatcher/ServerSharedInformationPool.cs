@@ -24,6 +24,10 @@ namespace JKWatcher
     {
         Unknown,
         Mine,
+        Seeker,
+        Shield,
+        Medpak,
+        Sentry,
         MaxKinds
     }
 
@@ -126,7 +130,7 @@ namespace JKWatcher
     {
         public int value { get; private set; } = 0;
         private object ourLock = new object();
-        public DateTime lastValueChanged { get; private set; } = DateTime.Now;
+        public DateTime lastValueChanged { get; private set; } = DateTime.Now - new TimeSpan(6,0,0);
 
         public bool Add(int plus, bool rateLimit = true)
         {
@@ -142,7 +146,60 @@ namespace JKWatcher
             }
         }
     }
-    
+
+    public class ReliableAssociativeValueCounter<T>
+    {
+        private object ourLock = new object();
+        Dictionary<T, ReliableValueCounter> values = null;
+        IEqualityComparer<T> comparer = null;
+        public bool Add(T key, int plus, bool rateLimit = true)
+        {
+            lock (ourLock)
+            {
+                if (!values.ContainsKey(key))
+                {
+                    values[key] = new ReliableValueCounter();
+                }
+                return values[key].Add(plus,rateLimit);
+            }
+        }
+        public ReliableAssociativeValueCounter(IEqualityComparer<T> comparerA)
+        {
+            comparer = comparerA;
+            lock (ourLock)
+            {
+                values = new Dictionary<T, ReliableValueCounter>(comparer);
+            }
+        }
+        public ReliableAssociativeValueCounter()
+        {
+            lock (ourLock)
+            {
+                values = new Dictionary<T, ReliableValueCounter>();
+            }
+        }
+        public Dictionary<T,int> GetDictionary()
+        {
+            Dictionary<T, int> retVal = null;
+            if (comparer is null)
+            {
+                retVal = new Dictionary<T, int>();
+            }
+            else
+            {
+                retVal = new Dictionary<T, int>(comparer);
+            }
+            lock (ourLock)
+            {
+                foreach(var kvp in values)
+                {
+                    retVal[kvp.Key] = kvp.Value.value;
+                }
+            }
+            return retVal;
+        }
+    }
+
     public class ReliableTypedValueCounter
     {
         private class LastChangedAndValue {
@@ -479,6 +536,7 @@ namespace JKWatcher
         //public ReliableValueCounter dbsCounter = new ReliableValueCounter();
         public ReliableTypedValueCounterInt slashTypeCounter = new ReliableTypedValueCounterInt();
         public ReliableValueCounter[] minePickupCounter = new ReliableValueCounter[4] { new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter()};
+        public ReliableAssociativeValueCounter<string>[] itemPickupCounter = new ReliableAssociativeValueCounter<string>[] { new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase) };
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -1778,7 +1836,7 @@ namespace JKWatcher
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
         public int[] entityKindItemNumbers = new int[(int)EntityKind.MaxKinds];
-
+        public ItemListArray itemList = null;
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -1850,7 +1908,12 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG,false).Value;
                 //this.saberWeaponNum = JKAStuff.ItemList.bg_itemlist[JKAStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
                 this.saberWeaponNum = (int)JKAStuff.ItemList.weapon_t.WP_SABER;
+                itemList = JKAStuff.ItemList.bg_itemlist;
                 entityKindItemNumbers[(int)EntityKind.Mine] = JKAStuff.ItemList.BG_FindItemForWeapon(JKAStuff.ItemList.weapon_t.WP_TRIP_MINE).Value;
+                entityKindItemNumbers[(int)EntityKind.Seeker] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SEEKER).Value;
+                entityKindItemNumbers[(int)EntityKind.Shield] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
+                entityKindItemNumbers[(int)EntityKind.Medpak] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
+                entityKindItemNumbers[(int)EntityKind.Sentry] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
 
             } else
             {
@@ -1858,7 +1921,12 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
                 //this.saberWeaponNum = JOStuff.ItemList.bg_itemlist[ JOStuff.ItemList.BG_FindItem("weapon_saber").Value].giTag;
                 this.saberWeaponNum = (int)JOStuff.ItemList.weapon_t.WP_SABER;
+                itemList = JOStuff.ItemList.bg_itemlist;
                 entityKindItemNumbers[(int)EntityKind.Mine] = JOStuff.ItemList.BG_FindItemForWeapon(JOStuff.ItemList.weapon_t.WP_TRIP_MINE).Value;
+                entityKindItemNumbers[(int)EntityKind.Seeker] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SEEKER).Value;
+                entityKindItemNumbers[(int)EntityKind.Shield] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
+                entityKindItemNumbers[(int)EntityKind.Medpak] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
+                entityKindItemNumbers[(int)EntityKind.Sentry] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
             }
         }
 
@@ -1869,13 +1937,23 @@ namespace JKWatcher
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_REDFLAG, isMBII).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JKAStuff.ItemList.BG_FindItemForPowerup(JKAStuff.ItemList.powerup_t.PW_BLUEFLAG, isMBII).Value;
 
+                itemList = JKAStuff.ItemList.bg_itemlist;
                 entityKindItemNumbers[(int)EntityKind.Mine] = JKAStuff.ItemList.BG_FindItemForWeapon(JKAStuff.ItemList.weapon_t.WP_TRIP_MINE).Value; // todo mb2? meh
+                entityKindItemNumbers[(int)EntityKind.Seeker] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SEEKER).Value;
+                entityKindItemNumbers[(int)EntityKind.Shield] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
+                entityKindItemNumbers[(int)EntityKind.Medpak] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
+                entityKindItemNumbers[(int)EntityKind.Sentry] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
             } else
             {
                 teamInfo[(int)JKClient.Team.Red].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_REDFLAG).Value;
                 teamInfo[(int)JKClient.Team.Blue].flagItemNumber = JOStuff.ItemList.BG_FindItemForPowerup(JOStuff.ItemList.powerup_t.PW_BLUEFLAG).Value;
 
+                itemList = JOStuff.ItemList.bg_itemlist;
                 entityKindItemNumbers[(int)EntityKind.Mine] = JOStuff.ItemList.BG_FindItemForWeapon(JOStuff.ItemList.weapon_t.WP_TRIP_MINE).Value; // todo mb2? meh
+                entityKindItemNumbers[(int)EntityKind.Seeker] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SEEKER).Value;
+                entityKindItemNumbers[(int)EntityKind.Shield] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
+                entityKindItemNumbers[(int)EntityKind.Medpak] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
+                entityKindItemNumbers[(int)EntityKind.Sentry] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
             }
         }
         /*
