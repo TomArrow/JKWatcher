@@ -537,6 +537,7 @@ namespace JKWatcher
         public ReliableTypedValueCounterInt slashTypeCounter = new ReliableTypedValueCounterInt();
         public ReliableValueCounter[] minePickupCounter = new ReliableValueCounter[4] { new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter(),new ReliableValueCounter()};
         public ReliableAssociativeValueCounter<string>[] itemPickupCounter = new ReliableAssociativeValueCounter<string>[] { new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase),new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase) };
+        public ReliableAssociativeValueCounter<string> itemUseCounter = new ReliableAssociativeValueCounter<string>(StringComparer.InvariantCultureIgnoreCase);
 
         private object trackedKillsLock = new object();
         private HashSet<UInt64> trackedKills = new HashSet<ulong>();
@@ -1836,6 +1837,7 @@ namespace JKWatcher
         public TeamInfo[] teamInfo = new TeamInfo[Enum.GetNames(typeof(JKClient.Team)).Length];
 
         public int[] entityKindItemNumbers = new int[(int)EntityKind.MaxKinds];
+        public string[] holdables = new string[1] { "nuthing"};
         public ItemListArray itemList = null;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -1914,6 +1916,7 @@ namespace JKWatcher
                 entityKindItemNumbers[(int)EntityKind.Shield] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
                 entityKindItemNumbers[(int)EntityKind.Medpak] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
                 entityKindItemNumbers[(int)EntityKind.Sentry] = JKAStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
+                holdables = Enum.GetNames(typeof(JKAStuff.ItemList.holdable_t));
 
             } else
             {
@@ -1927,6 +1930,7 @@ namespace JKWatcher
                 entityKindItemNumbers[(int)EntityKind.Shield] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SHIELD).Value;
                 entityKindItemNumbers[(int)EntityKind.Medpak] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_MEDPAC).Value;
                 entityKindItemNumbers[(int)EntityKind.Sentry] = JOStuff.ItemList.BG_FindItemForHoldable(holdable_general_t.HI_SENTRY_GUN).Value;
+                holdables = Enum.GetNames(typeof(JOStuff.ItemList.holdable_t));
             }
         }
 

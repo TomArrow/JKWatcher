@@ -198,7 +198,7 @@ namespace JKWatcher
 			WP_NUM_WEAPONS
 		}
 
-		/*public enum holdable_t
+		public enum holdable_t
 		{
 			HI_NONE,
 
@@ -210,7 +210,7 @@ namespace JKWatcher
 			HI_SENTRY_GUN,
 
 			HI_NUM_HOLDABLE
-		}*/
+		}
 		public enum powerup_t : int
 		{
 			PW_NONE,

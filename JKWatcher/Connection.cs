@@ -2386,6 +2386,32 @@ namespace JKWatcher
                     countFramesJumpReleasedThisJump = 0;
                 }
             }
+            else if (e.EventType >= ClientGame.EntityEvent.UseItem0 && e.EventType <= ClientGame.EntityEvent.UseItem15)
+            {
+                int holdable = e.EventType - ClientGame.EntityEvent.UseItem0;
+                bool playerEvent = (e.Entity.CurrentState.EntityFlags & EF_PLAYER_EVENT) > 0;
+                int clientNum = playerEvent ? e.Entity.CurrentState.OtherEntityNum : e.Entity.CurrentState.Number;
+                if (clientNum < 0 || clientNum >= (client?.ClientHandler?.MaxClients).GetValueOrDefault(32))
+                {
+                    serverWindow.addToLog($"^1EntityEvent.UseItem0 + {holdable}: ^7couldn't determine client num, found {clientNum}, playerevent {playerEvent}, entitynum {e.Entity.CurrentState.Number}, otherentitynum {e.Entity.CurrentState.OtherEntityNum}", true);
+                }
+                else
+                {
+                    PlayerInfo pi = infoPool.playerInfo[clientNum];
+                    string[] holdables = infoPool.holdables;
+                    if(holdable >= holdables.Length-1) // last element is num_holdables
+                    {
+                        serverWindow.addToLog($"^1EntityEvent.UseItem0 + {holdable}: ^7unknown holdable number", true);
+                    }
+                    else
+                    {
+                        string holdableStr = holdables[holdable].ToLower().Substring(3); // skip HI_
+                        pi.chatCommandTrackingStuff.itemUseCounter.Add(holdableStr, 1);
+                        pi.chatCommandTrackingStuffThisGame.itemUseCounter.Add(holdableStr, 1); 
+                        serverWindow.addToLog($"^3Item debug: Item {holdableStr} used by client {pi.clientNum}: {pi.name}");
+                    }
+                }
+            }
             else if (e.EventType == ClientGame.EntityEvent.ItemPickup)
             {
                 bool playerEvent = (e.Entity.CurrentState.EntityFlags & EF_PLAYER_EVENT) > 0;
@@ -2422,7 +2448,7 @@ namespace JKWatcher
 
                             if (!string.IsNullOrWhiteSpace(itemname))
                             {
-                                serverWindow.addToLog($"^3Item debug: Item {itemname} picked up by client {pi.clientNum}: {pi.name}");
+                                //serverWindow.addToLog($"^3Item debug: Item {itemname} picked up by client {pi.clientNum}: {pi.name}");
                                 pi.chatCommandTrackingStuff.itemPickupCounter[(int)itemTeam].Add(itemname,1);
                                 pi.chatCommandTrackingStuffThisGame.itemPickupCounter[(int)itemTeam].Add(itemname,1);
                             }
