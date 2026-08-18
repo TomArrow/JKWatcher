@@ -720,6 +720,8 @@ namespace JKWatcher
             public bool isStrobeOperator;
         }
 
+        //static Regex whoRegex = new Regex(@"(^| )!who($| )",RegexOptions.IgnoreCase|RegexOptions.Multiline|RegexOptions.Compiled);
+        static Regex whoRegex = new Regex(@"!who",RegexOptions.IgnoreCase|RegexOptions.Multiline|RegexOptions.Compiled);
         void EvaluateChat(CommandEventArgs commandEventArgs)
         {
             try
@@ -1015,7 +1017,12 @@ namespace JKWatcher
                             {
                                 int randomPlayer = PickRandomPlayer(maxClientsHere);
                                 if (randomPlayer == -1) return;
-                                ChatCommandAnswer(pm, $"{infoPool.playerInfo[randomPlayer].name} {demoNoteString}", true, true, true);
+                                string multiwho = whoRegex.Replace(demoNoteString,(Match m)=> {
+                                    int randomPlayer2 = PickRandomPlayer(maxClientsHere);
+                                    if (randomPlayer2 == -1) return "someone";
+                                    return infoPool.playerInfo[randomPlayer2].name;
+                                });
+                                ChatCommandAnswer(pm, $"{infoPool.playerInfo[randomPlayer].name} {multiwho}", true, true, true);
                             }
                             notDemoCommand = true;
                             break;
