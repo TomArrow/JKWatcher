@@ -2430,8 +2430,11 @@ namespace JKWatcher
                     else
                     {
                         string itemname = entityItemNames[itemnum];
+                        bool isDropped = entityIsDropped[itemnum];
                         bool isMine = entityKinds[itemnum] == EntityKind.Mine;
-                        if (isMine || !string.IsNullOrWhiteSpace(itemname))
+                        bool isDroppedFlag = entityKinds[itemnum] == EntityKind.DroppedFlag;
+                        bool isFlag = isDroppedFlag || entityKinds[itemnum] == EntityKind.Flag;
+                        if (isFlag || isMine || !string.IsNullOrWhiteSpace(itemname))
                         {
                             Trajectory basePos = e.Entity.CurrentState.Position;
                             Vector3 pos;
@@ -2449,13 +2452,27 @@ namespace JKWatcher
                             if (!string.IsNullOrWhiteSpace(itemname))
                             {
                                 //serverWindow.addToLog($"^3Item debug: Item {itemname} picked up by client {pi.clientNum}: {pi.name}");
-                                pi.chatCommandTrackingStuff.itemPickupCounter[(int)itemTeam].Add(itemname,1);
-                                pi.chatCommandTrackingStuffThisGame.itemPickupCounter[(int)itemTeam].Add(itemname,1);
+                                if (isDropped)
+                                {
+                                    itemname = $"dropped:{itemname}";
+                                }
+                                pi.chatCommandTrackingStuff.itemPickupCounter[(int)itemTeam].Add(itemname, 1);
+                                pi.chatCommandTrackingStuffThisGame.itemPickupCounter[(int)itemTeam].Add(itemname, 1);
                             }
                             if(isMine)
                             {
                                 pi.chatCommandTrackingStuff.minePickupCounter[(int)itemTeam].Add(1);
                                 pi.chatCommandTrackingStuffThisGame.minePickupCounter[(int)itemTeam].Add(1);
+                            }
+                            if (isFlag)
+                            {
+                                pi.chatCommandTrackingStuff.flagGrabs.Add(1);
+                                pi.chatCommandTrackingStuffThisGame.flagGrabs.Add(1);
+                            }
+                            if (isDroppedFlag)
+                            {
+                                pi.chatCommandTrackingStuff.flagGrabsSwoops.Add(1);
+                                pi.chatCommandTrackingStuffThisGame.flagGrabsSwoops.Add(1);
                             }
                         }
                     }
@@ -2610,6 +2627,7 @@ namespace JKWatcher
         public bool[] entityOrPSVisible = new bool[Common.MaxGEntities];
         EntityKind[] entityKinds = new EntityKind[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
         string[] entityItemNames = new string[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
+        bool[] entityIsDropped = new bool[Common.MaxGEntities]; // so we can detect mine pickups. cuz the mines disappear, so we can't check what was picked up possibly.
         public int[] saberMove = new int[64];
         public int[] saberStyle = new int[64];
         public Vector3[] lastVelocity = new Vector3[64];
@@ -4275,6 +4293,7 @@ namespace JKWatcher
                 {
                     bool entityKindFound = false;
                     bool itemNameFound = false;
+                    bool wasItem = false;
                     if (SpectatedPlayer.HasValue)
                     {
                         infoPool.lastConfirmedVisible[SpectatedPlayer.Value, i] = DateTime.Now;
@@ -4365,6 +4384,8 @@ namespace JKWatcher
                         }
                     } else if (snap.Entities[snapEntityNum].EntityType == ETItem)
                     {
+                        wasItem = true;
+                        bool isDropped = (snap.Entities[snapEntityNum].EntityFlags & (int)JOStuff.EntityFlags.EF_BOUNCE_HALF) != 0;
                         string itemname = infoPool.itemList?.TryGet(snap.Entities[snapEntityNum].ModelIndex)?.classname;
                         if (!string.IsNullOrWhiteSpace(itemname))
                         {
@@ -4373,6 +4394,7 @@ namespace JKWatcher
                             {
                                 serverWindow.addToLog($"^3Item debug: Found {itemname} as entity {i}");
                             }
+                            entityIsDropped[i] = isDropped;
                             entityItemNames[i] = itemname;
                             itemNameFound = true;
                         }
@@ -4384,7 +4406,7 @@ namespace JKWatcher
                             Team team = snap.Entities[snapEntityNum].ModelIndex == infoPool.teamInfo[(int)Team.Red].flagItemNumber ? Team.Red : Team.Blue;
 
                             // Check if it's base flag item or dropped one
-                            if ((snap.Entities[snapEntityNum].EntityFlags & (int)JOStuff.EntityFlags.EF_BOUNCE_HALF) != 0 || (jkaMode && infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_DROPPED)) // This is DIRTY.
+                            if (isDropped || (jkaMode && infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_DROPPED)) // This is DIRTY.
                             {
                                 // This very likely is a dropped flag, as dropped flags get the EF_BOUNCE_HALF entity flag.
                                 infoPool.teamInfo[(int)team].flagDroppedPosition.X = snap.Entities[snapEntityNum].Position.Base[0];
@@ -4393,6 +4415,8 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].droppedFlagEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagDroppedPositionUpdate = DateTime.Now;
                                 infoPool.lastAnyFlagSeen = DateTime.Now;
+                                entityKinds[i] = EntityKind.DroppedFlag;
+                                entityKindFound = true;
 
                             } else if (!jkaMode || infoPool.teamInfo[(int)team].flag == FlagStatus.FLAG_ATBASE) // This is DIRTY. I hate it. Timing could mess this up. Hmm or maybe not? Configstrings are handled first. Hmm. Well it's the best I can do for JKA.
                             {
@@ -4403,6 +4427,8 @@ namespace JKWatcher
                                 infoPool.teamInfo[(int)team].flagBaseItemEntityNumber = i;
                                 infoPool.teamInfo[(int)team].lastFlagBaseItemPositionUpdate = DateTime.Now;
                                 infoPool.lastAnyFlagSeen = DateTime.Now;
+                                entityKinds[i] = EntityKind.Flag;
+                                entityKindFound = true;
 
                             }
                         } else if (infoPool.entityKindItemNumbers[(int)EntityKind.Mine] == snap.Entities[snapEntityNum].ModelIndex)
@@ -4418,6 +4444,10 @@ namespace JKWatcher
                     if (!itemNameFound)
                     {
                         entityItemNames[i] = null;
+                    }
+                    if (!wasItem)
+                    {
+                        entityIsDropped[i] = false;
                     }
                 }
                 else

@@ -24,6 +24,8 @@ namespace JKWatcher
     {
         Unknown,
         Mine,
+        Flag,
+        DroppedFlag,
         Seeker,
         Shield,
         Medpak,
@@ -485,6 +487,8 @@ namespace JKWatcher
         public int totalSuicides;
         public int totalSuicidesNearbyEnemy;
         public int totalWorldDeaths;
+        public ReliableValueCounter flagGrabs = new ReliableValueCounter();
+        public ReliableValueCounter flagGrabsSwoops = new ReliableValueCounter();
         public bool fightBotIgnore;
         public bool fightBotStrongIgnore;
         public bool fightBotBlacklist;

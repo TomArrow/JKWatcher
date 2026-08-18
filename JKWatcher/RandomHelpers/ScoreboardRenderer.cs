@@ -212,6 +212,9 @@ namespace JKWatcher.RandomHelpers
         public int returns { get; set; }// This is just for convenience.
         public int returnsOldSum { get; set; }
 
+        public int flagGrabs { get; set; }
+        public int flagGrabsSwoops { get; set; }
+
         //public int dfas;
         //public int ydfas;
         //public int bses;
@@ -760,6 +763,8 @@ namespace JKWatcher.RandomHelpers
                 {
                     anyOtherDeaths = true;
                 }
+                entry.flagGrabs = kvp.Value.chatCommandTrackingStuff.flagGrabs.value;
+                entry.flagGrabsSwoops = kvp.Value.chatCommandTrackingStuff.flagGrabsSwoops.value;
                 entry.itemPickups.blueBase = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Blue].GetDictionary();
                 entry.itemPickups.redBase = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Red].GetDictionary();
                 entry.itemPickups.nonTeamed = kvp.Value.chatCommandTrackingStuff.itemPickupCounter[(int)Team.Free].GetDictionary();
