@@ -1017,9 +1017,19 @@ namespace JKWatcher
                             {
                                 int randomPlayer = PickRandomPlayer(maxClientsHere);
                                 if (randomPlayer == -1) return;
+                                List<int> avoidPlayers = new List<int>();
+                                avoidPlayers.Add(randomPlayer);
                                 string multiwho = whoRegex.Replace(demoNoteString,(Match m)=> {
-                                    int randomPlayer2 = PickRandomPlayer(maxClientsHere);
-                                    if (randomPlayer2 == -1) return "someone";
+                                    int randomPlayer2 = PickRandomPlayer(maxClientsHere, avoidPlayers.ToArray());
+                                    if (randomPlayer2 == -1)
+                                    {
+                                        randomPlayer2 = PickRandomPlayer(maxClientsHere); // try without exclude list
+                                        if (randomPlayer2 == -1)
+                                        {
+                                            return "someone";
+                                        }
+                                    }
+                                    avoidPlayers.Add(randomPlayer2);
                                     return infoPool.playerInfo[randomPlayer2].name;
                                 });
                                 ChatCommandAnswer(pm, $"{infoPool.playerInfo[randomPlayer].name} {multiwho}", true, true, true);
@@ -3055,13 +3065,17 @@ namespace JKWatcher
         // This is the factor by which real players are more likely to get returned by !who command or similar commands that ask for a random player.
         const int whoRandomPlayerRealPlayerChanceMultiplier = 10;
 
-        int PickRandomPlayer(int maxClientsHere)
+        int PickRandomPlayer(int maxClientsHere, int[] avoid = null)
         {
             int[] ourClientNums = serverWindow.getJKWatcherClientNums();
             List<int> possiblePlayers = new List<int>();
             List<int> possiblePlayersBots = new List<int>();
             for(int i = 0; i < maxClientsHere; i++)
             {
+                if(!(avoid is null) && avoid.Contains(i))
+                {
+                    continue;
+                }
                 if (infoPool.playerInfo[i].infoValid)
                 {
                     if(infoPool.playerInfo[i].confirmedBot || /*serverWindow.clientNumIsJKWatcherInstance(i)*/ourClientNums.Contains(i))
