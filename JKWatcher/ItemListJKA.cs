@@ -53,7 +53,7 @@ namespace JKWatcher
 		}
 		public gitem_s? TryGet(int index)
         {
-			return (index < 0 || index > this.Count) ? null : this[index];
+			return (index < 0 || index >= this.Count) ? null : this[index];
         }
 		public void Add(string classname, string pickup_sound, string[] world_model, string view_model, string icon, int quantity, itemType_t giType, int giTag, string precaches, string sounds = "", string description = "")
 		{
