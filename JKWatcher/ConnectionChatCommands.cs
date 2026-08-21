@@ -887,7 +887,7 @@ namespace JKWatcher
                         case "!memes":
                             if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            ChatCommandAnswer(pm, "!who !choose !weaklegs !doomer !chicken !blocker !thots !names", true, true, true, true);
+                            ChatCommandAnswer(pm, "!uwu !who !choose !weaklegs !doomer !chicken !blocker !thots !names", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
@@ -904,6 +904,12 @@ namespace JKWatcher
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
                             ChatCommandAnswer(pm, GailyString(tmpString), true, true, false);
+                            notDemoCommand = true;
+                            break;
+                        case "!uwu":
+                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
+                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
+                            ChatCommandAnswer(pm, UwuString(tmpString), true, true, false);
                             notDemoCommand = true;
                             break;
                         case "!reverse":
@@ -3049,6 +3055,168 @@ namespace JKWatcher
                 sb.Append($"^{getNiceRandom(1, 7)}{str[i]}");
             }
             return sb.ToString();
+        }
+        static string[] uwumojis =
+        {
+            "^~^",
+            "^w^",
+            ">w<",
+            "owo",
+            "oWo",
+            "OwO",
+            ">w<",
+            "UwU",
+            "uwu",
+            "^w^",
+            ";w;",
+            "O_O",
+            "O_o",
+            "OvO",
+            "UvU",
+           // "(*^ω^*)",
+            ":3",
+            "=3",
+            //"<(^V^<)",
+            "UmU",
+            "nya~",
+            "rawr XD",
+        };
+        static string[] uwumojisSmall =
+        {
+            "<3",
+            ":)",
+            ":D",
+            "D:",
+        };
+        static string[] honorifics  =
+        {
+            "-chan",
+            "-kun",
+            "-san",
+            "-senpai",
+            "-sama",
+            "-sensei",
+        };
+        
+        void AddKnownName(string newName)
+        {
+            if (!string.IsNullOrWhiteSpace(newName))
+            {
+                lock (knownNames)
+                {
+                    knownNames.Add(newName);
+                    string cleanName = Q3ColorFormatter.cleanupString(newName, Q3ColorFormatter.HexColorSupport.Lenient);
+                    if (!string.IsNullOrWhiteSpace(cleanName))
+                    {
+                        knownNames.Add(cleanName);
+                    }
+                    string[] nameParts = cleanName.Split(" ",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                    foreach(string namePart in nameParts)
+                    {
+                        if(namePart.Length > 4)
+                        {
+                            knownNames.Add(namePart);
+                        }
+                    }
+                }
+            }
+        }
+        string UwuString(string strA)
+        {
+            string text = strA;
+
+            string[] parts = text.Split(" ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+            if (parts.Length == 0)
+            {
+                return "";
+            }
+
+            text = "";
+
+            lock (knownNames)
+            {
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    text += (i == 0 ? "" : " ") + parts[i];
+                    if (knownNames.Contains(parts[i]))
+                    {
+                        text += honorifics[getNiceRandom(0, honorifics.Length)];
+                    }
+                }
+            }
+
+            text = text.Replace("fuck", "fwickk").Replace("shit", "poopoo").Replace("bitch", "meanie").Replace("asshole", "b-butthole").Replace("dick", "peenie").Replace("cock", "peenie").Replace("penis", "peenie");
+
+            text = text.Replace("meow", "nyaa").Replace("noob", "padawan").Replace("nub", "padawan").Replace("retard","dummie");
+
+            //if (getNiceRandom(0, 20) <= 8)
+            //{
+            //    text = text.Replace("padawan", "padabwan");
+            //}
+
+            text = text.Replace("th", "f").Replace("l", "w").Replace("r", "w").Replace("L", "W").Replace("R", "W");
+
+            // Replace "na", "ne", "ni", "no", "nu" with their "ny" variants (https://github.com/SlimeBluKing/UwUifier/)
+            text = text.Replace("na", "nyaa").Replace("ne", "nyee").Replace("ni", "nyii").Replace("no", "nyoo").Replace("nu", "nyuu")
+            .Replace("Na", "Nyaa").Replace("Ne", "Nyee").Replace("Ni", "Nyii").Replace("No", "Nyoo").Replace("Nu", "Nyuu");
+
+            // Replace "you" with "u" (https://github.com/SlimeBluKing/UwUifier/)
+            text = text.Replace("you", "u").Replace("You", "U");
+
+            text = text.Replace("you're", "ur").Replace("You're", "Ur");
+
+            parts = text.Split(" ",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+
+            if(parts.Length == 0)
+            {
+                return "";
+            }
+
+            text = "";
+
+            string lastPart = "";
+            for (int i = 0; i < parts.Length; i++)
+            {
+                string newpart = parts[i];
+
+                if (getNiceRandom(0, 20) <= 1 && (lastPart.Length > 3 || getNiceRandom(0, 20) <= 3))
+                {
+                    text += " " + uwumojis[getNiceRandom(0, uwumojis.Length)];
+                }
+
+                text += (i == 0 ? "" : " ");
+
+                if (getNiceRandom(0, 50) <= 2 && (newpart.Length > 3 || getNiceRandom(0, 20) <= 2))
+                {
+                    text += uwumojisSmall[getNiceRandom(0, uwumojisSmall.Length)];
+                }
+
+                if (getNiceRandom(0, 20) <= 8) 
+                { 
+                    newpart = newpart.Replace("Wa","Bwa").Replace("awa","abwa").Replace("ewa","ebwa").Replace("iwa","ibwa").Replace("owa","obwa").Replace("uwa","ubwa");
+                }
+                    
+                text += newpart;
+
+                if (getNiceRandom(0, 20) <= 2 && (newpart.Length > 3 || getNiceRandom(0, 20) <= 2))
+                {
+                    text += uwumojisSmall[getNiceRandom(0, uwumojisSmall.Length)];
+                }
+
+                lastPart = newpart;
+            }
+            
+
+            int n = getNiceRandom(0, 4);
+
+            // Add random emoticons from the Emoticons array to the end of the text (https://github.com/SlimeBluKing/UwUifier/)
+            for (var i = 0; i < n; i++)
+            {
+                text += " " + uwumojis[getNiceRandom(0,uwumojis.Length)];
+            }
+
+            return $"{text}";
         }
         string StringShowQ3Color(string strA)
         {
