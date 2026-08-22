@@ -878,50 +878,53 @@ namespace JKWatcher
                     int maxClientsHere = (client?.ClientHandler?.MaxClients).GetValueOrDefault(32);
                     // Idea: let people define their own binds so they don't have to use markme? hm
                     bool notDemoCommand = false;
-                    string stringParams0Lower = stringParams[0].ToLowerInvariant();
+                    string stringParams0LowerClean = Q3ColorFormatter.cleanupString(stringParams[0].ToLowerInvariant(), Q3ColorFormatter.HexColorSupport.Lenient);
                     string tmpString;
-                    switch (stringParams0Lower)
+                    switch (stringParams0LowerClean)
                     {
                         // Memes
                         case "memes":
                         case "!memes":
-                            if (!this.IsMainChatConnection || (stringParams0Lower== "memes" && pm.type != ChatType.PRIVATE)) return;
-                            ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !saymyname !agree !opinion !color !flipcoin !roulette", true, true, true, true);
-                            ChatCommandAnswer(pm, "!uwu !who !choose !weaklegs !doomer !chicken !blocker !thots !names", true, true, true, true);
+                            if (!this.IsMainChatConnection || (stringParams0LowerClean== "memes" && pm.type != ChatType.PRIVATE)) return;
+                            ChatCommandAnswer(pm, "!mock !gaily !reverse !ruski !uwu !saymyname !agree !opinion !color !flipcoin", true, true, true, true);
+                            ChatCommandAnswer(pm, "!roulette !who !choose !weaklegs !doomer !chicken !blocker !thots !names", true, true, true, true);
                             notDemoCommand = true;
                             // TODO Send list of meme commands
                             break;
 
                         // String manipulation:
                         // Private and team meme responses get their own category each so the rate limiting isn't confusing
+                        // these can be stacked.
                         case "!mock":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
-                            ChatCommandAnswer(pm, MockString(tmpString), true, true, false);
-                            notDemoCommand = true;
-                            break;
                         case "!gaily":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
-                            ChatCommandAnswer(pm, GailyString(tmpString), true, true, false);
-                            notDemoCommand = true;
-                            break;
                         case "!uwu":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
-                            ChatCommandAnswer(pm, UwuString(tmpString), true, true, false);
-                            notDemoCommand = true;
-                            break;
                         case "!reverse":
-                            if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
-                            tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
-                            ChatCommandAnswer(pm, new string(tmpString.Reverse().ToArray()), true, true, false);
-                            notDemoCommand = true;
-                            break;
                         case "!ruski":
                             if (_connectionOptions.silentMode || pm.type == ChatType.PRIVATE || !this.IsMainChatConnection) return;
                             tmpString = pm.type == ChatType.TEAM ? lastTeamChat : (pm.crossServerBroadcastMessage ? lastCrossServerChat : lastPublicChat);
-                            ChatCommandAnswer(pm, RuskiString(tmpString), true, true, false);
+                            foreach(string stringParam in stringParams) // we can stack all string manipulations
+                            {
+                                string stringParamLower = Q3ColorFormatter.cleanupString(stringParam.ToLowerInvariant(), Q3ColorFormatter.HexColorSupport.Lenient);
+                                switch (stringParamLower)
+                                {
+                                    case "!mock":
+                                        tmpString = MockString(tmpString);
+                                        break;
+                                    case "!gaily":
+                                        tmpString = GailyString(tmpString);
+                                        break;
+                                    case "!uwu":
+                                        tmpString = UwuString(tmpString);
+                                        break;
+                                    case "!reverse":
+                                        tmpString = new string(tmpString.Reverse().ToArray());
+                                        break;
+                                    case "!ruski":
+                                        tmpString = RuskiString(tmpString);
+                                        break;
+                                }
+                            }
+                            ChatCommandAnswer(pm, tmpString, true, true, false);
                             notDemoCommand = true;
                             break;
 
@@ -1298,7 +1301,7 @@ namespace JKWatcher
 
                         case "defrag":
                         case "!defrag":
-                            if (!this.IsMainChatConnection || (stringParams0Lower == "defrag" && pm.type != ChatType.PRIVATE)) return;
+                            if (!this.IsMainChatConnection || (stringParams0LowerClean == "defrag" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!notwr !wr !mapwr", true, true, true, true); // todo !wr !wrholders
                             notDemoCommand = true;
                             // TODO Send list of meme commands
@@ -1369,7 +1372,7 @@ namespace JKWatcher
                         // Fightbot
                         case "bot":
                         case "!bot":
-                            if (!weHandleFightBotCommands || (stringParams0Lower == "bot" && pm.type != ChatType.PRIVATE)) return;
+                            if (!weHandleFightBotCommands || (stringParams0LowerClean == "bot" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!imscared = bot ignores you, !imveryscared = bot ignores even ppl around you", true, true, true, true);
                             ChatCommandAnswer(pm, "!botmode !imbrave !cowards !bigcowards !botsay !botsaycalm !berserker", true, true, true, true);
                             if (_connectionOptions.allowWayPointBotmode)
@@ -1773,11 +1776,11 @@ namespace JKWatcher
                             if (pm.playerNum == myClientNum) return; // Avoid long loops lol.
                             if (demoNoteString == null)
                             {
-                                ChatCommandAnswer(pm, stringParams0Lower == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
+                                ChatCommandAnswer(pm, stringParams0LowerClean == "!botsaycalm" ? "What should I say while standing still?" : "What should I say?", true, true, true,true);
                             } 
                             else
                             {
-                                if(stringParams0Lower == "!botsaycalm")
+                                if(stringParams0LowerClean == "!botsaycalm")
                                 {
                                     if(pm.type == ChatType.PUBLIC)
                                     {
@@ -1813,7 +1816,7 @@ namespace JKWatcher
                         case "!bsdist":
                         case "!dbsdist":
                             if (!weHandleFightBotCommands) return;
-                            bool isBs = stringParams0Lower == "!bsdist";
+                            bool isBs = stringParams0LowerClean == "!bsdist";
                             if (numberParams.Count > 0)
                             {
                                 int dbsDist = numberParams[0];
@@ -1967,7 +1970,7 @@ namespace JKWatcher
                         // Tools
                         case "tools":
                         case "!tools":
-                            if (!this.IsMainChatConnection || (stringParams0Lower == "tools" && pm.type != ChatType.PRIVATE)) return;
+                            if (!this.IsMainChatConnection || (stringParams0LowerClean == "tools" && pm.type != ChatType.PRIVATE)) return;
                             ChatCommandAnswer(pm, "!kills !killsOn !killedBy !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
                             ChatCommandAnswer(pm, "!rets !retsOn !retBy !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top !tilt", true, true, true, true);
                             ChatCommandAnswer(pm, "(add 'thisgame' at end to get stats for current game)", true, true, true, true);
@@ -2464,7 +2467,7 @@ namespace JKWatcher
                         case "!markas":
 
                             if (!weAreRecordingDemo) return;
-                            if (stringParams0Lower == "!markas")
+                            if (stringParams0LowerClean == "!markas")
                             {
                                 reframeRequested = true;
                                 requiredCommandNumbers = 1;
@@ -2473,7 +2476,7 @@ namespace JKWatcher
                                     reframeClientNum = numberParams[0];
                                 }
                             }
-                            else if (stringParams0Lower == "!markme")
+                            else if (stringParams0LowerClean == "!markme")
                             {
                                 reframeRequested = true;
                             }
@@ -2492,7 +2495,7 @@ namespace JKWatcher
                             {
                                 markRequested = true;
 
-                                if (stringParams0Lower == "markas")
+                                if (stringParams0LowerClean == "markas")
                                 {
                                     reframeRequested = true;
                                     requiredCommandNumbers = 1;
@@ -2501,7 +2504,7 @@ namespace JKWatcher
                                         reframeClientNum = numberParams[0];
                                     }
                                 }
-                                else if (stringParams0Lower == "markme")
+                                else if (stringParams0LowerClean == "markme")
                                 {
                                     reframeRequested = true;
                                 }
@@ -3149,6 +3152,9 @@ namespace JKWatcher
             text = text.Replace("fuck", "fwickk").Replace("shit", "poopoo").Replace("bitch", "meanie").Replace("asshole", "b-butthole").Replace("dick", "peenie").Replace("cock", "peenie").Replace("penis", "peenie");
 
             text = text.Replace("meow", "nyaa").Replace("noob", "padawan").Replace("nub", "padawan").Replace("retard","dummie");
+
+            text = text.Replace(".",new string('!',getNiceRandom(1, 5)));
+
 
             //if (getNiceRandom(0, 20) <= 8)
             //{
