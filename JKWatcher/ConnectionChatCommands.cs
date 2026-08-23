@@ -1,25 +1,18 @@
-﻿using System;
+﻿using JKClient;
+using JKWatcher.RandomHelpers;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Threading;
-using JKWatcher.RandomHelpers;
-using JKClient;
 using Client = JKClient.JKClient;
 using ConditionalCommand = JKWatcher.ConnectedServerWindow.ConnectionOptions.ConditionalCommand;
 
 namespace JKWatcher
-{   
+{
     // Chat command related stuff
     public partial class Connection
     {
@@ -3061,8 +3054,8 @@ namespace JKWatcher
         }
         static string[] uwumojis =
         {
-            "^~^",
-            "^w^",
+            "^^~^^",
+            "^^w^^",
             ">w<",
             "owo",
             "oWo",
@@ -3078,6 +3071,7 @@ namespace JKWatcher
             "UvU",
            // "(*^ω^*)",
             ":3",
+            "x3",
             "=3",
             //"<(^V^<)",
             "UmU",
@@ -3090,6 +3084,7 @@ namespace JKWatcher
             ":)",
             ":D",
             "D:",
+            ":3",
         };
         static string[] honorifics  =
         {
@@ -3124,6 +3119,8 @@ namespace JKWatcher
                 }
             }
         }
+
+        // TODO replace for each case (small n big letters)
         string UwuString(string strA)
         {
             string text = strA;
@@ -3141,19 +3138,37 @@ namespace JKWatcher
             {
                 for (int i = 0; i < parts.Length; i++)
                 {
-                    text += (i == 0 ? "" : " ") + parts[i];
+                    string testName;
                     if (knownNames.Contains(parts[i]))
                     {
+                        text += (i == 0 ? "" : " ") + parts[i];
                         text += honorifics[getNiceRandom(0, honorifics.Length)];
+                    }
+                    else if (parts[i].Length > 2 && parts[i].EndsWith("'s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = parts[i].Substring(0, parts[i].Length - 2))))
+                    {
+                        text += (i == 0 ? "" : " ") + testName;
+                        text += honorifics[getNiceRandom(0, honorifics.Length)];
+                        text += parts[i].Substring(parts[i].Length - 2);
+                    }
+                    else if (parts[i].Length > 1 && parts[i].EndsWith("s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = parts[i].Substring(0, parts[i].Length - 1))))
+                    {
+                        text += (i == 0 ? "" : " ") + testName;
+                        text += honorifics[getNiceRandom(0, honorifics.Length)];
+                        text += parts[i].Substring(parts[i].Length - 1);
+                    }
+                    else
+                    {
+                        text += (i == 0 ? "" : " ") + parts[i];
                     }
                 }
             }
 
-            text = text.Replace("fuck", "fwickk").Replace("shit", "poopoo").Replace("bitch", "meanie").Replace("asshole", "b-butthole").Replace("dick", "peenie").Replace("cock", "peenie").Replace("penis", "peenie");
+            text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie");
 
-            text = text.Replace("meow", "nyaa").Replace("noob", "padawan").Replace("nub", "padawan").Replace("retard","dummie");
+            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard","dummie");
 
             text = text.Replace(".",new string('!',getNiceRandom(1, 5)));
+            text = text.Replace("?",new string('?',getNiceRandom(1, 5)));
 
 
             //if (getNiceRandom(0, 20) <= 8)
@@ -3161,16 +3176,15 @@ namespace JKWatcher
             //    text = text.Replace("padawan", "padabwan");
             //}
 
-            text = text.Replace("th", "f").Replace("l", "w").Replace("r", "w").Replace("L", "W").Replace("R", "W");
+            text = text.ReplaceCaseTransfer("th", "f").ReplaceCaseTransfer("l", "w").ReplaceCaseTransfer("r", "w");
 
             // Replace "na", "ne", "ni", "no", "nu" with their "ny" variants (https://github.com/SlimeBluKing/UwUifier/)
-            text = text.Replace("na", "nyaa").Replace("ne", "nyee").Replace("ni", "nyii").Replace("no", "nyoo").Replace("nu", "nyuu")
-            .Replace("Na", "Nyaa").Replace("Ne", "Nyee").Replace("Ni", "Nyii").Replace("No", "Nyoo").Replace("Nu", "Nyuu");
+            text = text.ReplaceCaseTransfer("na", "nyaa").ReplaceCaseTransfer("ne", "nyee").ReplaceCaseTransfer("ni", "nyii").ReplaceCaseTransfer("no", "nyoo").ReplaceCaseTransfer("nu", "nyuu");
 
             // Replace "you" with "u" (https://github.com/SlimeBluKing/UwUifier/)
-            text = text.Replace("you", "u").Replace("You", "U");
+            text = text.ReplaceCaseTransfer("you", "u");
 
-            text = text.Replace("you're", "ur").Replace("You're", "Ur");
+            text = text.ReplaceCaseTransfer("you're", "ur");
 
             parts = text.Split(" ",StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
 
@@ -3200,9 +3214,22 @@ namespace JKWatcher
 
                 if (getNiceRandom(0, 20) <= 8) 
                 { 
-                    newpart = newpart.Replace("Wa","Bwa").Replace("awa","abwa").Replace("ewa","ebwa").Replace("iwa","ibwa").Replace("owa","obwa").Replace("uwa","ubwa");
+                    newpart = newpart.Replace("Wa","Bwa").ReplaceCaseTransfer("awa","abwa").ReplaceCaseTransfer("ewa","ebwa").ReplaceCaseTransfer("iwa","ibwa").ReplaceCaseTransfer("owa","obwa").ReplaceCaseTransfer("uwa","ubwa").ReplaceCaseTransfer("fa","fwa");
                 }
-                    
+                if (getNiceRandom(0, 20) <= 8) 
+                { 
+                    newpart = newpart.ReplaceCaseTransfer("pause","paws");
+                }
+
+                if (getNiceRandom(0, 20) <= 2) // stutter
+                {
+                    int count = getNiceRandom(1, 5);
+                    for(int j = 0; j < count; j++)
+                    {
+                        text += $"{newpart[0]}-";
+                    }
+                }
+
                 text += newpart;
 
                 if (getNiceRandom(0, 20) <= 2 && (newpart.Length > 3 || getNiceRandom(0, 20) <= 2))
@@ -3232,7 +3259,7 @@ namespace JKWatcher
 
         string RuskiString(string strA)
         {
-            string replaced = strA.Replace(" the ", " ").Replace(" a ", " ").Replace("is", "are");
+            string replaced = strA.ReplaceCaseTransfer(" the ", " ").ReplaceCaseTransfer(" a ", " ").ReplaceCaseTransfer("is", "are");
             return $"{replaced} )))";
         }
 

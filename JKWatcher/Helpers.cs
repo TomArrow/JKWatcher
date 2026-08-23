@@ -19,6 +19,7 @@ using System.Windows.Threading;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using Salaros.Configuration;
+using System.Globalization;
 
 namespace JKWatcher
 {
@@ -363,6 +364,114 @@ namespace JKWatcher
                 return null;
             }
         }
+
+        // replace case-insensitively while maintaining case of text in original text
+        public static string ReplaceCaseTransfer(this string me, string oldValue, string? newValue)
+        {
+            //ArgumentException.ThrowIfNullOrEmpty(oldValue);
+
+            // If they asked to replace oldValue with a null, replace all occurrences
+            // with the empty string. AsSpan() will normalize appropriately.
+            //
+            // If inner ReplaceCore method returns null, it means no substitutions were
+            // performed, so as an optimization we'll return the original string.
+
+            string result = ReplaceCaseTransferCore(me, oldValue.AsSpan(), newValue.AsSpan(), CultureInfo.InvariantCulture.CompareInfo, CompareOptions.OrdinalIgnoreCase);
+            if (result is null)
+            {
+                return me;
+            }
+            return result;
+        }
+
+        private static ReadOnlySpan<char> TransferCase(ReadOnlySpan<char> input, ReadOnlySpan<char> reference)
+        {
+            if (reference.Length == 0 || input.Length == 0)
+            {
+                return input;
+            }
+            StringBuilder retVal = new StringBuilder();
+
+            // first char is treated on its own (so that capitalized first char never makes multiple starting chars large)
+            retVal.Append(Char.IsUpper(reference[0]) ? Char.ToUpperInvariant(input[0]) : Char.ToLowerInvariant(input[0]));
+            input = input.Slice(1);
+            reference = reference.Slice(1);
+
+            if (reference.Length == 0 || input.Length == 0)
+            {
+                retVal.Append(input);
+                return retVal.ToString();
+            }
+
+            // last char is also treated on its own (so that capitalized last char never makes multiple ending chars large)
+            char end = Char.IsUpper(reference[reference.Length - 1]) ? Char.ToUpperInvariant(input[input.Length - 1]) : Char.ToLowerInvariant(input[input.Length - 1]);
+
+            input = input.Slice(0, input.Length - 1);
+            reference = reference.Slice(0, reference.Length - 1);
+
+            // now just do a rough quick approximation of capitalization in the middle part in more or less correct positions based on reference string
+            if(reference.Length > 0)
+            {
+                for (int i = 0; i < input.Length; i++)
+                {
+                    retVal.Append(Char.IsUpper(reference[i * reference.Length / input.Length]) ? Char.ToUpperInvariant(input[i]) : Char.ToLowerInvariant(input[i]));
+                }
+            }
+
+            retVal.Append(end);
+            return retVal.ToString();
+        }
+
+        private static string? ReplaceCaseTransferCore(ReadOnlySpan<char> searchSpace, ReadOnlySpan<char> oldValue, ReadOnlySpan<char> newValue, CompareInfo compareInfo, CompareOptions options)
+        {
+            Debug.Assert(!oldValue.IsEmpty);
+            Debug.Assert(compareInfo != null);
+
+            var result = new StringBuilder();
+            result.EnsureCapacity(searchSpace.Length);
+
+            bool hasDoneAnyReplacements = false;
+
+            while (true)
+            {
+                int index = compareInfo.IndexOf(searchSpace, oldValue, options, out int matchLength);
+
+                // There's the possibility that 'oldValue' has zero collation weight (empty string equivalent).
+                // If this is the case, we behave as if there are no more substitutions to be made.
+
+                if (index < 0 || matchLength == 0)
+                {
+                    break;
+                }
+
+                // append the unmodified portion of search space
+                result.Append(searchSpace.Slice(0, index));
+
+                // append the replacement
+                result.Append(TransferCase(newValue, searchSpace.Slice(index, oldValue.Length)));
+
+                searchSpace = searchSpace.Slice(index + matchLength);
+                hasDoneAnyReplacements = true;
+            }
+
+            // Didn't find 'oldValue' in the remaining search space, or the match
+            // consisted only of zero collation weight characters. As an optimization,
+            // if we have not yet performed any replacements, we'll save the
+            // allocation.
+
+            if (!hasDoneAnyReplacements)
+            {
+                return null;
+            }
+
+            // Append what remains of the search space, then allocate the new string.
+
+            result.Append(searchSpace);
+            return result.ToString();
+        }
+
+
+
 
         /*public static string EndsWithReturnStart(this string inputString, string otherString)
         {
