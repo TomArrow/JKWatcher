@@ -365,6 +365,11 @@ namespace JKWatcher
             }
         }
 
+        public static string CharShift(this string me, int shift)
+        {
+            return new string(me.Select((o)=> { return (char)((char)o + shift); }).ToArray());
+        }
+
         // replace case-insensitively while maintaining case of text in original text
         public static string ReplaceCaseTransfer(this string me, string oldValue, string? newValue)
         {
@@ -384,6 +389,10 @@ namespace JKWatcher
             return result;
         }
 
+        public static string TransferCase(this string me, string reference)
+        {
+            return TransferCase(me.AsSpan(),reference.AsSpan()).ToString();
+        }
         private static ReadOnlySpan<char> TransferCase(ReadOnlySpan<char> input, ReadOnlySpan<char> reference)
         {
             if (reference.Length == 0 || input.Length == 0)

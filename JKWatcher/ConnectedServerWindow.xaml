@@ -459,6 +459,10 @@
                                     <TextBox x:Name="botOnlySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding botOnlySnaps,Mode=TwoWay}"></TextBox>
                                 </WrapPanel>
                                 <WrapPanel>
+                                    <CheckBox x:Name="onlyDefragSnapsCheck" IsChecked="{Binding forceOnlyDefragSnaps,Mode=TwoWay}">Only-defrag snaps</CheckBox>
+                                    <TextBox x:Name="onlyDefragSnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding onlyDefragSnaps,Mode=TwoWay}"></TextBox>
+                                </WrapPanel>
+                                <WrapPanel>
                                     <CheckBox x:Name="emptySnapsCheck" IsChecked="{Binding forceEmptySnaps,Mode=TwoWay}">Empty snaps</CheckBox>
                                     <TextBox x:Name="emptySnapsTxt" Width="20" Margin="5 0 0 0" TextAlignment="Right" Text="{Binding emptySnaps,Mode=TwoWay}"></TextBox>
                                 </WrapPanel>

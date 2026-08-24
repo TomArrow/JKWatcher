@@ -1699,6 +1699,7 @@ namespace JKWatcher
             public int? timeFromDisconnectOverrideMapchange { get; set; } = null;
             public int? timeFromConnect { get; init; } = 0;
             public int? botSnaps { get; init; } = 5;
+            public int? onlyDefragSnaps { get; init; } = null;
             public int? pingAdjust { get; init; } = null;
             public bool forceSnaps { get; init; } = false;
             public int? snaps { get; init; } = null;
@@ -1817,6 +1818,7 @@ namespace JKWatcher
                 dailyChance = (config["dailyChance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 chance = (config["chance"]?.Trim().Atoi()).GetValueOrDefault(100);
                 botSnaps = config["botSnaps"]?.Trim().Atoi();
+                onlyDefragSnaps = config["onlyDefragSnaps"]?.Trim().Atoi();
                 pingAdjust = config["pingAdjust"]?.Trim().Atoi();
                 snaps = config["snaps"]?.Trim().Atoi();
                 forceSnaps = config["forceSnaps"]?.Trim().Atoi() > 0;
@@ -2162,6 +2164,11 @@ namespace JKWatcher
                     if (serverToConnect.botSnaps != null)
                     {
                         newWindow.snapsSettings.botOnlySnaps = serverToConnect.botSnaps.Value;
+                    }
+                    if (serverToConnect.onlyDefragSnaps != null)
+                    {
+                        newWindow.snapsSettings.forceOnlyDefragSnaps = true;
+                        newWindow.snapsSettings.onlyDefragSnaps = serverToConnect.onlyDefragSnaps.Value;
                     }
                     if (serverToConnect.pingAdjust != null)
                     {

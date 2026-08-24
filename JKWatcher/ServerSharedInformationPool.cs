@@ -1781,6 +1781,7 @@ namespace JKWatcher
         public DateTime infoPoolCreated = DateTime.Now;
         
         public bool botOnlyGuaranteed = false;
+        public bool defragOnlyGuaranteed = false;
 
         public ConcurrentBag<string> unsupportedCommands = new ConcurrentBag<string>();
 

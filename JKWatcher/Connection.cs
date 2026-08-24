@@ -2504,6 +2504,10 @@ namespace JKWatcher
                 {
                     client.ClientForceSnaps = true;
                     client.DesiredSnaps = snapsSettings.botOnlySnaps;
+                } else if (snapsSettings.forceOnlyDefragSnaps && infoPool.defragOnlyGuaranteed)
+                {
+                    client.ClientForceSnaps = true;
+                    client.DesiredSnaps = snapsSettings.onlyDefragSnaps;
                 } else if (snapsSettings.forceBaseSnaps)
                 {
                     client.ClientForceSnaps = true;
@@ -5579,6 +5583,7 @@ namespace JKWatcher
                 return;
             }
             bool noActivePlayers = true;
+            bool anyNonDefragPlayers = false;
             bool anyNonBotActivePlayers = false;
             lock (infoPoolResetStuffLock) { // Try to make sure various connections don't get in conflict here since we are doing some resetting by comparing previouss and new values.
                 lock (infoPool.killTrackers) { 
@@ -5586,6 +5591,10 @@ namespace JKWatcher
                     {
                         if(client.ClientInfo[i].Team != Team.Spectator && client.ClientInfo[i].InfoValid)
                         {
+                            if (client.ClientInfo[i].TTPlayerMode != TommyTernalPlayerMode.Defrag)
+                            {
+                                anyNonDefragPlayers = true;
+                            }
                             noActivePlayers = false;
                         }
 
@@ -5766,6 +5775,7 @@ namespace JKWatcher
                     }
                 }
             }
+            infoPool.defragOnlyGuaranteed = !anyNonDefragPlayers;
             infoPool.botOnlyGuaranteed = !anyNonBotActivePlayers;
             infoPool.NoActivePlayers = noActivePlayers;
             serverWindow.requestPlayersRefresh();

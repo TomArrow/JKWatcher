@@ -3095,6 +3095,11 @@ namespace JKWatcher
             "-sama",
             "-sensei",
         };
+        static readonly Dictionary<string,string> uwuWordReplace = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+        {
+            {"okay","okaysies" },
+            {"fuckup","oopsie-woopsie" },
+        };
         
         void AddKnownName(string newName)
         {
@@ -3138,34 +3143,40 @@ namespace JKWatcher
             {
                 for (int i = 0; i < parts.Length; i++)
                 {
+                    string thepart = parts[i];
                     string testName;
-                    if (knownNames.Contains(parts[i]))
+                    if (uwuWordReplace.ContainsKey(thepart))
                     {
-                        text += (i == 0 ? "" : " ") + parts[i];
+                        thepart = uwuWordReplace[thepart].TransferCase(thepart);
+                    }
+
+                    if (knownNames.Contains(thepart))
+                    {
+                        text += (i == 0 ? "" : " ") + thepart;
                         text += honorifics[getNiceRandom(0, honorifics.Length)];
                     }
-                    else if (parts[i].Length > 2 && parts[i].EndsWith("'s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = parts[i].Substring(0, parts[i].Length - 2))))
+                    else if (thepart.Length > 2 && thepart.EndsWith("'s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = thepart.Substring(0, thepart.Length - 2))))
                     {
                         text += (i == 0 ? "" : " ") + testName;
                         text += honorifics[getNiceRandom(0, honorifics.Length)];
-                        text += parts[i].Substring(parts[i].Length - 2);
+                        text += thepart.Substring(thepart.Length - 2);
                     }
-                    else if (parts[i].Length > 1 && parts[i].EndsWith("s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = parts[i].Substring(0, parts[i].Length - 1))))
+                    else if (thepart.Length > 1 && thepart.EndsWith("s", StringComparison.InvariantCultureIgnoreCase) && knownNames.Contains((testName = thepart.Substring(0, thepart.Length - 1))))
                     {
                         text += (i == 0 ? "" : " ") + testName;
                         text += honorifics[getNiceRandom(0, honorifics.Length)];
-                        text += parts[i].Substring(parts[i].Length - 1);
+                        text += thepart.Substring(thepart.Length - 1);
                     }
                     else
                     {
-                        text += (i == 0 ? "" : " ") + parts[i];
+                        text += (i == 0 ? "" : " ") + thepart;
                     }
                 }
             }
 
             text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie");
 
-            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard","dummie");
+            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard","dummie").ReplaceCaseTransfer("d_]][h".CharShift(10), "bgnbnk`sdl`m".CharShift(1)).ReplaceCaseTransfer("fucked up","did an oopsie-woopsie");
 
             text = text.Replace(".",new string('!',getNiceRandom(1, 5)));
             text = text.Replace("?",new string('?',getNiceRandom(1, 5)));
@@ -3221,9 +3232,9 @@ namespace JKWatcher
                     newpart = newpart.ReplaceCaseTransfer("pause","paws");
                 }
 
-                if (getNiceRandom(0, 20) <= 2) // stutter
+                if (Char.IsLetter(newpart[0]) && getNiceRandom(0, 20) <= 2) // stutter
                 {
-                    int count = getNiceRandom(1, 5);
+                    int count = getNiceRandom(1, 4);
                     for(int j = 0; j < count; j++)
                     {
                         text += $"{newpart[0]}-";
