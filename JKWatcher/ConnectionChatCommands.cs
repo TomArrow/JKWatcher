@@ -3063,7 +3063,6 @@ namespace JKWatcher
             ">w<",
             "UwU",
             "uwu",
-            "^w^",
             ";w;",
             "O_O",
             "O_o",
