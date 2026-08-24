@@ -3174,9 +3174,9 @@ namespace JKWatcher
                 }
             }
 
-            text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie");
+            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard", "dummie").ReplaceCaseTransfer("d_]][h".CharShift(10), "bgnbnk`sdl`m".CharShift(1)).ReplaceCaseTransfer("fucked up", "did an oopsie-woopsie");
 
-            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard","dummie").ReplaceCaseTransfer("d_]][h".CharShift(10), "bgnbnk`sdl`m".CharShift(1)).ReplaceCaseTransfer("fucked up","did an oopsie-woopsie");
+            text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie");
 
             text = text.Replace(".",new string('!',getNiceRandom(1, 5)));
             text = text.Replace("?",new string('?',getNiceRandom(1, 5)));
