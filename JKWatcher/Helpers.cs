@@ -402,13 +402,14 @@ namespace JKWatcher
             StringBuilder retVal = new StringBuilder();
 
             // first char is treated on its own (so that capitalized first char never makes multiple starting chars large)
-            retVal.Append(Char.IsUpper(reference[0]) ? Char.ToUpperInvariant(input[0]) : Char.ToLowerInvariant(input[0]));
+            char start = Char.IsUpper(reference[0]) ? Char.ToUpperInvariant(input[0]) : Char.ToLowerInvariant(input[0]);
+            retVal.Append(start);
             input = input.Slice(1);
             reference = reference.Slice(1);
 
             if (reference.Length == 0 || input.Length == 0)
             {
-                retVal.Append(input);
+                retVal.Append(Char.IsUpper(start) ? input.ToString().ToUpperInvariant() : input.ToString().ToLowerInvariant());
                 return retVal.ToString();
             }
 
@@ -425,6 +426,10 @@ namespace JKWatcher
                 {
                     retVal.Append(Char.IsUpper(reference[i * reference.Length / input.Length]) ? Char.ToUpperInvariant(input[i]) : Char.ToLowerInvariant(input[i]));
                 }
+            }
+            else
+            {
+                retVal.Append(Char.IsUpper(end) ? input.ToString().ToUpperInvariant() : input.ToString().ToLowerInvariant());
             }
 
             retVal.Append(end);
