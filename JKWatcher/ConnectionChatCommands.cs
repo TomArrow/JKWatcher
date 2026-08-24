@@ -3098,6 +3098,15 @@ namespace JKWatcher
         {
             {"okay","okaysies" },
             {"fuckup","oopsie-woopsie" },
+            {"look","peeksy" },
+            {"oof","owie" },
+            {"no","nopesies" },
+            {"mice","meeces" },
+            {"cat","kitty witty" },
+            {"dog","good boi" },
+            {"gross","ewwy" },
+            {"done","donesies" },
+            {"best","bestest" },
         };
         
         void AddKnownName(string newName)
@@ -3173,9 +3182,10 @@ namespace JKWatcher
                 }
             }
 
-            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard", "dummie").ReplaceCaseTransfer("d_]][h".CharShift(10), "bgnbnk`sdl`m".CharShift(1)).ReplaceCaseTransfer("fucked up", "did an oopsie-woopsie");
+            // TODO teensy or itsy-bitsy?
+            text = text.ReplaceCaseTransfer("meow", "nyaa").ReplaceCaseTransfer("noob", "padawan").ReplaceCaseTransfer("nub", "padawan").ReplaceCaseTransfer("retard", "dummie").ReplaceCaseTransfer("d_]][h".CharShift(10), "bgnbnk`sd".CharShift(1)).ReplaceCaseTransfer("fucked up", "did an oopsie-woopsie").ReplaceCaseTransfer("tiny", "itsy-bitsy").ReplaceCaseTransfer("small", "itsy-bitsy").ReplaceCaseTransfer("disgusting", "yucky").ReplaceCaseTransfer("wow", "wowsies").ReplaceCaseTransfer("toe", "toesie").ReplaceCaseTransfer("swear", "swearsies").ReplaceCaseTransfer("stomach", "stummy").ReplaceCaseTransfer("snake", "snek").ReplaceCaseTransfer("shut up", "shutty uppy").ReplaceCaseTransfer("tasty", "scrummy").ReplaceCaseTransfer("delicious", "scrummy").ReplaceCaseTransfer("quit", "quitsies").ReplaceCaseTransfer("fat", "porky").ReplaceCaseTransfer("siren", "nee-naw").ReplaceCaseTransfer("little", "lickle").ReplaceCaseTransfer("sex", "snuggles").ReplaceCaseTransfer("coward", "fraidy").ReplaceCaseTransfer("butterfly", "flutterby").ReplaceCaseTransfer("calculator", "cowculator");
 
-            text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie");
+            text = text.ReplaceCaseTransfer("fuck", "fwickk").ReplaceCaseTransfer("crap", "poopoo").ReplaceCaseTransfer("shit", "poopoo").ReplaceCaseTransfer("bitch", "meanie").ReplaceCaseTransfer("asshole", "butthole").ReplaceCaseTransfer("dick", "peenie").ReplaceCaseTransfer("cock", "peenie").ReplaceCaseTransfer("penis", "peenie").ReplaceCaseTransfer("confuse", "confuzzle");
 
             text = text.Replace(".",new string('!',getNiceRandom(1, 5)));
             text = text.Replace("?",new string('?',getNiceRandom(1, 5)));
