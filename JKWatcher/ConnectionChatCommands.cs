@@ -3054,8 +3054,8 @@ namespace JKWatcher
         }
         static string[] uwumojis =
         {
-            "^^~^^",
-            "^^w^^",
+            //"^^~^^",
+            //"^^w^^",
             ">w<",
             "owo",
             "oWo",

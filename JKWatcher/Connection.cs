@@ -3214,7 +3214,21 @@ namespace JKWatcher
             Snapshot snap = e.snap;
             int oldServerTime = lastSnapshot.ServerTime;
             int shittyMsec = Math.Clamp((lastSnapshot != null) ? (snap.ServerTime-lastSnapshot.ServerTime) : 0, 10,250); // for tracking how long we've not been in spec. idk this is super cringe.
-            
+
+            if(client?.DesiredSnaps >= 20 && e.snapNum != (lastSnapNum+1)) // log dropped messages
+            {
+                int delta = snap.ServerTime - e.lastKnownServerTime;
+
+                if (delta >= 200) // if we fall under 5 fps, lets consider that a serious data loss
+                {
+                    serverWindow.addToLog($"^1MESSAGEDROP WARNER: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>{lastSnapNum + 1}");
+                }
+                else if (delta > 50) // if we fall under 20 fps, lets consider that a data loss
+                {
+                    serverWindow.addToLog($"^1MESSAGEDROP WARNER: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>{lastSnapNum + 1}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
+                }
+            }
+
             lastSnapshot = snap;
             int oldRank = lastPlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
             int newRank = snap.PlayerState.Persistant[(int)PersistantEnum.PERS_RANK];
@@ -7392,8 +7406,18 @@ namespace JKWatcher
         // we can somewhat safely assume a player is lagged out
         void checkPingWarningWeird(PlayerInfo pi, int commandTime, int oldCommandTime, int serverTime, int oldServerTime)
         {
+            if (pi.team == Team.Spectator || !infoPool.serverSendsAllEntities) return; 
 
-            if (pi.team == Team.Spectator || serverTime > oldServerTime + 50 || !infoPool.serverSendsAllEntities) return; // if snaps is below 20, we can't trust this that well. also if we're not getting sent all info from all players, we can't rly trust it either.
+            if (serverTime > oldServerTime + 50)
+            {
+                // if snaps is below 20, we can't trust this that well. also if we're not getting sent all info from all players, we can't rly trust it either.
+                if(serverTime > oldServerTime + 1500)
+                {
+                    // looks like WE are lagging. reset this ping warner to avoid false warnings
+                    pi.pingWarnerWeird.reset();
+                }
+                return;
+            }
             bool softMode = !activeMatch || (DateTime.Now - matchStarted).TotalSeconds < 10.0;
             bool pingBad = commandTime == oldCommandTime || commandTime > oldCommandTime + 100;
             if (!pi.pingWarnerWeird.check(pingBad, 5.0,gameIsPaused ? 60.0 : 10.0, softMode))
