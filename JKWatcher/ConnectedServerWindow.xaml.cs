@@ -1719,9 +1719,9 @@ namespace JKWatcher
                                 {
                                     if (eventNetAddress != null)
                                     {
-                                        using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15)) { ForceStatus = true })
+                                        using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(ProtocolVersion.Protocol15),null,false, Browser_InternalTaskStarted) { ForceStatus = true })
                                         {
-                                            browser.InternalTaskStarted += Browser_InternalTaskStarted;
+                                            //browser.InternalTaskStarted += Browser_InternalTaskStarted;
                                             browser.Start(async (JKClientException ex) => {
                                                 this.addToLog("Exception trying to get ServerInfo for calendar event: " + ex.ToString());
                                             });

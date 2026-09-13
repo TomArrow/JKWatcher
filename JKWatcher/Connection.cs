@@ -1133,7 +1133,7 @@ namespace JKWatcher
                 return false;
             }
             string nwhEngine = Helpers.cachedFileRead("nwhEngine.txt");
-            client = new Client(handler, _connectionOptions.proxy) { GhostPeer = this.GhostPeer, NWHEngine = nwhEngine, DebugNet = _connectionOptions.netDebug }; // Todo make more flexible
+            client = new Client(handler, _connectionOptions.proxy, Client_InternalTaskStarted) { GhostPeer = this.GhostPeer, NWHEngine = nwhEngine, DebugNet = _connectionOptions.netDebug }; // Todo make more flexible
 
             if (_connectionOptions.pretendToBeRealClient)
             {
@@ -1207,7 +1207,7 @@ namespace JKWatcher
             client.Disconnected += Client_Disconnected;
             client.UserCommandGenerated += Client_UserCommandGenerated;
             client.DebugEventHappened += Client_DebugEventHappened;
-            client.InternalTaskStarted += Client_InternalTaskStarted;
+            //client.InternalTaskStarted += Client_InternalTaskStarted;
             client.ErrorMessageCreated += Client_ErrorMessageCreated;
             client.InternalCommandCreated += Client_InternalCommandCreated;
             client.MapChangeServerCommandReceived += Client_MapChangeServerCommandReceived;
@@ -5348,9 +5348,9 @@ namespace JKWatcher
                             } 
 
                             // Let's get server info packet.
-                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(obj.Protocol)) { ForceStatus = true })
+                            using (ServerBrowser browser = new ServerBrowser(new JKClient.JOBrowserHandler(obj.Protocol),null,false, Browser_InternalTaskStarted) { ForceStatus = true })
                             {
-                                browser.InternalTaskStarted += Browser_InternalTaskStarted;
+                                //browser.InternalTaskStarted += Browser_InternalTaskStarted;
                                 browser.Start(async (JKClientException ex)=> {
                                     serverWindow.addToLog("Exception trying to get ServerInfo for mvHttp purposes: "+ex.ToString());
                                 });

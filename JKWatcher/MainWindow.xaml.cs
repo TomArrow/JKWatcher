@@ -685,22 +685,22 @@ namespace JKWatcher
                     ServerBrowser serverBrowser = null;
                     if (jkaMode)
                     {
-                        serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 30000L, ForceStatus = true };
+                        serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 30000L, ForceStatus = true };
                     }
                     else if (mohMode)
                     {
-                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8,true)) { RefreshTimeout = 30000L, ForceStatus = true };
+                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8,true), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 30000L, ForceStatus = true };
                     }
                     else if (q3Mode)
                     {
-                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol68)) { RefreshTimeout = 30000L, ForceStatus = true };
+                        serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol68), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 30000L, ForceStatus = true };
                     }
                     else
                     {
-                        serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions || delayedConnectServersCount > 0)) { RefreshTimeout = 30000L, ForceStatus = true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
+                        serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions || delayedConnectServersCount > 0),null,false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 30000L, ForceStatus = true }; // The autojoin gets a nice long refresh time out to avoid wrong client numbers being reported.
                     }
 
-                    serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+                    //serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
 
                     try
                     {
@@ -966,11 +966,11 @@ namespace JKWatcher
         {
             bool nextCheckFast = false;
 
-            ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true));
-            ServerBrowser serverBrowserMOH = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true));
+            ServerBrowser serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true),null,false, ServerBrowser_InternalTaskStarted);
+            ServerBrowser serverBrowserMOH = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true), null, false, ServerBrowser_InternalTaskStarted);
 
-            serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
-            serverBrowserMOH.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+            //serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+            //serverBrowserMOH.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
 
             try
             {
@@ -1252,22 +1252,22 @@ namespace JKWatcher
             ServerBrowser serverBrowser = null;
             if (jkaMode)
             {
-                serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { ForceStatus = true };
+                serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26), null, false, ServerBrowser_InternalTaskStarted) { ForceStatus = true };
             }
             else if (mohMode)
             {
-                serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { ForceStatus = true };
+                serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true), null, false, ServerBrowser_InternalTaskStarted) { ForceStatus = true };
             }
             else if (q3Mode)
             {
-                serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68)) { ForceStatus = true };
+                serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68), null, false, ServerBrowser_InternalTaskStarted) { ForceStatus = true };
             }
             else
             {
-                serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions)) { ForceStatus = true };
+                serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, allJK2Versions),null,false, ServerBrowser_InternalTaskStarted) { ForceStatus = true };
             }
 
-            serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+            //serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
 
             try
             {
@@ -2524,21 +2524,21 @@ namespace JKWatcher
                         ServerBrowser serverBrowser = null;
                         if (jkaMode)
                         {
-                            serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26)) { RefreshTimeout = 10000L, ForceStatus = true };
+                            serverBrowser = new ServerBrowser(new JABrowserHandler(ProtocolVersion.Protocol26), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 10000L, ForceStatus = true };
                         }
                         else if (mohMode)
                         {
-                            serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true)) { RefreshTimeout = 10000L, ForceStatus = true };
+                            serverBrowser = new ServerBrowser(new MOHBrowserHandler(ProtocolVersion.Protocol8, true), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 10000L, ForceStatus = true };
                         }
                         else if (q3Mode)
                         {
-                            serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68)) { RefreshTimeout = 10000L, ForceStatus = true };
+                            serverBrowser = new ServerBrowser(new Q3BrowserHandler(ProtocolVersion.Protocol68), null, false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 10000L, ForceStatus = true };
                         } else
                         {
-                            serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true)) { RefreshTimeout = 10000L, ForceStatus = true }; 
+                            serverBrowser = new ServerBrowser(new JOBrowserHandler(ProtocolVersion.Protocol15, true),null,false, ServerBrowser_InternalTaskStarted) { RefreshTimeout = 10000L, ForceStatus = true }; 
                         }
 
-                        serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+                        //serverBrowser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
 
                         try
                         {
@@ -2743,9 +2743,9 @@ namespace JKWatcher
                             bHandler = new JOBrowserHandler(ProtocolVersion.Protocol15, true);
                         }
 
-                        using (ServerBrowser browser = new ServerBrowser(bHandler))
+                        using (ServerBrowser browser = new ServerBrowser(bHandler,null,false, ServerBrowser_InternalTaskStarted))
                         {
-                            browser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
+                            //browser.InternalTaskStarted += ServerBrowser_InternalTaskStarted;
                             browser.Start(async (JKClientException ex) => {
                                 errorString = ("Exception trying to get ServerInfo for forced connect: " + ex.ToString());
                             });
