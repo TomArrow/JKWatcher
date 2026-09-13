@@ -3221,11 +3221,11 @@ namespace JKWatcher
 
                 if (delta >= 200) // if we fall under 5 fps, lets consider that a serious data loss
                 {
-                    serverWindow.addToLog($"^1MESSAGEDROP WARNER: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>{lastSnapNum + 1}");
+                    serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.1: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>({e.snapNum-lastSnapNum})>>>{lastSnapNum}");
                 }
                 else if (delta > 50) // if we fall under 20 fps, lets consider that a data loss
                 {
-                    serverWindow.addToLog($"^1MESSAGEDROP WARNER: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>{lastSnapNum + 1}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
+                    serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.1: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>{e.snapNum - lastSnapNum}>>{lastSnapNum}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
                 }
             }
 
