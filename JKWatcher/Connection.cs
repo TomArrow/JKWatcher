@@ -6188,7 +6188,22 @@ namespace JKWatcher
                 if(mohMode && command.Equals("stufftext", StringComparison.OrdinalIgnoreCase))
                 {
                     serverWindow.addToLog(allArgs.ToString(),false,60000);
-                } else
+                } 
+                else if(commandEventArgs.SpamType > CommandSpamType.None)
+                {
+                    switch (commandEventArgs.SpamType)
+                    {
+                        default:
+                        case CommandSpamType.SpamSame:
+                            serverWindow.addToLog(allArgs.ToString(), false, 60000);
+                            break;
+                        case CommandSpamType.SpamKind:
+                            string spamKind = commandEventArgs.SpamKind;
+                            serverWindow.addToLog(allArgs.ToString(), false, 60000, 0, ConnectedServerWindow.MentionLevel.NoMention, !string.IsNullOrWhiteSpace(spamKind), spamKind);
+                            break;
+                    }
+                } 
+                else
                 {
                     serverWindow.addToLog(allArgs.ToString());
                 }
