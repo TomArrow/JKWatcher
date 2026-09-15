@@ -3215,17 +3215,22 @@ namespace JKWatcher
             int oldServerTime = lastSnapshot.ServerTime;
             int shittyMsec = Math.Clamp((lastSnapshot != null) ? (snap.ServerTime-lastSnapshot.ServerTime) : 0, 10,250); // for tracking how long we've not been in spec. idk this is super cringe.
 
-            if(client?.DesiredSnaps >= 20 && e.snapNum != (lastSnapNum+1)) // log dropped messages
+            if (e.snapNum != (e.lastKnownMessageNum + 1))
             {
-                int delta = snap.ServerTime - e.lastKnownServerTime;
 
-                if (delta >= 200) // if we fall under 5 fps, lets consider that a serious data loss
+                serverWindow.addToLog($"^3MESSAGEDROP WARNER V1.2: Message dropped", false, 10000, 0, ConnectedServerWindow.MentionLevel.NoMention, true, "msgdrop1", Math.Max(e.snapNum- e.lastKnownMessageNum-2,0));
+                if (client?.DesiredSnaps >= 20) // log dropped messages
                 {
-                    serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.1: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>({e.snapNum-lastSnapNum})>>>{lastSnapNum}");
-                }
-                else if (delta > 50) // if we fall under 20 fps, lets consider that a data loss
-                {
-                    serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.1: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>{e.snapNum - lastSnapNum}>>{lastSnapNum}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
+                    int delta = snap.ServerTime - e.lastKnownServerTime;
+
+                    if (delta >= 200) // if we fall under 5 fps, lets consider that a serious data loss
+                    {
+                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.2: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>({e.snapNum- e.lastKnownMessageNum})>>>{e.lastKnownMessageNum}");
+                    }
+                    else if (delta > 50) // if we fall under 20 fps, lets consider that a data loss
+                    {
+                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.2: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>({e.snapNum - e.lastKnownMessageNum})>>{e.lastKnownMessageNum}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
+                    }
                 }
             }
 

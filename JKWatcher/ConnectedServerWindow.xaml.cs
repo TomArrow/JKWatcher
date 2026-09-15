@@ -2108,40 +2108,56 @@ namespace JKWatcher
             
         }*/
 
-
-        ConcurrentDictionary<string,DateTime> rateLimitedErrorMessages = new ConcurrentDictionary<string,DateTime>();
-        ConcurrentDictionary<string, int> rateLimitedErrorMessagesCount = new ConcurrentDictionary<string,int>();
+        class RateLimitedMessageGroup
+        {
+            public DateTime nextAllowed = DateTime.Now;
+            public int countSkipped = 0;
+            public string lastMessage;
+            public bool expressionBased;
+        }
+        ConcurrentDictionary<string, RateLimitedMessageGroup> rateLimitedErrorMessages = new ConcurrentDictionary<string, RateLimitedMessageGroup>();
         // Use timeout (milliseconds) for messages that might happen often.
         // timeOutCall times out not by content but by place of being called
+        private DateTime lastSkippedMessagesFlushCheck = DateTime.Now;
         public void addToLog(string someString, bool forceLogToFile = false, int timeOut = 0, int logLevel = 0, MentionLevel logAsMention = MentionLevel.NoMention, bool timeOutBasedOnExpression=false,
         [System.Runtime.CompilerServices.CallerArgumentExpression("someString")] string expression = ""
         //,[System.Runtime.CompilerServices.CallerMemberName] string memberName = "",
         //[System.Runtime.CompilerServices.CallerFilePath] string sourceFilePath = "",
         //[System.Runtime.CompilerServices.CallerLineNumber] int sourceLineNumber = 0
+        , int skipCountExtra = 0
         )
         {
             if (logLevel > verboseOutput) return;
             if(timeOut != 0)
             {
                 string timeOutString = timeOutBasedOnExpression ? expression : someString;
-                lock (rateLimitedErrorMessagesCount)
+                lock (rateLimitedErrorMessages)
                 {
-                    if (!rateLimitedErrorMessagesCount.ContainsKey(timeOutString))
+                    RateLimitedMessageGroup messageGroup;
+                    if (!rateLimitedErrorMessages.ContainsKey(timeOutString))
                     {
-                        rateLimitedErrorMessagesCount[timeOutString] = 0;
+                        rateLimitedErrorMessages[timeOutString] = messageGroup = new RateLimitedMessageGroup();
                     }
-                    if (rateLimitedErrorMessages.ContainsKey(timeOutString) && rateLimitedErrorMessages[timeOutString] > DateTime.Now)
+                    else
                     {
-                        rateLimitedErrorMessagesCount[timeOutString]++;
+                        messageGroup = rateLimitedErrorMessages[timeOutString];
+                    }
+                    messageGroup.expressionBased = timeOutBasedOnExpression;
+                    messageGroup.countSkipped += skipCountExtra;
+                    if (messageGroup.nextAllowed > DateTime.Now)
+                    {
+                        messageGroup.countSkipped++;
+                        messageGroup.lastMessage = someString;
                         return; // Skipping repeated message.
                     }
                     else
                     {
-                        rateLimitedErrorMessages[timeOutString] = DateTime.Now.AddMilliseconds(timeOut);
-                        if (rateLimitedErrorMessagesCount[timeOutString] > 0)
+                        messageGroup.nextAllowed = DateTime.Now.AddMilliseconds(timeOut);
+                        messageGroup.lastMessage = null;
+                        if (messageGroup.countSkipped > 0)
                         {
-                            int countSkipped = rateLimitedErrorMessagesCount[timeOutString];
-                            rateLimitedErrorMessagesCount[timeOutString] = 0;
+                            int countSkipped = messageGroup.countSkipped;
+                            messageGroup.countSkipped = 0;
                             if (timeOutBasedOnExpression)
                             {
                                 someString = $"[SKIPPED {countSkipped} TIMES]\n{someString}";
@@ -2153,6 +2169,36 @@ namespace JKWatcher
                         }
                     }
                 }
+            }
+            // regularly flush the skipped ones if possible so that if we skip 1000 of them, and then none come anymore, we actually get to see that there were 1000 skipped
+            if ((DateTime.Now - lastSkippedMessagesFlushCheck).TotalMilliseconds > 1000.0)
+            {
+                lock (rateLimitedErrorMessages)
+                {
+                    foreach (var kvp in rateLimitedErrorMessages)
+                    {
+                        RateLimitedMessageGroup msgGrp = kvp.Value;
+                        if (msgGrp.countSkipped > 0 && msgGrp.nextAllowed <= DateTime.Now)
+                        {
+                            string lastMessage = msgGrp.lastMessage;
+                            msgGrp.lastMessage = null;
+                            if (!string.IsNullOrWhiteSpace(lastMessage))
+                            {
+                                int countSkipped = msgGrp.countSkipped;
+                                msgGrp.countSkipped = 0;
+                                if (msgGrp.expressionBased)
+                                {
+                                    someString = $"[FLUSH: SKIPPED {countSkipped} TIMES; LAST STRING FOLLOWS]\n{msgGrp.lastMessage}";
+                                }
+                                else
+                                {
+                                    someString = $"[FLUSH: SKIPPED EXPRESSION {countSkipped} TIMES; LAST STRING FOLLOWS]\n{msgGrp.lastMessage}";
+                                }
+                            }
+                        }
+                    }
+                }
+                lastSkippedMessagesFlushCheck = DateTime.Now;
             }
             logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now,mentionLevel= logAsMention });
         }
