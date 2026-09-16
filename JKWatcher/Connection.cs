@@ -3218,18 +3218,18 @@ namespace JKWatcher
             if (e.snapNum != (e.lastKnownMessageNum + 1))
             {
 
-                serverWindow.addToLog($"^3MESSAGEDROP WARNER V1.2: Message dropped", false, 10000, 0, ConnectedServerWindow.MentionLevel.NoMention, true, "msgdrop1", Math.Max(e.snapNum- e.lastKnownMessageNum-2,0));
+                serverWindow.addToLog($"^3MESSAGEDROP WARNER V1.3: Message dropped", false, 10000, 0, ConnectedServerWindow.MentionLevel.NoMention, true, "msgdrop1", Math.Max(e.snapNum- e.lastKnownMessageNum-2,0));
                 if (client?.DesiredSnaps >= 20) // log dropped messages
                 {
                     int delta = snap.ServerTime - e.lastKnownServerTime;
 
                     if (delta >= 200) // if we fall under 5 fps, lets consider that a serious data loss
                     {
-                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.2: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>({e.snapNum- e.lastKnownMessageNum})>>>{e.lastKnownMessageNum}");
+                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.3: Effective snaps fell under 5 ({delta} ms), msg {e.snapNum}>>>({e.snapNum- e.lastKnownMessageNum-1})>>>{e.lastKnownMessageNum}");
                     }
                     else if (delta > 50) // if we fall under 20 fps, lets consider that a data loss
                     {
-                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.2: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>({e.snapNum - e.lastKnownMessageNum})>>{e.lastKnownMessageNum}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
+                        serverWindow.addToLog($"^1MESSAGEDROP WARNER V1.3: Effective snaps fell under 20 ({delta} ms), msg {e.snapNum}>>({e.snapNum - e.lastKnownMessageNum-1})>>{e.lastKnownMessageNum}",false,60000,0,ConnectedServerWindow.MentionLevel.NoMention,true,"messagedrop_minilag");
                     }
                 }
             }

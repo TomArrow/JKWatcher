@@ -2112,6 +2112,7 @@ namespace JKWatcher
         {
             public DateTime nextAllowed = DateTime.Now;
             public int countSkipped = 0;
+            public int highestNum = 0;
             public string lastMessage;
             public bool expressionBased;
         }
@@ -2144,6 +2145,7 @@ namespace JKWatcher
                     }
                     messageGroup.expressionBased = timeOutBasedOnExpression;
                     messageGroup.countSkipped += skipCountExtra;
+                    messageGroup.highestNum = Math.Max(messageGroup.highestNum, skipCountExtra+1);
                     if (messageGroup.nextAllowed > DateTime.Now)
                     {
                         messageGroup.countSkipped++;
@@ -2157,14 +2159,16 @@ namespace JKWatcher
                         if (messageGroup.countSkipped > 0)
                         {
                             int countSkipped = messageGroup.countSkipped;
+                            int highestNum = messageGroup.highestNum;
                             messageGroup.countSkipped = 0;
+                            messageGroup.highestNum = 0;
                             if (timeOutBasedOnExpression)
                             {
-                                someString = $"[SKIPPED {countSkipped} TIMES]\n{someString}";
+                                someString = $"[SKIPPED {countSkipped} TIMES; highestVal {highestNum}]\n{someString}";
                             }
                             else
                             {
-                                someString = $"[SKIPPED EXPRESSION {countSkipped} TIMES]\n{someString}";
+                                someString = $"[SKIPPED EXPRESSION {countSkipped} TIMES; highestVal {highestNum}]\n{someString}";
                             }
                         }
                     }
@@ -2173,6 +2177,7 @@ namespace JKWatcher
             // regularly flush the skipped ones if possible so that if we skip 1000 of them, and then none come anymore, we actually get to see that there were 1000 skipped
             if ((DateTime.Now - lastSkippedMessagesFlushCheck).TotalMilliseconds > 1000.0)
             {
+                lastSkippedMessagesFlushCheck = DateTime.Now;
                 lock (rateLimitedErrorMessages)
                 {
                     foreach (var kvp in rateLimitedErrorMessages)
@@ -2182,23 +2187,25 @@ namespace JKWatcher
                         {
                             string lastMessage = msgGrp.lastMessage;
                             msgGrp.lastMessage = null;
-                            if (!string.IsNullOrWhiteSpace(lastMessage))
+                            if (string.IsNullOrWhiteSpace(lastMessage))
                             {
-                                int countSkipped = msgGrp.countSkipped;
-                                msgGrp.countSkipped = 0;
-                                if (msgGrp.expressionBased)
-                                {
-                                    someString = $"[FLUSH: SKIPPED {countSkipped} TIMES; LAST STRING FOLLOWS]\n{msgGrp.lastMessage}";
-                                }
-                                else
-                                {
-                                    someString = $"[FLUSH: SKIPPED EXPRESSION {countSkipped} TIMES; LAST STRING FOLLOWS]\n{msgGrp.lastMessage}";
-                                }
+                                lastMessage = $"(WEIRD, EMPTY LAST MESSAGE, key {kvp.Key})";
+                            }
+                            int countSkipped = msgGrp.countSkipped;
+                            int highestNum = msgGrp.highestNum;
+                            msgGrp.countSkipped = 0;
+                            msgGrp.highestNum = 0;
+                            if (msgGrp.expressionBased)
+                            {
+                                someString = $"[FLUSH: SKIPPED {countSkipped} TIMES; highestVal {highestNum}; LAST STRING FOLLOWS]\n{lastMessage}";
+                            }
+                            else
+                            {
+                                someString = $"[FLUSH: SKIPPED EXPRESSION {countSkipped} TIMES; highestVal {highestNum}; LAST STRING FOLLOWS]\n{lastMessage}";
                             }
                         }
                     }
                 }
-                lastSkippedMessagesFlushCheck = DateTime.Now;
             }
             logQueue.Enqueue(new LogQueueItem() { logString= someString,forceLogToFile=forceLogToFile,time=DateTime.Now,mentionLevel= logAsMention });
         }
