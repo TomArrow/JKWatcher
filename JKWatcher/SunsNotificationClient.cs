@@ -1,5 +1,6 @@
 ﻿using JKClient;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -108,7 +109,7 @@ namespace JKWatcher
                     {
                         return;
                     }
-                    byte[] messageData = new byte[5000];
+                    byte[] messageData = ArrayPool<byte>.Shared.Rent(5000);
                     EndPoint fromWho = new IPEndPoint(0, 0);
                     int receivedWhat = socket.ReceiveFrom(messageData, SocketFlags.None, ref fromWho);
                     tryForMore = true;
@@ -120,6 +121,7 @@ namespace JKWatcher
                     Debug.WriteLine($"Received {receivedWhat} bytes from {fromWho.ToString()}");
                     IPEndPoint fromWhoIP = fromWho as IPEndPoint;
                     OnSunsNotificationReceived(new NetAddress(fromWhoIP.Address.GetAddressBytes(),(ushort)fromWhoIP.Port), dataString);
+                    ArrayPool<byte>.Shared.Return(messageData);
                 }
                 catch (SocketException e)
                 {

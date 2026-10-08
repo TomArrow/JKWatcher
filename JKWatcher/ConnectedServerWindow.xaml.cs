@@ -3766,7 +3766,11 @@ namespace JKWatcher
 
             Bitmap bmp = LevelShotData.ToBitmap(levelshotDataLocal, skipLessThanPixelCount);
 
-            if (bmp is null) return;
+            if (bmp is null)
+            {
+                bmp?.Dispose(); // i got disposal elevated to an error :)
+                return;
+            }
 
             bmp.Save(filenameString);
 
@@ -3829,7 +3833,6 @@ namespace JKWatcher
             {
                 File.WriteAllText(jsonName, jsonData.ToString());
             }
-
 
 
             //filenameString = Helpers.MakeValidFileName(baseFilename) + ".tiff";

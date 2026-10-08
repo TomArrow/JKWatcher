@@ -486,6 +486,7 @@ namespace JKWatcher.RandomHelpers
                 theString = options.namesReplaceRegex.Replace(theString, options.namesReplaceEvaluator);
             }
             Font fontToUse = header ? headerFont : font;
+            Font replacingFont = null;
 
             if (header)
             {
@@ -498,7 +499,6 @@ namespace JKWatcher.RandomHelpers
             StringFormat formatToUse = (overflowModeHere != OverflowMode.WrapClip) ? (rightAlign ? noWrapStringFormatRightAlign: noWrapStringFormat) : ( rightAlign ? defaultStringFormatRightAlign: defaultStringFormat);
 
             string cleanString = null;
-            bool fontWasReplaced = false;
             const float reductionDecrements = 0.5f;
             //if (overflowMode == OverflowMode.AutoScale && !header)
             if (overflowModeHere == OverflowMode.AutoScale)
@@ -509,12 +509,9 @@ namespace JKWatcher.RandomHelpers
                 while ((tooBig=g.MeasureString(cleanString, fontToUse, new PointF(x,y),formatToUse).Width > width) && trySize >= 5)
                 {
                     trySize -= reductionDecrements;
-                    if (fontWasReplaced)
-                    {
-                        fontToUse.Dispose();
-                    }
-                    fontToUse = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
-                    fontWasReplaced = true;
+                    replacingFont?.Dispose();
+                    replacingFont = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
+                    fontToUse = replacingFont;
                 }
                 if (tooBig)
                 {
@@ -539,12 +536,9 @@ namespace JKWatcher.RandomHelpers
                 while (g.MeasureString(cleanString, fontToUse, new PointF(x, y), formatToUse).Width > maxWidth && trySize >= 8)
                 {
                     trySize -= reductionDecrements;
-                    if (fontWasReplaced)
-                    {
-                        fontToUse.Dispose();
-                    }
-                    fontToUse = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
-                    fontWasReplaced = true;
+                    replacingFont?.Dispose();
+                    replacingFont = new Font(fontToUse.FontFamily, trySize, fontToUse.Style, fontToUse.Unit);
+                    fontToUse = replacingFont;
                 }
                 SizeF measure = g.MeasureString(cleanString, fontToUse, new PointF(x, y), formatToUse);
                 float realHeight = (float)Math.Sqrt(0.5f*measure.Height * measure.Height);
@@ -583,10 +577,7 @@ namespace JKWatcher.RandomHelpers
 
         cleanup:
             g.ResetTransform();
-            if (fontWasReplaced)
-            {
-                fontToUse.Dispose();
-            }
+            replacingFont?.Dispose();
         }
     }
 

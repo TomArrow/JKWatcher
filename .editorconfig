@@ -2,3 +2,5 @@
 
 # IDE0055: Fix formatting
 dotnet_diagnostic.IDE0055.severity = none
+#CA2000: Throw error when analyzer finds objects not being disposed properly.
+dotnet_diagnostic.CA2000.severity = error

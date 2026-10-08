@@ -30,7 +30,10 @@ namespace Tests
             TiffBitmapEncoder tiff = new TiffBitmapEncoder() { Compression = TiffCompressOption.None };
             var frame = BitmapFrame.Create(bs);
             tiff.Frames.Add(frame);
-            tiff.Save(new FileStream("128floatTest.tif", FileMode.Create));
+            using(FileStream fs = new FileStream("128floatTest.tif", FileMode.Create))
+            {
+                tiff.Save(fs);
+            }
 
             Assert.IsTrue(true);
         }
@@ -131,7 +134,10 @@ namespace Tests
             using (MemoryStream ms = new MemoryStream()) { 
                 jxr.Save(ms);
                 ms.Seek(0, SeekOrigin.Begin);
-                ms.CopyTo(new FileStream("128floatTest.jxr", FileMode.Create));
+                using(FileStream fs = new FileStream("128floatTest.jxr", FileMode.Create))
+                {
+                    ms.CopyTo(fs);
+                }
                 ms.Seek(0, SeekOrigin.Begin);
 
                 WmpBitmapDecoder jxrDec = new WmpBitmapDecoder(ms, BitmapCreateOptions.PreservePixelFormat | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.Default);
