@@ -1118,6 +1118,13 @@ namespace JKWatcher
     public struct ConditionalResetValueSummer<T> where T : IOldNewValueCondition, new()
     {
         public int value { get; private set; }
+        public int total
+        {
+            get
+            {
+                return value + oldSum;
+            }
+        }
         public int oldSum { get; private set; }
         private Int64 changes;
 

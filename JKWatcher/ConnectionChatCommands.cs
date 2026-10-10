@@ -243,6 +243,45 @@ namespace JKWatcher
             }
             return dbsPercentagesString.ToString();
         }
+        private string MakeFlagHoldString(bool thisGame, bool all)
+        {
+            // Make temporary ratings (so we can get up to date data without having to have rating periods so short they make the algorithm overall very imprecise)
+            List<KeyValuePair<int, Tuple<string, int>>> entries = new List<KeyValuePair<int, Tuple<string, int>>>();
+
+            foreach (PlayerInfo pi in infoPool.playerInfo)
+            {
+                if (!pi.infoValid) continue;
+                ChatCommandTrackingStuff trackingStuff = thisGame ? pi.chatCommandTrackingStuffThisGame : pi.chatCommandTrackingStuff;
+                int flaghold = trackingStuff.score.guantletCount.total;
+                if(flaghold <= 0)
+                {
+                    continue;
+                }
+                entries.Add(new KeyValuePair<int, Tuple<string, int>>(flaghold, new Tuple<string, int>(pi.name, flaghold))); // meh pi.session.GetNameOrLastNonPadaName()
+            }
+
+            entries.Sort((a, b) => { return -a.Key.CompareTo(b.Key); });
+
+            StringBuilder flagholdsString = new StringBuilder();
+            int entryindex = 0;
+            foreach (var thisRating in entries)
+            {
+                string strippedName = Q3ColorFormatter.cleanupString(thisRating.Value.Item1, infoPool.hexSupport);
+                if (strippedName is null) continue;
+                if ((flagholdsString.Length + strippedName.Length) > 150)
+                {
+                    break;
+                }
+                if (entryindex != 0)
+                {
+                    flagholdsString.Append(", ");
+                }
+                string percentString = thisRating.Key.ToString("#.00");
+                flagholdsString.Append($"{strippedName} ({ScoreboardRenderer.FormatTime(thisRating.Key)})");
+                entryindex++;
+            }
+            return flagholdsString.ToString();
+        }
 
         private static Regex numericCompareSearchRegex = new Regex(@"^\s*(?<operator>(?:>=)|(?:<=)|<|>)\s*(?<number>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
         private static Regex numericRangeSearchRegex = new Regex(@"^\s*(?<number1>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*-\s*(?<number2>(?:-?\d*(?:[\.,]\d+))|-?\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
@@ -1964,7 +2003,7 @@ namespace JKWatcher
                         case "tools":
                         case "!tools":
                             if (!this.IsMainChatConnection || (stringParams0LowerClean == "tools" && pm.type != ChatType.PRIVATE)) return;
-                            ChatCommandAnswer(pm, "!kills !killsOn !killedBy !kd !match !resetmatch !endmatch !matchstate", true, true, true, true);
+                            ChatCommandAnswer(pm, "!kills !killsOn !killedBy !kd !dbs !fhold !match !resetmatch !endmatch !matchstate", true, true, true, true);
                             ChatCommandAnswer(pm, "!rets !retsOn !retBy !retRatio !killTypes !retTypes !strafeStyle !g2 !g2top !tilt", true, true, true, true);
                             ChatCommandAnswer(pm, "(add 'thisgame' at end to get stats for current game)", true, true, true, true);
                             notDemoCommand = true;
@@ -2035,6 +2074,25 @@ namespace JKWatcher
                                 if (dbsCount > 0)
                                 {
                                     ChatCommandAnswer(pm, $"DBS kill percentage for {player.name} is {percentString}% ({dbsKills} DBS kills out of {dbsCount} DBS)", true, true, true);
+                                }
+                            }
+                            
+                            notDemoCommand = true;
+                            break;
+                        case "!fhold":
+                            if (_connectionOptions.silentMode || !this.IsMainChatConnection) return;
+                            if (numberParams.Count == 0 || numberParams[0] < 0 || numberParams[0] >= maxClientsHere || !infoPool.playerInfo[numberParams[0]].infoValid)
+                            {
+                                ChatCommandAnswer(pm, $"^7^0^7Flag holds (minus current holds): {MakeFlagHoldString(thisGameParamFound, false)}", true, true, true);
+                                return;
+                            } else if(numberParams.Count >= 1)
+                            {
+                                PlayerInfo player = infoPool.playerInfo[numberParams[0]];
+                                ChatCommandTrackingStuff trackingStuff = thisGameParamFound ? player.chatCommandTrackingStuffThisGame : player.chatCommandTrackingStuff;
+                                int flaghold = trackingStuff.score.guantletCount.total;
+                                if (flaghold > 0)
+                                {
+                                    ChatCommandAnswer(pm, $"Flaghold (minus current hold) for {player.name} is {ScoreboardRenderer.FormatTime(flaghold)}", true, true, true);
                                 }
                             }
                             
