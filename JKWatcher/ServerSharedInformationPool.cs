@@ -812,6 +812,8 @@ namespace JKWatcher
         public int tasClient { get; set; } = 0;
         public bool confirmedJKWatcherFightbot { get; set; } = false;
         public string model { get; set; }
+		public TommyTernalPlayerMode TTPlayerMode { get; set; } //TommyTernal player mode
+		public TommyTernalPlayerModeTeam TTPlayerModeTeam { get; set; } //TommyTernal player mode team
     }
 
     public class DelayedStatusWarner
@@ -880,6 +882,8 @@ namespace JKWatcher
         public string name => this.session.name;
         public PlayerId nwhId => this.session.nwhId;
         public string model => this.session.model;
+        public TommyTernalPlayerMode TTPlayerMode => this.session.TTPlayerMode;
+        public TommyTernalPlayerModeTeam TTPlayerModeTeam => this.session.TTPlayerModeTeam;
         public Team team => this.session.team;
         public PlayerScore scoreThisGame => this.chatCommandTrackingStuffThisGame.score;
         public PlayerScore scoreAll => this.chatCommandTrackingStuff.score;

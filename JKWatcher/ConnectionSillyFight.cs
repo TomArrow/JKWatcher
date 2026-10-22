@@ -600,7 +600,8 @@ namespace JKWatcher
 						bool playerIsAfk = /*!pi.lastMovementDirChange.HasValue ||*/ (DateTime.Now - pi.lastMovementDirChange).TotalSeconds > 10;
 
 						if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
-						if (this.currentGameType >= GameType.Team && pi.team == myself.team) {
+						if (pi.TTPlayerMode != myself.TTPlayerMode) continue;
+						if (this.currentGameType >= GameType.Team && pi.team == myself.team || myself.TTPlayerMode == TommyTernalPlayerMode.Ironman && pi.TTPlayerModeTeam == myself.TTPlayerModeTeam) {
 							if (!pi.confirmedJKWatcherFightbot && !pi.confirmedBot && curdistance < closestFriendDistance && !playerIsAfk && (DateTime.Now - lastPlayerDoesntBoost[pi.clientNum]).TotalSeconds > 120)
 							{
 								// this guy could maybe boost us
