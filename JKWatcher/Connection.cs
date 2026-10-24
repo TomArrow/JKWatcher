@@ -1916,11 +1916,11 @@ namespace JKWatcher
                                     infoPool.playerInfo[target].chatCommandTrackingStuffThisGame.returned++;
                                     infoPool.killTrackers[attacker, target].returns++;
                                     infoPool.killTrackersThisGame[attacker, target].returns++;
-                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
+                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotRetTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot || infoPool.playerInfo[target].isClaudeBot);
                                 }
                                 else
                                 {
-                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot);
+                                    PrintPositionToLevelshot(new Vector4(deathPosition, 1.0f), levelshotKillTeamColors[(int)infoPool.playerInfo[target].team], infoPool.playerInfo[target].confirmedBot || infoPool.playerInfo[target].confirmedJKWatcherFightbot || infoPool.playerInfo[target].isClaudeBot);
                                 }
                             }
                             infoPool.playerInfo[attacker].chatCommandTrackingStuff.totalKills++;
@@ -3675,7 +3675,7 @@ namespace JKWatcher
                             Y = snap.PlayerState.Origin[1],
                             Z = snap.PlayerState.Origin[2],
                             W = 1
-                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot);
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot || infoPool.playerInfo[i].isClaudeBot);
                     }
                     
 
@@ -3967,7 +3967,7 @@ namespace JKWatcher
                             Y = snap.Entities[snapEntityNum].Position.Base[1],
                             Z = snap.Entities[snapEntityNum].Position.Base[2],
                             W = 1
-                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot);
+                        }, levelshotTeamColors[(int)infoPool.playerInfo[i].team], infoPool.playerInfo[i].confirmedBot || infoPool.playerInfo[i].confirmedJKWatcherFightbot|| infoPool.playerInfo[i].isClaudeBot);
                     }
 
 
@@ -4344,7 +4344,7 @@ namespace JKWatcher
                                 Y = snap.Entities[snapEntityNum].Position.Base[1],
                                 Z = snap.Entities[snapEntityNum].Position.Base[2],
                                 W = 1
-                            }, levelshotTeamColors[(int)infoPool.playerInfo[eventclientnum].team], infoPool.playerInfo[eventclientnum].confirmedBot || infoPool.playerInfo[eventclientnum].confirmedJKWatcherFightbot);
+                            }, levelshotTeamColors[(int)infoPool.playerInfo[eventclientnum].team], infoPool.playerInfo[eventclientnum].confirmedBot || infoPool.playerInfo[eventclientnum].confirmedJKWatcherFightbot|| infoPool.playerInfo[eventclientnum].confirmedBot || infoPool.playerInfo[eventclientnum].isClaudeBot);
 
                             // silly :P hope this breaks nothing, like block detection
                             lastPosition[eventclientnum].X = snap.Entities[snapEntityNum].Position.Base[0];
@@ -4965,7 +4965,7 @@ namespace JKWatcher
         {
             DateTime? lastNonZeroPing = infoPool.playerInfo[clientNumber].scoreAll.lastNonZeroPing;
             return clientNumber >= 0 && clientNumber < client.ClientHandler.MaxClients && 
-                ((infoPool.playerInfo[clientNumber].tasClient & 2) > 0 || infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || 
+                ((infoPool.playerInfo[clientNumber].tasClient & 2) > 0 || infoPool.playerInfo[clientNumber].confirmedBot || infoPool.playerInfo[clientNumber].confirmedJKWatcherFightbot || infoPool.playerInfo[clientNumber].isClaudeBot || 
                 (!lastNonZeroPing.HasValue || (DateTime.Now - lastNonZeroPing.Value).TotalMilliseconds > 10000) 
                 && infoPool.playerInfo[clientNumber].scoreAll.pingUpdatesSinceLastNonZeroPing > 10);
         }
@@ -5650,6 +5650,13 @@ namespace JKWatcher
                                     //infoPool.playerInfo[i].score = new PlayerScore();
                                     //infoPool.playerInfo[i].chatCommandTrackingStuff = new ChatCommandTrackingStuff(infoPool.ratingCalculator) { onlineSince = DateTime.Now };
                                     //infoPool.playerInfo[i].chatCommandTrackingStuffThisGame = new ChatCommandTrackingStuff(infoPool.ratingCalculatorThisGame) { onlineSince = DateTime.Now };
+
+                                    
+                                    if (client.ClientInfo[i].GRedTeam.Equals("claudebot", StringComparison.InvariantCultureIgnoreCase))
+                                    {
+                                        serverWindow.addToLog($"^3Client {i} detected as Claudebot: {client.ClientInfo[i].Name}");
+                                        client?.SetClientAsBot(i,true);
+                                    }
                                 }
                                 else
                                 {
@@ -5750,7 +5757,9 @@ namespace JKWatcher
                             infoPool.playerInfo[i].session.clientNum = client.ClientInfo[i].ClientNum;
                             infoPool.playerInfo[i].session.confirmedBot = client.ClientInfo[i].IsBotBySkill; // client.ClientInfo[i].BotSkill > (this.SaberModDetected ? 0.1f : -0.5f); // Checking for -1 basically but it's float so be safe. Also, if saber mod is detected, it must be > 0 because sabermod gives EVERY player skill 0 even if not bot.
                             infoPool.playerInfo[i].session.tasClient = client.ClientInfo[i].TASClient;
-                        }
+                            infoPool.playerInfo[i].session.GRedTeam = client.ClientInfo[i].GRedTeam;
+                            infoPool.playerInfo[i].session.isClaudeBot = client.ClientInfo[i].GRedTeam.Equals("claudebot", StringComparison.InvariantCultureIgnoreCase);
+                         }
 
                         // To track rating of ppl who disco. TODO add more than just name to this.
                         if (client.ClientInfo[i].InfoValid && client.ClientInfo[i].Name != null)
@@ -7735,7 +7744,7 @@ namespace JKWatcher
                     if (infoPool.playerInfo[clientNum].team != Team.Spectator)
                     {
                         anyPlayersActive = true;
-                        if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].confirmedBot && (score.ping != 0 || score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
+                        if (!infoPool.playerInfo[clientNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[clientNum].isClaudeBot && !infoPool.playerInfo[clientNum].confirmedBot && (score.ping != 0 || score.pingUpdatesSinceLastNonZeroPing < 4)) // Be more safe. Anyone could have ping 0 by freak accident in theory.
                         {
                             anyNonBotPlayerActive = true;
                         }

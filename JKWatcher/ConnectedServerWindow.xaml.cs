@@ -953,7 +953,7 @@ namespace JKWatcher
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
                     // require a lot of pingUpdatesSinceLastNonZeroPing here since disconnecting is a more drastic step compared to choosing who to follow or displaying playercount
-                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && (pi.scoreAll.ping != 0 || pi.scoreAll.pingUpdatesSinceLastNonZeroPing < 40) && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
+                    if (pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !pi.isClaudeBot && (pi.scoreAll.ping != 0 || pi.scoreAll.pingUpdatesSinceLastNonZeroPing < 40) && !myClientNums.Contains(pi.clientNum)) activeClientCount++;
                 }
             }
 
@@ -1880,7 +1880,7 @@ namespace JKWatcher
                 int[] myClientNums = this.getJKWatcherClientNums();
                 foreach (PlayerInfo pi in infoPool.playerInfo)
                 {
-                    if(pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot &&  (pi.scoreAll.ping != 0 || pi.scoreAll.pingUpdatesSinceLastNonZeroPing < 4) && !myClientNums.Contains(pi.clientNum))
+                    if(pi.infoValid && !pi.confirmedBot && !pi.confirmedJKWatcherFightbot && !pi.isClaudeBot &&  (pi.scoreAll.ping != 0 || pi.scoreAll.pingUpdatesSinceLastNonZeroPing < 4) && !myClientNums.Contains(pi.clientNum))
                     {
                         truePlayerExcludingMyselfCount++;
                         if (!pi.confirmedAfk && pi.team != Team.Spectator)

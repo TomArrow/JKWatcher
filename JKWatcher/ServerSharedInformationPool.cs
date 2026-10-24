@@ -812,6 +812,8 @@ namespace JKWatcher
         public int tasClient { get; set; } = 0;
         public bool confirmedJKWatcherFightbot { get; set; } = false;
         public string model { get; set; }
+        public string GRedTeam { get; set; }
+        public bool isClaudeBot { get; set; }
 		public TommyTernalPlayerMode TTPlayerMode { get; set; } //TommyTernal player mode
 		public TommyTernalPlayerModeTeam TTPlayerModeTeam { get; set; } //TommyTernal player mode team
     }
@@ -891,6 +893,8 @@ namespace JKWatcher
         public PlayerScore currentScore => this.chatCommandTrackingStuff.lastScoreWasSpectating ? this.chatCommandTrackingStuff.spectatingScore: this.chatCommandTrackingStuff.score;
         public bool confirmedBot => this.session.confirmedBot;
         public int tasClient => this.session.tasClient;
+        public bool isClaudeBot => this.session.isClaudeBot;
+        public string GRedTeam => this.session.GRedTeam;
         public bool confirmedJKWatcherFightbot => this.session.confirmedJKWatcherFightbot;
 
         public DelayedStatusWarner pingWarnerWeird = new DelayedStatusWarner(); // for nwh where 999 doesnt register anymore due to antilag

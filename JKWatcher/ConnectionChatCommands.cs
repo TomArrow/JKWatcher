@@ -786,7 +786,7 @@ namespace JKWatcher
                     string myBasePlayerNameNoSpecialChars = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(myBasePlayerName, "");
                     string myBasePlayerNameNoSpecialCharsCleanedUp = myBasePlayerName == null ? null : playerNameSpecialCharsExceptRoofRegex.Replace(Q3ColorFormatter.cleanupString(myBasePlayerName, infoPool.hexSupport), "");
 
-                    bool notifyIfMention = !pm.commandComesFromJKWatcher && !infoPool.playerInfo[pm.playerNum].confirmedBot && !infoPool.playerInfo[pm.playerNum].confirmedJKWatcherFightbot; // dont flash taskbar icon if its only some phrase from a bot or some response by us
+                    bool notifyIfMention = !pm.commandComesFromJKWatcher && !infoPool.playerInfo[pm.playerNum].confirmedBot && !infoPool.playerInfo[pm.playerNum].confirmedJKWatcherFightbot && !infoPool.playerInfo[pm.playerNum].isClaudeBot; // dont flash taskbar icon if its only some phrase from a bot or some response by us
                     if (myName != null && (pm.message.Contains(myName, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(Q3ColorFormatter.cleanupString(myName, infoPool.hexSupport), StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialChars, StringComparison.InvariantCultureIgnoreCase) || pm.message.Contains(myNameNoSpecialCharsCleanedUp, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         serverWindow.addToLog($"CHAT MESSAGE POSSIBLY MENTIONS ME: {commandEventArgs.Command.Argv(1)}", false, 0, 0, notifyIfMention ? ConnectedServerWindow.MentionLevel.MentionNotify : ConnectedServerWindow.MentionLevel.Mention);

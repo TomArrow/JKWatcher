@@ -602,7 +602,7 @@ namespace JKWatcher
 						if (infoPool.fightBotTargetingMode == FightBotTargetingMode.OPTIN && !pi.chatCommandTrackingStuff.wantsBotFight) continue;
 						if (pi.TTPlayerMode != myself.TTPlayerMode) continue;
 						if (this.currentGameType >= GameType.Team && pi.team == myself.team || myself.TTPlayerMode == TommyTernalPlayerMode.Ironman && pi.TTPlayerModeTeam == myself.TTPlayerModeTeam) {
-							if (!pi.confirmedJKWatcherFightbot && !pi.confirmedBot && curdistance < closestFriendDistance && !playerIsAfk && (DateTime.Now - lastPlayerDoesntBoost[pi.clientNum]).TotalSeconds > 120)
+							if (!pi.confirmedJKWatcherFightbot && !pi.confirmedBot && !pi.isClaudeBot && curdistance < closestFriendDistance && !playerIsAfk && (DateTime.Now - lastPlayerDoesntBoost[pi.clientNum]).TotalSeconds > 120)
 							{
 								// this guy could maybe boost us
 								closestFriendDistance = curdistance;
